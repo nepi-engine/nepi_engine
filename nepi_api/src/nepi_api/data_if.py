@@ -308,7 +308,7 @@ class NavPoseIF:
                 'srv': NavPoseCapabilitiesQuery,
                 'req': NavPoseCapabilitiesQueryRequest(),
                 'resp': NavPoseCapabilitiesQueryResponse(),
-                'callback': self._provide_capabilities
+                'callback': self._provideCapabilities
             }
         }
 
@@ -493,9 +493,22 @@ class NavPoseIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of the interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or a timeout elapses.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready within the timeout, False otherwise.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -508,32 +521,72 @@ class NavPoseIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace for this nav pose interface.
+
+        Returns:
+            str: The fully-qualified ROS namespace.
+        """
         return self.namespace
-    
+
     def get_frame_nav_options(self):
+        """Return the list of supported navigation frame identifiers.
+
+        Returns:
+            list: Supported nav frame strings (e.g. 'ENU', 'NED').
+        """
         return self.NAVPOSE_NAV_FRAME_OPTIONS
 
     def get_frame_altitude_options(self):
+        """Return the list of supported altitude frame identifiers.
+
+        Returns:
+            list: Supported altitude frame strings (e.g. 'WGS84', 'AMSL').
+        """
         return self.NAVPOSE_ALT_FRAME_OPTIONS
 
     def get_frame_depth_options(self):
+        """Return the list of supported depth frame identifiers.
+
+        Returns:
+            list: Supported depth frame strings (e.g. 'DEPTH').
+        """
         return self.NAVPOSE_DEPTH_FRAME_OPTIONS
 
     def get_data_product(self):
+        """Return the data product name for this interface.
+
+        Returns:
+            str: The data product identifier string (e.g. 'navpose').
+        """
         return self.data_product
 
     def get_blank_navpose_dict(self):
+        """Return a deep copy of the blank nav pose dictionary template.
+
+        Returns:
+            dict: A blank nav pose dictionary with all fields at default values.
+        """
         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return blank_navpose_dict
-    
+
     def get_navpose_dict(self):
+        """Return a deep copy of the most recently published nav pose dictionary.
+
+        Returns:
+            dict: The last nav pose data dictionary.
+        """
         navpose_dict =  copy.deepcopy(self.navpose_dict)
         return navpose_dict
 
     def get_status_dict(self):
+        """Return the current status message converted to a plain dictionary.
+
+        Returns:
+            dict: Status fields as a dictionary, or None if no status message exists.
+        """
         status_dict = None
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
@@ -541,15 +594,38 @@ class NavPoseIF:
 
 
     def needs_data_check(self):
+        """Return whether downstream consumers currently need nav pose data.
+
+        Returns:
+            bool: True if there are active subscribers or save/snapshot requests.
+        """
         needs_data = copy.deepcopy(self.needs_data)
         # self.msg_if.pub_debug("Returning: " + self.namespace + " " "needs data: " + str(needs_data), log_name_list = self.log_name_list, throttle_s = 5.0)
         return needs_data
 
     # Update System Status
-    def publish_navpose(self,navpose_dict, 
-                        timestamp = None, 
+    def publish_navpose(self,navpose_dict,
+                        timestamp = None,
                         transform = None,
-                        ):      
+                        ):
+        """Publish a nav pose data dictionary to all configured ROS topics.
+
+        Converts the input dictionary to NEPI standard frames (ENU / WGS84),
+        publishes individual component messages (location, heading, orientation,
+        position, altitude, depth, pan/tilt) if enabled, publishes the combined
+        NavPose message, optionally applies a 3-D transform, and triggers data
+        saving if a SaveDataIF is registered.
+
+        Args:
+            navpose_dict (dict): Nav pose data following the NEPI navpose dict schema.
+            timestamp (float or rospy.Time, optional): Acquisition timestamp in seconds
+                or as a ROS Time object. Defaults to current time if None.
+            transform (object, optional): Transform to apply to the nav pose after
+                publishing individual components. Defaults to None.
+
+        Returns:
+            dict: The processed nav pose dictionary in NEPI standard frames.
+        """
         np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         if navpose_dict is None and self.status_msg is not None:
             return np_dict
@@ -722,15 +798,17 @@ class NavPoseIF:
         return np_dict
 
     def unregister_pubs(self):
+        """Unregister all ROS publishers managed by this interface."""
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
-
     def register_pubs(self):
+        """Re-register all ROS publishers managed by this interface."""
         if self.node_if is not None:
             self.node_if.register_pubs()
 
-    def unsubsribe(self):
+    def unsubscribe(self):
+        """Shut down this interface, unregister all ROS resources, and clear state."""
         self.ready = False
         if self.node_if is not None:
             self.node_if.unregister_class()
@@ -738,8 +816,8 @@ class NavPoseIF:
         self.namespace = None
         self.status_msg = NavPoseStatus()
 
-
     def publish_status(self):
+        """Compute the current average publish rate and publish the status message."""
         if self.node_if is not None and self.status_msg is not None:
 
             avg_rate = 0
@@ -748,12 +826,15 @@ class NavPoseIF:
                 if avg_time > .01:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
-           
+
             self.node_if.publish_pub('status_pub', self.status_msg)
 
-
-
     def init(self, do_updates = False):
+        """Initialize or re-initialize interface state and publish status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+        """
         if self.node_if is not None:
             pass
         if do_updates == True:
@@ -761,11 +842,13 @@ class NavPoseIF:
         self.publish_status()
 
     def reset(self):
+        """Reset the interface to its initialized state."""
         if self.node_if is not None:
             pass
         self.init()
 
     def factory_reset(self):
+        """Reset the interface to factory defaults."""
         if self.node_if is not None:
             pass
         self.init()
@@ -800,7 +883,7 @@ class NavPoseIF:
     def _publishStatusCb(self,timer):
         self.publish_status()
 
-    def _provide_capabilities(self, _):
+    def _provideCapabilities(self, _):
         return self.caps_report
 
 
@@ -1258,7 +1341,7 @@ class BaseImageIF:
                 'srv': ImageCapabilitiesQuery,
                 'req': ImageCapabilitiesQueryRequest(),
                 'resp': ImageCapabilitiesQueryResponse(),
-                'callback': self._provide_capabilities
+                'callback': self._provideCapabilities
             }
         }
 
@@ -1683,9 +1766,22 @@ class BaseImageIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of the image interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or a timeout elapses.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready within the timeout, False otherwise.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1698,12 +1794,30 @@ class BaseImageIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace for this image interface.
+
+        Returns:
+            str: The fully-qualified ROS namespace.
+        """
         return self.namespace
 
     def add_pub_namespace(self,namespace):
+        """Register an additional image publisher under the given namespace.
+
+        Creates a new image publisher and a companion status publisher under
+        a sub-namespace derived from the supplied namespace and the data product
+        name. No-ops if the namespace is already registered or equals the
+        primary namespace.
+
+        Args:
+            namespace (str): The base ROS namespace to add a publisher for.
+
+        Returns:
+            bool: True if the publisher was successfully added, False otherwise.
+        """
         success = False
         if namespace is None:
             return success
@@ -1736,6 +1850,17 @@ class BaseImageIF:
         return success
 
     def remove_pub_namespace(self,namespace):
+        """Unregister an additional image publisher that was previously added.
+
+        Removes the image, status, and nav publishers associated with the given
+        namespace. Cannot remove the primary namespace.
+
+        Args:
+            namespace (str): The base ROS namespace to remove.
+
+        Returns:
+            bool: True if the publisher was successfully removed, False otherwise.
+        """
         success = False
         if namespace is None:
             return success
@@ -1757,10 +1882,21 @@ class BaseImageIF:
 
 
     def get_blank_navpose_dict(self):
+        """Return a deep copy of the blank nav pose dictionary template.
+
+        Returns:
+            dict: A blank nav pose dictionary with all fields at default values.
+        """
         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return blank_navpose_dict
-    
+
     def get_navpose_dict(self):
+        """Return the most recent nav pose dictionary from the associated NavPoseIF.
+
+        Returns:
+            dict: The current nav pose data dictionary, or a blank dict if no
+            NavPoseIF is attached.
+        """
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
@@ -1768,25 +1904,55 @@ class BaseImageIF:
         return navpose_dict
 
     def get_data_source_description(self):
+        """Return the human-readable data source description string.
+
+        Returns:
+            str: Description of the data source (e.g. 'imaging_sensor').
+        """
         return self.data_source_description
 
     def get_data_product(self):
+        """Return the data product name for this interface.
+
+        Returns:
+            str: The data product identifier string (e.g. 'color_image').
+        """
         return self.data_product
 
     def get_status_dict(self):
+        """Return the current status message converted to a plain dictionary.
+
+        Returns:
+            dict: Status fields as a dictionary, or None if no status message exists.
+        """
         status_dict = None
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
-
     def needs_data_check(self):
+        """Return whether downstream consumers currently need image data.
+
+        Returns:
+            bool: True if there are active subscribers or save/snapshot requests.
+        """
         return self.needs_data
 
     def get_image_callback_options(self):
+        """Return the list of supported image callback names.
+
+        Returns:
+            list: Callback name strings registered in the callback dictionary.
+        """
         return list(self.callback_dict.keys())
-    
+
     def set_image_callback(self,name,function):
+        """Register a callable for the named image callback slot.
+
+        Args:
+            name (str): Name of the callback slot (must be in the callback dict).
+            function (callable): Function to call when the event fires.
+        """
         self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
         if name in self.callback_dict.keys():
             self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
@@ -1794,19 +1960,36 @@ class BaseImageIF:
         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
 
     def clear_image_callback(self,name):
+        """Clear (un-register) the callable for the named image callback slot.
+
+        Args:
+            name (str): Name of the callback slot to clear.
+        """
         self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
         if name in self.callback_dict.keys():
-            self.callback_dict[name] = None   
-
+            self.callback_dict[name] = None
 
     def get_navpose_callback_options(self):
+        """Return the list of supported nav pose callback names.
+
+        Returns:
+            list: Callback name strings from the attached NavPoseIF, or an empty
+            list if no NavPoseIF is attached.
+        """
         if self.navpose_if is not None:
             return self.navpose_if.get_navpose_callback_options()
         else:
-            return [] 
-    
-    
+            return []
+
     def set_navpose_callback(self,name,function):
+        """Register a callable for the named nav pose callback slot.
+
+        Delegates to the attached NavPoseIF if one is present.
+
+        Args:
+            name (str): Name of the nav pose callback slot.
+            function (callable): Function to call when the event fires.
+        """
         if self.navpose_if is not None:
             self.msg_if.pub_warn("Got set navpose callback for: " + str(name), log_name_list = self.log_name_list)
             if name in self.navpose_if.get_image_callback_options():
@@ -1815,17 +1998,35 @@ class BaseImageIF:
         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
 
     def clear_navpose_callback(self,name):
+        """Clear the callable for the named nav pose callback slot.
+
+        Delegates to the attached NavPoseIF if one is present.
+
+        Args:
+            name (str): Name of the nav pose callback slot to clear.
+        """
         if self.navpose_if is not None:
             self.msg_if.pub_warn("Got clear navpose callback for: " + str(name), log_name_list = self.log_name_list)
             if name in self.navpose_if.get_image_callback_options():
-               self.navpose_if.callback_dict[name] = None 
+               self.navpose_if.callback_dict[name] = None
 
     def process_cv2_img(self, cv2_img):
+        """Apply any image processing pipeline to a raw OpenCV image.
+
+        Base implementation is a pass-through. Subclasses override this to apply
+        resolution, orientation, filter, and adjustment controls.
+
+        Args:
+            cv2_img (numpy.ndarray): Input OpenCV image array.
+
+        Returns:
+            numpy.ndarray: The processed image (same object in the base class).
+        """
         return cv2_img
 
-    def publish_cv2_img(self, cv2_img, 
-                        encoding = "bgr8", 
-                        timestamp = None, 
+    def publish_cv2_img(self, cv2_img,
+                        encoding = "bgr8",
+                        timestamp = None,
                         width_deg = 100,
                         height_deg = 70,
                         min_range_m = 0,
@@ -1835,6 +2036,40 @@ class BaseImageIF:
                         pub_twice = False,
                         add_pubs = []
                         ):
+        """Process and publish an OpenCV image to all configured ROS topics.
+
+        Applies the image processing pipeline (if process_data is True), renders
+        configured text overlays, publishes the result as a ROS Image message,
+        optionally publishes to additional namespaces, saves to disk if a
+        SaveDataIF is registered, and updates publication statistics.
+
+        Args:
+            cv2_img (numpy.ndarray): OpenCV image to publish.
+            encoding (str, optional): ROS image encoding string. Defaults to 'bgr8'.
+            timestamp (float or rospy.Time, optional): Acquisition timestamp.
+                Defaults to current time if None.
+            width_deg (float, optional): Horizontal field of view in degrees.
+                Defaults to 100.
+            height_deg (float, optional): Vertical field of view in degrees.
+                Defaults to 70.
+            min_range_m (float, optional): Minimum sensor range in meters.
+                Defaults to 0.
+            max_range_m (float, optional): Maximum sensor range in meters.
+                Defaults to 0.
+            add_overlay_list (list, optional): Additional text strings to overlay
+                on the image. Defaults to [].
+            process_data (bool, optional): Whether to run process_cv2_img before
+                publishing. Defaults to True.
+            pub_twice (bool, optional): Publish the image a second time after a
+                brief sleep to work around subscriber latching issues.
+                Defaults to False.
+            add_pubs (list, optional): Additional namespace strings to publish to.
+                Defaults to [].
+
+        Returns:
+            numpy.ndarray: The processed image, or the original image if processing
+            was skipped or an error occurred.
+        """
         
 
         if self.navpose_if is not None:
@@ -2018,6 +2253,17 @@ class BaseImageIF:
         
 
     def publish_msg_img(self, msg_text, timestamp = None, navpose_frame = 'None'):
+        """Publish a text message rendered onto the blank image template.
+
+        Renders the message string over the cached blank image and publishes it
+        as a ROS Image message on the primary data publisher.
+
+        Args:
+            msg_text (str): Text to render on the image.
+            timestamp (float, optional): Timestamp in seconds. Defaults to current time.
+            navpose_frame (str, optional): TF frame ID for the image header.
+                Defaults to 'None'.
+        """
         cv2_img = nepi_img.overlay_text_autoscale(self.blank_img, msg_text)
 
         if timestamp == None:
@@ -2034,16 +2280,17 @@ class BaseImageIF:
 
 
     def unregister_pubs(self):
+        """Unregister all ROS publishers managed by this image interface."""
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
-
     def register_pubs(self):
+        """Re-register all ROS publishers managed by this image interface."""
         if self.node_if is not None:
             self.node_if.register_pubs()
 
-
     def unregister(self):
+        """Shut down this interface and release all ROS resources."""
         self.ready = False
         self.node_if.unregister_class()
         nepi_sdk.wait()
@@ -2056,67 +2303,94 @@ class BaseImageIF:
     # Filter Functions
 
     def set_auto_adjust_enable(self, enabled):
+        """Enable or disable automatic image adjustment.
+
+        Args:
+            enabled (bool): True to enable auto-adjust, False to disable.
+        """
         if enabled:
             self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
         else:
             self.msg_if.pub_info("Disabling Auto Adjust", log_name_list = self.log_name_list)
         self.controls_dict['auto_adjust_enabled'] = enabled
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('auto_adjust_enabled', enabled)
 
-
     def set_auto_adjust_ratio(self, ratio):
+        """Set the auto-adjust strength ratio, clamped to [0.0, 1.0].
+
+        Args:
+            ratio (float): Auto-adjust strength where 0.0 is no adjustment and
+                1.0 is maximum adjustment.
+        """
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
         self.controls_dict['auto_adjust_ratio'] = ratio
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('auto_adjust_ratio', ratio)
 
     def set_brightness_ratio(self, ratio):
+        """Set the image brightness ratio, clamped to [0.0, 1.0].
+
+        Args:
+            ratio (float): Brightness level where 0.0 is darkest and 1.0 is brightest.
+        """
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
         self.controls_dict['brightness_ratio'] = ratio
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('brightness_ratio', ratio)
 
-
     def set_contrast_ratio(self, ratio):
+        """Set the image contrast ratio, clamped to [0.0, 1.0].
+
+        Args:
+            ratio (float): Contrast level where 0.0 is minimum and 1.0 is maximum.
+        """
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
         self.controls_dict['contrast_ratio'] = ratio
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('contrast_ratio', ratio)
-        
-
 
     def set_threshold_ratio(self, ratio):
+        """Set the image threshold (sharpness) ratio, clamped to [0.0, 1.0].
+
+        Args:
+            ratio (float): Sharpness level where 0.0 is no sharpening and
+                1.0 is maximum sharpening.
+        """
         if ratio < 0:
             ratio = 0
         if ratio > 1.0:
             ratio = 1.0
         self.controls_dict['threshold_ratio'] = ratio
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('threshold_ratio', ratio)
 
-
-
     def set_filter_enable(self,name, enabled):
+        """Enable or disable a named image filter.
+
+        Args:
+            name (str): Name of the filter as registered in the filter dictionary.
+            enabled (bool): True to enable the filter, False to disable it.
+        """
         if self.filter_dict is not None:
             if name in self.filter_dict.keys():
                 was_enabled = self.filter_dict[name]['enabled']
@@ -2126,13 +2400,19 @@ class BaseImageIF:
                     else:
                         self.msg_if.pub_info("Disabling Filter: " + name, log_name_list = self.log_name_list)
                     self.filter_dict[name]['enabled'] = enabled
-                    self.publish_status()  
+                    self.publish_status()
                     self.needs_update()
                     if self.node_if is not None:
                         self.node_if.set_param('filter_dict', self.filter_dict)
 
-
     def set_filter_ratio(self,name, ratio):
+        """Set the intensity ratio for a named image filter, clamped to [0.0, 1.0].
+
+        Args:
+            name (str): Name of the filter as registered in the filter dictionary.
+            ratio (float): Filter intensity where 0.0 is no effect and 1.0 is
+                maximum effect.
+        """
         if self.filter_dict is not None:
             if ratio < 0:
                 ratio = 0
@@ -2141,7 +2421,7 @@ class BaseImageIF:
             if name in self.filter_dict.keys():
                 self.msg_if.pub_info("Setting Filter Ratio: " + name + " : " + str(ratio), log_name_list = self.log_name_list)
                 self.filter_dict[name]['ratio'] = ratio
-                self.publish_status() 
+                self.publish_status()
                 self.needs_update()
                 self.node_if.set_param('filter_dict', self.filter_dict)
 
@@ -2149,34 +2429,55 @@ class BaseImageIF:
     # Res and Orientation Functions
 
     def set_resolution_ratio(self, ratio):
+        """Set the output image resolution ratio, clamped to [0.2, 1.0].
+
+        Args:
+            ratio (float): Fraction of full resolution, where 1.0 is full resolution
+                and 0.2 is the minimum allowed.
+        """
         if (ratio < 0.2):
             ratio = 0.2
         if (ratio > 1.0):
             ratio = 1.0
         self.controls_dict['resolution_ratio'] = ratio
-        self.publish_status() 
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('resolution_ratio', ratio)
 
     def set_rotate_2d_deg(self, deg):
+        """Set the 2-D rotation angle, rounded to the nearest integer degree.
+
+        Args:
+            deg (float): Rotation angle in degrees.
+        """
         deg_int = int(round(deg,0))
         self.controls_dict['rotate_2d_deg'] = deg_int
-        self.publish_status() 
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('rotate_2d_deg', deg_int)
 
     def set_flip_horz(self, enabled):
+        """Enable or disable horizontal image flip.
+
+        Args:
+            enabled (bool): True to flip horizontally, False to disable.
+        """
         self.controls_dict['flip_horz'] = enabled
-        self.publish_status() 
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('flip_horz', enabled)
 
     def set_flip_vert(self, enabled):
+        """Enable or disable vertical image flip.
+
+        Args:
+            enabled (bool): True to flip vertically, False to disable.
+        """
         self.controls_dict['flip_vert'] = enabled
-        self.publish_status() 
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('flip_vert', enabled)
@@ -2185,6 +2486,17 @@ class BaseImageIF:
     # Render Functions
 
     def set_range_ratios(self, start_ratio, stop_ratio):
+        """Set the normalized depth range window for image rendering.
+
+        Both ratios must be in [0, 1] and start_ratio must be less than or
+        equal to stop_ratio.
+
+        Args:
+            start_ratio (float): Start of the displayed depth range as a fraction
+                of the total sensor range.
+            stop_ratio (float): End of the displayed depth range as a fraction of
+                the total sensor range.
+        """
         if (start_ratio < 0 or stop_ratio > 1 or stop_ratio < start_ratio):
             self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
             self.publishStatus(do_updates=False) # No change
@@ -2193,15 +2505,22 @@ class BaseImageIF:
         self.controls_dict['start_range_ratio'] = start_ratio
         self.controls_dict['stop_range_ratio'] = stop_ratio
 
-        self.publish_status() 
+        self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('start_range_ratio', start_ratio)
             self.node_if.set_param('stop_range_ratio', stop_ratio)
-      
 
 
     def set_zoom_ratio(self, ratio):
+        """Set the zoom level, recalculating the image crop window accordingly.
+
+        A zoom of 0.0 shows the full image and 1.0 crops to the maximum zoom
+        centered on the current pan position.
+
+        Args:
+            ratio (float): Zoom level in [0.0, 1.0].
+        """
         self.drag_pixel = None
         self.drag_window = None
 
@@ -2249,7 +2568,16 @@ class BaseImageIF:
 
 
     def set_pixel(self, pixel, color_bgr = [0,0,0,0]):
+        """Center the image crop window on a selected pixel coordinate.
 
+        Recenters the current zoom window so that the given pixel becomes the
+        center of the view, preserving the existing window size.
+
+        Args:
+            pixel (list): [x, y] pixel coordinates in the raw image space.
+            color_bgr (list, optional): BGRA color of the selected pixel.
+                Defaults to [0, 0, 0, 0].
+        """
         self.drag_pixel = None
         self.drag_window = None
 
@@ -2291,7 +2619,15 @@ class BaseImageIF:
 
 
     def set_x_ratio(self, ratio):
+        """Pan the image crop window horizontally.
 
+        Moves the horizontal center of the crop window to the position
+        corresponding to the given ratio within the pannable range.
+
+        Args:
+            ratio (float): Horizontal pan position in [0.0, 1.0], where 0.0 is
+                full left and 1.0 is full right.
+        """
         self.drag_pixel = None
         self.drag_window = None
 
@@ -2332,8 +2668,16 @@ class BaseImageIF:
         self.publish_status() 
         self.needs_update()
 
-    def set_y_ratio(self, ratio): 
+    def set_y_ratio(self, ratio):
+        """Pan the image crop window vertically.
 
+        Moves the vertical center of the crop window to the position
+        corresponding to the given ratio within the pannable range.
+
+        Args:
+            ratio (float): Vertical pan position in [0.0, 1.0], where 0.0 is
+                top and 1.0 is bottom.
+        """
         self.drag_pixel = None
         self.drag_window = None
 
@@ -2376,7 +2720,14 @@ class BaseImageIF:
 
 
     def set_window(self, window):
+        """Set the image crop window from absolute pixel coordinates.
 
+        Converts the pixel-space window into normalized ratio coordinates and
+        updates the crop window. Requires the raw image dimensions to be known.
+
+        Args:
+            window (list): [x_min, x_max, y_min, y_max] in raw image pixel space.
+        """
         self.drag_pixel = None
         self.drag_window = None
  
@@ -2425,20 +2776,30 @@ class BaseImageIF:
 
 
 
-    def update_window_ratios(self): 
+    def update_window_ratios(self):
+        """Update the vertical pan ratio and refresh status and update callbacks."""
         self.y_ratio = nepi_utils.check_ratio(ratio)
-        self.publish_status() 
+        self.publish_status()
         self.needs_update()
 
-
     def set_rotate_3d_ratio(self, ratio):
+        """Set the 3-D rotation ratio, clamped to a valid ratio range.
+
+        Args:
+            ratio (float): Rotation position in [0.0, 1.0].
+        """
         self.controls_dict['rotate_3d_ratio'] = nepi_utils.check_ratio(ratio)
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
 
     def set_tilt_3d_ratio(self, ratio):
+        """Set the 3-D tilt ratio, clamped to a valid ratio range.
+
+        Args:
+            ratio (float): Tilt position in [0.0, 1.0].
+        """
         self.controls_dict['tilt_3d_ratio'] = nepi_utils.check_ratio(ratio)
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
 
 
@@ -2447,62 +2808,93 @@ class BaseImageIF:
     # Overlay Functions
 
     def set_overlay_size_ratio(self, ratio):
+        """Set the relative size of text overlays on the image.
+
+        Args:
+            ratio (float): Text size ratio in [0.0, 1.0].
+        """
         self.overlay_size_ratio = nepi_utils.check_ratio(ratio)
-        self.publish_status() 
+        self.publish_status()
         self.needs_update()
 
-
-
     def set_overlay_image_name(self,enabled):
+        """Enable or disable the image name text overlay.
+
+        Args:
+            enabled (bool): True to show the image source name, False to hide it.
+        """
         self.overlays_dict['overlay_img_name'] = enabled
         self.publish_status()
         self.needs_update()
         self.node_if.set_param('overlay_img_name', enabled)
 
     def set_overlay_date_time(self,enabled):
+        """Enable or disable the date/time text overlay.
+
+        Args:
+            enabled (bool): True to show the timestamp, False to hide it.
+        """
         self.overlays_dict['overlay_date_time'] = enabled
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         self.node_if.set_param('overlay_date_time', enabled)
 
     def set_overlay_nav(self,enabled):
+        """Enable or disable the GPS navigation (lat/lon/heading) text overlay.
+
+        Args:
+            enabled (bool): True to show navigation data, False to hide it.
+        """
         self.overlays_dict['overlay_nav'] = enabled
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         self.node_if.set_param('overlay_nav', enabled)
 
     def set_overlay_pose(self,enabled):
+        """Enable or disable the roll/pitch/yaw pose text overlay.
+
+        Args:
+            enabled (bool): True to show pose data, False to hide it.
+        """
         self.overlays_dict['overlay_pose'] = enabled
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         self.node_if.set_param('overlay_pose', enabled)
 
-
     def set_overlay_list(self,overlay_list):
+        """Replace the additional text overlay list with the provided list.
+
+        Args:
+            overlay_list (list): List of text strings to display as overlays.
+        """
         self.overlays_dict['add_overlay_list'] = overlay_list
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         self.node_if.set_param('add_overlay_list', overlay_list)
 
-
     def set_overlay_text(self,overlay_text):
+        """Append a text string to the additional overlay list.
+
+        Args:
+            overlay_text (str): Text string to add to the overlay list.
+        """
         overlay_list = self.overlays_dict['add_overlay_list']
         overlay_list.append(overlay_text)
         self.overlays_dict['add_overlay_list'] = overlay_list
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         self.node_if.set_param('add_overlay_list', overlay_list)
 
-
     def clear_overlay_list(self):
+        """Clear all entries from the additional text overlay list."""
         self.overlays_dict['add_overlay_list'] = []
-        self.publish_status()  
+        self.publish_status()
         self.needs_update()
         self.node_if.set_param('add_overlay_list', [])
 
 
     def reset_filters(self):
-        
+        """Reset all filter and adjustment controls to factory defaults."""
         # First reset controls to init dict to capture non param managed settings
         self.controls_dict = self.init_controls_dict
 
@@ -2527,6 +2919,7 @@ class BaseImageIF:
 
 
     def reset_overlays(self):
+        """Reset all overlay settings to factory defaults."""
         self.node_if.factory_reset_param('overlay_size_ratio')
         self.node_if.factory_reset_param('overlay_img_name')
         self.node_if.factory_reset_param('overlay_date_time')
@@ -2545,7 +2938,7 @@ class BaseImageIF:
 
 
     def reset_settings(self):
-        
+        """Reset resolution, rotation, and flip settings to factory defaults."""
         # First reset controls to init dict to capture non param managed settings
         self.controls_dict = self.init_controls_dict
 
@@ -2568,6 +2961,7 @@ class BaseImageIF:
         self.needs_update()
 
     def reset_renders(self):
+        """Reset all render controls (zoom, pan, window, range, 3-D rotation) to defaults."""
         self.msg_if.pub_warn("Reseting render values", log_name_list = self.log_name_list)
         self.drag_pixel = None
         self.drag_window = None
@@ -2600,8 +2994,9 @@ class BaseImageIF:
 
 
     def publish_status(self):
+        """Populate the status message from current controls and publish it."""
         if self.node_if is not None and self.status_msg is not None:
-            
+
             self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
             self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
             self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
@@ -2661,6 +3056,11 @@ class BaseImageIF:
 
 
     def init(self, do_updates = False):
+        """Initialize or re-initialize controls from the parameter server and publish status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+        """
         if self.node_if is not None:
             self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
             self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
@@ -2704,11 +3104,13 @@ class BaseImageIF:
         self.publish_status()
 
     def reset(self):
+        """Reset the image interface to its initialized state."""
         if self.node_if is not None:
             pass
         self.init()
 
     def factory_reset(self):
+        """Reset the image interface to factory defaults."""
         if self.node_if is not None:
             pass
         self.init()
@@ -2725,11 +3127,11 @@ class BaseImageIF:
     def _factoryResetCb(self, do_updates = True):
         self.init(do_updates = do_updates)
 
-    def _provide_capabilities(self, _):
+    def _provideCapabilities(self, _):
         return self.caps_report
-    
+
     def _updaterCb(self, timer):
-        
+
         # Check for other topics
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
@@ -2767,6 +3169,11 @@ class BaseImageIF:
             self.node_if.save_config()
 
     def needs_update(self):
+        """Signal that a parameter change requires a new frame to be captured or processed.
+
+        Sets the save-config flag and fires the registered needs_update_callback
+        if one has been set.
+        """
         self.save_config = True
         if self.callback_dict['needs_update_callback'] is not None:
             self.callback_dict['needs_update_callback']()
@@ -2775,8 +3182,8 @@ class BaseImageIF:
         if min_m < 0:
             min_m = 0
         if min_m <= max_m:
-          self.min_range_m = min_m  
-          self.max_range_m = max_m  
+          self.min_range_m = min_m
+          self.max_range_m = max_m
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
@@ -3145,6 +3552,14 @@ class ImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
+        """Pass the image through unchanged (no processing applied).
+
+        Args:
+            cv2_img (numpy.ndarray): Input OpenCV image array.
+
+        Returns:
+            numpy.ndarray: The unmodified input image.
+        """
         return cv2_img
 
 
@@ -3264,14 +3679,25 @@ class ColorImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
+        """Apply the full color image processing pipeline to an OpenCV image.
 
+        Applies, in order: resolution scaling, 2-D rotation and flips, crop
+        window, drag-selection overlay, user-defined filters, and then either
+        manual brightness/contrast/sharpness adjustments or auto-adjustment.
+
+        Args:
+            cv2_img (numpy.ndarray): Input BGR OpenCV image array.
+
+        Returns:
+            numpy.ndarray: The fully-processed BGR image.
+        """
 
         ##########
         # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
         # cv2_shape = cv2_img.shape
-        # img_width1 = cv2_shape[1] 
-        # img_height1 = cv2_shape[0] 
+        # img_width1 = cv2_shape[1]
+        # img_height1 = cv2_shape[0]
         if res_ratio < 0.9:
             [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
 
@@ -3284,19 +3710,19 @@ class ColorImageIF(BaseImageIF):
         flipv = self.controls_dict['flip_vert']
 
         if degrees != 0:
-           cv2_img = nepi_img.rotate_degrees(cv2_img,degrees) 
+           cv2_img = nepi_img.rotate_degrees(cv2_img,degrees)
 
         if fliph == True:
-            cv2_img = nepi_img.flip_horz(cv2_img) 
+            cv2_img = nepi_img.flip_horz(cv2_img)
 
         if flipv == True:
-            cv2_img = nepi_img.flip_vert(cv2_img) 
+            cv2_img = nepi_img.flip_vert(cv2_img)
 
 
         #####################
         cv2_shape = cv2_img.shape
-        img_width = cv2_shape[1] 
-        img_height = cv2_shape[0] 
+        img_width = cv2_shape[1]
+        img_height = cv2_shape[0]
         ratio = img_width / img_height
 
         #####################
@@ -3678,9 +4104,22 @@ class DepthMapIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of the depth map interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or a timeout elapses.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready within the timeout, False otherwise.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -3693,30 +4132,61 @@ class DepthMapIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace for this depth map interface.
+
+        Returns:
+            str: The fully-qualified ROS namespace.
+        """
         return self.namespace
-    
 
     def get_blank_navpose_dict(self):
+        """Return a deep copy of the blank nav pose dictionary template.
+
+        Returns:
+            dict: A blank nav pose dictionary with all fields at default values.
+        """
         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return blank_navpose_dict
-    
+
     def get_navpose_dict(self):
+        """Return the most recent nav pose dictionary from the associated NavPoseIF.
+
+        Returns:
+            dict: The current nav pose data dictionary, or a blank dict if no
+            NavPoseIF is attached.
+        """
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
             blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
-    
+
     def get_data_source_description(self):
+        """Return the human-readable data source description string.
+
+        Returns:
+            str: Description of the data source (e.g. 'depth_map_sensor').
+        """
         return self.data_source_description
 
     def get_depth_map_callback_options(self):
+        """Return the list of supported depth map callback names.
+
+        Returns:
+            list: Callback name strings registered in the callback dictionary.
+        """
         return list(self.callback_dict.keys())
-    
+
     def set_depth_map_callback(self,name,function):
+        """Register a callable for the named depth map callback slot.
+
+        Args:
+            name (str): Name of the callback slot (must be in the callback dict).
+            function (callable): Function to call when the event fires.
+        """
         self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
         if name in self.callback_dict.keys():
             self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
@@ -3724,18 +4194,34 @@ class DepthMapIF:
         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
 
     def clear_depth_map_callback(self,name):
+        """Clear (un-register) the callable for the named depth map callback slot.
+
+        Args:
+            name (str): Name of the callback slot to clear.
+        """
         self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
         if name in self.callback_dict.keys():
-            self.callback_dict[name] = None   
+            self.callback_dict[name] = None
 
     def get_image_callback_options(self):
+        """Return the list of supported image callback names from the image sub-interface.
+
+        Returns:
+            list: Callback name strings from the DepthMapImageIF, or an empty list
+            if no image interface is attached.
+        """
         if self.image_if is not None:
             return self.image_if.get_image_callback_options()
         else:
-            return [] 
-    
-    
+            return []
+
     def set_image_callback(self,name,function):
+        """Register a callable for a named callback slot in the image sub-interface.
+
+        Args:
+            name (str): Name of the image callback slot.
+            function (callable): Function to call when the event fires.
+        """
         if self.image_if is not None:
             self.msg_if.pub_warn("Got set image callback for: " + str(name), log_name_list = self.log_name_list)
             if name in self.image_if.get_image_callback_options():
@@ -3744,34 +4230,78 @@ class DepthMapIF:
         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
 
     def clear_image_callback(self,name):
+        """Clear the callable for a named callback slot in the image sub-interface.
+
+        Args:
+            name (str): Name of the image callback slot to clear.
+        """
         if self.image_if is not None:
             self.msg_if.pub_warn("Got clear image callback for: " + str(name), log_name_list = self.log_name_list)
             if name in self.image_if.get_image_callback_options():
-               self.image_if.callback_dict[name] = None 
-
+               self.image_if.callback_dict[name] = None
 
     def get_data_product(self):
+        """Return the data product name for this interface.
+
+        Returns:
+            str: The data product identifier string (e.g. 'depth_map').
+        """
         return self.data_product
 
     def get_status_dict(self):
+        """Return the current status message converted to a plain dictionary.
+
+        Returns:
+            dict: Status fields as a dictionary, or None if no status message exists.
+        """
         status_dict = None
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
-
     def needs_data_check(self):
+        """Return whether downstream consumers currently need depth map data.
+
+        Returns:
+            bool: True if there are active subscribers or save/snapshot requests.
+        """
         return self.needs_data
-    
-    def publish_np_depth_map(self, np_depth_map, 
+
+    def publish_np_depth_map(self, np_depth_map,
                             encoding = '32FC1',
                             width_deg = 100,
                             height_deg = 70,
-                             min_range_m = 0, 
+                             min_range_m = 0,
                              max_range_m = 100,
                              timestamp = None,
                              pub_twice = False
                             ):
+        """Publish a NumPy depth map array as a ROS Image message.
+
+        Also forwards the depth map to the DepthMapImageIF for colorized image
+        generation (if pub_image was True at construction) and saves to disk via
+        SaveDataIF if registered.
+
+        Args:
+            np_depth_map (numpy.ndarray): 2-D float32 depth map array in meters.
+            encoding (str, optional): ROS image encoding. Defaults to '32FC1'.
+            width_deg (float, optional): Horizontal field of view in degrees.
+                Defaults to 100.
+            height_deg (float, optional): Vertical field of view in degrees.
+                Defaults to 70.
+            min_range_m (float, optional): Minimum valid depth in meters.
+                Defaults to 0.
+            max_range_m (float, optional): Maximum valid depth in meters.
+                Defaults to 100.
+            timestamp (float or rospy.Time, optional): Acquisition timestamp.
+                Defaults to current time if None.
+            pub_twice (bool, optional): Publish the image message twice with a
+                brief delay to work around subscriber latching issues.
+                Defaults to False.
+
+        Returns:
+            numpy.ndarray: The original depth map array unchanged.
+        """
         
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
@@ -3873,26 +4403,31 @@ class DepthMapIF:
         return np_depth_map
 
     def unregister_pubs(self):
+        """Unregister all ROS publishers managed by this depth map interface."""
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
     def register_pubs(self):
+        """Re-register all ROS publishers managed by this depth map interface."""
         if self.node_if is not None:
             self.node_if.register_pubs(self.PUBS_DICT)
 
     def unregister(self):
+        """Shut down this depth map interface and release all ROS resources."""
         self.ready = False
         self.node_if.unregister_class()
         nepi_sdk.wait()
         self.namespace = '~'
         self.status_msg = None
 
-
     def publish_status(self, do_updates = True):
+        """Compute the current average publish rate and publish the depth map status message.
 
-
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to True.
+        """
         if self.node_if is not None:
-            
+
             self.status_msg.min_range_m = self.min_range_m
             self.status_msg.max_range_m = self.max_range_m
             avg_rate = 0
@@ -3907,6 +4442,11 @@ class DepthMapIF:
 
 
     def init(self, do_updates = False):
+        """Initialize or re-initialize depth map interface state and publish status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+        """
         if self.node_if is not None:
             pass
         if do_updates == True:
@@ -3914,11 +4454,13 @@ class DepthMapIF:
         self.publish_status()
 
     def reset(self):
+        """Reset the depth map interface to its initialized state."""
         if self.node_if is not None:
             pass
         self.init()
 
     def factory_reset(self):
+        """Reset the depth map interface to factory defaults."""
         if self.node_if is not None:
             pass
         self.init()
@@ -3936,7 +4478,7 @@ class DepthMapIF:
         self.init(do_updates = do_updates)
 
     def _updaterCb(self, timer):
-        
+
         # Check for other topics
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
@@ -3951,7 +4493,7 @@ class DepthMapIF:
                 self.status_msg.depth_map_topic = depth_map_ns
             if pointcloud_ns == topic:
                 self.status_msg.pointcloud_topic = pointcloud_ns
-        
+
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
 
@@ -3979,6 +4521,11 @@ class DepthMapIF:
             self.node_if.save_config()
 
     def needs_update(self):
+        """Signal that a parameter change requires a new depth map frame.
+
+        Sets the save-config flag and fires the registered needs_update_callback
+        if one has been set.
+        """
         self.save_config = True
         if self.callback_dict['needs_update_callback'] is not None:
             self.callback_dict['needs_update_callback']()
@@ -3987,8 +4534,8 @@ class DepthMapIF:
         if min_m < 0:
             min_m = 0
         if min_m <= max_m:
-          self.min_range_m = min_m  
-          self.max_range_m = max_m  
+          self.min_range_m = min_m
+          self.max_range_m = max_m
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
@@ -4101,14 +4648,37 @@ class DepthMapImageIF(BaseImageIF):
     ###############################
 
     def publish_depth_map_img(self,np_depth_map,
-                            min_range_m = 0, 
+                            min_range_m = 0,
                             max_range_m = 100,
                             width_deg = 100,
                             height_deg = 70,
                             timestamp = None,
                             pub_twice = False
                             ):
+        """Convert a depth map to a colorized image and publish it.
 
+        Applies the configured range ratios to clip the depth map, converts it
+        to a BGR colorized image using a jet colormap, then calls publish_cv2_img
+        to apply orientation controls and publish the result.
+
+        Args:
+            np_depth_map (numpy.ndarray): 2-D float32 depth map in meters.
+            min_range_m (float, optional): Minimum depth value for colorization.
+                Defaults to 0.
+            max_range_m (float, optional): Maximum depth value for colorization.
+                Defaults to 100.
+            width_deg (float, optional): Horizontal field of view in degrees.
+                Defaults to 100.
+            height_deg (float, optional): Vertical field of view in degrees.
+                Defaults to 70.
+            timestamp (float or rospy.Time, optional): Acquisition timestamp.
+                Defaults to current time if None.
+            pub_twice (bool, optional): Publish the image twice to work around
+                subscriber latching issues. Defaults to False.
+
+        Returns:
+            numpy.ndarray: The colorized BGR image, or None if input was None.
+        """
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
@@ -4142,14 +4712,25 @@ class DepthMapImageIF(BaseImageIF):
 
 
     def process_cv2_img(self, cv2_img):
+        """Apply the depth map image processing pipeline to a colorized depth image.
 
+        Applies, in order: resolution scaling, 2-D rotation and flips, crop
+        window, drag-selection overlay, user-defined filters, and then either
+        manual brightness/contrast/sharpness adjustments or auto-adjustment.
+
+        Args:
+            cv2_img (numpy.ndarray): Input BGR colorized depth image array.
+
+        Returns:
+            numpy.ndarray: The fully-processed BGR image.
+        """
 
         ##########
         # Apply Resolution Controls
         res_ratio = self.controls_dict['resolution_ratio']
         # cv2_shape = cv2_img.shape
-        # img_width1 = cv2_shape[1] 
-        # img_height1 = cv2_shape[0] 
+        # img_width1 = cv2_shape[1]
+        # img_height1 = cv2_shape[0]
         if res_ratio < 0.9:
             [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
 
@@ -4573,9 +5154,22 @@ class PointcloudIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of the pointcloud interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or a timeout elapses.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready within the timeout, False otherwise.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -4588,17 +5182,32 @@ class PointcloudIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace for this pointcloud interface.
+
+        Returns:
+            str: The fully-qualified ROS namespace.
+        """
         return self.namespace
 
-
     def get_blank_navpose_dict(self):
+        """Return a deep copy of the blank nav pose dictionary template.
+
+        Returns:
+            dict: A blank nav pose dictionary with all fields at default values.
+        """
         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return blank_navpose_dict
-    
+
     def get_navpose_dict(self):
+        """Return the most recent nav pose dictionary from the associated NavPoseIF.
+
+        Returns:
+            dict: The current nav pose data dictionary, or a blank dict if no
+            NavPoseIF is attached.
+        """
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
@@ -4606,12 +5215,28 @@ class PointcloudIF:
         return navpose_dict
 
     def get_data_source_description(self):
+        """Return the human-readable data source description string.
+
+        Returns:
+            str: Description of the data source (e.g. 'pointcloud_sensor').
+        """
         return self.data_source_description
 
     def get_pointcloud_callback_options(self):
+        """Return the list of supported pointcloud callback names.
+
+        Returns:
+            list: Callback name strings registered in the callback dictionary.
+        """
         return list(self.callback_dict.keys())
-    
+
     def set_pointcloud_callback(self,name,function):
+        """Register a callable for the named pointcloud callback slot.
+
+        Args:
+            name (str): Name of the callback slot (must be in the callback dict).
+            function (callable): Function to call when the event fires.
+        """
         self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
         if name in self.callback_dict.keys():
             self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
@@ -4619,18 +5244,34 @@ class PointcloudIF:
         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
 
     def clear_pointcloud_callback(self,name):
+        """Clear (un-register) the callable for the named pointcloud callback slot.
+
+        Args:
+            name (str): Name of the callback slot to clear.
+        """
         self.msg_if.pub_warn("Got clear image callback for: " + str(name), log_name_list = self.log_name_list)
         if name in self.callback_dict.keys():
-            self.callback_dict[name] = None   
+            self.callback_dict[name] = None
 
     def get_image_callback_options(self):
+        """Return the list of supported image callback names from the image sub-interface.
+
+        Returns:
+            list: Callback name strings from the PointcloudImageIF, or an empty list
+            if no image interface is attached.
+        """
         if self.image_if is not None:
             return self.image_if.get_image_callback_options()
         else:
-            return [] 
-    
-    
+            return []
+
     def set_image_callback(self,name,function):
+        """Register a callable for a named callback slot in the image sub-interface.
+
+        Args:
+            name (str): Name of the image callback slot.
+            function (callable): Function to call when the event fires.
+        """
         if self.image_if is not None:
             if name in self.image_if.get_image_callback_options():
                 self.msg_if.pub_warn("Image Callback set for: " + str(name), log_name_list = self.log_name_list)
@@ -4638,27 +5279,45 @@ class PointcloudIF:
         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
 
     def clear_image_callback(self,name):
+        """Clear the callable for a named callback slot in the image sub-interface.
+
+        Args:
+            name (str): Name of the image callback slot to clear.
+        """
         if self.image_if is not None:
             self.msg_if.pub_warn("Got clear image callback for: " + str(name), log_name_list = self.log_name_list)
             if name in self.image_if.get_image_callback_options():
-               self.image_if.callback_dict[name] = None 
-
+               self.image_if.callback_dict[name] = None
 
     def get_data_product(self):
+        """Return the data product name for this interface.
+
+        Returns:
+            str: The data product identifier string (e.g. 'pointcloud').
+        """
         return self.data_product
 
     def get_status_dict(self):
+        """Return the current status message converted to a plain dictionary.
+
+        Returns:
+            dict: Status fields as a dictionary, or None if no status message exists.
+        """
         status_dict = None
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
-
     def needs_data_check(self):
+        """Return whether downstream consumers currently need pointcloud data.
+
+        Returns:
+            bool: True if there are active subscribers or save/snapshot requests.
+        """
         needs_data = copy.deepcopy(self.needs_data)
         self.msg_if.pub_warn("Returning: " + self.namespace + " " "needs data: " + str(needs_data), log_name_list = self.log_name_list, throttle_s = 5.0)
         return needs_data
-    
+
     def _setVoxelCb(self,msg):
         self.msg_if.pub_info("Received set voxel message: " + str(msg), log_name_list = self.log_name_list)
         self.voxel = [msg.x,msg.y,msg.z]
@@ -4666,15 +5325,44 @@ class PointcloudIF:
             self.callback_dict['voxel_callback'](self.voxel)
 
     def publish_o3d_pc(self,o3d_pc,
-                        timestamp = None, 
+                        timestamp = None,
                         width_deg = 100,
                         height_deg = 70,
                         min_range_m = None,
-                        max_range_m = None,               
+                        max_range_m = None,
                         process_data = True,
                         pub_twice = False,
                         frame_id = 'sensor',
                         add_pubs = []):
+        """Publish an Open3D pointcloud as a ROS PointCloud2 message.
+
+        Also forwards the pointcloud to the PointcloudImageIF for image generation
+        (if pub_image was True at construction) and saves to disk via SaveDataIF
+        if registered.
+
+        Args:
+            o3d_pc (open3d.geometry.PointCloud): The pointcloud to publish.
+            timestamp (float or rospy.Time, optional): Acquisition timestamp.
+                Defaults to current time if None.
+            width_deg (float, optional): Horizontal field of view in degrees.
+                Defaults to 100.
+            height_deg (float, optional): Vertical field of view in degrees.
+                Defaults to 70.
+            min_range_m (float, optional): Minimum valid range in meters. When
+                None, range status is set to 0/1 defaults. Defaults to None.
+            max_range_m (float, optional): Maximum valid range in meters.
+                Defaults to None.
+            process_data (bool, optional): Reserved for future use. Defaults to True.
+            pub_twice (bool, optional): Publish the pointcloud twice with a brief
+                delay. Defaults to False.
+            frame_id (str, optional): TF frame ID for the PointCloud2 header.
+                Defaults to 'sensor'.
+            add_pubs (list, optional): Additional namespace strings to publish to.
+                Defaults to [].
+
+        Returns:
+            open3d.geometry.PointCloud: The original pointcloud unchanged.
+        """
         
 
         if self.navpose_if is not None:
@@ -4769,16 +5457,17 @@ class PointcloudIF:
         return o3d_pc
     
     def unregister_pubs(self):
+        """Unregister all ROS publishers managed by this pointcloud interface."""
         if self.node_if is not None:
             self.node_if.unregister_pubs()
 
-
     def register_pubs(self):
+        """Re-register all ROS publishers managed by this pointcloud interface."""
         if self.node_if is not None:
             self.node_if.register_pubs()
 
-        
     def unregister(self):
+        """Shut down this pointcloud interface and release all ROS resources."""
         self.ready = False
         self.node_if.unregister_class()
         nepi_sdk.wait()
@@ -4786,10 +5475,16 @@ class PointcloudIF:
         self.namespace = '~'
         self.status_msg = None
 
-
     def publish_status(self, do_updates = True):
+        """Read current parameters and publish the pointcloud status message.
+
+        Args:
+            do_updates (bool, optional): When True, re-reads image size, range,
+                zoom, 3-D camera, and white-background parameters from the
+                parameter server before publishing. Defaults to True.
+        """
         if self.node_if is not None:
-           
+
             if do_updates == True:
                 self.status_msg.image_width = self.node_if.get_param('image_width')
                 self.status_msg.image_height = self.node_if.get_param('image_height')
@@ -4841,6 +5536,11 @@ class PointcloudIF:
 
 
     def init(self, do_updates = False):
+        """Initialize or re-initialize pointcloud interface state and publish status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+        """
         if self.node_if is not None:
             pass
         if do_updates == True:
@@ -4848,11 +5548,13 @@ class PointcloudIF:
         self.publish_status()
 
     def reset(self):
+        """Reset the pointcloud interface to its initialized state."""
         if self.node_if is not None:
             pass
         self.init()
 
     def factory_reset(self):
+        """Reset the pointcloud interface to factory defaults."""
         if self.node_if is not None:
             pass
         self.init()
@@ -4870,7 +5572,7 @@ class PointcloudIF:
         self.init(do_updates = do_updates)
 
     def _updaterCb(self, timer):
-        
+
         # Check for other topics
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
@@ -4886,8 +5588,8 @@ class PointcloudIF:
             if pointcloud_ns == topic:
                 self.status_msg.pointcloud_topic = pointcloud_ns
 
-        
-        
+
+
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
     def _needsDataCheckCb(self,timer):
@@ -4914,6 +5616,11 @@ class PointcloudIF:
             self.node_if.save_config()
 
     def needs_update(self):
+        """Signal that a parameter change requires a new pointcloud frame.
+
+        Sets the save-config flag and fires the registered needs_update_callback
+        if one has been set.
+        """
         self.save_config = True
         if self.callback_dict['needs_update_callback'] is not None:
             self.callback_dict['needs_update_callback']()
@@ -4922,8 +5629,8 @@ class PointcloudIF:
         if min_m < 0:
             min_m = 0
         if min_m <= max_m:
-          self.min_range_m = min_m  
-          self.max_range_m = max_m  
+          self.min_range_m = min_m
+          self.max_range_m = max_m
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
@@ -5039,7 +5746,26 @@ class PointcloudImageIF(BaseImageIF):
                             timestamp = None,
                             pub_twice = False
                             ):
+        """Convert a pointcloud to an image and publish it.
 
+        Currently a stub; the image conversion logic is commented out.
+        Returns the original pointcloud and a None image.
+
+        Args:
+            o3d_pc (open3d.geometry.PointCloud): The pointcloud to visualize.
+            width_deg (float, optional): Horizontal field of view in degrees.
+                Defaults to 100.
+            height_deg (float, optional): Vertical field of view in degrees.
+                Defaults to 70.
+            timestamp (float or rospy.Time, optional): Acquisition timestamp.
+                Defaults to current time if None.
+            pub_twice (bool, optional): Publish the resulting image twice.
+                Defaults to False.
+
+        Returns:
+            tuple: (o3d_pc, cv2_img) where cv2_img is None until the conversion
+            pipeline is implemented.
+        """
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
@@ -5215,7 +5941,7 @@ class PointcloudImageIF(BaseImageIF):
 #                 'srv': NavPoseCapabilitiesQuery,
 #                 'req': NavPoseCapabilitiesQueryRequest(),
 #                 'resp': NavPoseCapabilitiesQueryResponse(),
-#                 'callback': self._provide_capabilities
+#                 'callback': self._provideCapabilities
 #             }
 #         }
 
@@ -5598,7 +6324,7 @@ class PointcloudImageIF(BaseImageIF):
 #         return np_dict
 
 
-#     def unsubsribe(self):
+#     def unsubscribe(self):
 #         self.ready = False
 #         if self.node_if is not None:
 #             self.node_if.unregister_class()
@@ -5738,7 +6464,7 @@ class PointcloudImageIF(BaseImageIF):
 #     def _publishStatusCb(self,timer):
 #         self.publish_status()
 
-#     def _provide_capabilities(self, _):
+#     def _provideCapabilities(self, _):
 #         return self.caps_report
 
 

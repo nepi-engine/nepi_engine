@@ -573,7 +573,7 @@ class NodeServicesIF:
         self.srvs_dict = services_dict
         if self.srvs_dict is None:
             self.srvs_dict = dict()
-        self._initialize_services()
+        self._initializeServices()
 
         ##############################  
         # Complete Initialization Process
@@ -625,30 +625,30 @@ class NodeServicesIF:
 
     def register_service(self,service_name, service_dict):
         self.srvs_dict[service_name] = service_dict
-        self._initialize_services()
+        self._initializeServices()
 
     def register_services(self,services_dict):
         for service_name in services_dict.keys():
             service_dict = services_dict[service_name]
             self.srvs_dict[service_name] = service_dict
-        self._initialize_services()
+        self._initializeServices()
 
     def unregister_service(self,service_name):
-        self._unregister_service(service_name)
+        self._unregisterService(service_name)
 
     def unregister_services(self):
         service_names = list(self.srvs_dict.keys())
         for service_name in service_names:
-            self._unregister_service(service_name)
+            self._unregisterService(service_name)
 
     def add_services(self,services_dict):
         self.srvs_dict.update(services_dict)
-        self._initialize_services()
+        self._initializeServices()
     ###############################
     # Class Private Methods
     ###############################
 
-    def _initialize_services(self):
+    def _initializeServices(self):
         for service_name in self.srvs_dict.keys():
             self.msg_if.pub_debug("Will try to create service for: " + service_name )
             srv_dict = self.srvs_dict[service_name]
@@ -673,7 +673,7 @@ class NodeServicesIF:
                         self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e), log_name_list = self.log_name_list)  
                     
 
-    def _unregister_service(self, service_name):
+    def _unregisterService(self, service_name):
         purge = False
         if service_name in self.srvs_dict.keys():
             srv_dict = self.srvs_dict[service_name]
@@ -747,7 +747,7 @@ class NodePublishersIF:
         if self.pubs_dict is None:
             self.pubs_dict = dict()
         self.msg_if.pub_debug("Initializing with pub dict: " + str(self.pubs_dict) )
-        self._initialize_pubs()
+        self._initializePubs()
 
         ##############################  
         # Complete Initialization Process
@@ -810,34 +810,34 @@ class NodePublishersIF:
 
     def register_pub(self,pub_name, pub_dict):
         self.pubs_dict[pub_name] = pub_dict
-        self._initialize_pubs(print_msg = True)
+        self._initializePubs(print_msg = True)
 
     def register_pubs(self,pubs_dict = None):
         if pubs_dict is not None:
             self.pubs_dict.update(pubs_dict)
-        self._initialize_pubs(print_msg = True)
+        self._initializePubs(print_msg = True)
 
 
 
  
     def unregister_pub(self,pub_name):
-        self._unregister_pub(pub_name)
+        self._unregisterPub(pub_name)
 
     def unregister_pubs(self):
         pub_names = list(self.pubs_dict.keys())
         for pub_name in pub_names:
-            self._unregister_pub(pub_name)
+            self._unregisterPub(pub_name)
 
     def add_pubs(self,pubs_dict):
         self.msg_if.pub_debug("Adding pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
         self.pubs_dict.update(pubs_dict)
         #self.msg_if.pub_debug("Updated pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
-        self._initialize_pubs(print_msg = True)
+        self._initializePubs(print_msg = True)
 
     ###############################
     # Class Private Methods
     ###############################
-    def _initialize_pubs(self, print_msg = False):
+    def _initializePubs(self, print_msg = False):
         for pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             add_pub = False
@@ -869,7 +869,7 @@ class NodePublishersIF:
                 self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name, log_name_list = self.log_name_list) 
 
 
-    def _unregister_pub(self, pub_name):
+    def _unregisterPub(self, pub_name):
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             purge = True
@@ -938,7 +938,7 @@ class NodeSubscribersIF:
         self.subs_dict = subs_dict
         if self.subs_dict is None:
             self.subs_dict = dict()
-        self._initialize_subs()
+        self._initializeSubs()
 
 
         ##############################  
@@ -976,30 +976,30 @@ class NodeSubscribersIF:
 
     def register_sub(self,sub_name, sub_dict):
         self.subs_dict[sub_name] = sub_dict
-        self._initialize_subs()
+        self._initializeSubs()
 
     def register_subs(self,subs_dict):
         for sub_name in subs_dict.keys():
             sub_dict = subs_dict[sub_name]
             self.subs_dict[sub_name] = sub_dict
-        self._initialize_subs()
+        self._initializeSubs()
 
     def unregister_sub(self,sub_name):
-        self._unregister_sub(sub_name)
+        self._unregisterSub(sub_name)
 
     def unregister_subs(self):
         sub_names = list(self.subs_dict.keys())
         for sub_name in sub_names:
-            self._unregister_sub(sub_name)
+            self._unregisterSub(sub_name)
 
 
     def add_subs(self,subs_dict):
         self.subs_dict.update(subs_dict)
-        self._initialize_subs()
+        self._initializeSubs()
     ###############################
     # Class Private Methods
     ###############################
-    def _initialize_subs(self):
+    def _initializeSubs(self):
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             self.msg_if.pub_debug("Will try to create sub for: " + sub_name )
@@ -1026,7 +1026,7 @@ class NodeSubscribersIF:
                     self.subs_dict[sub_name]['sub'] = None
             
 
-    def _unregister_sub(self, sub_name):
+    def _unregisterSub(self, sub_name):
         purge = False
         if sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]

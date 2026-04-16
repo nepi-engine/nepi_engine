@@ -224,9 +224,11 @@ class ConnectSaveDataIF:
     ###############################
 
     def get_ready_state(self):
+        """Return the current ready state of this save data interface."""
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout elapses, then return the ready state."""
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -239,18 +241,21 @@ class ConnectSaveDataIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready   
-        
+        return self.ready
+
 
     def get_namespace(self):
+        """Return the fully resolved ROS namespace for this save data interface."""
         return self.namespace
 
     def get_data_products(self):
+        """Query and return the available save data products from the remote node."""
         srv_name =  'data_products_query'
         req = DataProductQueryRequest()
         self.con_node_if.call_service(srv_name,req)
 
     def get_status_dict(self):
+        """Return the latest save data status as a dictionary, or None if no status has been received."""
         status_dict = None
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
@@ -259,16 +264,19 @@ class ConnectSaveDataIF:
         return status_dict
 
     def save_data_pub(self,enable):
+        """Publish a boolean command to enable or disable data saving on the remote node."""
         pub_name = 'save_data'
         msg = enable
         self.con_node_if.publish_pub(pub_name,msg)
 
     def save_data_prefix_pub(self,prefix):
+        """Publish a filename prefix string to the remote node's save data prefix topic."""
         pub_name = 'prefix'
         msg = prefix
         self.con_node_if.publish_pub(pub_name,msg)
 
     def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
+        """Publish a save rate command in Hz for the specified data product."""
         pub_name = 'rate'
         msg = SaveDataRate()
         msg.data_product = data_product
@@ -276,39 +284,46 @@ class ConnectSaveDataIF:
         self.con_node_if.publish_pub(pub_name,msg)
 
     def snapshot_pub(self):
+        """Publish a snapshot trigger to capture a single save of all active data products."""
         pub_name = 'snapshot'
         msg = Empty()
         self.con_node_if.publish_pub(pub_name,msg)
 
     def reset_pub(self):
+        """Publish a reset command to clear save data state on the remote node."""
         pub_name = 'reset'
         msg = Empty()
         self.con_node_if.publish_pub(pub_name,msg)
 
     def factory_reset_pub(self):
+        """Publish a factory reset command to restore save data defaults on the remote node."""
         pub_name = 'factory_reset'
         msg = Empty()
         self.con_node_if.publish_pub(pub_name,msg)
-       
-    def unregister_save_data_if(self): 
+
+    def unregister_save_data_if(self):
+        """Unregister all publishers and subscribers for this save data interface and mark it not ready."""
         success = False
         self.con_node_if.unregister()
         time.sleep(1)
         self.ready = False
         self.status_connected = False
         success = True
-        return success  
+        return success
 
     #################
     ## Save Config Functions
 
     def call_save_config(self):
+        """Publish a save config command to persist current parameters to disk."""
         self.con_node_if.publish_pub('save_config',Empty())
 
     def call_reset_config(self):
+        """Publish a reset config command to reload parameters from the last saved configuration."""
         self.con_node_if.publish_pub('reset_config',Empty())
 
     def call_factory_reset_config(self):
+        """Publish a factory reset config command to restore all parameters to factory defaults."""
         self.con_node_if.publish_pub('factory_reset_config',Empty())
 
     ###############################
@@ -458,9 +473,11 @@ class ConnectSettingsIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of this settings interface."""
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout elapses, then return the ready state."""
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -473,21 +490,26 @@ class ConnectSettingsIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the fully resolved ROS namespace for this settings interface."""
         return self.namespace
 
     def get_settings_capabilities_dict(self):
+        """Return the capabilities dictionary describing available settings and their types."""
         return self.cap_settings_dict
 
     def get_has_capabilities_updating(self):
+        """Return True if the remote node supports runtime capability setting updates."""
         return self.has_cap_updates
 
     def get_settings_dict(self):
+        """Return the current settings dictionary as last received from the remote node."""
         return self.settings_dict
 
     def update_cap_setting(self, cap_setting_dict):
+        """Publish a capability setting update if the remote node supports it, and return success."""
         success = False
         if self.has_cap_updates == True:
             msg = nepi_settings.create_msg_from_cap_setting(cap_setting_dict)
@@ -495,17 +517,19 @@ class ConnectSettingsIF:
         return success
 
     def update_setting(self, setting_dict):
+        """Publish a setting update to the remote node and return success."""
         msg = nepi_settings.create_msg_from_setting(setting_dict)
         success = self.con_node_if.publish_pub('setting_update_pub',msg)
         return success
 
-
     def reset_settings(self):
+        """Publish a reset command to restore all settings to their last saved values."""
         msg = Empty()
         success = self.con_node_if.publish_pub('reset_pub',msg)
         return success
 
     def factory_reset_settings(self):
+        """Publish a factory reset command to restore all settings to their factory defaults."""
         msg = Empty()
         success = self.con_node_if.publish_pub('factory_reset_pub',msg)
         return success
@@ -514,12 +538,15 @@ class ConnectSettingsIF:
     ## Save Config Functions
 
     def call_save_config(self):
+        """Publish a save config command to persist current parameters to disk."""
         self.con_node_if.publish_pub('save_config',Empty())
 
     def call_reset_config(self):
+        """Publish a reset config command to reload parameters from the last saved configuration."""
         self.con_node_if.publish_pub('reset_config',Empty())
 
     def call_factory_reset_config(self):
+        """Publish a factory reset config command to restore all parameters to factory defaults."""
         self.con_node_if.publish_pub('factory_reset_config',Empty())
 
     ###############################
@@ -631,9 +658,18 @@ class ConnectStatesIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of this states interface."""
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout elapses, then return the ready state.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready before the timeout, False otherwise.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -646,10 +682,15 @@ class ConnectStatesIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
 
     def get_states_names(self):
+        """Return the list of state names from the most recent system states status message.
+
+        Returns:
+            list: State name strings, or an empty list if no status has been received.
+        """
         state_names = []
         if self.status_msg is not None:
                 state_names = self.status_msg.states_names_list
@@ -659,6 +700,11 @@ class ConnectStatesIF:
 
 
     def get_states_status_dict(self):
+        """Return the current system states as a parsed dictionary.
+
+        Returns:
+            dict: Mapping of state name to state dict, or None if no status has been received.
+        """
         states_dict = None
         if self.status_msg is not None:
                 states_dict = nepi_states.parse_trigger_status_msg(self.status_msg)
@@ -668,6 +714,15 @@ class ConnectStatesIF:
 
 
     def get_state_value(self, state_name):
+        """Return the current value for a named state, or None if unavailable.
+
+        Args:
+            state_name (str): The name of the state to retrieve.
+
+        Returns:
+            object: The state value extracted from the state dict, or None if the state
+                name is not found or no status has been received.
+        """
         state_value = None
         states_dict = self.get_states_status_dict()
         if states_dict is not None:
@@ -782,9 +837,18 @@ class ConnectTriggersIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of this triggers interface."""
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout elapses, then return the ready state.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready before the timeout, False otherwise.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -797,10 +861,15 @@ class ConnectTriggersIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
 
     def get_triggers_names(self):
+        """Return the list of trigger names from the most recent system triggers status message.
+
+        Returns:
+            list: Trigger name strings, or an empty list if no status has been received.
+        """
         trigger_names = []
         if self.status_msg is not None:
             trigger_names = self.status_msg.triggers_name_list
@@ -810,6 +879,12 @@ class ConnectTriggersIF:
 
 
     def get_triggers_status_dict(self):
+        """Return the current trigger states as a dictionary mapping trigger name to triggered flag.
+
+        Returns:
+            dict: Mapping of trigger name to its triggered boolean, or None if no status
+                has been received.
+        """
         triggers_dict = None
         if self.status_msg is not None:
             [name_list, triggered_list] = nepi_triggers.parse_trigger_status_msg(self.status_msg)
@@ -820,11 +895,26 @@ class ConnectTriggersIF:
         return triggers_dict
 
 
-
     def get_registered_triggers(self):
+        """Return the names of all currently registered trigger handlers.
+
+        Returns:
+            KeysView: The trigger name keys from the internal handler dictionary.
+        """
         return self.trigger_handlers_dict.keys()
 
     def register_trigger(self, trigger_handler_function, trigger_name = "All"):
+        """Register a callback function to be invoked when the named trigger fires.
+
+        Args:
+            trigger_handler_function (callable): Function to call when the trigger fires.
+                It will receive a trigger dict as its only argument.
+            trigger_name (str, optional): Name of the specific trigger to listen for.
+                Pass "All" to receive every trigger event. Defaults to "All".
+
+        Returns:
+            bool: True if registration succeeded.
+        """
         success = False
         th_dict = dict()
         th_dict['handler'] = trigger_handler_function
@@ -834,6 +924,15 @@ class ConnectTriggersIF:
         return success
 
     def unregister_trigger(self, trigger_name):
+        """Remove the registered handler for the named trigger.
+
+        Args:
+            trigger_name (str): Name of the trigger whose handler should be removed.
+
+        Returns:
+            bool: True if the handler was removed, False if no handler was registered
+                for that trigger name.
+        """
         success = False
         try:
             del self.trigger_handlers_dict[trigger_name]
@@ -844,6 +943,15 @@ class ConnectTriggersIF:
 
 
     def get_last_trigger_time(self, trigger_name):
+        """Return the timestamp of the most recent firing of the named trigger.
+
+        Args:
+            trigger_name (str): Name of the registered trigger to query.
+
+        Returns:
+            float: ROS time of the last trigger event, or None if no handler is
+                registered for the given trigger name.
+        """
         last_time = None
         try:
             last_time = self.trigger_handlers_dict[trigger_name]['last_time']

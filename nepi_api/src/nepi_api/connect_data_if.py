@@ -364,9 +364,23 @@ class ConnectNavPoseIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of this interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf') (wait indefinitely).
+
+        Returns:
+            bool: True if ready before the timeout, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -379,38 +393,94 @@ class ConnectNavPoseIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace for this navpose interface.
+
+        Returns:
+            str: The fully resolved ROS namespace string.
+        """
         return self.namespace
-    
+
     def get_data_products(self):
+        """Return the list of data products provided by this interface.
+
+        Returns:
+            list: A list containing the single data product name for this interface.
+        """
         return [self.data_product]
 
     def get_blank_navpose_dict(self):
+        """Return a blank navpose dictionary with default values.
+
+        Returns:
+            dict: A deep copy of the blank navpose dictionary template.
+        """
         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return blank_navpose_dict
-    
 
-    def set_navpose_frame_selectable(self,enabled):
+
+    def set_navpose_frame_selectable(self, enabled):
+        """Set whether the navpose frame can be selected by external commands.
+
+        Args:
+            enabled (bool): True to allow frame selection, False to lock it.
+        """
         self.navpose_frame_selectable = enabled
 
     def get_navpose_frame_selectable(self):
+        """Return whether the navpose frame is user-selectable.
+
+        Returns:
+            bool: True if the frame can be selected, False if it is locked.
+        """
         return self.navpose_frame_selectable
-    
-    def set_navpose_ref_desc(self,description):
+
+    def set_navpose_ref_desc(self, description):
+        """Set the human-readable reference description for the navpose source.
+
+        Args:
+            description (str): Text describing the navpose reference source.
+        """
         self.self.navpose_ref_description = description
 
     def get_navpose_ref_desc(self):
+        """Return the human-readable reference description for the navpose source.
+
+        Returns:
+            str: The navpose reference description string.
+        """
         return self.self.navpose_ref_description
 
     def get_navpose_frames(self):
+        """Return the list of available navpose frame options.
+
+        Returns:
+            list: List of frame name strings that can be selected.
+        """
         return self.navpose_frame_options
-    
+
     def get_navpose_frame(self):
+        """Return the currently selected navpose frame.
+
+        Returns:
+            str: The name of the currently selected navpose frame.
+        """
         return self.sel_navpose_frame
 
-    def set_navpose_frame(self,frame):
+    def set_navpose_frame(self, frame):
+        """Set the active navpose frame and persist the selection.
+
+        If the given frame name is in the list of available options, it becomes
+        the selected frame and the frame_updated_callback is invoked. Status is
+        published and the configuration is saved regardless of whether the frame
+        was valid.
+
+        Args:
+            frame (str): The frame name to select. Must be in navpose_frame_options
+                to take effect.
+        """
         if frame in self.navpose_frame_options:
             self.sel_navpose_frame = frame
             if 'frame_updated_callback' in self.callback_dict.keys():
@@ -420,17 +490,34 @@ class ConnectNavPoseIF:
             self.node_if.save_config()
 
     def get_navpose_dict(self):
+        """Return a copy of the current navpose data dictionary.
+
+        Returns:
+            dict: A deep copy of the latest navpose data dictionary.
+        """
         navpose_dict =  copy.deepcopy(self.navpose_dict)
         return navpose_dict
-    
+
 
     def get_status_dict(self):
+        """Return the current status message as a plain dictionary.
+
+        Returns:
+            dict: The status message converted to a dictionary, or None if no
+                status message is available.
+        """
         status_dict = None
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
 
     def save_data(self):
+        """Save the current navpose data and schedule the next save cycle.
+
+        If a SaveDataIF is configured, the current navpose dictionary is written
+        to the data product store. A one-shot timer is then started to trigger
+        the next save.
+        """
         if self.save_data_if is not None:
             navpose_dict = copy.deepcopy(self.navpose_dict)
             self.save_data_if.save('navpose',navpose_dict)
@@ -438,21 +525,44 @@ class ConnectNavPoseIF:
 
 
     def get_navpose_callback_options(self):
+        """Return the list of supported navpose callback names.
+
+        Returns:
+            list: List of string keys identifying the available callback slots.
+        """
         return list(self.callback_dict.keys())
-    
-    def set_navpose_callback(self,name,function):
+
+    def set_navpose_callback(self, name, function):
+        """Register a function for a named navpose callback slot.
+
+        Args:
+            name (str): The callback slot name. Must be a key in the callback
+                dictionary.
+            function (callable): The function to invoke when the callback fires.
+        """
         self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
         if name in self.callback_dict.keys():
             self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
             self.callback_dict[name] = function
         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
 
-    def clear_navpose_callback(self,name):
+    def clear_navpose_callback(self, name):
+        """Clear a previously registered navpose callback by name.
+
+        Args:
+            name (str): The callback slot name to clear. Must be a key in the
+                callback dictionary.
+        """
         self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
         if name in self.callback_dict.keys():
-            self.callback_dict[name] = None 
+            self.callback_dict[name] = None
 
-    def unsubsribe(self):
+    def unsubscribe(self):
+        """Unregister this interface, releasing all ROS resources.
+
+        Sets the ready flag to False, unregisters the underlying node class,
+        and clears the namespace and status message.
+        """
         self.ready = False
         if self.node_if is not None:
             self.node_if.unregister_class()
@@ -463,11 +573,17 @@ class ConnectNavPoseIF:
 
 
     def publish_status(self):
+        """Publish the current status message on the status topic.
+
+        Assembles the latest state — selected frame, frame options, pan-tilt
+        heading flag, and connection state — into the status message and
+        publishes it via the node interface.
+        """
         if self.node_if is not None and self.status_msg is not None:
 
             sel_navpose_frame = copy.deepcopy(self.sel_navpose_frame)
             if sel_navpose_frame in self.navposes_dict.keys():
-                sel_navpose_frame = 'None'               
+                sel_navpose_frame = 'None'
             self.status_msg.sel_navpose_frame = sel_navpose_frame
 
             self.status_msg.navpose_frame_selectable = self.navpose_frame_selectable
@@ -477,8 +593,8 @@ class ConnectNavPoseIF:
                 self.status_msg.navpose_frame_options = self.navpose_frame_options
 
             self.status_msg.use_pantilt_for_heading = self.use_pantilt_for_heading
-           
-            self.status_msg.connected = self.connected 
+
+            self.status_msg.connected = self.connected
 
             self.node_if.publish_pub('status_pub', self.status_msg)
 
@@ -486,6 +602,12 @@ class ConnectNavPoseIF:
 
 
     def init(self, do_updates = False):
+        """Load parameters from the ROS parameter server and refresh status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use; triggers
+                additional update logic when True. Defaults to False.
+        """
         if self.node_if is not None:
             self.sel_navpose_frame = self.node_if.get_param('sel_navpose_frame')
             self.use_pantilt_for_heading = self.node_if.get_param('use_pantilt_for_heading')
@@ -494,11 +616,19 @@ class ConnectNavPoseIF:
         self.publish_status()
 
     def reset(self):
+        """Reset the interface to its current parameter server values.
+
+        Delegates to init() to reload parameters and republish status.
+        """
         if self.node_if is not None:
             pass
         self.init()
 
     def factory_reset(self):
+        """Reset the interface to factory defaults.
+
+        Delegates to init() to reload parameters and republish status.
+        """
         if self.node_if is not None:
             pass
         self.init()
@@ -764,9 +894,23 @@ class ConnectImageIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of this interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf') (wait indefinitely).
+
+        Returns:
+            bool: True if ready before the timeout, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -779,15 +923,34 @@ class ConnectImageIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace for this image interface.
+
+        Returns:
+            str: The ROS namespace string used by this interface.
+        """
         return self.namespace
 
     def check_connection(self):
+        """Return whether an image message has been received.
+
+        Returns:
+            bool: True if at least one image message has been received, False otherwise.
+        """
         return self.connected
 
     def wait_for_connection(self, timeout = float('inf') ):
+        """Block until an image message is received or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf') (wait indefinitely).
+
+        Returns:
+            bool: True if connected before the timeout, False otherwise.
+        """
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
@@ -803,9 +966,23 @@ class ConnectImageIF:
 
 
     def check_status_connection(self):
+        """Return whether a status message has been received from the image source.
+
+        Returns:
+            bool: True if at least one status message has been received, False otherwise.
+        """
         return self.status_connected
 
     def wait_for_status_connection(self, timeout = float('inf') ):
+        """Block until a status message is received or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf') (wait indefinitely).
+
+        Returns:
+            bool: True if a status message was received before the timeout, False otherwise.
+        """
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
             timer = 0
@@ -820,19 +997,50 @@ class ConnectImageIF:
         return self.status_connected
 
     def get_status_dict(self):
+        """Return the last received image status message as a plain dictionary.
+
+        Returns:
+            dict: The status message converted to a dictionary, or None if no
+                status message has been received yet.
+        """
         img_status_dict = None
         if self.status_msg is not None:
             img_status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return self.img_status_dict
 
-    def set_get_img(self,state):
+    def set_get_img(self, state):
+        """Set the flag requesting capture of the next available image.
+
+        Args:
+            state (bool): True to request the next image frame, False to clear
+                the request.
+
+        Returns:
+            bool: Always True.
+        """
         self.get_data = state
         return True
 
     def read_get_got_states(self):
+        """Return the current get and got data flags.
+
+        Returns:
+            list: A two-element list [get_data, got_data] where get_data indicates
+                whether an image has been requested and got_data indicates whether
+                an image is waiting to be retrieved.
+        """
         return [self.get_data, self.got_data]
 
     def get_image_dict(self):
+        """Retrieve and consume the latest captured image data dictionary.
+
+        Thread-safe. Clears the stored data after retrieval so subsequent calls
+        return None until a new image arrives.
+
+        Returns:
+            dict: The image data dictionary containing the cv2 image, dimensions,
+                timestamps, and latency metrics, or None if no image is available.
+        """
         self.data_dict_lock.acquire()
         data_dict = copy.deepcopy(self.data_dict)
         self.data_dict = None
@@ -840,24 +1048,28 @@ class ConnectImageIF:
         return data_dict
 
     def unregister(self):
+        """Unregister this interface and release all ROS subscriptions."""
         self._unsubscribeTopic()
 
     #################
     ## Save Config Functions
 
     def call_save_config(self):
+        """Send a save-config command to the connected image source node."""
         self.con_node_if.publish_pub('save_config',Empty())
 
     def call_reset_config(self):
+        """Send a reset-config command to the connected image source node."""
         self.con_node_if.publish_pub('reset_config',Empty())
 
     def call_factory_reset_config(self):
+        """Send a factory-reset-config command to the connected image source node."""
         self.con_node_if.publish_pub('factory_reset_config',Empty())
 
     ###############################
     # Class Private Methods
     ###############################
-   
+
 
     def _unsubscribeTopic(self):
         success = False
@@ -865,12 +1077,12 @@ class ConnectImageIF:
         if self.con_node_if is not None:
             self.msg_if.pub_info("Unregistering topic: " + str(self.namespace))
             try:
-                self.connected = False 
+                self.connected = False
                 self.con_node_if.unregister_class()
                 time.sleep(1)
                 self.con_node_if = None
                 self.namespace = None
-                self.connected = False 
+                self.connected = False
                 self.data_dict = None
                 success = True
             except Exception as e:
@@ -1072,9 +1284,23 @@ class ConnectPointcloudIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of this interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf') (wait indefinitely).
+
+        Returns:
+            bool: True if ready before the timeout, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1087,15 +1313,34 @@ class ConnectPointcloudIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace for this pointcloud interface.
+
+        Returns:
+            str: The ROS namespace string used by this interface.
+        """
         return self.namespace
 
     def check_connection(self):
+        """Return whether a pointcloud message has been received.
+
+        Returns:
+            bool: True if at least one pointcloud message has been received, False otherwise.
+        """
         return self.connected
 
     def wait_for_connection(self, timeout = float('inf') ):
+        """Block until a pointcloud message is received or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf') (wait indefinitely).
+
+        Returns:
+            bool: True if connected before the timeout, False otherwise.
+        """
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
             timer = 0
@@ -1111,9 +1356,23 @@ class ConnectPointcloudIF:
 
 
     def check_status_connection(self):
+        """Return whether a status message has been received from the pointcloud source.
+
+        Returns:
+            bool: True if at least one status message has been received, False otherwise.
+        """
         return self.status_connected
 
     def wait_for_status_connection(self, timeout = float('inf') ):
+        """Block until a status message is received or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf') (wait indefinitely).
+
+        Returns:
+            bool: True if a status message was received before the timeout, False otherwise.
+        """
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
             timer = 0
@@ -1128,19 +1387,51 @@ class ConnectPointcloudIF:
         return self.status_connected
 
     def get_status_dict(self):
+        """Return the last received pointcloud status message as a plain dictionary.
+
+        Returns:
+            dict: The status message converted to a dictionary, or None if no
+                status message has been received yet.
+        """
         img_status_dict = None
         if self.status_msg is not None:
             img_status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return self.img_status_dict
 
-    def set_get_img(self,state):
+    def set_get_img(self, state):
+        """Set the flag requesting capture of the next available pointcloud.
+
+        Args:
+            state (bool): True to request the next pointcloud frame, False to
+                clear the request.
+
+        Returns:
+            bool: Always True.
+        """
         self.get_data = state
         return True
 
     def read_get_got_states(self):
+        """Return the current get and got data flags.
+
+        Returns:
+            list: A two-element list [get_data, got_data] where get_data indicates
+                whether a pointcloud has been requested and got_data indicates whether
+                a pointcloud is waiting to be retrieved.
+        """
         return [self.get_data, self.got_data]
 
     def get_pointcloud_dict(self):
+        """Retrieve and consume the latest captured pointcloud data dictionary.
+
+        Thread-safe. Clears the stored data after retrieval so subsequent calls
+        return None until a new pointcloud arrives.
+
+        Returns:
+            dict: The pointcloud data dictionary containing the Open3D pointcloud,
+                point count, RGB and intensity flags, timestamps, and latency
+                metrics, or None if no pointcloud is available.
+        """
         self.data_dict_lock.acquire()
         data_dict = copy.deepcopy(self.data_dict)
         self.data_dict = None
@@ -1148,23 +1439,28 @@ class ConnectPointcloudIF:
         return data_dict
 
     def unregister(self):
+        """Unregister this interface and release all ROS subscriptions."""
         self._unsubscribeTopic()
 
     #################
     ## Save Config Functions
 
     def call_save_config(self):
+        """Send a save-config command to the connected pointcloud source node."""
         self.con_node_if.publish_pub('save_config',Empty())
 
     def call_reset_config(self):
+        """Send a reset-config command to the connected pointcloud source node."""
         self.con_node_if.publish_pub('reset_config',Empty())
 
     def call_factory_reset_config(self):
+        """Send a factory-reset-config command to the connected pointcloud source node."""
         self.con_node_if.publish_pub('factory_reset_config',Empty())
+
     ###############################
     # Class Private Methods
     ###############################
-   
+
 
     def _unsubscribeTopic(self):
         success = False
@@ -1551,7 +1847,7 @@ class ConnectPointcloudIF:
 #         if name in self.callback_dict.keys():
 #             self.callback_dict[name] = None 
 
-#     def unsubsribe(self):
+#     def unsubscribe(self):
 #         self.ready = False
 #         if self.node_if is not None:
 #             self.node_if.unregister_class()

@@ -743,46 +743,56 @@ class AiDetectorIF:
 
 
     def launch_image_pub_node(self):
-            node_name = self.node_name + "_img_pub"
-            launch_namespace=os.path.dirname(self.node_namespace)
-            node_namespace = self.node_namespace + "_img_pub"
-            pkg_name = 'nepi_api'
-            node_file_folder = self.api_lib_folder
-            node_file_name = 'nepi_ai_detector_img_pub_node.py'
-           
+        """Launches the detection image publisher node as a subprocess.
 
-            self.msg_if.pub_warn("Launching Detction Img Node with with settings " + str([pkg_name, node_file_name, node_name]))          
-            ###############################
-            # Launch Node
-            node_file_path = os.path.join(node_file_folder,node_file_name)
-            if self.launch_node_process is not None:
-                self.msg_if.pub_warn("Node Already Launched: " + node_name)
-            elif os.path.exists(node_file_path) == False or self.enable_image_pub == False:
-                self.msg_if.pub_warn("Could not find Node File at: " + node_file_path)
-            else: 
-                #Try and launch node
-                
-                all_pub_namespace = os.path.join(self.base_namespace,"ai","all_detectors")
-                self.msg_if.pub_warn("Launching Node: " + node_name)
+        Resolves the image publisher node file path and starts the node with
+        the correct namespace and parameters if the file exists and image
+        publishing is enabled. Does nothing if the node is already running or
+        the node file cannot be found.
+        """
+        node_name = self.node_name + "_img_pub"
+        launch_namespace = os.path.dirname(self.node_namespace)
+        node_namespace = self.node_namespace + "_img_pub"
+        pkg_name = 'nepi_api'
+        node_file_folder = self.api_lib_folder
+        node_file_name = 'nepi_ai_detector_img_pub_node.py'
 
-                param_ns = nepi_sdk.create_namespace(node_namespace,'data_products')
-                nepi_sdk.set_param(param_ns,self.data_products)
+        self.msg_if.pub_warn("Launching Detction Img Node with with settings " + str([pkg_name, node_file_name, node_name]))
+        ###############################
+        # Launch Node
+        node_file_path = os.path.join(node_file_folder, node_file_name)
+        if self.launch_node_process is not None:
+            self.msg_if.pub_warn("Node Already Launched: " + node_name)
+        elif os.path.exists(node_file_path) == False or self.enable_image_pub == False:
+            self.msg_if.pub_warn("Could not find Node File at: " + node_file_path)
+        else:
+            #Try and launch node
+            all_pub_namespace = os.path.join(self.base_namespace, "ai", "all_detectors")
+            self.msg_if.pub_warn("Launching Node: " + node_name)
 
-                param_ns = nepi_sdk.create_namespace(node_namespace,'det_namespace')
-                nepi_sdk.set_param(param_ns,self.node_namespace)
+            param_ns = nepi_sdk.create_namespace(node_namespace, 'data_products')
+            nepi_sdk.set_param(param_ns, self.data_products)
 
-                param_ns = nepi_sdk.create_namespace(node_namespace,'all_namespace')
-                nepi_sdk.set_param(param_ns,self.all_namespace)
-                        
+            param_ns = nepi_sdk.create_namespace(node_namespace, 'det_namespace')
+            nepi_sdk.set_param(param_ns, self.node_namespace)
 
-                [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name, namespace=launch_namespace)
-                if success == True:
-                    self.launch_node_process = sub_process
-                    self.pub_img_node_name = node_name
-                    self.pub_img_namepace = node_namespace
-                self.msg_if.pub_warn("Node launch return msg: " + str(msg))
+            param_ns = nepi_sdk.create_namespace(node_namespace, 'all_namespace')
+            nepi_sdk.set_param(param_ns, self.all_namespace)
+
+            [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name, namespace=launch_namespace)
+            if success == True:
+                self.launch_node_process = sub_process
+                self.pub_img_node_name = node_name
+                self.pub_img_namepace = node_namespace
+            self.msg_if.pub_warn("Node launch return msg: " + str(msg))
 
     def kill_image_pub_node(self):
+        """Terminates the running detection image publisher node.
+
+        Sends a kill signal to the subprocess started by
+        ``launch_image_pub_node`` and clears the process handle and node name
+        on success. Logs a warning if the node is not currently running.
+        """
         if self.launch_node_process is None:
             self.msg_if.pub_warn("Node Not Running")
         else:
@@ -797,7 +807,15 @@ class AiDetectorIF:
                 self.msg_if.pub_warn("Failed to Kill Node")
 
 
-    def get_states_dict_function(self):    
+    def get_states_dict_function(self):
+        """Returns the current states dictionary.
+
+        Used as a callback by the StatesIF to retrieve live state values.
+
+        Returns:
+            dict: The states dictionary containing running and detection state
+                entries.
+        """
         return self.states_dict
 
 
@@ -1095,6 +1113,12 @@ class AiDetectorIF:
 
 
     def set_pub_image(self,enable):
+        """Enables or disables image publishing and persists the setting.
+
+        Args:
+            enable (bool): True to enable detection image publishing,
+                False to disable it.
+        """
         self.pub_image_enabled = enable
         self.publish_status()
         if self.node_if is not None:
@@ -2101,6 +2125,17 @@ class AiDetectorIF:
         self.publish_status()
 
     def publish_status(self, do_updates = True):
+        """Assembles and publishes the AI detector status message.
+
+        Populates all fields of the AiDetectorStatus message from current
+        internal state — including model metadata, class selections, sleep
+        configuration, overlay flags, rate limits, image topic lists, and
+        performance metrics — then publishes it on the status topic.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to
+                True.
+        """
         #self.msg_if.pub_warn("Starting Detector Status Pub")
 
         self.status_msg.ai_detector_name = self.model_name

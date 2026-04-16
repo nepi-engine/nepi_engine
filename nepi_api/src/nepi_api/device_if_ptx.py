@@ -957,9 +957,23 @@ class PTXActuatorIF:
            
 
     def check_ready(self):
-        return self.ready  
+        """Returns the current ready state of the PTX device interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
+        return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Blocks until the PTX device interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf'), which waits indefinitely.
+
+        Returns:
+            bool: True if the device became ready within the timeout, False if it did not.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1303,10 +1317,24 @@ class PTXActuatorIF:
 
     ### Info callback
     def info_query_callback(self, _):
+        """Service handler that returns the device info report.
+
+        Returns:
+            DeviceInfoQueryResponse: Response containing device name, path, node name,
+                namespace, serial number, hardware version, software version, and type.
+        """
         return self.info_report
-        
+
 
     def capabilities_query_callback(self, _):
+        """Service handler that returns the PTX capabilities report.
+
+        Returns:
+            PTXCapabilitiesQueryResponse: Response describing which PTX capabilities
+                are supported, including absolute positioning, timed positioning,
+                separate pan/tilt control, position feedback, adjustable speed,
+                limit controls, homing, set-home, and calibration.
+        """
         return self.caps_report
     
   
@@ -1318,6 +1346,19 @@ class PTXActuatorIF:
 
 
     def publish_status(self, do_updates = False):
+        """Builds and publishes the DevicePTXStatus message to the status topic.
+
+        Reads current pan/tilt position from the driver if absolute positioning is
+        available, computes smoothed axis speeds, recalculates ratio and degree fields
+        for current and goal positions against soft-stop limits, then publishes the
+        assembled DevicePTXStatus message and a NavPosePanTilt message.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+
+        Returns:
+            float: Elapsed time in seconds spent building and publishing the status.
+        """
         #self.msg_if.pub_warn("entering Pub_stat msg", throttle_s = 5.0)
         start_time = nepi_utils.get_time()
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)

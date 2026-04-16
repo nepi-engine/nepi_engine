@@ -1108,9 +1108,22 @@ class ConnectTargetsIF:
 
 
     def check_ready(self):
-        return self.ready  
+        """Return whether the interface has completed initialization.
+
+        Returns:
+            bool: True if initialization is complete, False otherwise.
+        """
+        return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1645,12 +1658,30 @@ class ConnectTargetsIF:
 
 
     def get_3d_transform(self):
+        """Return the current 3D frame transform for this device.
+
+        Retrieves the transform from the transform interface if one is configured,
+        otherwise returns the zero transform.
+
+        Returns:
+            list: The 3D transform as a seven-element list
+                [x, y, z, roll, pitch, yaw, heading_offset].
+        """
         transform = nepi_nav.ZERO_TRANSFORM
         if self.transform_if is not None:
             transform = self.transform_if.get_3d_transform()
         return transform
 
     def get_navpose_dict(self):
+        """Return the current navigation pose as a dictionary, transformed to system frames.
+
+        Applies the device's 3D frame transform, then converts the result to the
+        system-configured navigation frame (NED or ENU), altitude frame (AMSL or WGS84),
+        as reported by the system navpose frames configuration.
+
+        Returns:
+            dict: A deep copy of the navpose dictionary with all frame conversions applied.
+        """
         navpose_dict = copy.deepcopy(self.navpose_dict)
         # Transform navpose in ENU and WSG84 frames
         navpose_frame_transform = self.get_3d_transform()

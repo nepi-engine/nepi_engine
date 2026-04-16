@@ -293,9 +293,22 @@ class ConnectPTXDeviceIF:
 
 
     def get_ready_state(self):
+        """Return the ready state of the interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection")
@@ -311,12 +324,31 @@ class ConnectPTXDeviceIF:
         return self.ready  
 
     def get_namespace(self):
+        """Return the fully-resolved ROS namespace for the connected PTX device.
+
+        Returns:
+            str: The fully-qualified namespace string used for topic and service resolution.
+        """
         return self.namespace
 
     def check_connection(self):
+        """Check whether the device is currently connected.
+
+        Returns:
+            bool: True if a status message has been received within the connection timeout window,
+                False otherwise.
+        """
         return self.connected
 
     def wait_for_connection(self, timout = float('inf') ):
+        """Block until the device is connected or the timeout expires.
+
+        Args:
+            timout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if connection was established, False if the timeout was reached.
+        """
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for connection")
             timer = 0
@@ -332,9 +364,22 @@ class ConnectPTXDeviceIF:
 
 
     def check_status_connection(self):
+        """Check whether the status topic from the device is currently connected.
+
+        Returns:
+            bool: True if status messages are being received, False otherwise.
+        """
         return self.connected
 
     def wait_for_status_connection(self, timout = float('inf') ):
+        """Block until the device status topic is connected or the timeout expires.
+
+        Args:
+            timout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the status connection was established, False if the timeout was reached.
+        """
         if self.con_node_if is not None:
             self.msg_if.pub_info("Waiting for status connection")
             timer = 0
@@ -349,6 +394,12 @@ class ConnectPTXDeviceIF:
         return self.connected
 
     def get_status_dict(self):
+        """Return the latest device status as a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the most recent DevicePTXStatus message,
+                or None if no status has been received yet.
+        """
         status_dict = None
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
@@ -361,38 +412,87 @@ class ConnectPTXDeviceIF:
     #     return navpose_dict
     
     def get_pan_tilt_hard_limits(self):
+        """Return the hardware hardstop limits for pan and tilt axes.
+
+        Returns:
+            list: A four-element list [pan_min_deg, pan_max_deg, tilt_min_deg, tilt_max_deg]
+                representing the physical hardstop limits in degrees, or None if no status
+                has been received.
+        """
         if self.status_msg is not None:
             return [self.status_msg.pan_min_hardstop_deg, self.status_msg.pan_max_hardstop_deg, self.status_msg.tilt_min_hardstop_deg, self.status_msg.pan_max_hardstop_deg]
     
     def get_pan_tilt_soft_limits(self):
+        """Return the software softstop limits for pan and tilt axes.
+
+        Returns:
+            list: A four-element list [pan_min_deg, pan_max_deg, tilt_min_deg, tilt_max_deg]
+                representing the software softstop limits in degrees, or None if no status
+                has been received.
+        """
         if self.status_msg is not None:
             return [self.status_msg.pan_min_softstop_deg, self.status_msg.pan_max_softstop_deg, self.status_msg.tilt_min_softstop_deg, self.status_msg.pan_max_softstop_deg]
 
 
     def get_pan_tilt_position(self):
+        """Return the most recently reported pan and tilt position.
+
+        Returns:
+            list: A two-element list [pan_deg, tilt_deg] with the current position in degrees.
+        """
         return [self.pan_tilt_position[0], self.pan_tilt_position[1]]
 
     def check_pan_moving(self):
+        """Check whether the pan axis is currently in motion.
+
+        Returns:
+            bool: True if the pan axis has moved more than 0.1 degrees since the last update
+                cycle, False otherwise.
+        """
         return self.pan_moving
     
     def check_tilt_moving(self):
+        """Check whether the tilt axis is currently in motion.
+
+        Returns:
+            bool: True if the tilt axis has moved more than 0.1 degrees since the last update
+                cycle, False otherwise.
+        """
         return self.tilt_moving
 
     def unregister(self):
+        """Unregister all ROS subscribers and publishers for this device interface.
+
+        Unsubscribes from all topics, marks the interface as disconnected, and releases
+        the underlying node class resources.
+        """
         self._unsubscribeTopic()
 
     def set_speed_ratio(self,speed_ratio):
+        """Publish a speed ratio command to the PTX device.
+
+        Args:
+            speed_ratio (float): Desired motion speed as a ratio from 0.0 (slowest) to 1.0 (fastest).
+        """
         pub_name = 'speed_ratio'
         msg = speed_ratio
         self.con_node_if.publish_pub(pub_name,msg)
 
     def stop_moving(self):
+        """Publish a stop command to halt all motion on the PTX device.
+        """
         pub_name = 'stop_moving'
         msg = Empty()
         self.con_node_if.publish_pub(pub_name,msg)
 
 
     def goto_to_position(self,pan_deg,tilt_deg):
+        """Command the PTX device to move to an absolute pan and tilt position.
+
+        Args:
+            pan_deg (float): Target pan angle in degrees.
+            tilt_deg (float): Target tilt angle in degrees.
+        """
         pub_name = 'goto_to_position'
         msg = PanTiltPosition()
         msg.pan_deg = pan_deg
@@ -400,28 +500,56 @@ class ConnectPTXDeviceIF:
         self.con_node_if.publish_pub(pub_name,msg)
 
     def goto_to_pan_position(self,pan_position):
-        #self.msg_if.pub_warn("connect goto pan pos: " + str(pan_position)) 
+        """Command the PTX device to move the pan axis to an absolute position.
+
+        Args:
+            pan_position (float): Target pan angle in degrees.
+        """
+        #self.msg_if.pub_warn("connect goto pan pos: " + str(pan_position))
 
         pub_name = 'goto_to_pan_position'
         msg = pan_position
         self.con_node_if.publish_pub(pub_name,msg)
         
     def goto_to_tilt_position(self,tilt_position):
+        """Command the PTX device to move the tilt axis to an absolute position.
+
+        Args:
+            tilt_position (float): Target tilt angle in degrees.
+        """
         pub_name = 'goto_to_tilt_position'
         msg = tilt_position
         self.con_node_if.publish_pub(pub_name,msg)
 
     def goto_pan_ratio(self,pan_ratio):
+        """Command the PTX device to move the pan axis to a normalized ratio position.
+
+        Args:
+            pan_ratio (float): Target pan position as a ratio from 0.0 to 1.0, where 0.0
+                corresponds to the minimum softstop and 1.0 to the maximum softstop.
+        """
         pub_name = 'goto_pan_ratio'
         msg = pan_ratio
         self.con_node_if.publish_pub(pub_name,msg)        
 
     def goto_tilt_ratio(self, tilt_ratio):
+        """Command the PTX device to move the tilt axis to a normalized ratio position.
+
+        Args:
+            tilt_ratio (float): Target tilt position as a ratio from 0.0 to 1.0, where 0.0
+                corresponds to the minimum softstop and 1.0 to the maximum softstop.
+        """
         pub_name = 'goto_tilt_ratio'
         msg = tilt_ratio
         self.con_node_if.publish_pub(pub_name,msg)
 
     def jog_timed_pan(self, direction, duration_s):
+        """Command the PTX device to jog the pan axis in a direction for a set duration.
+
+        Args:
+            direction (int): Direction indicator for the pan jog (positive or negative).
+            duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
+        """
         pub_name = 'jog_timed_pan'
         msg = SingleAxisTimedMove()
         # Direction indicator
@@ -431,6 +559,12 @@ class ConnectPTXDeviceIF:
         self.con_node_if.publish_pub(pub_name,msg)
         
     def jog_timed_tilt(self, direction, duration_s):
+        """Command the PTX device to jog the tilt axis in a direction for a set duration.
+
+        Args:
+            direction (int): Direction indicator for the tilt jog (positive or negative).
+            duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
+        """
         pub_name = 'jog_timed_tilt'
         msg = SingleAxisTimedMove()
         # Direction indicator
@@ -440,21 +574,39 @@ class ConnectPTXDeviceIF:
         self.con_node_if.publish_pub(pub_name,msg) 
 
     def reverse_pan_enabled(self, reverse_pan):
+        """Enable or disable pan direction reversal on the PTX device.
+
+        Args:
+            reverse_pan (bool): True to reverse the pan axis direction, False for normal direction.
+        """
         pub_name = 'reverse_pan_enabled'
         msg = reverse_pan
         self.con_node_if.publish_pub(pub_name,msg)
 
     def reverse_tilt_enabled(self, reverse_tilt):
+        """Enable or disable tilt direction reversal on the PTX device.
+
+        Args:
+            reverse_tilt (bool): True to reverse the tilt axis direction, False for normal direction.
+        """
         pub_name = 'reverse_tilt_enabled'
         msg = reverse_tilt
         self.con_node_if.publish_pub(pub_name,msg)
 
     def go_home(self):
+        """Command the PTX device to move to its configured home position.
+        """
         pub_name = 'go_home'
         msg = Empty()
         self.con_node_if.publish_pub(pub_name,msg)
 
     def set_home_position(self,pan_deg,tilt_deg):
+        """Set the home position for the PTX device to specified pan and tilt angles.
+
+        Args:
+            pan_deg (float): Desired home pan angle in degrees.
+            tilt_deg (float): Desired home tilt angle in degrees.
+        """
         pub_name = 'set_home_position'
         msg = PanTiltPosition()
         msg.pan_deg = pan_deg
@@ -462,46 +614,87 @@ class ConnectPTXDeviceIF:
         self.con_node_if.publish_pub(pub_name,msg) 
 
     def set_home_position_here(self):
+        """Set the home position to the PTX device's current position.
+        """
         pub_name = 'set_home_position_here'
         msg = Empty()
         self.con_node_if.publish_pub(pub_name,msg)  
 
     def save_config(self):
+        """Publish a save configuration command to persist current settings on the device.
+        """
         self.con_node_if.publish_pub('save_config',Empty())
 
     def reset_config(self):
+        """Publish a reset configuration command to restore the last saved settings on the device.
+        """
         self.con_node_if.publish_pub('reset_config',Empty())
 
     def factory_reset_config(self):
+        """Publish a factory reset command to restore factory default settings on the device.
+        """
         self.con_node_if.publish_pub('factory_reset_config',Empty())
 
     #################
     ## Save Data Functions
 
     def get_save_data_products(self):
+        """Return the list of available save data products for this device.
+
+        Returns:
+            list: A list of data product identifiers supported by the save data interface.
+        """
         data_products = self.con_save_data_if.get_data_products()
         return data_products
 
     def get_save_data_status_dict(self):
+        """Return the current save data status as a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the save data interface status.
+        """
         status_dict = self.con_save_data_if.get_status_dict()
         return status_dict
 
     def save_data_enable_pub(self,enable):
+        """Enable or disable data saving on the device.
+
+        Args:
+            enable (bool): True to enable data saving, False to disable it.
+        """
         self.con_save_data_if.save_data_pub(enable)
 
     def save_data_prefix_pub(self,prefix):
+        """Publish an updated filename prefix for saved data files.
+
+        Args:
+            prefix (str): The prefix string to prepend to saved data filenames.
+        """
         self.con_save_data_if.save_data_prefix_pub(prefix)
 
     def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
+        """Publish an updated save rate for a data product.
+
+        Args:
+            rate_hz (float): Desired save rate in Hz.
+            data_product (int, optional): Identifier for the specific data product to update.
+                Defaults to SaveDataRate.ALL_DATA_PRODUCTS.
+        """
         self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
 
     def save_data_snapshot_pub(self):
+        """Trigger a one-shot snapshot save of current data on the device.
+        """
         self.con_save_data_if.publish_pub()
 
     def save_data_reset_pub(self):
+        """Publish a reset command to clear saved data state on the device.
+        """
         self.con_save_data_if.publish_pub(pub_name,msg)
 
     def save_data_factory_reset_pub(self):
+        """Publish a factory reset command to restore the save data configuration to defaults.
+        """
         pub_name = 'factory_reset'
         msg = Empty()
         self.con_save_data_if.publish_pub(pub_name,msg)

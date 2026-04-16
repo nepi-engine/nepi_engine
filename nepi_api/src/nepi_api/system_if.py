@@ -171,9 +171,22 @@ class ReadWriteIF:
     ###############################
 
     def get_ready_state(self):
+        """Return the current ready state of the interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -186,57 +199,148 @@ class ReadWriteIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready   
-        
+        return self.ready
+
 
     def get_namespace(self):
+        """Return the ROS namespace used by this interface.
+
+        Returns:
+            str: The fully-resolved ROS namespace string.
+        """
         return self.namespace
 
     def get_supported_data_types(self):
+        """Return the list of data type keys supported for file I/O.
+
+        Returns:
+            list: List of supported data type strings (e.g. 'dict', 'array', 'image',
+                'pointcloud').
+        """
         return list(self.data_dict.keys())
 
 
     def get_filename_prefix(self):
+        """Return the current filename prefix string.
+
+        Returns:
+            str: The prefix prepended to generated filenames.
+        """
         return self.filename_dict['prefix']
 
     def set_filename_prefix(self, prefix = ''):
+        """Set the filename prefix string used when generating file names.
+
+        Args:
+            prefix (str, optional): Prefix string to prepend to filenames.
+                Defaults to ''.
+        """
         self.filename_dict['prefix'] = prefix
 
     def get_use_utc_tz(self):
+        """Return whether UTC timezone is used for file timestamps.
+
+        Returns:
+            bool: True if UTC is used, False if local timezone is used.
+        """
         return self.filename_dict['use_utc_tz']
 
     def set_use_utc_tz(self, use_utc_tz):
+        """Set whether timestamps in filenames use UTC or local timezone.
+
+        Args:
+            use_utc_tz (bool): True to use UTC, False to use local timezone.
+        """
         self.filename_dict['use_utc_tz'] = use_utc_tz
 
     def get_add_timestamp(self):
+        """Return whether a timestamp is appended to generated filenames.
+
+        Returns:
+            bool: True if a timestamp is included in filenames.
+        """
         return self.filename_dict['add_timestamp']
 
     def set_add_timestamp(self, add_timestamp):
+        """Set whether a timestamp is included in generated filenames.
+
+        Args:
+            add_timestamp (bool): True to include a timestamp in filenames.
+        """
         self.filename_dict['add_timestamp'] = add_timestamp
 
     def get_add_ms(self):
+        """Return whether milliseconds are included in the filename timestamp.
+
+        Returns:
+            bool: True if milliseconds are appended to the timestamp portion.
+        """
         return self.filename_dict['add_ms']
 
     def set_add_ms(self, add_ms):
+        """Set whether milliseconds are included in the filename timestamp.
+
+        Args:
+            add_ms (bool): True to append milliseconds to the timestamp.
+        """
         self.filename_dict['add_ms'] = add_ms
 
     def get_add_us(self):
+        """Return whether microseconds are included in the filename timestamp.
+
+        Returns:
+            bool: True if microseconds are appended to the timestamp portion.
+        """
         return self.filename_dict['add_us']
 
     def set_add_us(self, add_us):
+        """Set whether microseconds are included in the filename timestamp.
+
+        Args:
+            add_us (bool): True to append microseconds to the timestamp.
+        """
         self.filename_dict['add_us'] = add_us
 
     def get_add_tz(self):
+        """Return whether the timezone abbreviation is included in filenames.
+
+        Returns:
+            bool: True if the timezone string is appended to the timestamp.
+        """
         return self.filename_dict['add_tz']
 
     def set_add_tz(self, add_tz):
+        """Set whether the timezone abbreviation is included in filenames.
+
+        Args:
+            add_tz (bool): True to append the timezone string to the timestamp.
+        """
         self.filename_dict['add_tz'] = add_tz
 
 
     def get_filename_dict(self):
+        """Return the full filename configuration dictionary.
+
+        Returns:
+            dict: Dictionary containing all filename formatting options (prefix,
+                suffix, add_timestamp, use_utc_tz, add_ms, add_us, add_tz,
+                add_node_name).
+        """
         return self.filename_dict
-    
+
     def set_filename_dict(self,filename_dict):
+        """Merge a partial filename configuration dict into the current settings.
+
+        Any keys missing from the provided dict are filled in from the current
+        filename_dict, ensuring all required keys remain present.
+
+        Args:
+            filename_dict (dict): Dictionary with one or more filename config keys
+                to update.
+
+        Returns:
+            dict: The updated filename configuration dictionary.
+        """
         for key in self.filename_dict.keys():
             if key not in filename_dict.keys():
                 filename_dict[key] = self.filename_dict[key]
@@ -246,10 +350,29 @@ class ReadWriteIF:
 
 
     def get_folder_files(self, path, ext_str = ""):
+        """Return a list of files in a folder, optionally filtered by extension.
+
+        Args:
+            path (str): Filesystem path of the directory to list.
+            ext_str (str, optional): File extension filter (e.g. 'yaml'). Defaults
+                to '' (all files).
+
+        Returns:
+            list: List of file paths matching the extension filter.
+        """
         file_list = nepi_utils.get_file_list(path,ext_str=ext_str)
         return file_list
 
     def get_time_from_filename(self,filename):
+        """Extract and return the timestamp embedded in a NEPI-style filename.
+
+        Args:
+            filename (str): Filename string containing an embedded datetime token.
+
+        Returns:
+            float: Unix timestamp (seconds) parsed from the filename, or None if
+                parsing fails.
+        """
         file_time = None
         dt_str = self._getDtStr(filename)
         file_time = nepi_utils.get_time_from_datetime_str(dt_str)
@@ -257,6 +380,18 @@ class ReadWriteIF:
 
 
     def get_data_type(self,data):
+        """Infer the NEPI data type category of a data object.
+
+        Inspects the Python type and, for numpy arrays, the dtype and number of
+        dimensions to distinguish images from generic arrays.
+
+        Args:
+            data: The data object to classify.
+
+        Returns:
+            str: One of 'dict', 'pointcloud', 'image', 'array', or the string
+                representation of the object's type if unrecognized.
+        """
         dtype = type(data)
 
         if dtype == dict:
@@ -284,7 +419,22 @@ class ReadWriteIF:
 
 
     def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None):
-        data_type = self.get_data_type(data) 
+        """Write a data object to disk using the appropriate format for its type.
+
+        The data type is inferred automatically via get_data_type(). Supported types
+        are 'dict' (YAML), 'array' (npy/csv), 'image' (png/jpg), and 'pointcloud'
+        (pcd). Unsupported types are logged as warnings.
+
+        Args:
+            filepath (str): Directory path where the file will be written.
+            data: Data object to save. Must be one of the supported types.
+            data_name (str): Name token embedded in the generated filename.
+            timestamp (float, optional): Unix timestamp for the filename. Defaults
+                to current time if None.
+            timezone (str, optional): Timezone name for the filename timestamp.
+                Defaults to None (UTC).
+        """
+        data_type = self.get_data_type(data)
         found_type = False
         if data_type in self.data_dict.keys():
                 save_function = self.data_dict[data_type]['write_function']
@@ -296,6 +446,17 @@ class ReadWriteIF:
 
 
     def read_dict_file(self, filepath, filename):
+        """Read a YAML file and return its contents as a dictionary.
+
+        Args:
+            filepath (str): Directory path containing the file.
+            filename (str): Name of the YAML file to read (must have a supported
+                extension such as 'yaml').
+
+        Returns:
+            dict: Parsed dictionary from the YAML file, or None if the file type
+                is unsupported or reading fails.
+        """
         data_key = 'dict'
         data = None
         ext_str = os.path.splitext(filename)[1]
@@ -311,6 +472,21 @@ class ReadWriteIF:
         return data
 
     def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml'):
+        """Write a dictionary to a YAML file using a generated filename.
+
+        Args:
+            filepath (str): Directory path where the file will be written.
+            data (dict): Dictionary to serialize.
+            data_name (str): Name token embedded in the generated filename.
+            timestamp (float, optional): Unix timestamp for the filename. Defaults
+                to current time if None.
+            timezone (str, optional): Timezone name for the filename timestamp.
+                Defaults to None (UTC).
+            ext_str (str, optional): File extension. Defaults to 'yaml'.
+
+        Returns:
+            bool: True if the file was written successfully, False otherwise.
+        """
         data_key = 'dict'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -334,6 +510,17 @@ class ReadWriteIF:
 
 
     def read_array_file(self, filepath, filename):
+        """Read a numeric array from a .npy, .csv, or .txt file.
+
+        Args:
+            filepath (str): Directory path containing the file.
+            filename (str): Name of the array file to read (must have a supported
+                extension such as 'npy', 'csv', or 'txt').
+
+        Returns:
+            numpy.ndarray: Array loaded from the file, or None if the file type is
+                unsupported or reading fails.
+        """
         data_key = 'array'
         data = None
         ext_str = os.path.splitext(filename)[1]
@@ -353,6 +540,22 @@ class ReadWriteIF:
         return data
 
     def write_array_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'npy'):
+        """Write a numpy array to a file using a generated filename.
+
+        Args:
+            filepath (str): Directory path where the file will be written.
+            data (numpy.ndarray): Array to save.
+            data_name (str): Name token embedded in the generated filename.
+            timestamp (float, optional): Unix timestamp for the filename. Defaults
+                to current time if None.
+            timezone (str, optional): Timezone name for the filename timestamp.
+                Defaults to None (UTC).
+            ext_str (str, optional): File extension ('npy', 'csv', or 'txt').
+                Defaults to 'npy'.
+
+        Returns:
+            bool: True if the file was written successfully, False otherwise.
+        """
         data_key = 'array'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -381,6 +584,17 @@ class ReadWriteIF:
 
 
     def read_image_file(self, filepath, filename):
+        """Read an image from disk and return it as a numpy array.
+
+        Args:
+            filepath (str): Directory path containing the file.
+            filename (str): Name of the image file to read (must have a supported
+                extension such as 'png', 'jpg', or 'jpeg').
+
+        Returns:
+            numpy.ndarray: Image array, or None if the file type is unsupported or
+                reading fails.
+        """
         data_key = 'image'
         data = None
         ext_str = os.path.splitext(filename)[1]
@@ -397,6 +611,22 @@ class ReadWriteIF:
         return data
 
     def write_image_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'png'):
+        """Write a numpy image array to an image file using a generated filename.
+
+        Args:
+            filepath (str): Directory path where the file will be written.
+            data (numpy.ndarray): Image array (uint8) to save.
+            data_name (str): Name token embedded in the generated filename.
+            timestamp (float, optional): Unix timestamp for the filename. Defaults
+                to current time if None.
+            timezone (str, optional): Timezone name for the filename timestamp.
+                Defaults to None (UTC).
+            ext_str (str, optional): Image format extension ('png', 'jpg', etc.).
+                Defaults to 'png'.
+
+        Returns:
+            bool: True if the file was written successfully, False otherwise.
+        """
         data_key = 'image'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -420,6 +650,17 @@ class ReadWriteIF:
 
 
     def read_pointcloud_file(self, filepath, filename):
+        """Read a point cloud from a .pcd file and return an Open3D PointCloud object.
+
+        Args:
+            filepath (str): Directory path containing the file.
+            filename (str): Name of the point cloud file to read (must have a
+                supported extension such as 'pcd').
+
+        Returns:
+            open3d.geometry.PointCloud: Loaded point cloud, or None if the file type
+                is unsupported or reading fails.
+        """
         data_key = 'pointcloud'
         data = None
         ext_str = os.path.splitext(filename)[1]
@@ -436,6 +677,21 @@ class ReadWriteIF:
         return data
 
     def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'pcd'):
+        """Write an Open3D point cloud to a file using a generated filename.
+
+        Args:
+            filepath (str): Directory path where the file will be written.
+            data (open3d.geometry.PointCloud): Point cloud object to save.
+            data_name (str): Name token embedded in the generated filename.
+            timestamp (float, optional): Unix timestamp for the filename. Defaults
+                to current time if None.
+            timezone (str, optional): Timezone name for the filename timestamp.
+                Defaults to None (UTC).
+            ext_str (str, optional): Point cloud format extension. Defaults to 'pcd'.
+
+        Returns:
+            bool: True if the file was written successfully, False otherwise.
+        """
         data_key = 'pointcloud'
         success = False
         data_type = self.data_dict[data_key]['data_type']
@@ -460,6 +716,24 @@ class ReadWriteIF:
 
 
     def get_example_filename(self, data_name = 'data_product', timestamp = None, timezone = None, ext_str = 'ext'):
+        """Generate and return an example filename using the current naming settings.
+
+        Useful for previewing what output filenames will look like without writing
+        any data.
+
+        Args:
+            data_name (str, optional): Name token to embed in the filename. Defaults
+                to 'data_product'.
+            timestamp (float, optional): Unix timestamp used in the filename. Defaults
+                to current time if None.
+            timezone (str, optional): Timezone name for the timestamp. Defaults to
+                None (UTC).
+            ext_str (str, optional): File extension for the example filename. Defaults
+                to 'ext'.
+
+        Returns:
+            str: The generated example filename string.
+        """
         filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
         return filename
     ###############################
@@ -938,9 +1212,22 @@ class SaveDataIF:
     ###############################
 
     def get_ready_state(self):
+        """Return the current ready state of the SaveDataIF.
+
+        Returns:
+            bool: True if initialization completed successfully, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the SaveDataIF is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -953,17 +1240,36 @@ class SaveDataIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready    
+        return self.ready
 
-            
+
     def get_namespace(self):
+        """Return the ROS namespace used by this SaveDataIF.
+
+        Returns:
+            str: The fully-resolved ROS namespace string.
+        """
         return self.namespace
 
     def get_data_products(self):
+        """Return the list of registered data product names.
+
+        Returns:
+            list: List of data product name strings currently tracked by this interface.
+        """
         return list(self.save_rate_dict.keys())
 
     def register_data_product(self, data_product,factory_rate = 0):
+        """Register a new data product with an optional factory save rate.
 
+        If the data product is not already registered it is added to the save rate
+        dictionary, the snapshot dictionary, and the ROS parameter server.
+
+        Args:
+            data_product (str): Unique name for the data product.
+            factory_rate (float, optional): Default save rate in Hz. Defaults to 0
+                (disabled).
+        """
         save_rate_dict = self.save_rate_dict
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] =  [factory_rate, 0.0, 100] # Default to 1Hz save rate, max rate = 100Hz
@@ -974,6 +1280,11 @@ class SaveDataIF:
                 self.node_if.set_param('save_rate_dict',save_rate_dict)
 
     def unregister_data_product(self, data_product):
+        """Remove a previously registered data product from the save rate tracking dict.
+
+        Args:
+            data_product (str): Name of the data product to remove.
+        """
         purge = False
         if data_product in self.save_rate_dict.keys():
             purge = True
@@ -982,6 +1293,17 @@ class SaveDataIF:
 
 
     def update_filename_dict(self,filename_dict):
+        """Apply updates from a filename configuration dictionary.
+
+        Handles prefix sanitization, subfolder creation with proper ownership, and
+        updates the underlying ReadWriteIF and ROS parameter server. Only applies
+        if the new dict differs from the current one.
+
+        Args:
+            filename_dict (dict): Dictionary containing one or more filename config
+                keys to update (prefix, subfolder, add_timestamp, use_utc_tz,
+                add_ms, add_us, add_tz, add_node_name).
+        """
         if self.filename_dict != filename_dict:
             if 'prefix' in filename_dict.keys():
                new_prefix = filename_dict['prefix']
@@ -1025,6 +1347,20 @@ class SaveDataIF:
                 self.node_if.save_config()
 
     def set_save_rate(self,data_product,save_rate_hz=0):
+        """Set the save rate for one or more data products.
+
+        Supports special sentinel values for data_product to target all products
+        (ALL_DATA_PRODUCTS), none (NONE_DATA_PRODUCTS), or only currently-active
+        ones (ACTIVE_DATA_PRODUCTS). Per-product rates are clamped to the
+        configured max rate for that product.
+
+        Args:
+            data_product (str): Name of the data product, or a sentinel constant
+                from SaveDataRate (ALL_DATA_PRODUCTS, NONE_DATA_PRODUCTS,
+                ACTIVE_DATA_PRODUCTS).
+            save_rate_hz (float, optional): Target save rate in Hz. Defaults to 0
+                (disabled).
+        """
         save_all = SaveDataRate().ALL_DATA_PRODUCTS
         save_none = SaveDataRate().NONE_DATA_PRODUCTS
         save_active = SaveDataRate().ACTIVE_DATA_PRODUCTS
@@ -1052,6 +1388,14 @@ class SaveDataIF:
             self.node_if.save_config()
         
     def save_data_enable(self, enabled):
+        """Enable or disable data saving for all registered data products.
+
+        When enabling after a disabled period, all last-save timestamps are reset
+        so that each product triggers a save on the next call to data_product_should_save.
+
+        Args:
+            enabled (bool): True to enable saving, False to disable.
+        """
         if enabled == True and self.was_saving == False:
             for d in self.save_rate_dict.keys():
                 self.save_rate_dict[d][1] = 0.0
@@ -1064,9 +1408,26 @@ class SaveDataIF:
 
 
     def get_saving_enabled(self):
+        """Return whether data saving is currently enabled.
+
+        Returns:
+            bool: True if saving is enabled, False if disabled.
+        """
         return self.save_data
 
     def data_product_save_enabled(self, data_product):
+        """Return whether a specific data product is currently configured to save.
+
+        Returns False if global saving is disabled or if the product's save rate
+        is zero.
+
+        Args:
+            data_product (str): Name of the data product to check.
+
+        Returns:
+            bool: True if saving is enabled and the product has a non-zero rate,
+                False otherwise.
+        """
         # If saving is disabled for this node, then no data products are saving
         try:
             save_rate_dict = self.save_rate_dict
@@ -1083,6 +1444,17 @@ class SaveDataIF:
             return False
         
     def data_product_save_rate(self, data_product):
+        """Return the configured save rate for a specific data product.
+
+        Returns False if global saving is disabled or the product is unknown.
+
+        Args:
+            data_product (str): Name of the data product.
+
+        Returns:
+            float: Save rate in Hz, or False if saving is disabled or the product
+                is unrecognized. Returns 0.0 on unexpected errors.
+        """
         # If saving is disabled for this node, then no data products are saving
         try:
             save_rate_dict = self.save_rate_dict
@@ -1101,6 +1473,19 @@ class SaveDataIF:
 
 
     def data_product_should_save(self, data_product):
+        """Determine whether it is time to save a data product based on its rate and elapsed time.
+
+        Checks the configured save rate and the time since the last save. Also
+        returns True if a snapshot has been triggered for the product. Returns
+        False if global saving is disabled, the product is unknown, or the rate
+        is zero.
+
+        Args:
+            data_product (str): Name of the data product to check.
+
+        Returns:
+            bool: True if the product should be saved now, False otherwise.
+        """
         # If saving is disabled for this node, then it is not time to save this data product!
         save_rate_dict = self.save_rate_dict
         #self.msg_if.pub_debug("Checking should save for save rate dict: " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
@@ -1130,6 +1515,15 @@ class SaveDataIF:
 
 
     def data_product_snapshot_enabled(self, data_product):
+        """Return whether a one-shot snapshot is pending for a data product.
+
+        Args:
+            data_product (str): Name of the data product to check.
+
+        Returns:
+            bool: True if a snapshot is pending, False if not or if the product
+                is unrecognized.
+        """
         try:
             enabled = self.snapshot_dict[data_product]
             return enabled
@@ -1137,8 +1531,16 @@ class SaveDataIF:
             self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
             return False
         return False
-    
+
     def data_product_snapshot_reset(self, data_product):
+        """Clear the snapshot-pending flag for a data product after it has been saved.
+
+        Args:
+            data_product (str): Name of the data product to reset.
+
+        Returns:
+            bool: True if the flag was cleared, False if the product is unrecognized.
+        """
         try:
             self.snapshot_dict[data_product] = False
             return True
@@ -1146,22 +1548,39 @@ class SaveDataIF:
             self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
             return False
         return False
-        
+
 
     def data_products_should_save_dict(self):
+        """Return a dictionary mapping each data product to whether it should save now.
+
+        Combines the snapshot flag and the rate-based save logic for every
+        registered data product.
+
+        Returns:
+            dict: Mapping of data product name to bool (True = should save now).
+        """
         dps_dict=copy.deepcopy(self.snapshot_dict)
         for dp in dps_dict.keys():
             ss =  dps_dict[dp]
             sr = self.save_rate_dict[dp][0] > 0
             dps_dict[dp] = ss or (self.save_data and sr)
         return dps_dict
-        
 
-     
+
     def get_timestamp_string(self):
+        """Return the current time as a formatted datetime string with milliseconds.
+
+        Returns:
+            str: Current datetime string in NEPI format including milliseconds.
+        """
         return nepi_utils.get_datetime_str_now(add_ms = True, add_us = False)
 
     def get_filename_path_and_prefix(self):
+        """Return the full save path joined with the current filename prefix.
+
+        Returns:
+            str: Combined path string, or empty string if the save path is None.
+        """
         if self.save_path is None:
             return ""
         return os.path.join(self.save_path, self.read_write_if.get_filename_prefix())
@@ -1172,6 +1591,21 @@ class SaveDataIF:
     #***************************
     # NEPI data saving utility functions
     def save(self,data_product,data,timestamp = None,save_check=True):
+        """Save a data object for a named data product if conditions are met.
+
+        Checks whether disk space is available, whether the product should save
+        (rate-based or snapshot), and then delegates to ReadWriteIF.write_data_file.
+        Resets the snapshot flag and updates the last-save timestamp after writing.
+
+        Args:
+            data_product (str): Name of the data product being saved.
+            data: Data object to write. Type is inferred automatically.
+            timestamp (float, optional): Unix timestamp for the filename. Defaults
+                to current time if None.
+            save_check (bool, optional): When True, the rate/snapshot logic gates
+                the write. When False, the data is written unconditionally (if
+                space is available). Defaults to True.
+        """
         if self.space_available == True:
             should_save = self.data_product_should_save(data_product)
             snapshot_enabled = self.data_product_snapshot_enabled(data_product)
@@ -1193,6 +1627,12 @@ class SaveDataIF:
 
 
     def create_filename_msg(self):
+        """Build and return a FilenameConfig ROS message from the current filename dict.
+
+        Returns:
+            nepi_interfaces.msg.FilenameConfig: Populated FilenameConfig message
+                reflecting the current naming settings.
+        """
         fn_msg = FilenameConfig()
         fn_dict = self.filename_dict
         fn_msg.save_prefix = fn_dict['prefix']
@@ -1206,6 +1646,12 @@ class SaveDataIF:
 
 
     def publish_status(self):
+        """Build and publish a SaveDataStatus message on the status topic.
+
+        Compiles current save rates, filename config, data directory, timezone,
+        and an example filename into the status message and latches it to the
+        'status' publisher. No-ops if pub_status is False or node_if is None.
+        """
         if self.node_if is not None and self.pub_status == True:
             save_rates_msg = []
             save_rate_dict = self.save_rate_dict
@@ -1252,6 +1698,16 @@ class SaveDataIF:
                 self.node_if.publish_pub('status_pub', status_msg)
 
     def init(self, do_updates = False):
+        """Load save rate and filename parameters from the ROS param server and publish status.
+
+        Reads the persisted save_rate_dict from the param server, merges it into the
+        current dict (preserving last-save timers at zero), writes the merged dict back,
+        and then publishes the current status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use; has no effect currently.
+                Defaults to False.
+        """
         #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
         if self.node_if is not None:
             save_rate_dict = self.node_if.get_param('save_rate_dict')
@@ -1263,15 +1719,25 @@ class SaveDataIF:
             self.node_if.set_param('save_rate_dict',self.save_rate_dict)
             filename_dict =  self.node_if.get_param('filename_dict')
         self.publish_status()
-        
+
 
     def reset(self):
+        """Reset parameters to their last-saved (user) values and reinitialize.
+
+        Calls node_if.reset_params() to reload the user configuration tier, then
+        reinitializes from the param server.
+        """
         if self.node_if is not None:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
         self.init(do_updates = True)
 
     def factory_reset(self):
+        """Reset parameters to factory defaults and reinitialize.
+
+        Calls node_if.factory_reset_params() to restore factory values, then
+        reinitializes from the param server.
+        """
         if self.node_if is not None:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
@@ -1564,9 +2030,22 @@ class Transform3DIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of the Transform3DIF.
+
+        Returns:
+            bool: True if initialization completed successfully, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the Transform3DIF is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1579,23 +2058,48 @@ class Transform3DIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
-    
+        return self.ready
+
     def get_namespace(self):
+        """Return the ROS namespace used by this Transform3DIF.
+
+        Returns:
+            str: The fully-resolved ROS namespace string.
+        """
         return self.namespace
 
     def get_zero_3d_transform(self):
+        """Return the zero/identity 3D transform list.
+
+        Returns:
+            list: Seven-element list of zeros [x, y, z, roll, pitch, yaw, heading].
+        """
         return ZERO_TRANSFORM
 
     def get_3d_transform(self):
+        """Return the current 3D transform as a seven-element list.
+
+        If a get_3d_transform_function was provided at construction, it is called
+        first. Falls back to the internally stored transform if the function returns
+        None.
+
+        Returns:
+            list: [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg].
+        """
         transform = None
         if self.get_3d_transform_function is not None:
             transform = self.get_3d_transform_function()
         if transform is None:
             transform = self.transform
         return transform
-    
+
     def get_3d_transform_msg(self):
+        """Build and return the current 3D transform as a ROS Transform message.
+
+        Returns:
+            nepi_interfaces.msg.Transform: Transform message populated with the
+                current transform values and source/end reference descriptions.
+        """
         tr = self.get_3d_transform()
         tr_msg = nepi_nav.convert_transform_list2msg(tr,
                 source_ref_description = self.source,
@@ -1603,6 +2107,15 @@ class Transform3DIF:
         return tr_msg
 
     def set_3d_transform(self,transform_list):
+        """Set the 3D transform from a seven-element list and publish the update.
+
+        No-ops if updates are not supported (i.e., a get_3d_transform_function was
+        supplied at construction) or if the list does not have exactly seven elements.
+
+        Args:
+            transform_list (list): [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg,
+                heading_deg].
+        """
         if self.supports_updates == True:
             if len(transform_list) == 7:
                 self.transform = transform_list
@@ -1611,6 +2124,11 @@ class Transform3DIF:
                     self.node_if.set_param('transform',transform_list)
 
     def clear_3d_transform(self):
+        """Reset the 3D transform to the zero/identity transform and publish the update.
+
+        No-ops if updates are not supported (i.e., a get_3d_transform_function was
+        supplied at construction).
+        """
         if self.supports_updates == True:
             self.transform = ZERO_TRANSFORM
             self.publish_transform()
@@ -1618,25 +2136,55 @@ class Transform3DIF:
                 self.node_if.set_param('transform',transform_list)
 
     def set_has_transform(self,has_transform):
+        """Set whether this interface reports having a valid transform.
+
+        Args:
+            has_transform (bool): True if a valid transform is available.
+        """
         self.has_trasform = has_transform
 
     def get_has_transform(self):
+        """Return whether this interface reports having a valid transform.
+
+        Returns:
+            bool: True if a valid transform is available, False otherwise.
+        """
         return self.has_transform
 
 
     def get_source_description(self):
+        """Return the source reference frame description string.
+
+        Returns:
+            str: Human-readable description of the source reference frame.
+        """
         return self.source
 
     def set_source_description(self,source):
+        """Set the source reference frame description and republish the transform.
+
+        Args:
+            source (str): Human-readable description of the source reference frame.
+        """
         self.source = source
         self.publish_transform()
         if self.node_if is not None:
             self.node_if.set_param('source',source)
 
     def get_end_description(self):
+        """Return the end (target) reference frame description string.
+
+        Returns:
+            str: Human-readable description of the end reference frame.
+        """
         return self.end
 
     def set_end_description(self,end):
+        """Set the end (target) reference frame description and republish the transform.
+
+        Args:
+            end (str): Human-readable description of the end reference frame.
+        """
         self.end = end
         self.publish_transform()
         if self.node_if is not None:
@@ -1644,6 +2192,11 @@ class Transform3DIF:
 
 
     def publish_transform(self):
+        """Build and publish the current transform as a ROS Transform message.
+
+        Converts the current seven-element transform list to a ROS message and
+        publishes it on the 'transform_pub' topic. No-ops if node_if is None.
+        """
         transform = self.get_3d_transform()
         transform_msg = nepi_nav.convert_transform_list2msg(transform,
                                                 source_ref_description = self.source,
@@ -1652,11 +2205,23 @@ class Transform3DIF:
             self.node_if.publish_pub('transform_pub',transform_msg)
 
     def publish_status(self):
+        """Publish the current TransformStatus message on the 'status_pub' topic.
+
+        No-ops if node_if is None.
+        """
         if self.node_if is not None:
             self.status_msg.has_transform = self.has_transform
             self.node_if.publish_pub('status_pub',self.status_msg)
 
     def init(self, do_updates = True):
+        """Load transform, source, and end parameters from the ROS param server.
+
+        Reads the persisted values and publishes the updated status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use; has no additional
+                effect currently. Defaults to True.
+        """
         if self.node_if is not None:
             self.transform = self.node_if.get_param('transform')
             self.source = self.node_if.get_param('source')
@@ -1668,12 +2233,22 @@ class Transform3DIF:
 
 
     def reset(self):
+        """Reset transform parameters to their last-saved values and reinitialize.
+
+        Calls node_if.reset_params() to reload the user configuration tier, then
+        reinitializes from the param server.
+        """
         if self.node_if is not None:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
         self.init(do_updates = True)
 
     def factory_reset(self):
+        """Reset transform parameters to factory defaults and reinitialize.
+
+        Calls node_if.factory_reset_params() to restore factory values, then
+        reinitializes from the param server.
+        """
         if self.node_if is not None:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
@@ -1963,9 +2538,22 @@ class SettingsIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of the SettingsIF.
+
+        Returns:
+            bool: True if initialization completed successfully, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the SettingsIF is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1978,12 +2566,23 @@ class SettingsIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace used by this SettingsIF.
+
+        Returns:
+            str: The fully-resolved ROS namespace string.
+        """
         return self.namespace
 
     def publish_status(self):
+        """Build and publish a SettingsStatus message on the 'status_pub' topic.
+
+        Retrieves current settings via getSettingsFunction, merges them with
+        capability settings, and publishes the resulting status message.
+        No-ops if node_if is None.
+        """
         if self.node_if is not None:
             current_settings = self.getSettingsFunction()
             cap_settings = self.cap_settings
@@ -1995,6 +2594,19 @@ class SettingsIF:
             self.node_if.publish_pub('status_pub', status_msg)
 
     def update_cap_setting(self,cap_setting):
+        """Update a capability setting entry if cap updates are enabled.
+
+        Validates the default_value against the available options and adjusts it
+        if necessary. No-ops and returns False if allow_cap_updates is False.
+
+        Args:
+            cap_setting (dict): Capability setting dictionary with keys 'name',
+                'options', and 'default_value'.
+
+        Returns:
+            bool: True if the cap setting was accepted, False if cap updates are
+                disabled.
+        """
         success = False
         if self.allow_cap_updates == False:
             self.msg_if.pub_warn("Ignoring cap update request. Cap updates not enabled", log_name_list = self.log_name_list)
@@ -2012,6 +2624,22 @@ class SettingsIF:
         return success
 
     def update_setting(self,setting,do_updates = True, update_param = True):
+        """Apply a single setting update using the registered setSettingFunction.
+
+        Compares the incoming setting value against the current value and only
+        applies the update if the value has changed. Optionally persists the new
+        value to the ROS param server and publishes an updated status message.
+
+        Args:
+            setting (dict): Setting dictionary with 'name', 'type', and 'value' keys.
+            do_updates (bool, optional): If True, publish status after a successful
+                update. Defaults to True.
+            update_param (bool, optional): If True, write the updated setting to the
+                ROS param server. Defaults to True.
+
+        Returns:
+            bool: True if the setting was successfully applied, False otherwise.
+        """
         success = False
         current_settings = self.getSettingsFunction()
         updated_settings = copy.deepcopy(current_settings)
@@ -2046,6 +2674,17 @@ class SettingsIF:
 
 
     def init(self, do_updates = True):
+        """Load settings from the ROS param server and optionally apply them.
+
+        Reads the persisted settings dict from the param server. If do_updates is
+        True, each stored setting is applied via update_setting (without further
+        status publishes or param writes per iteration) before a final status
+        publish.
+
+        Args:
+            do_updates (bool, optional): If True, apply all stored settings to the
+                hardware after loading. Defaults to True.
+        """
         if self.node_if is not None:
             init_settings = self.node_if.get_param('settings')
             if type(init_settings) != dict:
@@ -2066,16 +2705,26 @@ class SettingsIF:
 
 
     def reset(self):
+        """Reset settings to their last-saved (user) values and reinitialize.
+
+        Calls node_if.reset_params() to reload the user configuration tier, then
+        reinitializes and reapplies settings from the param server.
+        """
         if self.node_if is not None:
             self.node_if.reset_params()
         self.init(do_updates = True)
 
     def factory_reset(self):
+        """Reset settings to factory defaults and reinitialize.
+
+        Calls node_if.factory_reset_params() to restore factory values, then
+        reinitializes and reapplies settings from the param server.
+        """
         if self.node_if is not None:
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
-       
+
     ###############################
     # Class Private Methods
     ###############################
@@ -2227,9 +2876,22 @@ class StatesIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of the StatesIF.
+
+        Returns:
+            bool: True if initialization completed successfully, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the StatesIF is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -2242,10 +2904,15 @@ class StatesIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
 
     def get_namespace(self):
+        """Return the ROS namespace used by this StatesIF.
+
+        Returns:
+            str: The fully-resolved ROS namespace string.
+        """
         return self.namespace
 
 
@@ -2381,9 +3048,22 @@ class TriggersIF:
 
 
     def get_ready_state(self):
+        """Return the current ready state of the TriggersIF.
+
+        Returns:
+            bool: True if initialization completed successfully, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the TriggersIF is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -2396,17 +3076,31 @@ class TriggersIF:
                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
             else:
                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready  
+        return self.ready
 
     def get_namespace(self):
+        """Return the ROS namespace used by this TriggersIF.
+
+        Returns:
+            str: The fully-resolved ROS namespace string.
+        """
         return self.namespace
 
 
     def publish_trigger(self, trigger_dict):
+        """Build and publish a system trigger message on the 'system_triggers' topic.
+
+        Converts the trigger dictionary to a SystemTrigger ROS message and publishes
+        it via the node_if. No-ops if node_if is None.
+
+        Args:
+            trigger_dict (dict): Trigger event dictionary with keys 'name',
+                'node_name', 'description', 'data_str_list', and 'time'.
+        """
         trig_msg = nepi_triggers.create_trigger_msg(self.namespace, trigger_dict)
         if self.node_if is not None:
             self.node_if.publish_pub('trigger_pub',trig_msg)
- 
+
 
     ###############################
     # Class Private Methods

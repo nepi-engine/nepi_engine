@@ -744,9 +744,27 @@ class IDXDeviceIF:
 
 
     def get_ready_state(self):
+        """Returns whether the IDX device interface has finished initializing.
+
+        Returns:
+            bool: True if the interface is fully initialized and ready, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Blocks until the device interface is ready or the timeout expires.
+
+        Polls the ready flag at 0.1-second intervals. Logs connection status
+        on completion or timeout.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait.
+                Defaults to float('inf') (wait indefinitely).
+
+        Returns:
+            bool: True if the interface became ready within the timeout,
+                False if the timeout elapsed before ready was set.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -1073,7 +1091,18 @@ class IDXDeviceIF:
 
 
   
-    def update_fps(self,data_product):
+    def update_fps(self, data_product):
+        """Calculates and updates FPS statistics for a data product using a rolling window.
+
+        Records the current timestamp, computes instantaneous FPS from the
+        interval since the last frame, and maintains a 100-sample rolling
+        queue for averaging. Publishes a status update when the averaged FPS
+        changes by more than 1 Hz or is still settling.
+
+        Args:
+            data_product (str): Key identifying the data product whose FPS
+                should be updated (e.g. ``'color_image'``, ``'depth_map'``).
+        """
         last_data_time = copy.deepcopy(self.last_data_time[data_product])
         self.last_data_time[data_product] = nepi_utils.get_time()
         last_fps = copy.deepcopy(self.current_fps[data_product])
@@ -1094,7 +1123,20 @@ class IDXDeviceIF:
   
 
     # Image from img_get_function can be CV2 or ROS image.  Will be converted as needed in the thread
-    def image_thread_proccess(self,data_product):
+    def image_thread_proccess(self, data_product):
+        """Continuously acquires, processes, and publishes image data for a given data product.
+
+        Waits for the save-data interface to be ready, then enters a loop that
+        checks whether any subscribers need data. When data is needed, calls the
+        registered acquisition function and publishes the resulting CV2 image via
+        the appropriate data interface (e.g. ``ColorImageIF``). Stops acquisition
+        and resets FPS counters when no subscribers are active.
+
+        Args:
+            data_product (str): Key identifying the image data product to run
+                (e.g. ``'color_image'``). Must be present in
+                ``self.data_products_dict``.
+        """
         cv2_img = None
 
         if data_product not in self.data_products_dict.keys():
@@ -1185,7 +1227,21 @@ class IDXDeviceIF:
                 nepi_sdk.sleep(0.01) # Yield
 
 
-    def depth_map_thread_proccess(self,data_product):
+    def depth_map_thread_proccess(self, data_product):
+        """Continuously acquires, processes, and publishes depth map data for a given data product.
+
+        Waits for the save-data interface to be ready, then enters a loop that
+        checks whether any subscribers need data. When data is needed, calls the
+        registered acquisition function and publishes the resulting numpy depth
+        map via ``DepthMapIF``, applying the configured range-window ratios to
+        derive effective min/max range values. Stops acquisition and resets FPS
+        counters when no subscribers are active.
+
+        Args:
+            data_product (str): Key identifying the depth map data product to run
+                (e.g. ``'depth_map'``). Must be present in
+                ``self.data_products_dict``.
+        """
         np_depth_map = None
 
         if data_product not in self.data_products_dict.keys():
@@ -1284,7 +1340,21 @@ class IDXDeviceIF:
 
    
     # Pointcloud from pointcloud_get_function can be open3D or ROS pointcloud.  Will be converted as needed in the thread
-    def pointcloud_thread_proccess(self,data_product):
+    def pointcloud_thread_proccess(self, data_product):
+        """Continuously acquires, processes, and publishes pointcloud data for a given data product.
+
+        Waits for the save-data interface to be ready, then enters a loop that
+        checks whether any subscribers need data. When data is needed, calls the
+        registered acquisition function and publishes the resulting Open3D or ROS
+        pointcloud via ``PointcloudIF``, applying the configured range-window
+        ratios to derive effective min/max range values. Stops acquisition when
+        no subscribers are active.
+
+        Args:
+            data_product (str): Key identifying the pointcloud data product to run
+                (e.g. ``'pointcloud'``). Must be present in
+                ``self.data_products_dict``.
+        """
         o3d_pc = None
 
         if data_product not in self.data_products_dict.keys():
@@ -1374,9 +1444,35 @@ class IDXDeviceIF:
  
     ### Info callback
     def info_query_callback(self, _):
+        """Handles a ROS service request for device information.
+
+        Returns the pre-populated ``DeviceInfoQueryResponse`` containing
+        device name, path, node name, namespace, serial number, hardware
+        version, software version, and device type.
+
+        Args:
+            _ (DeviceInfoQueryRequest): Unused service request object.
+
+        Returns:
+            DeviceInfoQueryResponse: The device information report.
+        """
         return self.info_report
 
     def capabilities_query_callback(self, _):
+        """Handles a ROS service request for device capabilities.
+
+        Refreshes the data-products list in the capabilities report before
+        returning it. The report reflects which optional capabilities
+        (framerate, range, auto-adjust, brightness, contrast, threshold,
+        resolution, color image, depth map, pointcloud) were provided at
+        construction time.
+
+        Args:
+            _ (IDXCapabilitiesQueryRequest): Unused service request object.
+
+        Returns:
+            IDXCapabilitiesQueryResponse: The device capabilities report.
+        """
         self.caps_report.data_products = self.data_products_list
         return self.caps_report
 
@@ -1385,7 +1481,21 @@ class IDXDeviceIF:
         self.publish_status()
 
 
-    def publish_status(self, do_updates = True):
+    def publish_status(self, do_updates=True):
+        """Builds and publishes the DeviceIDXStatus message on the status topic.
+
+        Populates all fields of the status message from current instance state,
+        including device identity, FOV angles, resolution, framerate, image
+        control ratios, range-window settings, and per-data-product FPS. When
+        ``do_updates`` is True, also queries the RTSP URL callback (if
+        registered) and includes the result in the message.
+
+        Args:
+            do_updates (bool, optional): When True, perform live queries (e.g.
+                RTSP URL) before publishing. Set to False when the caller has
+                already updated state inline and a lightweight publish is
+                sufficient. Defaults to True.
+        """
         self.status_msg.device_name = self.device_name
 
         self.status_msg.width_deg = self.width_deg

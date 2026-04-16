@@ -72,6 +72,27 @@ class MsgIF:
 
 
     def pub_msg(self, msg, level = "None", log_name_list = [], throttle_s = None, uid = None):
+        """Publishes a message to ROS logging and the NEPI message topics.
+
+        Formats the message string with node name and optional log-name prefix chain,
+        logs it at the requested level, and publishes it to both the node-local
+        ``~messages`` topic and the system-wide ``messages`` topic. Debug-level
+        messages are only published when debug mode is active.
+
+        If throttle_s and uid are both provided, the message is suppressed if less
+        than throttle_s seconds have elapsed since the last publication for that uid.
+
+        Args:
+            msg (str): The message body to publish.
+            level (str, optional): Log level string — one of ``'info'``, ``'warn'``,
+                ``'debug'``, ``'error'``, or ``'fatal'``. Defaults to ``'None'``.
+            log_name_list (list, optional): Ordered list of context label strings
+                prepended to the message. Defaults to [].
+            throttle_s (float, optional): Minimum interval in seconds between
+                publications of the same uid. Defaults to None (no throttling).
+            uid (str, optional): Unique key used to track throttle timing. Required
+                for throttling to take effect. Defaults to None.
+        """
         msg = str(msg)
         if throttle_s is not None:
             ct = nepi_utils.get_time()
@@ -97,6 +118,19 @@ class MsgIF:
             self.msg_pub_sys.publish(msg_str)
     
     def pub_info(self, msg, throttle_s = None, log_name_list = []):
+        """Publishes an info-level message to ROS logging and the NEPI message topics.
+
+        When throttle_s is specified, a uid is automatically derived from the caller's
+        filename, function name, and line number so that repeated calls from the same
+        source are suppressed until throttle_s seconds have elapsed.
+
+        Args:
+            msg (str): The message body to publish.
+            throttle_s (float, optional): Minimum interval in seconds between
+                publications from the same call site. Defaults to None (no throttling).
+            log_name_list (list, optional): Ordered list of context label strings
+                prepended to the message. Defaults to [].
+        """
         msg = str(msg)
         uid = None
         if throttle_s is not None:
@@ -109,6 +143,19 @@ class MsgIF:
         self.pub_msg(msg, level = 'info', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_warn(self, msg, throttle_s = None, log_name_list = []):
+        """Publishes a warning-level message to ROS logging and the NEPI message topics.
+
+        When throttle_s is specified, a uid is automatically derived from the caller's
+        filename, function name, and line number so that repeated calls from the same
+        source are suppressed until throttle_s seconds have elapsed.
+
+        Args:
+            msg (str): The message body to publish.
+            throttle_s (float, optional): Minimum interval in seconds between
+                publications from the same call site. Defaults to None (no throttling).
+            log_name_list (list, optional): Ordered list of context label strings
+                prepended to the message. Defaults to [].
+        """
         msg = str(msg)
         uid = None
         if throttle_s is not None:
@@ -121,6 +168,20 @@ class MsgIF:
         self.pub_msg(msg, level = 'warn', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_debug(self, msg, throttle_s = None, log_name_list = []):
+        """Publishes a debug-level message to ROS logging and the NEPI message topics.
+
+        The message is only forwarded to the ROS topics when the node's debug mode
+        is active; it is always passed to the ROS logger. When throttle_s is specified,
+        a uid is derived from the caller's filename, function name, and line number to
+        suppress repeated messages until throttle_s seconds have elapsed.
+
+        Args:
+            msg (str): The message body to publish.
+            throttle_s (float, optional): Minimum interval in seconds between
+                publications from the same call site. Defaults to None (no throttling).
+            log_name_list (list, optional): Ordered list of context label strings
+                prepended to the message. Defaults to [].
+        """
         msg = str(msg)
         uid = None
         if throttle_s is not None:
@@ -133,6 +194,19 @@ class MsgIF:
         self.pub_msg(msg, level = 'debug', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_error(self, msg, throttle_s = None, log_name_list = []):
+        """Publishes an error-level message to ROS logging and the NEPI message topics.
+
+        When throttle_s is specified, a uid is automatically derived from the caller's
+        filename, function name, and line number so that repeated calls from the same
+        source are suppressed until throttle_s seconds have elapsed.
+
+        Args:
+            msg (str): The message body to publish.
+            throttle_s (float, optional): Minimum interval in seconds between
+                publications from the same call site. Defaults to None (no throttling).
+            log_name_list (list, optional): Ordered list of context label strings
+                prepended to the message. Defaults to [].
+        """
         msg = str(msg)
         uid = None
         if throttle_s is not None:
@@ -145,6 +219,19 @@ class MsgIF:
         self.pub_msg(msg,level = 'error', log_name_list = log_name_list, throttle_s = throttle_s, uid = uid)
     
     def pub_fatal(self, msg, throttle_s = None, log_name_list = []):
+        """Publishes a fatal-level message to ROS logging and the NEPI message topics.
+
+        When throttle_s is specified, a uid is automatically derived from the caller's
+        filename, function name, and line number so that repeated calls from the same
+        source are suppressed until throttle_s seconds have elapsed.
+
+        Args:
+            msg (str): The message body to publish.
+            throttle_s (float, optional): Minimum interval in seconds between
+                publications from the same call site. Defaults to None (no throttling).
+            log_name_list (list, optional): Ordered list of context label strings
+                prepended to the message. Defaults to [].
+        """
         msg = str(msg)
         uid = None
         if throttle_s is not None:

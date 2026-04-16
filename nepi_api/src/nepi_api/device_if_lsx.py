@@ -492,9 +492,23 @@ class LSXDeviceIF:
         # Class Methods
 
     def check_ready(self):
-        return self.ready  
+        """Returns the current ready state of the LSX device interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
+        return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Blocks until the LSX device interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf'), which waits indefinitely.
+
+        Returns:
+            bool: True if the device became ready within the timeout, False if it did not.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -607,6 +621,12 @@ class LSXDeviceIF:
 
     ### Status callback
     def publish_status(self):
+        """Builds and publishes the DeviceLSXStatus message to the status topic.
+
+        Calls the driver-supplied getStatusFunction to obtain the current device state,
+        overlays the on/off state from the parameter server, and publishes the resulting
+        DeviceLSXStatus message on the latched status publisher.
+        """
         self.status_msg.device_name = self.device_name
         # update status values from device
         if self.node_if is not None:
@@ -627,11 +647,25 @@ class LSXDeviceIF:
 
     ### Info callback
     def info_query_callback(self, _):
+        """Service handler that returns the device info report.
+
+        Returns:
+            DeviceInfoQueryResponse: Response containing device name, path, node name,
+                namespace, serial number, hardware version, software version, and type.
+        """
         return self.info_report
 
 
     ### Capabilities callback
     def capabilities_query_callback(self, _):
+        """Service handler that returns the LSX capabilities report.
+
+        Returns:
+            LSXCapabilitiesQueryResponse: Response describing which LSX capabilities
+                are supported, including standby mode, on/off control, intensity control,
+                color control, kelvin control, blink control, hardware strobe,
+                temperature reporting, and power reporting.
+        """
         return self.caps_report
 
     ### LSX callbacks

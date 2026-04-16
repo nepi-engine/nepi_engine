@@ -217,9 +217,23 @@ class ListIF:
     ###############################
 
     def get_ready_state(self):
+        """Returns the ready state of the ListIF instance.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
+        """Blocks until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to
+                float('inf'), which waits indefinitely.
+
+        Returns:
+            bool: True if the interface became ready within the timeout, False otherwise.
+        """
         success = False
         if self.ready is not None:
             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -239,6 +253,12 @@ class ListIF:
 
 
     def publish_status(self):
+        """Publishes the current list state as a ListIFStatus message on the status topic.
+
+        Constructs a ListIFStatus message from the current list_dict contents and
+        publishes it via the node interface publisher. Has no effect if the node
+        interface has not been initialized.
+        """
         if self.node_if is not None:
             status_msg = ListIFStatus()
             status_msg.ordered_items_list = self.self.list_dict['ordered_items_list']
@@ -252,9 +272,31 @@ class ListIF:
 
 
     def get_list_dict(self):
+        """Returns the current list dictionary containing all list state.
+
+        Returns:
+            dict: A dictionary with keys ``ordered_items_list``, ``ordered_names_list``,
+                ``active_items_list``, ``selected_item``, and ``selected_item_index``
+                reflecting the current state of the managed list.
+        """
         return self.list_dict
 
     def update_list_dict(self, list_dict):
+        """Merges a provided list dictionary into the current list state and returns it.
+
+        Fills in any missing keys from the existing list_dict, reconciles the
+        selected item and active items lists based on the current multi-select
+        mode, and ensures the ordered_names_list length matches ordered_items_list.
+
+        Args:
+            list_dict (dict or None): Dictionary with list state to apply. Accepted
+                keys are ``ordered_items_list``, ``ordered_names_list``,
+                ``active_items_list``, ``selected_item``, and ``selected_item_index``.
+                Pass None to reset to a blank list dictionary.
+
+        Returns:
+            dict: The updated internal list dictionary after applying the provided values.
+        """
         if list_dict is None:
             list_dict = copy.deepcopy(BLANK_LIST_DICT)
         else:
@@ -336,7 +378,18 @@ class ListIF:
         self.signalSelect(item)
         self.update_state(item,active_state)
 
-    def update_state(self,item,active_state):
+    def update_state(self, item, active_state):
+        """Adds or removes an item from the active items list when multi-select is enabled.
+
+        Only takes effect when multi_select_enabled is True. If active_state is True
+        and the item is in the ordered list but not yet active, it is appended to
+        active_items_list. If active_state is False and the item is currently active,
+        it is removed. Publishes an updated status message after any change.
+
+        Args:
+            item (str): The item identifier to activate or deactivate.
+            active_state (bool): True to mark the item as active, False to deactivate it.
+        """
         if self.multi_select_enabled == True:
             self.msg_if.pub_info("Updateding " + item + " state: " + str(active_state))
             self.list_dict['ordered_items_list'] = copy.deepcopy(self.self.list_dict['ordered_items_list'])

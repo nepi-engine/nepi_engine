@@ -931,10 +931,21 @@ class RBXRobotIF:
             
 
     def get_navpose_dict(self):
+        """Returns a deep copy of the current navigation pose dictionary.
+
+        Returns:
+            dict: A deep copy of the internal navpose dictionary.
+        """
         np_dict = copy.deepcopy(self.navpose_dict)
         return np_dict
-        
+
     def publish_navpose(self):
+        """Publishes the current navpose and saves it to the data store.
+
+        Converts the internal navpose dictionary to a ROS NavPose message,
+        publishes it on the navpose topic, and saves it via the save data
+        interface.
+        """
         np_dict = self.get_navpose_dict()
         timestamp = nepi_utils.get_time()
         navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
@@ -1368,9 +1379,29 @@ class RBXRobotIF:
    
     ### Info callback
     def info_query_callback(self, _):
+        """Handles a DeviceInfoQuery service request.
+
+        Args:
+            _: Unused service request object.
+
+        Returns:
+            DeviceInfoQueryResponse: The pre-populated device info report
+                containing name, path, node, serial number, and version
+                strings.
+        """
         return self.info_report
 
     def capabilities_query_callback(self, _):
+        """Handles an RBXCapabilitiesQuery service request.
+
+        Args:
+            _: Unused service request object.
+
+        Returns:
+            RBXCapabilitiesQueryResponse: The pre-populated capabilities
+                report describing supported control axes, states, modes,
+                actions, and data products.
+        """
         return self.caps_report
     
 
@@ -1419,6 +1450,21 @@ class RBXRobotIF:
     # Converted to ENU befor sending message
     ###################################################
     def setpoint_attitude_ned(self,setpoint_attitude):
+      """Commands the robot to a target attitude in the NED reference frame.
+
+      Converts the NED input to ENU before sending a pose setpoint command,
+      then blocks until the attitude goal is reached within error bounds or
+      the command times out.
+
+      Args:
+          setpoint_attitude (list): Target attitude as
+              [ROLL_NED_DEG, PITCH_NED_DEG, YAW_NED_DEG]. Use -999 for any
+              axis to hold the current value.
+
+      Returns:
+          bool: True if the attitude setpoint was reached within bounds and
+              timeout, False otherwise.
+      """
       # setpoint_attitude is [ROLL_NED_DEG, PITCH_NED_DEG, YEW_NED_DEGREES]
       # Use value -999 to use current value
       cmd_success = True
@@ -1509,6 +1555,14 @@ class RBXRobotIF:
       
 
     def get_navpose_dict(self):
+        """Returns the current navigation pose dictionary from the best available source.
+
+        Checks in order: a direct navpose callback, the nav manager interface,
+        then falls back to a blank navpose dictionary.
+
+        Returns:
+            dict: The current navigation pose dictionary.
+        """
         navpose_dict = None
         if self.get_navpose_function is not None:
             navpose_dict = self.get_navpose_function()
@@ -1518,8 +1572,14 @@ class RBXRobotIF:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
         return navpose_dict
 
-        
+
     def publish_navpose(self):
+        """Publishes the current navpose and saves it to the data store.
+
+        Converts the internal navpose dictionary to a ROS NavPose message,
+        publishes it on the navpose_pub topic, and saves it via the save data
+        interface.
+        """
         np_dict = copy.deepcopy(self.navpose_dict)
         timestamp = nepi_utils.get_time()
         navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
@@ -1549,6 +1609,24 @@ class RBXRobotIF:
     # yaw+ counter clockwise from x axis (0 degrees faces x+ and rotates using right hand rule around z+ axis down)
     #####################################################
     def setpoint_position_local_body(self,setpoint_position):
+      """Commands the robot to a target position in the local body frame.
+
+      Converts the body-relative input position and yaw to the ENU frame,
+      sends a position setpoint, then blocks until the position and yaw goals
+      are reached within error bounds or the command times out.
+
+      Body frame conventions: x+ forward, y+ left, z+ up, yaw+ counter-clockwise
+      from x axis.
+
+      Args:
+          setpoint_position (list): Target position and yaw as
+              [X_BODY_M, Y_BODY_M, Z_BODY_M, YAW_BODY_DEG]. Use -999 for any
+              element to hold the current value.
+
+      Returns:
+          bool: True if both position and yaw setpoints were reached within
+              bounds and timeout, False otherwise.
+      """
       # setpoint_position is [X_BODY_METERS, Y_BODY_METERS, Z_BODY_METERS, YEW_BODY_DEGREES]
       # use value 0 for no change
       cmd_success = True
@@ -1713,6 +1791,22 @@ class RBXRobotIF:
     # Yaw is specified in NED frame degrees 0-360 or +-180 
     #####################################################
     def setpoint_location_global_wgs84(self,setpoint_location):
+      """Commands the robot to a global WGS84 geographic position.
+
+      Converts WGS84 altitude to AMSL, converts NED yaw to ENU, sends a
+      location setpoint, then blocks until the geopoint and yaw goals are
+      reached within error bounds or the command times out.
+
+      Args:
+          setpoint_location (list): Target location as
+              [LAT, LONG, ALT_WGS84_M, YAW_NED_DEG]. Latitude and longitude
+              in decimal degrees, altitude in meters above WGS84 ellipsoid.
+              Use -999 for any element to hold the current value.
+
+      Returns:
+          bool: True if both location and yaw setpoints were reached within
+              bounds and timeout, False otherwise.
+      """
       # setpoint_location is [LAT, LONG, ALT_WGS84, YEW_NED_DEGREES 0-360 or +-180]
       # Use value -999 to use current value
       cmd_success = True
@@ -1859,6 +1953,16 @@ class RBXRobotIF:
     
     ### Function for updating current goto error values
     def update_current_errors(self,error_list):
+      """Updates the current goto error values in the status message.
+
+      Expects exactly seven elements corresponding to x, y, z translation
+      errors in meters and heading, roll, pitch, yaw rotation errors in
+      degrees. Does nothing if the list length is not seven.
+
+      Args:
+          error_list (list): Error values in the order
+              [x_m, y_m, z_m, heading_deg, roll_deg, pitch_deg, yaw_deg].
+      """
       if len(error_list) == 7:
         errors_msg = GotoErrors()
         errors_msg.x_m = error_list[0]
@@ -1875,6 +1979,11 @@ class RBXRobotIF:
 
     ### Function for updating last goto error values
     def update_prev_errors(self):
+        """Copies the current goto error values into the previous error slot.
+
+        Called before a new command is issued so the last command's errors
+        are preserved in the status message for comparison.
+        """
         errors_msg = GotoErrors()
         errors_msg.x_m = self.status_msg.errors_current.x_m
         errors_msg.y_m = self.status_msg.errors_current.y_m
@@ -1887,10 +1996,24 @@ class RBXRobotIF:
 
 
     def update_error_msg(self,error_msg):
+      """Logs an error and stores it in the status message.
+
+      Args:
+          error_msg (str): The error description to log and persist.
+      """
       self.msg_if.pub_info(error_msg)
       self.status_msg.last_error_message = error_msg
 
     def get_motor_controls_status_msg(self,motor_controls):
+      """Builds a list of MotorControl messages from a speed-ratio list.
+
+      Args:
+          motor_controls (list): Ordered list of speed ratios, one per motor.
+
+      Returns:
+          list: A list of MotorControl messages with motor_ind and speed_ratio
+              populated for each motor.
+      """
       mcs = []
       for i in range(len(motor_controls)):
         mc = MotorControl()
@@ -1900,6 +2023,12 @@ class RBXRobotIF:
       return mcs
 
     def get_3d_transform(self):
+        """Returns the current 3D transformation data.
+
+        Returns:
+            Transform: The current 3D transform, or the zero transform if no
+                transform interface is configured.
+        """
         transform = nepi_nav.ZERO_TRANSFORM
         # if self.transform_if is not None:
         #     transform = self.transform_if.get_3d_transform()
@@ -1913,6 +2042,14 @@ class RBXRobotIF:
         self.publish_status()
 
     def publish_status(self):
+        """Assembles and publishes the RBX device status and image.
+
+        Updates the status message with current battery, control readiness,
+        error values, and motor state, then publishes it to the status and
+        status_str topics. Also overlays status text on the current image
+        if the overlay flag is set, publishes the image, and saves it via
+        the save data interface.
+        """
         self.status_msg.device_name = self.device_name
         if self.getBatteryPercentFunction is not None:
           self.rbx_battery = self.getBatteryPercentFunction()

@@ -542,9 +542,23 @@ class NPXDeviceIF:
   # Class Methods
 
   def check_ready(self):
-      return self.ready  
+      """Returns the current ready state of the NPX device interface.
+
+      Returns:
+          bool: True if the interface has completed initialization, False otherwise.
+      """
+      return self.ready
 
   def wait_for_ready(self, timeout = float('inf') ):
+      """Blocks until the NPX device interface is ready or the timeout expires.
+
+      Args:
+          timeout (float, optional): Maximum number of seconds to wait. Defaults to
+              float('inf'), which waits indefinitely.
+
+      Returns:
+          bool: True if the device became ready within the timeout, False if it did not.
+      """
       success = False
       if self.ready is not None:
           self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
@@ -561,6 +575,15 @@ class NPXDeviceIF:
 
 
   def get_navpose_dict(self):
+    """Returns the current navigation pose dictionary.
+
+    The dictionary is updated periodically by the internal timer that calls the
+    driver-supplied getNavPoseCb. It follows the nepi_nav.BLANK_NAVPOSE_DICT
+    structure and includes has_* capability flags alongside the data fields.
+
+    Returns:
+        dict: The most recently published navpose data dictionary.
+    """
     return self.navpose_dict
 
     ###############################
@@ -698,10 +721,24 @@ class NPXDeviceIF:
 
   ### Info callback
   def info_query_callback(self, _):
+    """Service handler that returns the device info report.
+
+    Returns:
+        DeviceInfoQueryResponse: Response containing device name, path, node name,
+            namespace, serial number, hardware version, software version, and type.
+    """
     return self.info_report
 
   def capabilities_query_callback(self, _):
-    return self.caps_report    
+    """Service handler that returns the NPX capabilities report.
+
+    Returns:
+        NPXCapabilitiesQueryResponse: Response describing which navpose data types
+            this device provides, including location, heading, orientation, position,
+            altitude, depth, and pan/tilt, as well as supported update rate range
+            and available data products.
+    """
+    return self.caps_report
 
 
   def _updateNavPoseDictCb(self,timer):    
@@ -732,7 +769,12 @@ class NPXDeviceIF:
   def _publishStatusCb(self,timer):
     self.publish_status()
 
-  def publish_status(self): 
+  def publish_status(self):
+      """Builds and publishes the DeviceNPXStatus message to the status topic.
+
+      Updates the device name and current update rate on the status message, then
+      publishes it on the latched status publisher if the node interface is available.
+      """
       self.status_msg.device_name = self.device_name
       self.status_msg.update_rate = self.update_rate
 
@@ -743,6 +785,11 @@ class NPXDeviceIF:
   # Node Cleanup Function
   
   def cleanup_actions(self):
+    """Performs cleanup actions when the ROS node is shutting down.
+
+    Logs a shutdown message via the message interface. Called by the node shutdown
+    hook to allow orderly teardown of the device interface.
+    """
     self.msg_if.pub_info("Shutting down: Executing script cleanup actions", log_name_list = self.log_name_list)
 
 

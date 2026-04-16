@@ -102,7 +102,7 @@ Key filesystem paths expected at runtime:
 Python functions and methods in `nepi_api` follow the NEPI convention:
 
 - **Public API:** `snake_case` — `goto_tilt_ratio`, `get_ready_state`, `publish_status`. Receives docstrings.
-- **Private:** `_camelCase` — `_initCb`, `_resetCb`, `_publishStatusCb`. No docstrings.
+- **Private:** `camelCase` — `initCb`, `resetCb`, `publishStatusCb`, `getPanAdj`. No docstrings. Some also carry a leading underscore (`_camelCase`) for emphasis, but camelCase alone marks a method private.
 - **`Cb` suffix** — indicates a ROS callback (subscriber, publisher, or timer). Carries rename risk; audit external call sites before renaming.
 
 ## Known Constraints and Fragile Areas
