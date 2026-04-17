@@ -1038,8 +1038,8 @@ class PTXActuatorIF:
 
     def getPositionWithinSoftLimits(self, pan_deg, tilt_deg):
         [adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max] = self.getLimitsSoftstopAdj()
-        self.msg_if.pub_info("Checking Positions against soft limits: " + str([pan_deg, tilt_deg]), log_name_list = self.log_name_list)
-        self.msg_if.pub_info("Got Soft Limits: " + str([adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max]), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Checking Positions against soft limits: " + str([pan_deg, tilt_deg]), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Got Soft Limits: " + str([adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max]), log_name_list = self.log_name_list)
         if (pan_deg > adj_pan_max):
             pan_deg = adj_pan_max
         if (pan_deg < adj_pan_min):
