@@ -431,7 +431,7 @@ class ConnectPTXDeviceIF:
                 has been received.
         """
         if self.status_msg is not None:
-            return [self.status_msg.pan_min_softstop_deg, self.status_msg.pan_max_softstop_deg, self.status_msg.tilt_min_softstop_deg, self.status_msg.pan_max_softstop_deg]
+            return [self.status_msg.pan_min_softstop_deg, self.status_msg.pan_max_softstop_deg, self.status_msg.tilt_min_softstop_deg, self.status_msg.tilt_max_softstop_deg]
 
 
     def get_pan_tilt_position(self):

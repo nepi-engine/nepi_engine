@@ -1028,11 +1028,28 @@ class PTXActuatorIF:
 
     def positionWithinSoftLimits(self, pan_deg, tilt_deg):
         valid = False
-        if (pan_deg <= self.max_pan_softstop_deg) or (pan_deg >= self.min_pan_softstop_deg) or \
-           (tilt_deg <= self.max_tilt_softstop_deg) or (tilt_deg >= self.min_tilt_softstop_deg):
+        [adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max] = self.getLimitsSoftstopAdj()
+        if (pan_deg <= adj_pan_max) or (pan_deg >= adj_pan_min) or \
+           (tilt_deg <= adj_tilt_max) or (tilt_deg >= adj_tilt_min):
             valid = True
         
         return valid
+
+
+    def getPositionWithinSoftLimits(self, pan_deg, tilt_deg):
+        [adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max] = self.getLimitsSoftstopAdj()
+        self.msg_if.pub_info("Checking Positions against soft limits: " + str([pan_deg, tilt_deg]), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Got Soft Limits: " + str([adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max]), log_name_list = self.log_name_list)
+        if (pan_deg > adj_pan_max):
+            pan_deg = adj_pan_max
+        if (pan_deg < adj_pan_min):
+            pan_deg = adj_pan_min
+        if (tilt_deg > adj_tilt_max):
+            tilt_deg = adj_tilt_max
+        if (tilt_deg < adj_tilt_min):
+            tilt_deg = adj_tilt_min
+        return pan_deg,tilt_deg
+
 
 
  
@@ -1156,56 +1173,51 @@ class PTXActuatorIF:
         
 
     def _gotoPositionCb(self, msg):
+        #self.msg_if.pub_warn("Got goto position msg: " + str(msg))
         [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg,msg.tilt_deg)
         self.gotPosition(pan_deg_adj,tilt_deg_adj)
 
     def gotPosition(self,pan_deg,tilt_deg):
-            if not self.positionWithinSoftLimits(pan_deg, tilt_deg):
-                self.msg_if.pub_warn("Requested goto position is invalid... ignoring", log_name_list = self.log_name_list)
-                return
+            [pan_deg,tilt_deg] = self.getPositionWithinSoftLimits(pan_deg, tilt_deg)
             self.pan_goal_deg = pan_deg
             self.tilt_goal_deg = tilt_deg
-            #self.msg_if.pub_info("Driving to Pan/Tilt deg position  " + "%.2f" % (self.pan_goal_deg * self.rpi) + " " + "%.2f" % (self.tilt_goal_deg * self.rti))
-            self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
+            #self.msg_if.pub_info("Driving to Pan/Tilt deg position  " + "%.2f" % (pan_deg * self.rpi) + " " + "%.2f" % (tilt_deg * self.rti))
+            self.gotoPositionCb(pan_deg, tilt_deg)
             self.publish_status()
 
     def _gotoPanPositionCb(self, msg):
+        #self.msg_if.pub_warn("Got goto pan position msg: " + str(msg))
         pan_deg_adj = self.getPanAdj(msg.data)
         self.gotoPanPosition(pan_deg_adj)
 
     def gotoPanPosition(self,pan_deg):
-        if self.positionWithinSoftLimits is not None:
-            if not self.positionWithinSoftLimits(pan_deg, self.tilt_goal_deg):
-                self.msg_if.pub_warn("Requested goto pan position is invalid... ignoring", log_name_list = self.log_name_list)
-                return
-            self.pan_goal_deg = pan_deg
-            if self.gotoPanPositionCb is not None:
-                #self.msg_if.pub_info("Driving to pan deg" + "%.2f" % (self.pan_goal_deg * self.rpi))
-                self.gotoPanPositionCb(self.pan_goal_deg)
-            elif self.gotoPositionCb is not None:
-                #self.msg_if.pub_info("Driving to pan/tilt deg  " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
-                self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
-            self.publish_status()
+        [pan_deg,tilt_deg] = self.getPositionWithinSoftLimits(pan_deg, self.tilt_goal_deg)
+        self.pan_goal_deg = pan_deg
+        if self.gotoPanPositionCb is not None:
+            #self.msg_if.pub_info("Driving to pan deg" + "%.2f" % (pan_deg * self.rpi))
+            self.gotoPanPositionCb(self.pan_goal_deg)
+        elif self.gotoPositionCb is not None:
+            #self.msg_if.pub_info("Driving to pan/tilt deg " + "%.2f" % pan_deg * self.rpi + " " + "%.2f" % tilt_deg * self.rti)
+            self.gotoPositionCb(pan_deg, tilt_deg)
+        self.publish_status()
                  
 
     def _gotoTiltPositionCb(self, msg):
-        #self.stopTiltCb()
+        #self.msg_if.pub_warn("Got goto tilt position msg: " + str(msg))
         tilt_deg_adj = self.getTiltAdj(msg.data)
+        self.msg_if.pub_warn("Got adj goto tilt position msg: " + str(tilt_deg_adj))
         self.gotoTiltPosition(tilt_deg_adj)
 
     def gotoTiltPosition(self,tilt_deg):
-        if self.positionWithinSoftLimits is not None:
-            if not self.positionWithinSoftLimits(self.pan_goal_deg, tilt_deg):
-                self.msg_if.pub_warn("Requested goto tilt position is invalid... ignoring", log_name_list = self.log_name_list)
-                return
-            self.tilt_goal_deg = tilt_deg
-            if self.gotoTiltPositionCb is not None:
-                #self.msg_if.pub_info("Driving to tilt deg " + "%.2f" % (self.tilt_goal_deg * self.rti))
-                self.gotoTiltPositionCb(self.tilt_goal_deg)    
-            elif self.gotoPositionCb is not None:
-                #self.msg_if.pub_info("Driving to pan/tilt deg " + "%.2f" % self.pan_goal_deg * self.rpi + " " + "%.2f" % self.tilt_goal_deg * self.rti)
-                self.gotoPositionCb(self.pan_goal_deg, self.tilt_goal_deg)
-            self.publish_status()
+        [pan_deg,tilt_deg] = self.getPositionWithinSoftLimits(self.pan_goal_deg, tilt_deg)
+        self.tilt_goal_deg = tilt_deg
+        if self.gotoTiltPositionCb is not None:
+            #self.msg_if.pub_info("Driving to tilt deg " + "%.2f" % (tilt_deg * self.rti))
+            self.gotoTiltPositionCb(self.tilt_goal_deg)    
+        elif self.gotoPositionCb is not None:
+            #self.msg_if.pub_info("Driving to pan/tilt deg " + "%.2f" % pan_deg * self.rpi + " " + "%.2f" % tilt_deg * self.rti)
+            self.gotoPositionCb(pan_deg, tilt_deg)
+        self.publish_status()
     
 
     def _gotoToPanRatioCb(self, msg):
