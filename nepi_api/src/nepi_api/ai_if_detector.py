@@ -2063,16 +2063,20 @@ class AiDetectorIF:
 
         
         # Check if for all topic subscribers
-        filters = [self.IMAGE_DATA_PRODUCT]
         topic_names = []
-        namespace = os.path.join(self.base_namespace, 'bounding_boxes')
-        topic_names.append(namespace)
-        namespace = os.path.join(self.base_namespace, self.IMAGE_DATA_PRODUCT)
+        namespace = os.path.join(self.node_namespace, 'bounding_boxes')
         topic_names.append(namespace)
         namespace = os.path.join(self.base_namespace, 'bounding_boxes')
         topic_names.append(namespace)
-        namespace = os.path.join(self.base_namespace, self.IMAGE_DATA_PRODUCT)
-        topic_names.append(namespace)
+
+        filters = []
+        if self.IMAGE_DATA_PRODUCT is not None:
+            filters = [self.IMAGE_DATA_PRODUCT]
+            namespace = os.path.join(self.node_namespace, self.IMAGE_DATA_PRODUCT)
+            topic_names.append(namespace)
+
+            namespace = os.path.join(self.base_namespace, self.IMAGE_DATA_PRODUCT)
+            topic_names.append(namespace)
 
         [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
 
