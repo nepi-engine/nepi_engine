@@ -104,6 +104,11 @@ else
 	run_script $script_path
 
 
+	LOAD_CONFIG=0
+	script_file=update_sys_config.sh
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	run_script $script_path $LOAD_CONFIG
+
 	echo ""
 	echo "Loading Updated NEPI System Config"
 	source ${ETC_FOLDER}/load_system_config.sh
