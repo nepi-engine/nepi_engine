@@ -832,7 +832,7 @@ def check_password(username, password):
     stdout, stderr = process.communicate(input=password + '\n')
     # Check the return code: 0 means success
     #logger.log_warn("password check " + str([process.returncode,stdout, stderr]) )
-    if process.returncode == 0 or stderr == 'Password: ':
+    if process.returncode == 0 or stderr == 'Password: ' or stderr == '':
         return True
     else:
         return False
