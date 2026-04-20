@@ -623,11 +623,10 @@ class AiDetectorImgPub:
             if img_topic in self.imgs_info_dict.keys():
                 if  self.img_node_dict[img_topic]['img_if'] is not None:
                     needs_img = self.img_node_dict[img_topic]['img_if'].needs_data_check()
-
-
-            if self.imgs_info_dict[img_topic]['publishing'] == False:
-                pass 
-            
+                if 'publishing' in self.imgs_info_dict[img_topic].keys():
+                    if self.imgs_info_dict[img_topic]['publishing'] == False:
+                        pass 
+                
             if ( needs_img ) and self.pub_image_enabled:
                 start_time = nepi_sdk.get_time()   
                 

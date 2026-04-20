@@ -2077,9 +2077,11 @@ class AiDetectorIF:
 
             namespace = os.path.join(self.base_namespace, self.IMAGE_DATA_PRODUCT)
             topic_names.append(namespace)
-
-        [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
-
+        try:
+            [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
+        except:
+            [has_subs,has_subs_dict] = [ False, dict() ]
+        
         # Check if save_data_if needs data
         ds_dict = self.save_data_if.data_products_should_save_dict()
         for ds in ds_dict.keys():
@@ -2104,7 +2106,10 @@ class AiDetectorIF:
                     topic_names = []      
                     if img_topic in self.imgs_info_dict.keys():
                         topic_names.append(self.imgs_info_dict[img_topic]['img_pub_topic'])
-                    [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
+                    try:
+                        [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
+                    except:
+                        [has_subs,has_subs_dict] = [ False, dict() ]
 
 
                     if img_topic in self.imgs_info_dict.keys():
