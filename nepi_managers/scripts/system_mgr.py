@@ -1213,12 +1213,12 @@ class SystemMgrNode():
             self.node_if.save_config()
 
     def setAdminPasswordCb(self, msg):
-        user = self.nepiadmin_uid
+        user = 'nepiadmin'
         password = msg.data
-        password_valid = nepi_utils.check_password(user,password)
-        if password_valid:
-            self.admin_password_valid = True
-            self.updateSystemAdminSettings()
+        #password_valid = nepi_utils.check_password(user,password)
+        self.msg_if.pub_info("Got " + str(password_valid) + " for " + str([user,password]))
+        self.admin_password_valid = password_valid
+        self.updateSystemAdminSettings()
 
             
 

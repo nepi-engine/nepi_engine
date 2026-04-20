@@ -830,9 +830,9 @@ def check_password(username, password):
     cmd = ['su', '--command', 'true', '-', username]
     process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
     stdout, stderr = process.communicate(input=password + '\n')
-    
     # Check the return code: 0 means success
-    if process.returncode == 0 or stdout == 'This account is currently not available.\n':
+    #logger.log_warn("password check " + str([process.returncode,stdout, stderr]) )
+    if process.returncode == 0 or stderr == 'Password: ':
         return True
     else:
         return False
