@@ -1985,7 +1985,10 @@ class AiDetectorIF:
                 if 'detection_trigger' in self.triggers_dict.keys():
                     trigger_dict = self.triggers_dict['detection_trigger']
                     trigger_dict['time']=nepi_utils.get_time()
-                    self.triggers_if.publish_trigger(trigger_dict)
+                    try:
+                        self.triggers_if.publish_trigger(trigger_dict)
+                    except:
+                        pass
 
                 self.detecting = True
 
