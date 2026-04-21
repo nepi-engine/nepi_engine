@@ -832,11 +832,7 @@ def check_password(nepi_uid, username, password):
     process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
     stdout, stderr = process.communicate(input=password + '\n')
     # Check the return code: 0 means success
-<<<<<<< HEAD
     #logger.log_warn("password check return" + str([process.returncode,stdout, stderr]) )
-=======
-    #logger.log_warn("password check " + str([process.returncode,stdout, stderr]) )
->>>>>>> f3fe18bef736d8fe4eed66e0369e7e12381f9768
     if process.returncode == 0 or stderr == 'Password: ' or stderr == '':
         return True
     else:
