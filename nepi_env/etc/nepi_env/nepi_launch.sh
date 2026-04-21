@@ -134,6 +134,7 @@ else
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
 
+	nepiauthadd $NEPI_SSH_KEY
 	#########################################
 
 
