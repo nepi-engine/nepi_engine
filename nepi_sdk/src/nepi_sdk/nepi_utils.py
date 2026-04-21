@@ -822,17 +822,18 @@ def free_path_space(path, required_percent=10):
 
 
 
-def check_password(username, password):
+def check_password(nepi_uid, username, password):
     """
     Checks the password using the 'su' command in a subprocess.
     Returns True for success, False otherwise.
     """
-    cmd = ['su', '--command', 'true', '-', username]
+    cmd = ['sudo', '-u', nepi_uid, 'su', '--command', 'true', '-', username]
+    #logger.log_warn("password check cmd" + str(cmd) )
     process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
     stdout, stderr = process.communicate(input=password + '\n')
     # Check the return code: 0 means success
-    #logger.log_warn("password check " + str([process.returncode,stdout, stderr]) )
-    if process.returncode == 0 or stderr == 'Password: ':
+    #logger.log_warn("password check return" + str([process.returncode,stdout, stderr]) )
+    if process.returncode == 0 or stderr == 'Password: ' or stderr == '':
         return True
     else:
         return False

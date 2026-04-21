@@ -229,7 +229,7 @@ class SystemMgrNode():
         # self.nepi_gid = stat_info.st_gid
 
         self.nepi_uid = self.nepi_config['NEPI_USER']
-        self.nepi_gid = self.nepi_config['NEPI_USER']
+        self.nepi_gid = self.nepi_uid
 
 
         self.nepiadmin_uid = self.nepi_config['NEPI_ADMIN_USER']
@@ -1215,7 +1215,7 @@ class SystemMgrNode():
     def setAdminPasswordCb(self, msg):
         user = 'nepiadmin'
         password = msg.data
-        password_valid = nepi_utils.check_password(user,password)
+        password_valid = nepi_utils.check_password(self.nepi_uid,user,password)
         #self.msg_if.pub_info("Got " + str(password_valid) + " for " + str([user,password]))
         self.admin_password_valid = password_valid
         self.updateSystemAdminSettings()
@@ -1248,7 +1248,7 @@ class SystemMgrNode():
     def setUserLoginPasswordCb(self, msg):
         user = self.nepi_uid
         password = msg.data
-        password_valid = nepi_utils.check_password(user,password)
+        password_valid = nepi_utils.check_password(self.nepi_uid,user,password)
         if password_valid:
                 self.user_login_password_valid = True
                 self.updateSystemAdminSettings()
