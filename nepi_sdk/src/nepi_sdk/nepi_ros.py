@@ -36,6 +36,7 @@ import time
 from datetime import datetime
 import subprocess
 import yaml
+import inspect
 
 # import tracemalloc
 # tracemalloc.start()
@@ -760,14 +761,17 @@ def publish_pub(publisher, msg, log_name_list = []):
 
 
 # Function to get list of active topics
-def get_topics_data_list(caller = None):
-  if caller is not None:
-    log_msg_warn("get_topics_data_list being called by: " + str(caller))
+def get_topics_data_list():
   topics_list = []
   types_list = []
   topics_data_list = []
+  # stack = inspect.stack()
+  # call_functions = []
+  # for frame in stack:
+  #     call_functions.append(str(f"Function: {frame.function}, File: {frame.filename}, Line: {frame.lineno}"))
+  # log_msg_warn("get_topics_call functions: " + str(call_functions) )
   try:
-    pubs, subs = rostopic.get_topic_list()
+    pubs,subs = rostopic.get_topic_list()
     topics_data_list = pubs
   except Exception as e:
     log_msg_warn("Nepi Sdk rostopic.get_topic_list failed: " + str(e))
@@ -787,31 +791,21 @@ def get_topics_data_list(caller = None):
   return topics_list,types_list
 
 
-def get_topics_list(caller = None):
-  if caller is not None:
-    log_msg_warn("get_topics_list being called by: " + str(caller))
+def get_topics_list():
   topics_list = []
   try:
-    [topics_list,types_list]=get_topics_data_list(caller = caller)
+    [topics_list,types_list]=get_topics_data_list()
   except Exception as e:
     log_msg_warn("Nepi Sdk get_topics failed: " + str(e))
   return topics_list
 
-def get_published_topics(caller = None):
-  if caller is not None:
-    log_msg_warn("get_published_topics being called by: " + str(caller))
+def get_published_topics():
   return rospy.get_published_topics()
 
 # Function to find a topic
-def find_topic(topic_name, exact = False, caller = None):
-  if caller is not None:
-    log_msg_warn("find_topic being called by: " + str(caller))
-  find_topic = ""
-  topics_list = []
-  try:
-    [topics_list,types_list]=get_topics_data_list(caller = caller)
-  except:
-    pass
+def find_topic(topic_name, exact = False, topics_list = None, types_list = None):
+  if types_list is None or topics_list is None:
+    [topics_list,types_list]=get_topics_data_list()
   for topic in topics_list:
       if topic.find(topic_name) != -1 and topic.find(topic_name+"_") == -1:
         #log_msg_warn("Found potential topic : " + str(topic_str))
@@ -829,16 +823,11 @@ def find_topic(topic_name, exact = False, caller = None):
 
 
 # Function to find a topic
-def find_topics(topic_names_list, caller = None):
-  if caller is not None:
-    log_msg_warn("find_topics being called by: " + str(caller))
-  #log_msg_warn("msg find: " + str(msg_type_list))
-
-  find_topics = []
-  topics_list = []
+def find_topics(topic_names_list, topics_list = None, types_list = None):
+  if types_list is None or topics_list is None:
+    [topics_list,types_list]=get_topics_data_list()
 
   try:
-    [topics_list,types_list]=get_topics_data_list(caller = caller)
     for topic in topics_list:
         for topic_name in topic_names_list:
           if topic_name == topic and topic_name not in find_topics:
@@ -849,13 +838,11 @@ def find_topics(topic_names_list, caller = None):
 
 
 # Function to find a topic
-def find_topics_by_msg(msg_type, caller = None):
-  if caller is not None:
-    log_msg_warn("find_topics_by_msg being called by: " + str(caller))
-  #log_msg_warn("msg find: " + str(msg_type))
-  find_topics = []
-  try:
+def find_topics_by_msg(msg_type, topics_list = None, types_list = None):
+  if types_list is None or topics_list is None:
     [topics_list,types_list]=get_topics_data_list()
+
+  try:
     for i, topic in enumerate(topics_list):
       topic_str = topics_list[i]
       msg_str = types_list[i]
@@ -869,17 +856,14 @@ def find_topics_by_msg(msg_type, caller = None):
   return find_topics
 
 # Function to find a topic
-def find_topics_by_msgs(msg_type_list, caller = None):
-  if caller is not None:
-    log_msg_warn("find_topics_by_msgs being called by: " + str(caller))
-  #log_msg_warn("msg find: " + str(msg_type_list))
+def find_topics_by_msgs(msg_type_list, topics_list = None, types_list = None):
+  if types_list is None or topics_list is None:
+    [topics_list,types_list]=get_topics_data_list()
 
   find_topics = []
   find_msgs = []
-  topics_list = []
-  types_list = []
   try:
-    [topics_list,types_list]=get_topics_data_list(caller = caller)
+    
     for i, topic in enumerate(topics_list):
       topic_str = topics_list[i]
       msg_str = types_list[i]
@@ -896,14 +880,11 @@ def find_topics_by_msgs(msg_type_list, caller = None):
   return find_topics,find_msgs
 
 # Function to find a topic
-def find_msg_by_topic(topic, caller = None):
-  if caller is not None:
-    log_msg_warn("find_topics_by_msgs being called by: " + str(caller))
+def find_msg_by_topic(topic, topics_list = None, types_list = None):
+  if types_list is None or topics_list is None:
+    [topics_list,types_list]=get_topics_data_list()
   find_msg = ''
-  topics_list = []
-  types_list = []
   try:
-    [topics_list,types_list]=get_topics_data_list(caller = caller)
     for i, topic in enumerate(topics_list):
       topic_str = topics_list[i]
       msg_str = types_list[i]
@@ -914,14 +895,11 @@ def find_msg_by_topic(topic, caller = None):
   return find_msg
 
 # Function to find a topic
-def find_topics_by_name(topic_name, caller = None):
-  if caller is not None:
-    log_msg_warn("find_topics_by_name being called by: " + str(caller))
-  find_topics = []
-  topics_list = []
-  types_list = []
+def find_topics_by_name(topic_name, topics_list = None, types_list = None):
+  if types_list is None or topics_list is None:
+    [topics_list,types_list]=get_topics_data_list()
+
   try:
-    [topics_list,types_list]=get_topics_data_list(caller = caller)
     for topic in topics_list:
         if topic.index(topic_name) != -1:
           find_topics.append(topic)
@@ -931,25 +909,23 @@ def find_topics_by_name(topic_name, caller = None):
 
 
 ### Function to check for a topic 
-def check_for_topic(topic_name, caller = None):
-  if caller is not None:
-    log_msg_warn("check_for_topic being called by: " + str(caller))
+def check_for_topic(topic_name, topics_list = None, types_list = None):
+
+  topic=find_topic(topic_name)
+  
   topic_exists = True
-  topic=find_topic(topic_name, caller = caller)
   if topic == "":
     topic_exists = False
   return topic_exists
 
 # Function to wait for a topic
-def wait_for_topic(topic_name, timeout = 60, log_name_list = [], caller = None):
-  if caller is not None:
-    log_msg_warn("wait_for_topic being called by: " + str(caller))
+def wait_for_topic(topic_name, timeout = 60, log_name_list = [], topics_list = None, types_list = None):
   start_time = get_time()
   timer = 0
   log_msg_debug("nepi_sdk: Waiting for topic with name: " + topic_name, log_name_list = log_name_list, throttle_s = 5.0)
   topic = ""
   while topic == "" and timer < timeout and not rospy.is_shutdown():
-    topic=find_topic(topic_name, caller = caller)
+    topic=find_topic(topic_name)
     time.sleep(.01)
     timer = get_time() - start_time
   log_msg_debug("nepi_sdk: Found topic: " + topic, log_name_list = log_name_list, throttle_s = 5.0)
@@ -960,13 +936,12 @@ def check_for_subscribers(topic_names,filters=[], log_name_list = []):
   return has_subs
 
 
-def find_subscribers(topic_names,filters=[], log_name_list = [], caller = None):
-  if caller is not None:
-    log_msg_warn("find_subscribers being called by: " + str(caller))
+def find_subscribers(topic_names,filters=[], log_name_list = [], topics_list = None, types_list = None):
+
     """
     Checks if topics have any active subscribers.
     """
-    topic_names = list(topic_names, caller = caller)
+    topic_names = list(topic_names)
     has_subs = False
     has_subs_dict = dict()
     if len(topic_names) > 0:

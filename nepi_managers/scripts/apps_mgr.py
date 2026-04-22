@@ -32,7 +32,7 @@ from nepi_sdk import nepi_apps
 
 from std_msgs.msg import Empty, String, Int32, Bool, Header
 
-from nepi_interfaces.msg import MgrAppsStatus, AppStatus, UpdateBool, UpdateOrder
+from nepi_interfaces.msg import MgrAppsStatus, AppStatus, UpdateBool, UpdateOrder, MgrSystemStatus
 from nepi_interfaces.srv import AppStatusQuery, AppStatusQueryRequest, AppStatusQueryResponse
 
 from nepi_api.messages_if import MsgIF
@@ -74,7 +74,10 @@ class NepiAppsMgr(object):
 
   failed_app_list = []
 
-
+  active_nodes = []
+  active_topics = []
+  active_topic_types = []
+  active_services = []
 
   #######################
   ### Node Initialization
@@ -206,8 +209,15 @@ class NepiAppsMgr(object):
                 'topic': 'update_order',
                 'msg': UpdateOrder,
                 'qsize': 10,
-                'callback': self.updateOrderCb, 
+                'callback': self.updateOrderCb,
                 'callback_args': ()
+            },
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self.systemStatusCb
             }
         }
 
@@ -258,7 +268,10 @@ class NepiAppsMgr(object):
   ####################
   # Wait for System and Config Statuses Callbacks
   def systemStatusCb(self,msg):
-      self.sys_status = msg
+      self.active_nodes = msg.active_nodes
+      self.active_topics = msg.active_topics
+      self.active_topic_types = msg.active_topic_types
+      self.active_services = msg.active_services
 
   def configStatusCb(self,msg):
       self.cfg_status = True
@@ -349,7 +362,7 @@ class NepiAppsMgr(object):
     ###############################
     # Get list of active nodes
     warnings.filterwarnings('ignore', '.*unclosed.*', ) 
-    node_namespace_list = nepi_sdk.get_node_list()
+    node_namespace_list = self.active_nodes
     node_list = []
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])

@@ -121,12 +121,12 @@ NAVPOSE_MSG_DICT = {
     }
 
 
-def get_navpose_comp_publisher_namespaces(name):
+def get_navpose_comp_publisher_namespaces(name, topics_list = None, types_list = None):
     topic_list = []
     msg_list = []
     if name in NAVPOSE_MSG_DICT.keys():
       msg_str_list = list(NAVPOSE_MSG_DICT[name].keys())
-      [topic_list,msg_list] = nepi_sdk.find_topics_by_msgs(msg_str_list)
+      [topic_list,msg_list] = nepi_sdk.find_topics_by_msgs(msg_str_list, topics_list = topics_list, types_list = types_list)
     return topic_list,msg_list
 
 

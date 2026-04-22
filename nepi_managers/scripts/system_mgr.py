@@ -746,7 +746,7 @@ class SystemMgrNode():
         self.states_status_interval = 1.0
 
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
-        nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
+        #nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
 
     
         # Want to update the op_environment (from param server) through the whole system once at
@@ -1045,15 +1045,16 @@ class SystemMgrNode():
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
 
     def updateTopicsServicesCb(self, event):
+        self.status_msg.active_nodes = nepi_sdk.get_node_list()
         [topics_list,types_list] = nepi_sdk.get_topics_data_list()
         #self.msg_if.pub_warn("Got Topics List: " + str(topics_list))
         self.status_msg.active_topics = topics_list
         self.status_msg.active_topic_types = types_list
 
-        servicess_list = nepi_sdk.get_service_list()
+        services_list = nepi_sdk.get_service_list()
         #self.msg_if.pub_warn("Got Services List: " + str(servicess_list))
-        self.status_msg.active_services = servicess_list
-        nepi_sdk.start_timer_process(5, self.updateTopicsServicesCb, oneshot = True)
+        self.status_msg.active_services = services_list
+        nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
 
 
 

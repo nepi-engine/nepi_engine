@@ -10,7 +10,6 @@
 
 cur_dir=$(pwd)
 
-
 ETC_FOLDER=/opt/nepi/etc
 NEPI_ETC_SCRIPTS=${ETC_FOLDER}/scripts
 
@@ -18,17 +17,19 @@ BASHRC=/home/nepi/.bashrc
 echo "Sourcing NEPI Bashrc: ${BASHRC}"
 source $BASHRC
 
+NEPI_UTILS=/home/nepi/.nepi_bash_utils
+echo "Sourcing NEPI Utils: ${NEPI_UTILS}"
+source $NEPI_UTILS
 
 
 
-
-nepi_count=$(process_count "nepi_engine")
-if [[ "$nepi_count" -gt 1 ]]; then
-	echo ""
-	echo "NEPI Engine Still Running!"
-	echo ""
-	echo "Run 'nepistop' and try again."
-else
+# nepi_count=$(process_count "nepi_engine")
+# if [[ "$nepi_count" -gt 1 ]]; then
+# 	echo ""
+# 	echo "NEPI Engine Still Running!"
+# 	echo ""
+# 	echo "Run 'nepistop' and try again."
+# else
 
 
 	#####################################
@@ -98,6 +99,11 @@ else
 
 	#####################################
 
+	script_file=tune_ethernet_interfaces.py
+	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+	echo "Running script ${script_path}"
+	sudo python3 $script_path
+
 	script_file=nepi_system_sync.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	echo "Running script ${script_path}"
@@ -133,7 +139,7 @@ else
 	script_file=update_etc_ssh_keys.sh
 	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
 	run_script $script_path $LOAD_CONFIG
-
+	echo "Authorizing NEPI SSH KEY ${NEPI_SSH_KEY}"
 	nepiauthadd $NEPI_SSH_KEY
 	#########################################
 

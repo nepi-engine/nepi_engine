@@ -35,7 +35,7 @@ from nepi_sdk import nepi_serial
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 
-from nepi_interfaces.msg import MgrDriversStatus, DriverStatus, UpdateBool, UpdateOrder, UpdateString 
+from nepi_interfaces.msg import MgrDriversStatus, DriverStatus, UpdateBool, UpdateOrder, UpdateString, MgrSystemStatus
 from nepi_interfaces.srv import DriverStatusQuery, DriverStatusQueryRequest, DriverStatusQueryResponse
 
 from nepi_interfaces.msg import Setting, SettingCap, SettingsStatus
@@ -99,6 +99,11 @@ class NepiDriversMgr(object):
   devices_alias_dict_session = dict()
   devices_running_name_list = []
   devices_running_type_list = []
+
+  active_nodes = []
+  active_topics = []
+  active_topic_types = []
+  active_services = []
 
   #######################
   ### Node Initialization
@@ -286,8 +291,15 @@ class NepiDriversMgr(object):
                 'topic': 'clear_device_alias',
                 'msg': String,
                 'qsize': None,
-                'callback': self.resetDeviceAliasCb, 
+                'callback': self.resetDeviceAliasCb,
                 'callback_args': ()
+            },
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self.systemStatusCb
             }
 
         }
@@ -429,7 +441,10 @@ class NepiDriversMgr(object):
   #######################
   # Wait for System and Config Statuses Callbacks
   def systemStatusCb(self,msg):
-    self.sys_status = msg
+    self.active_nodes = msg.active_nodes
+    self.active_topics = msg.active_topics
+    self.active_topic_types = msg.active_topic_types
+    self.active_services = msg.active_services
 
   def configStatusCb(self,msg):
     self.cfg_status = True
@@ -491,7 +506,7 @@ class NepiDriversMgr(object):
     available_paths_list = self.getAvailableDevPaths()
     # Get list of active nodes
     warnings.filterwarnings('ignore', '.*unclosed.*', ) 
-    node_namespace_list = nepi_sdk.get_node_list()
+    node_namespace_list = self.active_nodes
     node_list = []
     for i in range(len(node_namespace_list)):
       node_list.append(node_namespace_list[i].split("/")[-1])

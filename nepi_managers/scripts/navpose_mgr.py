@@ -41,7 +41,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_interfaces.msg import MgrNavPoseStatus, NavPoseComponent, NavPoseSolution
+from nepi_interfaces.msg import MgrNavPoseStatus, NavPoseComponent, NavPoseSolution, MgrSystemStatus
 
 
 from nepi_interfaces.msg import UpdateString, UpdateFloat, UpdateFloats, UpdateBool, UpdateInt, UpdateNavPose, UpdateTransform
@@ -259,6 +259,10 @@ class NavPoseMgr(object):
 
     update_navposes = False
 
+    active_nodes = []
+    active_topics = []
+    active_topic_types = []
+    active_services = []
 
     #######################
     ### Node Initialization
@@ -556,6 +560,13 @@ class NavPoseMgr(object):
                 'callback': self._setFrameCompUpdateResetsCrossingCb, 
                 'callback_args': ()
             },
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self._systemStatusCb
+            }
         }
 
 
@@ -1589,6 +1600,12 @@ class NavPoseMgr(object):
     # Private Members
     #######################
 
+    def _systemStatusCb(self,msg):
+        self.active_nodes = msg.active_nodes
+        self.active_topics = msg.active_topics
+        self.active_topic_types = msg.active_topic_types
+        self.active_services = msg.active_services
+
     def _navposeCapsQueryHandler(self,req):
         return self.caps_response
 
@@ -1642,48 +1659,48 @@ class NavPoseMgr(object):
     def _updateAvailTopicsCb(self,timer):
         last_dict = copy.deepcopy(self.avail_topics_dict)
         all_topics_dict = dict()
-        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('location')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('location',self.active_topics,self.active_topic_types)
         for i, topic in enumerate(topic_list):
             all_topics_dict[topic] = msg_list[i]
         self.avail_topics_dict['location']['topics'] = copy.deepcopy(topic_list)
         self.avail_topics_dict['location']['msgs'] = copy.deepcopy(msg_list)
 
 
-        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('heading')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('heading',self.active_topics,self.active_topic_types)
         for i, topic in enumerate(topic_list):
             all_topics_dict[topic] = msg_list[i]
         self.avail_topics_dict['heading']['topics'] = copy.deepcopy(topic_list)
         self.avail_topics_dict['heading']['msgs'] = copy.deepcopy(msg_list)
 
 
-        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('orientation')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('orientation',self.active_topics,self.active_topic_types)
         for i, topic in enumerate(topic_list):
             all_topics_dict[topic] = msg_list[i]
         self.avail_topics_dict['orientation']['topics'] = copy.deepcopy(topic_list)
         self.avail_topics_dict['orientation']['msgs'] = copy.deepcopy(msg_list)
 
       
-        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('position')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('position',self.active_topics,self.active_topic_types)
         for i, topic in enumerate(topic_list):
             all_topics_dict[topic] = msg_list[i]
         self.avail_topics_dict['position']['topics'] = copy.deepcopy(topic_list)
         self.avail_topics_dict['position']['msgs'] = copy.deepcopy(msg_list)
 
-        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('altitude')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('altitude',self.active_topics,self.active_topic_types)
         for i, topic in enumerate(topic_list):
             all_topics_dict[topic] = msg_list[i]
         self.avail_topics_dict['altitude']['topics'] = copy.deepcopy(topic_list)
         self.avail_topics_dict['altitude']['msgs'] = copy.deepcopy(msg_list)
 
 
-        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('depth')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('depth',self.active_topics,self.active_topic_types)
         for i, topic in enumerate(topic_list):
             all_topics_dict[topic] = msg_list[i]
         self.avail_topics_dict['depth']['topics'] = copy.deepcopy(topic_list)
         self.avail_topics_dict['depth']['msgs'] = copy.deepcopy(msg_list)
 
 
-        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('pan_tilt')
+        [topic_list,msg_list] = nepi_nav.get_navpose_comp_publisher_namespaces('pan_tilt',self.active_topics,self.active_topic_types)
         for i, topic in enumerate(topic_list):
             all_topics_dict[topic] = msg_list[i]
         self.avail_topics_dict['pan_tilt']['topics'] = copy.deepcopy(topic_list)

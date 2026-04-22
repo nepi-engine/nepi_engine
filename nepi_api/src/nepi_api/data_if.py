@@ -43,7 +43,7 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 
 
 from nepi_interfaces.msg import NavPose, NavPoses, NavPoseStatus, NavPosesStatus
-from nepi_interfaces.msg import ImageStatus
+from nepi_interfaces.msg import ImageStatus, MgrSystemStatus
 from nepi_interfaces.msg import DepthMapStatus
 from nepi_interfaces.msg import IntensityMapStatus
 from nepi_interfaces.msg import PointcloudStatus
@@ -1099,6 +1099,10 @@ class BaseImageIF:
     pubs_dict = dict()
     subs_dict = dict()
 
+    active_topics = []
+    active_topic_types = []
+    active_services = []
+
     def __init__(self, 
                 namespace , 
                 data_product,
@@ -1497,6 +1501,13 @@ class BaseImageIF:
                 'topic': 'clear_overlay_list',
                 'qsize': 5,
                 'callback': self._clearOverlayListCb
+            },
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self._systemStatusCb
             }
         }
 
@@ -3136,8 +3147,7 @@ class BaseImageIF:
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         pointcloud_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
-        other_topics = [image_ns,depth_map_ns,pointcloud_ns]
-        found_topics = nepi_sdk.find_topics(other_topics)
+        found_topics = self.active_topics
         for topic in found_topics:
             if image_ns == topic:
                 self.status_msg.image_topic = image_ns
@@ -3444,6 +3454,10 @@ class BaseImageIF:
         self.msg_if.pub_warn("Received reset renders message", log_name_list = self.log_name_list)
         self.reset_renders()
 
+    def _systemStatusCb(self,msg):
+        self.active_topics = msg.active_topics
+        self.active_topic_types = msg.active_topic_types
+        self.active_services = msg.active_services
 
 ##################################################
 # ImageIF
@@ -3566,6 +3580,9 @@ class ImageIF(BaseImageIF):
     ###############################
     # Class Private Methods
     ###############################
+
+
+
 
 
 ##################################################
@@ -3870,6 +3887,10 @@ class DepthMapIF:
 
     publishing = False
 
+    active_topics = []
+    active_topic_types = []
+    active_services = []
+
     def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'depth_map_sensor',
@@ -3987,7 +4008,15 @@ class DepthMapIF:
         }
 
         # Subs Config Dict ####################
-        self.SUBS_DICT = None
+        self.SUBS_DICT = {
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self._systemStatusCb
+            }
+        }
 
 
         # Create Node Class ####################
@@ -4483,8 +4512,7 @@ class DepthMapIF:
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         pointcloud_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
-        other_topics = [image_ns,depth_map_ns,pointcloud_ns]
-        found_topics = nepi_sdk.find_topics(other_topics)
+        found_topics = self.active_topics
         for topic in found_topics:
             if image_ns == topic:
                 self.status_msg.image_topic = image_ns
@@ -4539,6 +4567,11 @@ class DepthMapIF:
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
+
+    def _systemStatusCb(self,msg):
+        self.active_topics = msg.active_topics
+        self.active_topic_types = msg.active_topic_types
+        self.active_services = msg.active_services
 
 ##################################################
 # DepthMapImageIF
@@ -4918,6 +4951,10 @@ class PointcloudIF:
 
     publishing = False
 
+    active_topics = []
+    active_topic_types = []
+    active_services = []
+
     def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'sensor',
@@ -5037,7 +5074,16 @@ class PointcloudIF:
 
 
         # Subs Config Dict ###########
-        self.SUBS_DICT = None
+        self.SUBS_DICT = {
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self._systemStatusCb
+            }
+        }
+
 
 
 
@@ -5577,8 +5623,7 @@ class PointcloudIF:
         image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         pointcloud_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
-        other_topics = [image_ns,depth_map_ns,pointcloud_ns]
-        found_topics = nepi_sdk.find_topics(other_topics)
+        found_topics = self.active_topics
         for topic in found_topics:
             if image_ns == topic:
                 self.status_msg.image_topic = image_ns
@@ -5634,7 +5679,10 @@ class PointcloudIF:
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
-
+    def _systemStatusCb(self,msg):
+        self.active_topics = msg.active_topics
+        self.active_topic_types = msg.active_topic_types
+        self.active_services = msg.active_services
 
 ##################################################
 # PointcloudImageIF
