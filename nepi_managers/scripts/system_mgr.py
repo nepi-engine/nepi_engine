@@ -32,6 +32,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
 from nepi_sdk import nepi_mgrs
+from nepi_sdk import nepi_keys
 
                  
 #####################
@@ -542,9 +543,17 @@ class SystemMgrNode():
                 'topic': 'set_admin_password',
                 'msg': String,
                 'qsize': None,
-                'callback': self.setAdminPasswordCb, 
+                'callback': self.setAdminPasswordCb,
                 'callback_args': ()
-            },            
+            },
+            'change_admin_password': {
+                'namespace': self.base_namespace,
+                'topic': 'change_admin_password',
+                'msg': String,
+                'qsize': None,
+                'callback': self.changeAdminPasswordCb,
+                'callback_args': ()
+            },
             'enable_all_managers': {
                 'namespace': self.node_namespace,
                 'topic': 'enable_all_managers',
@@ -1214,14 +1223,22 @@ class SystemMgrNode():
             self.node_if.save_config()
 
     def setAdminPasswordCb(self, msg):
-        user = 'nepiadmin'
         password = msg.data
-        password_valid = nepi_utils.check_password(self.nepi_uid,user,password)
-        #self.msg_if.pub_info("Got " + str(password_valid) + " for " + str([user,password]))
+        rui_keys_path = self.CONFIG_FOLDER_DICT['system_cfg'] + '/etc/rui/rui_keys.yaml'
+        password_valid = nepi_keys.verify_rui_key(rui_keys_path, 'admin_password', password)
         self.admin_password_valid = password_valid
         self.updateSystemAdminSettings()
 
-            
+    def changeAdminPasswordCb(self, msg):
+        if self.admin_mode_set == False:
+            return
+        password = msg.data
+        rui_keys_path = self.CONFIG_FOLDER_DICT['system_cfg'] + '/etc/rui/rui_keys.yaml'
+        success = nepi_keys.set_rui_key(rui_keys_path, 'admin_password', password)
+        if success:
+            self.msg_if.pub_info("Admin password updated successfully")
+        else:
+            self.msg_if.pub_warn("Failed to update admin password")
 
     def setRuiModeCb(self, msg):
         if self.admin_mode_set == True:
