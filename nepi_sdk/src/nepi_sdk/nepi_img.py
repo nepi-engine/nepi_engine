@@ -247,15 +247,15 @@ def fix_color(color = (255,255,255)):
   return color
          
 
-def get_bounding_box_image(cv2_img, bounding_box_dict, scaler = 1):
+def get_bounding_box_image(cv2_img, bounding_box_dict):
     cv2_sub_img = None
     if cv2_img is not None:
       [height, width, channels] = cv2_img.shape
       try:
-          xmin = max(0, bounding_box_dict['xmin'] - ((1 - scaler) * width))
-          xmax = min(width, bounding_box_dict['xmax'] + ((1 - scaler) * width))
-          ymin = max(0, bounding_box_dict['ymin'] - ((1 - scaler) * height))
-          ymax = min(height, bounding_box_dict['ymax'] + ((1 - scaler) * height))
+          xmin = bounding_box_dict['xmin']
+          xmax = bounding_box_dict['xmax']
+          ymin = bounding_box_dict['ymin']
+          ymax = bounding_box_dict['ymax']
           success = True
       except Exception as e:
           logger.log_warn("Failed to get bounding box data: " + str(e))

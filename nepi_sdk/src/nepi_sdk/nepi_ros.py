@@ -841,7 +841,7 @@ def find_topics(topic_names_list, topics_list = None, types_list = None):
 def find_topics_by_msg(msg_type, topics_list = None, types_list = None):
   if types_list is None or topics_list is None:
     [topics_list,types_list]=get_topics_data_list()
-
+  find_topics = []
   try:
     for i, topic in enumerate(topics_list):
       topic_str = topics_list[i]
