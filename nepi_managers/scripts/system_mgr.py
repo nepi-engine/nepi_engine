@@ -1216,7 +1216,7 @@ class SystemMgrNode():
 
     def setAdminPasswordCb(self, msg):
         password_encripted = msg.data
-        password = nepi_keys.decript_rui_msg(password_encripted)
+        password = nepi_keys.decrypt_rui_msg(password_encripted)
         if True: #password is not None:
             if password != '':
                 password_valid = nepi_utils.check_password(self.nepi_uid,'nepiadmin',password)
