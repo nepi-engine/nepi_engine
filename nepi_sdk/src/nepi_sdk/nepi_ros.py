@@ -806,6 +806,7 @@ def get_published_topics():
 def find_topic(topic_name, exact = False, topics_list = None, types_list = None):
   if types_list is None or topics_list is None:
     [topics_list,types_list]=get_topics_data_list()
+  find_topic = []
   for topic in topics_list:
       if topic.find(topic_name) != -1 and topic.find(topic_name+"_") == -1:
         #log_msg_warn("Found potential topic : " + str(topic_str))
@@ -826,7 +827,7 @@ def find_topic(topic_name, exact = False, topics_list = None, types_list = None)
 def find_topics(topic_names_list, topics_list = None, types_list = None):
   if types_list is None or topics_list is None:
     [topics_list,types_list]=get_topics_data_list()
-
+  find_topics = []
   try:
     for topic in topics_list:
         for topic_name in topic_names_list:
@@ -898,7 +899,7 @@ def find_msg_by_topic(topic, topics_list = None, types_list = None):
 def find_topics_by_name(topic_name, topics_list = None, types_list = None):
   if types_list is None or topics_list is None:
     [topics_list,types_list]=get_topics_data_list()
-
+  find_topics = []
   try:
     for topic in topics_list:
         if topic.index(topic_name) != -1:
