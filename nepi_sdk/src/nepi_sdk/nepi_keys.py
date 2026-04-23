@@ -50,14 +50,14 @@ def create_rui_key():
 
 
 def decrypt_rui_msg(msg):
-    dmsg = None
+    dmsg = msg
     if os.path.exists(RUI_KEY_PATH):
         # dmsg = Decrypt msg process
         pass
     return dmsg
 
 def encrypt_rui_msg(msg):
-    emsg = None
+    emsg = msg
     if os.path.exists(RUI_KEY_PATH):
         # emsg = Encrypt msg process
         pass

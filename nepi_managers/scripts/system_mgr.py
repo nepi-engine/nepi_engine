@@ -1216,9 +1216,13 @@ class SystemMgrNode():
 
     def setAdminPasswordCb(self, msg):
         password_encripted = msg.data
+        self.msg_if.pub_warn("Got admin password msg: " + str(msg))
         password = nepi_keys.decrypt_rui_msg(password_encripted)
-        if True: #password is not None:
+        self.msg_if.pub_warn("Got decrypted admin password: " + str(password))
+        self.msg_if.pub_warn("Checking from user: " + str(self.nepi_uid))
+        if password is not None:
             if password != '':
+
                 password_valid = nepi_utils.check_password(self.nepi_uid,'nepiadmin',password)
                 self.admin_password_valid = password_valid
                 self.updateSystemAdminSettings()
