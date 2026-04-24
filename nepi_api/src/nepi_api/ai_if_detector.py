@@ -113,6 +113,9 @@ class AiDetectorIF:
 
     api_lib_folder = '/opt/nepi/nepi_engine/lib/nepi_api'
 
+    processImage = None
+    processFile = None
+
     self_managed = True
     model_name = "None"
 
@@ -212,7 +215,8 @@ class AiDetectorIF:
                 proc_img_width,  
                 classes_list, 
                 default_config_dict, 
-                processDetectionFunction,
+                processImageFunction,
+                processFileFunction,
                 all_namespace = None,
                 has_img_tiling = False,
                 enable_image_pub = True,
@@ -285,7 +289,8 @@ class AiDetectorIF:
             if all_namespace[-1] == "/":
                 all_namespace = all_namespace[:-1]
         self.all_namespace = all_namespace
-        self.processDetection = processDetectionFunction
+        self.processImage = processImageFunction
+        self.processFile = processFileFunction
         self.classes = classes_list
         self.msg_if.pub_warn("Detector provided classes list: " + str(self.classes))
 
@@ -1610,7 +1615,7 @@ class AiDetectorIF:
             self.imgs_dict[img_topic] = img_dict                
 
             cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
-            self.processImage(cv2_img, img_dict)
+            self.processDetections(img_dict, cv2_img = cv2_img)
 
 
 
@@ -1631,29 +1636,24 @@ class AiDetectorIF:
 
         timestamp = nepi_sdk.get_time() 
         msg_header = Header()
-        cv2_img = cv2.imread(img_file)
+        # cv2_img = cv2.imread(img_file)
 
-        if cv2_img is not None:
-            ##############################
-            while self.got_img_topic is not None:
-                nepi_sdk.sleep(0.01)
-
-
-            ##############################
-            self.got_img_topic = img_topic
+        while self.got_img_topic is not None:
+            nepi_sdk.sleep(0.01)
+        self.got_img_topic = img_topic
 
 
-            # Update img_dict
-            img_dict = dict()
-            img_dict['topic'] = img_file
-            img_dict['timestamp'] = timestamp
-            img_dict['msg_header'] = msg_header
-            
-            self.processImage(cv2_img, img_dict)
+        # Update img_dict
+        img_dict = dict()
+        img_dict['topic'] = img_file
+        img_dict['timestamp'] = timestamp
+        img_dict['msg_header'] = msg_header
+        
+        self.processDetections(img_dict, img_file = img_file)
 
 
 
-    def processImage(self,cv2_img, img_dict):
+    def processDetections(self, img_dict, cv2_img = None, img_file = None):
             start_time = nepi_sdk.get_time()  
 
             img_topic = img_dict['topic']
@@ -1689,7 +1689,7 @@ class AiDetectorIF:
             #####################################
             # Update Depth Map Data if available
             np_depth_map = None
-            if img_topic in self.imgs_info_dict.keys():
+            if cv2_img is not None and img_topic in self.imgs_info_dict.keys():
                 depth_map_connected = self.imgs_info_dict[img_topic]['depth_map_connected']
                 depth_map_last_connection = self.imgs_info_dict[img_topic]['depth_map_last_connection']
                 depth_map_age = start_time - depth_map_last_connection
@@ -1707,10 +1707,14 @@ class AiDetectorIF:
             detect_dict_list = []
             detect_dicts = []
             threshold = self.threshold
+            
             try:
                 ##################################
                 #self.msg_if.pub_warn("AIF init img_dict: " + str(img_dict))
-                [detect_dicts, img_dict] = self.processDetection(cv2_img, img_dict, threshold = threshold, resize = False, verbose = False) 
+                if cv2_img is not None:
+                    [detect_dicts, img_dict] = self.processImage(cv2_img, img_dict, threshold = threshold, resize = False, verbose = False) 
+                elif img_file is not None:
+                    [detect_dicts, img_dict] = self.processFile(img_file, img_dict, threshold = threshold, resize = False, verbose = False) 
                 #self.msg_if.pub_warn("AIF got img_dict: " + str(img_dict))
                 #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dicts))
                 self.imgs_dict[img_topic] = img_dict  
