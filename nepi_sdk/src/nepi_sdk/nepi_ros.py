@@ -806,7 +806,7 @@ def get_published_topics():
 def find_topic(topic_name, exact = False, topics_list = None, types_list = None):
   if types_list is None or topics_list is None:
     [topics_list,types_list]=get_topics_data_list()
-  find_topic = []
+  find_topic = ''
   for topic in topics_list:
       if topic.find(topic_name) != -1 and topic.find(topic_name+"_") == -1:
         #log_msg_warn("Found potential topic : " + str(topic_str))

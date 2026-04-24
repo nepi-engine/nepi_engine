@@ -2174,8 +2174,8 @@ class AiDetectorIF:
 
         self.status_msg.has_sleep = self.has_sleep
         self.status_msg.sleep_enabled = self.sleep_enabled
-        self.status_msg.sleep_suspend_sec = int(self.sleep_suspend_sec)
-        self.status_msg.sleep_run_sec = int(self.sleep_run_sec)
+        #self.status_msg.sleep_suspend_sec = int(self.sleep_suspend_sec)
+        #self.status_msg.sleep_run_sec = int(self.sleep_run_sec)
         self.status_msg.sleep_state = self.sleep_state
 
 
