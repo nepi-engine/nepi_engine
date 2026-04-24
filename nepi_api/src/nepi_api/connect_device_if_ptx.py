@@ -136,6 +136,18 @@ class ConnectPTXDeviceIF:
                 'msg': Float32,
                 'qsize': 1,
             },
+            'pan_speed_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_pan_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'tilt_speed_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_tilt_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
             'stop_moving': {
                 'namespace': self.namespace,
                 'topic': 'stop_moving',
@@ -468,7 +480,7 @@ class ConnectPTXDeviceIF:
         """
         self._unsubscribeTopic()
 
-    def set_speed_ratio(self,speed_ratio):
+    def set_speed_ratio(self, speed_ratio):
         """Publish a speed ratio command to the PTX device.
 
         Args:
@@ -476,7 +488,27 @@ class ConnectPTXDeviceIF:
         """
         pub_name = 'speed_ratio'
         msg = speed_ratio
-        self.con_node_if.publish_pub(pub_name,msg)
+        self.con_node_if.publish_pub(pub_name, msg)
+
+    def set_pan_speed_ratio(self, speed_ratio):
+        """Publish a pan-axis speed ratio command to a device that supports separate pan/tilt speed control.
+
+        Args:
+            speed_ratio (float): Desired pan speed as a ratio from 0.0 (slowest) to 1.0 (fastest).
+        """
+        pub_name = 'pan_speed_ratio'
+        msg = speed_ratio
+        self.con_node_if.publish_pub(pub_name, msg)
+
+    def set_tilt_speed_ratio(self, speed_ratio):
+        """Publish a tilt-axis speed ratio command to a device that supports separate pan/tilt speed control.
+
+        Args:
+            speed_ratio (float): Desired tilt speed as a ratio from 0.0 (slowest) to 1.0 (fastest).
+        """
+        pub_name = 'tilt_speed_ratio'
+        msg = speed_ratio
+        self.con_node_if.publish_pub(pub_name, msg)
 
     def stop_moving(self):
         """Publish a stop command to halt all motion on the PTX device.

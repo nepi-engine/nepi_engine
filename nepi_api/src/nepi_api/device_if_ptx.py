@@ -83,6 +83,7 @@ class PTXActuatorIF:
     has_seperate_pan_tilt_control = False
     has_adjustable_limits = False
     has_adjustable_speed = False
+    has_seperate_pan_tilt_speed = False
     has_homing = False
     has_set_home = False
     has_limit_controls = False
@@ -131,6 +132,8 @@ class PTXActuatorIF:
     current_position = [0.0,0.0]
     last_position = current_position
     speed_ratio = 0.5
+    speed_pan_ratio = 0.5
+    speed_tilt_ratio = 0.5
 
 
     tr_source_ref_description = 'tilt_axis_center'
@@ -176,6 +179,10 @@ class PTXActuatorIF:
                  getSoftLimitsCb=None,
                  setSpeedRatioCb=None, # None ==> No speed adjustment capability; Speed ratio arg
                  getSpeedRatioCb=None, # None ==> No speed adjustment capabilitiy; Returns speed ratio
+                 setPanSpeedRatioCb=None,
+                 setTiltSpeedRatioCb=None,
+                 getPanSpeedRatioCb=None,
+                 getTiltSpeedRatioCb=None,
                  getPositionCb=None,
                  gotoPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
                  gotoPanPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
@@ -310,6 +317,15 @@ class PTXActuatorIF:
         if getSpeedRatioCb is not None and setSpeedRatioCb is not None:
             self.has_adjustable_speed = True
 
+        # PER-AXIS SPEED SETTINGS  #############
+        self.setPanSpeedRatioCb = setPanSpeedRatioCb
+        self.setTiltSpeedRatioCb = setTiltSpeedRatioCb
+        self.getPanSpeedRatioCb = getPanSpeedRatioCb
+        self.getTiltSpeedRatioCb = getTiltSpeedRatioCb
+        if (setPanSpeedRatioCb is not None and setTiltSpeedRatioCb is not None and
+                getPanSpeedRatioCb is not None and getTiltSpeedRatioCb is not None):
+            self.has_seperate_pan_tilt_speed = True
+
 
         # Homing  #############
         self.goHomeCb = goHomeCb
@@ -336,6 +352,7 @@ class PTXActuatorIF:
         self.caps_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
         self.caps_report.has_position_feedback = self.has_position_feedback
         self.caps_report.has_adjustable_speed = self.has_adjustable_speed
+        self.caps_report.has_seperate_pan_tilt_speed = self.has_seperate_pan_tilt_speed
         self.caps_report.has_limit_controls = self.has_limit_controls
         self.caps_report.has_homing = self.has_homing
         self.caps_report.has_set_home = self.has_set_home
@@ -384,6 +401,7 @@ class PTXActuatorIF:
         self.status_msg.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
         self.status_msg.has_position_feedback = self.has_position_feedback
         self.status_msg.has_adjustable_speed = self.has_adjustable_speed
+        self.status_msg.has_seperate_pan_tilt_speed = self.has_seperate_pan_tilt_speed
         self.status_msg.has_limit_controls = self.has_limit_controls
 
         self.status_msg.has_homing = self.has_homing
@@ -449,7 +467,17 @@ class PTXActuatorIF:
                 'factory_val': self.factoryLimits['min_tilt_softstop_deg']
             }
         }
-        
+
+        if self.has_seperate_pan_tilt_speed:
+            self.PARAMS_DICT['speed_pan_ratio'] = {
+                'namespace': self.namespace,
+                'factory_val': 0.5
+            }
+            self.PARAMS_DICT['speed_tilt_ratio'] = {
+                'namespace': self.namespace,
+                'factory_val': 0.5
+            }
+
 
         # Services Config Dict ####################
 
@@ -514,7 +542,23 @@ class PTXActuatorIF:
                 'topic': 'set_speed_ratio',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self._setSpeedRatioCb, 
+                'callback': self._setSpeedRatioCb,
+                'callback_args': ()
+            },
+            'set_pan_speed_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_pan_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setPanSpeedRatioCb,
+                'callback_args': ()
+            },
+            'set_tilt_speed_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_tilt_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setTiltSpeedRatioCb,
                 'callback_args': ()
             },
             'stop_moving': {
@@ -776,7 +820,16 @@ class PTXActuatorIF:
                     self.speed_ratio = self.getSpeedRatioCb()
                     self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
 
-                    
+            if self.has_seperate_pan_tilt_speed == True:
+                speed_pan_ratio = self.node_if.get_param('speed_pan_ratio')
+                if speed_pan_ratio is not None and self.setPanSpeedRatioCb is not None:
+                    self.setPanSpeedRatioCb(speed_pan_ratio)
+                    self.speed_pan_ratio = self.getPanSpeedRatioCb()
+                speed_tilt_ratio = self.node_if.get_param('speed_tilt_ratio')
+                if speed_tilt_ratio is not None and self.setTiltSpeedRatioCb is not None:
+                    self.setTiltSpeedRatioCb(speed_tilt_ratio)
+                    self.speed_tilt_ratio = self.getTiltSpeedRatioCb()
+
             self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
             self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
 
@@ -1137,6 +1190,28 @@ class PTXActuatorIF:
                 self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
         
 
+    def _setPanSpeedRatioCb(self, msg):
+        if self.caps_report.has_seperate_pan_tilt_speed == True:
+            speed_ratio = msg.data
+            if (speed_ratio < 0.0) or (speed_ratio > 1.0):
+                self.msg_if.pub_warn("Invalid pan speed ratio requested " + "%.2f" % speed_ratio)
+            elif self.setPanSpeedRatioCb is not None:
+                self.speed_pan_ratio = speed_ratio
+                self.setPanSpeedRatioCb(speed_ratio)
+                self.node_if.set_param('speed_pan_ratio', speed_ratio)
+                self.publish_status()
+
+    def _setTiltSpeedRatioCb(self, msg):
+        if self.caps_report.has_seperate_pan_tilt_speed == True:
+            speed_ratio = msg.data
+            if (speed_ratio < 0.0) or (speed_ratio > 1.0):
+                self.msg_if.pub_warn("Invalid tilt speed ratio requested " + "%.2f" % speed_ratio)
+            elif self.setTiltSpeedRatioCb is not None:
+                self.speed_tilt_ratio = speed_ratio
+                self.setTiltSpeedRatioCb(speed_ratio)
+                self.node_if.set_param('speed_tilt_ratio', speed_ratio)
+                self.publish_status()
+
     def _setHomePositionCb(self, msg):
         [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg, msg.tilt_deg)
         if not self.positionWithinSoftLimits(pan_deg_adj, tilt_deg_adj):
@@ -1481,8 +1556,10 @@ class PTXActuatorIF:
         self.status_msg.reverse_tilt_enabled = self.reverse_tilt_enabled
 
         self.status_msg.speed_ratio = self.speed_ratio
+        self.status_msg.has_seperate_pan_tilt_speed = self.has_seperate_pan_tilt_speed
+        self.status_msg.speed_pan_ratio = self.speed_pan_ratio
+        self.status_msg.speed_tilt_ratio = self.speed_tilt_ratio
 
-        
 
         if self.node_if is not None:
             #self.msg_if.pub_warn("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
