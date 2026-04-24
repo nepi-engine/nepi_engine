@@ -203,6 +203,7 @@ class AiDetectorIF:
     pub_img_namepace = ""
 
     img_file_path=None
+    img_file_processing = False
 
     next_image_topic="None"
 
@@ -1633,6 +1634,7 @@ class AiDetectorIF:
             self.msg_if.pub_warn("Process Image File Failed. Image File Not Found:  " + img_file)
             return 
         
+        img_file_processing = True
 
         timestamp = nepi_sdk.get_time() 
         msg_header = Header()
@@ -1650,6 +1652,7 @@ class AiDetectorIF:
         img_dict['msg_header'] = msg_header
         
         self.processDetections(img_dict, img_file = img_file)
+        img_file_processing = False
 
 
 
@@ -2054,7 +2057,8 @@ class AiDetectorIF:
 
     def updateStatesCb(self,timer):
         # Update and clear detection state every second
-        self.states_dict['detection']['value'] = str(self.detecting)
+        self.states_dict['detection']['value'] = str(self.detecting) or self.img_file_processing
+        self.img_file_processing = False
         self.detecting = False
         
     def updateImgSubsCb(self,timer):
@@ -2208,9 +2212,9 @@ class AiDetectorIF:
             img_connects.append(imgs_info_dict[img_topic]['img_connected'])
         self.status_msg.images_connected = img_connects
         img_selected = len(img_connects) > 0
-        self.status_msg.image_selected = img_selected
+        self.status_msg.image_selected = img_selected or self.img_file_processing
         img_connected = True in img_connects
-        self.status_msg.image_connected = img_connected
+        self.status_msg.image_connected = img_connected or self.img_file_processing
 
 
 

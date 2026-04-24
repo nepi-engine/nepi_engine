@@ -50,7 +50,7 @@ from nepi_api.system_if import SettingsIF
 
 class PTXActuatorIF:
     MAX_STATUS_UPDATE_RATE = 3
-
+    MIN_LIMIT_ANGLE = 10
     # Backup Factory Control Values 
     FACTORY_CONTROLS_DICT = {
                 'reverse_pan_enabled' : False,
@@ -1064,21 +1064,22 @@ class PTXActuatorIF:
         valid = False
         if min_pan_adj >= self.min_pan_hardstop_deg and max_pan_adj <= self.max_pan_hardstop_deg and min_pan_adj < max_pan_adj:  
             if min_tilt_adj >= self.min_tilt_hardstop_deg and max_tilt_adj <= self.max_tilt_hardstop_deg and min_tilt_adj < max_tilt_adj:
-                valid = True
+                if abs(max_pan_adj - min_pan_adj) >= self.MIN_LIMIT_ANGLE and abs(max_tilt_adj - min_tilt_adj) >= self.MIN_LIMIT_ANGLE:
+                    valid = True
 
-                self.min_pan_softstop_deg =  min_pan_adj
-                self.max_pan_softstop_deg = max_pan_adj
-                self.min_tilt_softstop_deg = min_tilt_adj
-                self.max_tilt_softstop_deg = max_tilt_adj
+                    self.min_pan_softstop_deg =  min_pan_adj
+                    self.max_pan_softstop_deg = max_pan_adj
+                    self.min_tilt_softstop_deg = min_tilt_adj
+                    self.max_tilt_softstop_deg = max_tilt_adj
 
-                if None not in [min_pan_adj,max_pan_adj,min_tilt_adj,max_tilt_adj]:
-                    if self.setSoftLimitsCb is not None:
-                        self.setSoftLimitsCb(min_pan_adj,max_pan_adj,min_tilt_adj,max_tilt_adj)
+                    if None not in [min_pan_adj,max_pan_adj,min_tilt_adj,max_tilt_adj]:
+                        if self.setSoftLimitsCb is not None:
+                            self.setSoftLimitsCb(min_pan_adj,max_pan_adj,min_tilt_adj,max_tilt_adj)
 
-                    self.node_if.set_param('max_pan_softstop_deg', max_pan_adj)
-                    self.node_if.set_param('min_pan_softstop_deg', min_pan_adj)
-                    self.node_if.set_param('max_tilt_softstop_deg', max_tilt_adj)
-                    self.node_if.set_param('min_tilt_softstop_deg', min_tilt_adj)
+                        self.node_if.set_param('max_pan_softstop_deg', max_pan_adj)
+                        self.node_if.set_param('min_pan_softstop_deg', min_pan_adj)
+                        self.node_if.set_param('max_tilt_softstop_deg', max_tilt_adj)
+                        self.node_if.set_param('min_tilt_softstop_deg', min_tilt_adj)
 
 
         if valid == False:
