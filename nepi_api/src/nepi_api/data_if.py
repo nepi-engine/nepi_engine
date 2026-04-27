@@ -57,7 +57,7 @@ from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQue
 
 
 
-from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindow, RangeWindow, ImagePixel
+from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindow, RangeWindow, ImagePixel, ImageMouseEvent
 from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import RangeWindow
@@ -990,6 +990,7 @@ class BaseImageIF:
 
     DEFAULT_CALLBACK_DICT = dict(
         needs_update_callback = None,
+        mouse_event_callback = None,
         click_pixel_callback = None,
         click_angle_callback = None,
         drag_callback = None,
@@ -1422,28 +1423,12 @@ class BaseImageIF:
                 'callback': self._resetRendersCb, 
                 'callback_args': ()
             },
-            'set_click': {
+            'mouse_event': {
                 'namespace': self.namespace,
-                'topic': 'set_click',
-                'msg': ImagePixel,
+                'topic': 'mouse_event',
+                'msg': ImageMouseEvent,
                 'qsize': 5,
-                'callback': self._clickCb, 
-                'callback_args': ()
-            },
-            'set_drag': {
-                'namespace': self.namespace,
-                'topic': 'set_drag',
-                'msg': ImagePixel,
-                'qsize': 5,
-                'callback': self._dragCb, 
-                'callback_args': ()
-            },
-            'set_window':  {
-                'namespace': self.namespace,
-                'topic': 'set_window',
-                'msg': ImageWindow,
-                'qsize': 5,
-                'callback': self._windowCb, 
+                'callback': self._mouseEventCb, 
                 'callback_args': ()
             },
             'overlay_size_ratio': {
@@ -2124,8 +2109,8 @@ class BaseImageIF:
 
 
 
-                self.status_msg.width_deg = width_deg
-                self.status_msg.height_deg = height_deg
+                self.status_msg.width_deg = width_deg * (1 - self.zoom_ratio)
+                self.status_msg.height_deg = height_deg * (1 - self.zoom_ratio)
 
                 if (min_range_m is not None and max_range_m is not None):
                     self._updateRangesM(min_range_m,max_range_m)
@@ -3028,8 +3013,8 @@ class BaseImageIF:
 
             self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
             self.status_msg.rotate_2d_deg = self.controls_dict['rotate_2d_deg']
-            self.status_msg.flip_horz = self.controls_dict['flip_horz']
-            self.status_msg.flip_vert = self.controls_dict['flip_vert']
+            self.status_msg.flip_horz = self.controls_dict['flip_horz'] 
+            self.status_msg.flip_vert = self.controls_dict['flip_vert'] 
 
             self.status_msg.range_ratios.start_range = self.controls_dict['start_range_ratio']
             self.status_msg.range_ratios.stop_range = self.controls_dict['stop_range_ratio']
@@ -3197,90 +3182,84 @@ class BaseImageIF:
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
-    def _clickCb(self,msg):
-        self.msg_if.pub_info("Received set click message: " + str(msg), log_name_list = self.log_name_list)
-        pixel = [int(msg.x   + self.x_offset), int(msg.y   + self.y_offset)]
-
-        color_bgr = (msg.b,msg.g,msg.r,msg.a)
-        #self.msg_if.pub_info("Checking for click_pixel_callback function in mouse overide dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
-        if self.callback_dict['click_pixel_callback'] is not None:
+    def _mouseEventCb(self,msg):
+        #self.msg_if.pub_info("Received mouse event message: " + str(msg), log_name_list = self.log_name_list)
+        if self.callback_dict['mouse_event_callback'] is not None:
             try:
-                self.callback_dict['click_pixel_callback'](pixel[0],pixel[1],msg.b,msg.g,msg.r,msg.a)
+                self.callback_dict['mouse_event_callback'](msg)
             except Exception as e:
-                self.msg_if.pub_warn("Failed to call mouse click_pixel_callback: " + str(e), log_name_list = self.log_name_list)
-        else:
-                self.last_click_time = nepi_utils.get_time()
-                nepi_sdk.sleep(0.3)
-                if self.last_click_time is not None:
-                    if (nepi_utils.get_time() - self.last_click_time) >= 0.3:
-                        self.last_click_time = None
+                self.msg_if.pub_warn("Failed to call mouse mouse_event_callback: " + str(e), log_name_list = self.log_name_list)
+
+        if msg.click_event == True:
+            pixel = [int(msg.click.x   + self.x_offset), int(msg.click.y   + self.y_offset)]
+            color_bgr = (msg.click.b,msg.click.g,msg.click.r,msg.click.a)
+            click_count = msg.click_count
+            if self.callback_dict['click_pixel_callback'] is not None:
+                    image_width = self.status_msg.image_width
+                    image_height = self.status_msg.image_width
+                    image_fov_horz = self.status_msg.width_deg
+                    image_fov_vert = self.status_msg.height_deg
+                    pixel_vert_angle_deg = 0
+                    pixel_horz_angle_deg = 0
+                    if image_width > 10 and image_height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
+                        object_loc_x_ratio_from_center = float(pixel[0] - image_width/2) / float(image_width/2)
+                        object_loc_y_ratio_from_center = float(pixel[0] - image_height/2) / float(image_height/2)
+                        pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
+                        pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
+                    angles = [pixel_vert_angle_deg,pixel_vert_angle_deg]
+                    try:
+                        self.callback_dict['click_pixel_callback'](pixel,color_bgr,click_count,angles)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to call mouse click_pixel_callback: " + str(e), log_name_list = self.log_name_list)
+            else:
+                    if click_count == 1:
                         self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
                         self.set_pixel(pixel,color_bgr)
                     else:
                         self.msg_if.pub_info("Double Click resetting render controls", log_name_list = self.log_name_list)
                         self.reset_renders()
-                        self.last_click_time = None
-        if self.callback_dict['click_angle_callback'] is not None:
-                image_width = self.status_msg.image_width
-                image_height = self.status_msg.image_width
-                image_fov_horz = self.status_msg.width_deg
-                image_fov_vert = self.status_msg.height_deg
-                if image_width > 10 and image_height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
-                    object_loc_x_ratio_from_center = float(pixel[0] - image_width/2) / float(image_width/2)
-                    object_loc_y_ratio_from_center = float(pixel[0] - image_height/2) / float(image_height/2)
-                    pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
-                    pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
-                    try:
-                        self.callback_dict['click_angle_callback'](pixel_horz_angle_deg , pixel_vert_angle_deg)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to call mouse click_angle_callback: " + str(e), log_name_list = self.log_name_list)
+
+        if msg.drag_event == True:
+            self.last_click_time = None
+            start_pixel = [int(msg.drag_start.x), int(msg.drag_start.y)]
+            start_color_bgr = (msg.drag_start.b,msg.drag_start.g,msg.drag_start.r,msg.drag_start.a)
+            stop_pixel = [int(msg.drag_stop.x), int(msg.drag_stop.y)]
+            stop_color_bgr = (msg.drag_stop.b,msg.drag_stop.g,msg.drag_stop.r,msg.drag_stop.a)
+            #self.msg_if.pub_info("Using drag pixel: " + str(pixel), log_name_list = self.log_name_list)
+            if self.callback_dict['drag_callback'] is not None:
+                try:
+                    self.callback_dict['drag_callback'](start_pixel, start_color_bgr, stop_pixel, stop_color_bgr )
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to call mouse drag_callback: " + str(e), log_name_list = self.log_name_list)
+            else: #if self.zoom_ratio < 0.01:
+                    self.drag_window = [start_pixel[0], stop_pixel[0],start_pixel[1], stop_pixel[1]]
+                    self.msg_if.pub_warn("Drag Window Updated: " + str(self.drag_window), log_name_list = self.log_name_list, throttle_s = 1)
+                    self.needs_update()
 
 
- 
-    def _dragCb(self,msg):
-        self.msg_if.pub_info("Received set drag mouse message: " + str(msg), log_name_list = self.log_name_list)
-        self.last_click_time = None
-        pixel = [int(msg.x), int(msg.y)]
-        color_bgr = (msg.b,msg.g,msg.r,msg.a)
-        self.msg_if.pub_info("Using drag pixel: " + str(pixel), log_name_list = self.log_name_list)
-        if self.callback_dict['drag_callback'] is not None:
-            try:
-                self.callback_dict['drag_callback'](pixel, color_bgr)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to call mouse drag_callback: " + str(e), log_name_list = self.log_name_list)
-        else: #if self.zoom_ratio < 0.01:
-            if self.drag_window is None:
-                self.drag_window = [pixel[0], pixel[0] + 1, pixel[1],  pixel[1] + 1]
+
+
+        if msg.window_event == True:
+            window = [int(msg.window.x_min   + self.x_offset) , 
+                    int(msg.window.x_max   + self.x_offset), 
+                    int(msg.window.y_min   + self.y_offset), 
+                    int(msg.window.y_max  + self.y_offset)]
+            if msg.window.x_min > msg.window.x_max:
+                window[0] = msg.window.x_max  + self.x_offset
+                window[1] = msg.window.x_min  + self.x_offset
+            if msg.window.y_min > msg.window.y_max:
+                window[2] = msg.window.y_max   + self.y_offset
+                window[3] = msg.window.y_min   + self.y_offset
+
+            if self.callback_dict['window_callback'] is not None:
+                try:
+                    self.callback_dict['window_callback'](window)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to call mouse window_callback: " + str(e), log_name_list = self.log_name_list)
             else:
-                self.drag_window[1] = pixel[0]
-                self.drag_window[3] = pixel[1]
+                self.set_window(window)
                 self.needs_update()
-
-
-
-
-    def _windowCb(self,msg):
-        self.msg_if.pub_info("Received set window message: " + str(msg), log_name_list = self.log_name_list)
-        window = [int(msg.x_min   + self.x_offset) , 
-                int(msg.x_max   + self.x_offset), 
-                int(msg.y_min   + self.y_offset), 
-                int(msg.y_max  + self.y_offset)]
-        if msg.x_min > msg.x_max:
-            window[0] = msg.x_max  + self.x_offset
-            window[1] = msg.x_min  + self.x_offset
-        if msg.y_min > msg.y_max:
-            window[2] = msg.y_max   + self.y_offset
-            window[3] = msg.y_min   + self.y_offset
-
-        if self.callback_dict['window_callback'] is not None:
-            try:
-                self.callback_dict['window_callback'](window)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to call mouse window_callback: " + str(e), log_name_list = self.log_name_list)
-        else:
-            self.set_window(window)
-            self.needs_update()
-        self.drag_window = None
+            self.drag_window = None
 
 
 
@@ -3838,6 +3817,7 @@ class DepthMapIF:
 
     DEFAULT_CALLBACK_DICT = dict(
         needs_update_callback = None,
+        mouse_event_callback = None,
         click_pixel_callback = None,
         click_angle_callback = None,
         drag_callback = None,
@@ -4904,6 +4884,7 @@ class PointcloudIF:
 
     DEFAULT_CALLBACK_DICT = dict(
         needs_update_callback = None,
+        mouse_event_callback = None,
         click_pixel_callback = None,
         click_angle_callback = None,
         drag_callback = None,

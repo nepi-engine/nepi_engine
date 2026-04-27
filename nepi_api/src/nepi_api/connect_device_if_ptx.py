@@ -416,6 +416,15 @@ class ConnectPTXDeviceIF:
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         return status_dict
+    
+    def get_status_msg(self):
+        """Return the latest device status as a msg.
+
+        Returns:
+            dict: A msg representation of the most recent DevicePTXStatus message,
+                or None if no status has been received yet.
+        """
+        return self.status_msg
 
     # def get_navpose_dict(self):
     #     navpose_dict = None

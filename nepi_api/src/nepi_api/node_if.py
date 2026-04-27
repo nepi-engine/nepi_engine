@@ -48,6 +48,7 @@ EXAMPLE_CONFIGS_DICT = {
         'reset_callback': None,
         'factory_reset_callback': None,
         'init_configs': True,
+        'manage_configs': True,
         'clear_params': True
 }
 '''
@@ -129,45 +130,50 @@ class NodeConfigsIF:
             self.msg_if.pub_debug("Clearing params for namespace: " + str(self.namespace), log_name_list = self.log_name_list)
             nepi_sdk.delete_params(self.namespace)
         
-        ###############
-        # Create Config Publishers
-        ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
-        self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
-        ns = nepi_sdk.create_namespace(self.base_namespace,'save_params_all')
-        self.save_params_all_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
-        ns = nepi_sdk.create_namespace(self.base_namespace,'reset_params')
-        self.reset_params_pub = nepi_sdk.create_publisher(ns, UpdateString, queue_size=1)
-        ns = nepi_sdk.create_namespace(self.base_namespace,'delete_configs')
-        self.delete_configs_pub = nepi_sdk.create_publisher(ns, UpdateString, queue_size=1)
+
+        manage_configs = True
+        if 'manage_configs' in configs_dict.keys():
+            manage_configs = configs_dict['manage_configs']
+        if manage_configs == True:
+            ###############
+            # Create Config Publishers
+            ns = nepi_sdk.create_namespace(self.base_namespace,'save_params')
+            self.save_params_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
+            ns = nepi_sdk.create_namespace(self.base_namespace,'save_params_all')
+            self.save_params_all_pub = nepi_sdk.create_publisher(ns, String, queue_size=1)
+            ns = nepi_sdk.create_namespace(self.base_namespace,'reset_params')
+            self.reset_params_pub = nepi_sdk.create_publisher(ns, UpdateString, queue_size=1)
+            ns = nepi_sdk.create_namespace(self.base_namespace,'delete_configs')
+            self.delete_configs_pub = nepi_sdk.create_publisher(ns, UpdateString, queue_size=1)
 
 
-        nepi_sdk.sleep(1)
+            nepi_sdk.sleep(1)
 
-        ###############
-        # Create Config Subscribers
-        # Subscribe to save config for node namespace
-        nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb, queue_size=5)
+            ###############
+            # Create Config Subscribers
+            # Subscribe to save config for node namespace
+            nepi_sdk.create_subscriber(self.namespace + '/save_config', Empty, self._saveCb, queue_size=5)
 
-        nepi_sdk.create_subscriber(self.namespace + '/init_config', Empty, self._initCb, queue_size=5)
-        nepi_sdk.create_subscriber(self.namespace + '/reset_config', Empty, self._resetCb, queue_size=5)
-        nepi_sdk.create_subscriber(self.namespace + '/factory_reset_config', Empty, self._factoryResetCb, queue_size=5)
-
-
-        # Global Topic Subscribers
-        nepi_sdk.create_subscriber('save_config', Empty, self._saveCb, queue_size=5)
-        nepi_sdk.create_subscriber('init_config', Empty, self._initCb, queue_size=5)
-        nepi_sdk.create_subscriber('reset_config', Empty, self._resetCb, queue_size=5)
-        nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb, queue_size=5)
-
-        if nepi_system.supports_all_config(self.namespace) == True:
-            nepi_sdk.create_subscriber(self.namespace + '/save_config_all', Empty, self._saveAllCb)
-        nepi_sdk.create_subscriber(self.namespace + '/delete_configs', Empty, self._deleteConfigsCb)
+            nepi_sdk.create_subscriber(self.namespace + '/init_config', Empty, self._initCb, queue_size=5)
+            nepi_sdk.create_subscriber(self.namespace + '/reset_config', Empty, self._resetCb, queue_size=5)
+            nepi_sdk.create_subscriber(self.namespace + '/factory_reset_config', Empty, self._factoryResetCb, queue_size=5)
 
 
-        ################
-        self.msg_if.pub_warn("Resetting Params", log_name_list = self.log_name_list)
-        self.reset_params(do_updates = False)
-        nepi_sdk.sleep(1)
+            # Global Topic Subscribers
+            nepi_sdk.create_subscriber('save_config', Empty, self._saveCb, queue_size=5)
+            nepi_sdk.create_subscriber('init_config', Empty, self._initCb, queue_size=5)
+            nepi_sdk.create_subscriber('reset_config', Empty, self._resetCb, queue_size=5)
+            nepi_sdk.create_subscriber('factory_reset_config', Empty, self._factoryResetCb, queue_size=5)
+
+            if nepi_system.supports_all_config(self.namespace) == True:
+                nepi_sdk.create_subscriber(self.namespace + '/save_config_all', Empty, self._saveAllCb)
+            nepi_sdk.create_subscriber(self.namespace + '/delete_configs', Empty, self._deleteConfigsCb)
+
+
+            ################
+            self.msg_if.pub_warn("Resetting Params", log_name_list = self.log_name_list)
+            self.reset_params(do_updates = False)
+            nepi_sdk.sleep(1)
 
         # params_dict = nepi_sdk.get_param(self.namespace, dict())
         # self.msg_if.pub_warn("Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)

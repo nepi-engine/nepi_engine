@@ -132,8 +132,8 @@ class PTXActuatorIF:
     current_position = [0.0,0.0]
     last_position = current_position
     speed_ratio = 0.5
-    speed_pan_ratio = 0.5
-    speed_tilt_ratio = 0.5
+    speed_pan_ratio = speed_ratio
+    speed_tilt_ratio = speed_ratio
 
 
     tr_source_ref_description = 'tilt_axis_center'
@@ -790,10 +790,7 @@ class PTXActuatorIF:
                         self.max_tilt_softstop_deg = max_tilt
                         self.node_if.set_param('max_tilt_softstop_deg',self.max_tilt_softstop_deg)
 
-            if self.getSpeedRatioCb is not None:
-                self.speed_ratio = self.getSpeedRatioCb()
-                self.msg_if.pub_warn("ResetCb got speed_ratio: " + str(self.speed_ratio))
-                self.node_if.set_param('speed_ratio', self.speed_ratio)      
+
 
 
         if self.node_if is not None:
@@ -817,18 +814,18 @@ class PTXActuatorIF:
                     self.msg_if.pub_info("-2")
                     self.setSpeedRatioCb(speed_ratio)
                     nepi_sdk.sleep(1)
-                    self.speed_ratio = self.getSpeedRatioCb()
+                    self.speed_ratio = math.floor(self.getSpeedRatioCb())
                     self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
 
-            if self.has_seperate_pan_tilt_speed == True:
-                speed_pan_ratio = self.node_if.get_param('speed_pan_ratio')
-                if speed_pan_ratio is not None and self.setPanSpeedRatioCb is not None:
-                    self.setPanSpeedRatioCb(speed_pan_ratio)
-                    self.speed_pan_ratio = self.getPanSpeedRatioCb()
-                speed_tilt_ratio = self.node_if.get_param('speed_tilt_ratio')
-                if speed_tilt_ratio is not None and self.setTiltSpeedRatioCb is not None:
-                    self.setTiltSpeedRatioCb(speed_tilt_ratio)
-                    self.speed_tilt_ratio = self.getTiltSpeedRatioCb()
+                if self.has_seperate_pan_tilt_speed == True:
+                    speed_pan_ratio = self.node_if.get_param('speed_pan_ratio')
+                    if speed_pan_ratio is not None and self.setPanSpeedRatioCb is not None:
+                        self.setPanSpeedRatioCb(speed_pan_ratio)
+                        self.speed_pan_ratio = self.getPanSpeedRatioCb()
+                    speed_tilt_ratio = self.node_if.get_param('speed_tilt_ratio')
+                    if speed_tilt_ratio is not None and self.setTiltSpeedRatioCb is not None:
+                        self.setTiltSpeedRatioCb(speed_tilt_ratio)
+                        self.speed_tilt_ratio = self.getTiltSpeedRatioCb()
 
             self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
             self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
@@ -1175,7 +1172,7 @@ class PTXActuatorIF:
 
     def _setSpeedRatioCb(self, msg):
         if self.caps_report.has_adjustable_speed == True:
-            speed_cur = self.getSpeedRatioCb()
+            speed_cur = math.floor(self.getSpeedRatioCb())
             speed_ratio = msg.data
             self.msg_if.pub_warn("new speed ratio " + "%.2f" % speed_ratio)     
             self.msg_if.pub_warn("cur speed ratio " + "%.2f" % speed_cur)
@@ -1192,17 +1189,26 @@ class PTXActuatorIF:
 
     def _setPanSpeedRatioCb(self, msg):
         if self.caps_report.has_seperate_pan_tilt_speed == True:
+            speed_cur = math.floor(self.getSpeedRatioCb())
             speed_ratio = msg.data
             if (speed_ratio < 0.0) or (speed_ratio > 1.0):
                 self.msg_if.pub_warn("Invalid pan speed ratio requested " + "%.2f" % speed_ratio)
-            elif self.setPanSpeedRatioCb is not None:
+            elif speed_cur != speed_ratio and self.setPanSpeedRatioCb is not None:
                 self.speed_pan_ratio = speed_ratio
                 self.setPanSpeedRatioCb(speed_ratio)
                 self.node_if.set_param('speed_pan_ratio', speed_ratio)
                 self.publish_status()
+            elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
+                self.speed_ratio = speed_ratio
+                self.publish_status()
+                self.msg_if.pub_info("-1")
+                self.setSpeedRatioCb(speed_ratio)
+                self.node_if.set_param('speed_ratio',speed_ratio)
+                self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
 
     def _setTiltSpeedRatioCb(self, msg):
         if self.caps_report.has_seperate_pan_tilt_speed == True:
+            speed_cur = math.floor(self.getSpeedRatioCb())
             speed_ratio = msg.data
             if (speed_ratio < 0.0) or (speed_ratio > 1.0):
                 self.msg_if.pub_warn("Invalid tilt speed ratio requested " + "%.2f" % speed_ratio)
@@ -1211,6 +1217,13 @@ class PTXActuatorIF:
                 self.setTiltSpeedRatioCb(speed_ratio)
                 self.node_if.set_param('speed_tilt_ratio', speed_ratio)
                 self.publish_status()
+            elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
+                self.speed_ratio = speed_ratio
+                self.publish_status()
+                self.msg_if.pub_info("-1")
+                self.setSpeedRatioCb(speed_ratio)
+                self.node_if.set_param('speed_ratio',speed_ratio)
+                self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
 
     def _setHomePositionCb(self, msg):
         [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg, msg.tilt_deg)
@@ -1456,7 +1469,7 @@ class PTXActuatorIF:
             [pan_deg ,tilt_deg] = self.current_position
                 
                 
-            current_pan_position = self.current_position[0]
+            current_pan_position = pan_deg
             last_pan_position = self.last_position[0]
             if current_pan_position == last_pan_position:
                 pan_speed = 0.0
@@ -1470,7 +1483,7 @@ class PTXActuatorIF:
 
             #self.status_msg.speed_pan_dps =  abs(self.speed_pan_dps)
 
-            current_tilt_position = self.current_position[1]
+            current_tilt_position = tilt_deg
             last_tilt_position = self.last_position[1]
             if current_tilt_position == last_tilt_position:
                 tilt_speed = 0.0
