@@ -877,9 +877,10 @@ class AiDetectorIF:
     def enableCb(self,msg):
         self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
         enabled = msg.data
+        last_val = copy.deepcopy(self.enabled)
         self.enabled = enabled
         self.publish_status()
-        if self.node_if is not None:
+        if self.node_if is not None and enabled != last_val: 
             self.node_if.set_param('enabled',self.enabled)
             self.node_if.save_config()
         if enabled == False and not nepi_sdk.is_shutdown():
@@ -1079,9 +1080,10 @@ class AiDetectorIF:
             threshold = MIN_THRESHOLD
         elif threshold > MAX_THRESHOLD:
             threshold = MAX_THRESHOLD
+        last_val = copy.deepcopy(self.threshold)
         self.threshold = threshold
         self.publish_status()
-        if self.node_if is not None:
+        if self.node_if is not None and last_val != self.threshold:
             self.node_if.set_param('threshold',self.threshold)
             self.node_if.save_config()
 
