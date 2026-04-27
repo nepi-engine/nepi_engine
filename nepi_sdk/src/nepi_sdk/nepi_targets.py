@@ -280,9 +280,8 @@ def filter_by_area(targets_dict_list, min_area_ratio = .01, max_area_ratio = .99
     #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
     return filtered_targets
 
-
 def find_best(targets_dict_list, best_filter = 'LARGEST'):
-    #print(targets_dict_list)
+    #print(tracks_dict_list)
     best_target = None
     for target_dict in targets_dict_list:
         
@@ -291,14 +290,18 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
         if best_target is not None:
             bsize = best_target['area_ratio']
             tsize = target_dict['area_ratio']
+            bprob = best_target['probability']
+            tprob = target_dict['probability']
             if best_filter == 'LARGEST' and tsize < bsize:
                 best = False
             elif best_filter == 'SMALLEST' and tsize > bsize:
                 best = False
+            elif best_filter == 'PROPABILITY' and tprob < bprob:
+                best = False
 
         if best == True:
             best_target = target_dict
-    #logger.log_info("Got filtered_dict " + str(filtered_target))
+    #logger.log_info("Got filtered_dict " + str(filtered_track))
 
             
     return best_target

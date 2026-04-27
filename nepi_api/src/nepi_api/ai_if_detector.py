@@ -274,7 +274,6 @@ class AiDetectorIF:
         ## Init Status Messages
         self.status_msg.node_name = self.node_name
         self.status_msg.namespace = self.namespace
-        self.target_status_msg = TargetingStatus()
 
 
         self.model_name = model_name
@@ -427,22 +426,29 @@ class AiDetectorIF:
             },
             'targets': {
                 'msg': Targets,
-                'namespace': self.node_namespace,
+                'namespace': self.node_namespace + '/targeting',
                 'topic': 'targets',
+                'qsize': 1,
+                'latch': True
+            },
+            'targeting_status': {
+                'msg': TargetingStatus,
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'status',
                 'qsize': 1,
                 'latch': True
             },
             'targets_all': {
                 'msg': Targets,
-                'namespace': self.base_namespace,
+                'namespace': self.base_namespace + '/targeting',
                 'topic': 'targets',
                 'qsize': 1,
                 'latch': True
             },
-            'target_status_pub': {
+            'targeting_status_all': {
                 'msg': TargetingStatus,
-                'namespace': self.node_namespace,
-                'topic': 'targeting_status',
+                'namespace': self.base_namespace + '/targeting',
+                'topic': 'status',
                 'qsize': 1,
                 'latch': True
             },
@@ -1986,7 +1992,7 @@ class AiDetectorIF:
             bbs_msg.bounding_boxes = bb_msg_list
             bbs_msg.localizations = l_msg_list
             #self.msg_if.pub_warn("Publisher create bb msg: " + str(bbs_msg))
-            self.publishDetMsg(img_topic,'bounding_boxes',bbs_msg)
+            self.publishData('bounding_boxes',bbs_msg)
     
             if det_count > 0:
                 if 'detection_trigger' in self.triggers_dict.keys():
@@ -2003,14 +2009,18 @@ class AiDetectorIF:
 
             targets_msg = Targets()
 
-            targets_msg.name = self.node_name
+            
             targets_msg.targeting_timestamp = float(detect_timestamp)
 
-            targets_msg.source_topic = img_topic
-            targets_msg.source_type = 'AI'
-            targets_msg.source_description = "AI Detection"
-            targets_msg.source_timestamp = float(img_dict['timestamp'])
+            targets_msg.process_name = self.node_name
+            targets_msg.process_namespace = self.node_namespace
+            targets_msg.process_type = 'detection'
+            targets_msg.process_description = "AI Detection"
 
+
+            targets_msg.source_topic = img_topic
+            targets_msg.source_type = 'image'
+            targets_msg.source_timestamp = float(img_dict['timestamp'])
             #targets_msg.source_nav_pose
 
             targets_msg.has_2d_data = True
@@ -2027,7 +2037,7 @@ class AiDetectorIF:
             targets_msg.targets = targets_msg_list
 
             #self.msg_if.pub_warn("Publisher create bb msg: " + str(bbs_msg))
-            self.publishDetMsg(img_topic,'targets',targets_msg)
+            self.publishData('targets',targets_msg)
     
             if det_count > 0:
                 if 'targeting_trigger' in self.triggers_dict.keys():
@@ -2048,7 +2058,7 @@ class AiDetectorIF:
                 bbs_dict['bounding_boxes']=bb_dict_list
                 self.save_data_if.save(data_product,bbs_dict,timestamp = detect_timestamp)
 
-    def publishDetMsg(self,img_topic, pub_name, msg):
+    def publishData(self,pub_name, msg):
         #self.msg_if.pub_warn("Publishing topic: " + str(pub_name) + " with msg " + str(msg))
         self.node_if.publish_pub(pub_name,msg)
         pub_name_all = pub_name + "_all"
@@ -2207,9 +2217,13 @@ class AiDetectorIF:
         self.status_msg.image_source_topics = img_source_topics
         self.status_msg.image_pub_topics = img_pub_topics
 
+        connected_img_topics = []
         img_connects = []
         for img_topic in imgs_info_dict.keys():
-            img_connects.append(imgs_info_dict[img_topic]['img_connected'])
+            img_connected = imgs_info_dict[img_topic]['img_connected']
+            img_connects.append(img_connected)
+            if img_connected == True:
+               connected_img_topics.append(img_topic) 
         self.status_msg.images_connected = img_connects
         img_selected = len(img_connects) > 0
         self.status_msg.image_selected = img_selected or self.img_file_processing
@@ -2245,11 +2259,36 @@ class AiDetectorIF:
             max_detect_rate= 0
         self.status_msg.max_detect_rate = max_detect_rate
     
-
-        ################
         #self.msg_if.pub_warn("Ending Detector Status Pub")
         #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.status_msg))
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
+
+
+        ################
+        # Targeting Status
+        targeting_status_msg = TargetingStatus()
+
+        targeting_status_msg.process_name = self.node_name
+        targeting_status_msg.process_namespace = self.node_namespace
+        targeting_status_msg.process_type = 'detection'
+        targeting_status_msg.process_description = self.model_description
+
+        targeting_status_msg.save_data_topic = self.save_data_namespace
+
+        targeting_status_msg.available_classes = self.classes
+        targeting_status_msg.selected_classes = sel_classes
+
+        targeting_status_msg.connected_source_topics = connected_img_topics
+
+        targeting_status_msg.enabled = self.status_msg.enabled
+        targeting_status_msg.running = self.status_msg.running
+        if self.node_if is not None:
+            self.node_if.publish_pub('targeting_status',targeting_status_msg)
+            self.node_if.publish_pub('targeting_status_all',targeting_status_msg)
+
+
+
+
 
 
