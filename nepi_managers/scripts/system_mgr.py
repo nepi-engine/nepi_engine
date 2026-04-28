@@ -1062,7 +1062,7 @@ class SystemMgrNode():
         active_nodes = []
         nodes_list = nepi_sdk.get_node_list()
         for node in nodes_list:
-            nodes_list.append(os.path.basename(node))
+            active_nodes.append(os.path.basename(node))
     
         self.status_msg.active_nodes = active_nodes
         [topics_list,types_list] = nepi_sdk.get_topics_data_list()
