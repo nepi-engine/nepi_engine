@@ -1059,7 +1059,12 @@ class SystemMgrNode():
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
 
     def updateTopicsServicesCb(self, event):
-        self.status_msg.active_nodes = nepi_sdk.get_node_list()
+        active_nodes = []
+        nodes_list = nepi_sdk.get_node_list()
+        for node in nodes_list:
+            nodes_list.append(os.path.basename(node))
+    
+        self.status_msg.active_nodes = active_nodes
         [topics_list,types_list] = nepi_sdk.get_topics_data_list()
         #self.msg_if.pub_warn("Got Topics List: " + str(topics_list))
         self.status_msg.active_topics = topics_list

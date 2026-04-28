@@ -309,6 +309,7 @@ class AIDetectorManager:
         self.active_topics = msg.active_topics
         self.active_topic_types = msg.active_topic_types
         self.active_services = msg.active_services
+        
 
     def initCb(self, do_updates = False):
       success = True
@@ -346,8 +347,7 @@ class AIDetectorManager:
 
     ####################
     # Wait for System and Config Statuses Callbacks
-    def systemStatusCb(self,msg):
-        self.sys_status = True
+        
 
     def configStatusCb(self,msg):
         self.cfg_status = True
@@ -600,7 +600,7 @@ class AIDetectorManager:
             if 'running' in model_dict.keys():
                 was_running =  model_dict['running']
             model_node_name = model_dict['node_name']
-            self.msg_if.pub_warn("Check for running model node name: " + str(model_node_name) " in " + str(self.active_nodes))
+            #self.msg_if.pub_warn("Check for running model node name: " + str(model_node_name) + " in " + str(self.active_nodes))
 
             running = model_node_name in self.active_nodes 
             #self.models_dict_lock.acquire()
