@@ -1101,7 +1101,7 @@ class AiDetectorIF:
 
     def setSleepSuspendTimeCb(self,msg):
         data = msg.data
-        if data > 1 or suspend_time == -1:
+        if data > 1 or data == -1:
             self.sleep_suspend_sec = data
             self.publish_status()
             if self.node_if is not None:
@@ -2267,27 +2267,27 @@ class AiDetectorIF:
             self.node_if.publish_pub('status_pub',self.status_msg)
 
 
-        ################
-        # Targeting Status
-        targeting_status_msg = TargetingStatus()
+        # ################
+        # # Targeting Status
+        # targeting_status_msg = TargetingStatus()
 
-        targeting_status_msg.process_name = self.node_name
-        targeting_status_msg.process_namespace = self.node_namespace
-        targeting_status_msg.process_type = 'detection'
-        targeting_status_msg.process_description = self.model_description
+        # targeting_status_msg.process_name = self.node_name
+        # targeting_status_msg.process_namespace = self.node_namespace
+        # targeting_status_msg.process_type = 'detection'
+        # targeting_status_msg.process_description = self.model_description
 
-        targeting_status_msg.save_data_topic = self.save_data_namespace
+        # targeting_status_msg.save_data_topic = self.save_data_namespace
 
-        targeting_status_msg.available_classes = self.classes
-        targeting_status_msg.selected_classes = sel_classes
+        # targeting_status_msg.available_classes = self.classes
+        # targeting_status_msg.selected_classes = sel_classes
 
-        targeting_status_msg.connected_source_topics = connected_img_topics
+        # targeting_status_msg.connected_source_topics = connected_img_topics
 
-        targeting_status_msg.enabled = self.status_msg.enabled
-        targeting_status_msg.running = self.status_msg.running
-        if self.node_if is not None:
-            self.node_if.publish_pub('targeting_status',targeting_status_msg)
-            self.node_if.publish_pub('targeting_status_all',targeting_status_msg)
+        # targeting_status_msg.enabled = self.status_msg.enabled
+        # targeting_status_msg.running = self.status_msg.running
+        # if self.node_if is not None:
+        #     self.node_if.publish_pub('targeting_status',targeting_status_msg)
+        #     self.node_if.publish_pub('targeting_status_all',targeting_status_msg)
 
 
 

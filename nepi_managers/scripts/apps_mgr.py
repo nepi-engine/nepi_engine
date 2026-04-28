@@ -362,10 +362,10 @@ class NepiAppsMgr(object):
     ###############################
     # Get list of active nodes
     warnings.filterwarnings('ignore', '.*unclosed.*', ) 
-    node_namespace_list = self.active_nodes
+    active_node_list = self.active_nodes
     node_list = []
-    for i in range(len(node_namespace_list)):
-      node_list.append(node_namespace_list[i].split("/")[-1])
+    for i in range(len(active_node_list)):
+      node_list.append(active_node_list[i].split("/")[-1])
     #self.msg_if.pub_warn("Found nodes: " + str(node_list))
     ################################    
     ## Check and purge disabled app proccess that might be running

@@ -3195,8 +3195,8 @@ class BaseImageIF:
             color_bgr = (msg.click.b,msg.click.g,msg.click.r,msg.click.a)
             click_count = msg.click_count
             if self.callback_dict['click_pixel_callback'] is not None:
-                    image_width = self.status_msg.image_width
-                    image_height = self.status_msg.image_width
+                    image_width = self.status_msg.width_px
+                    image_height = self.status_msg.height_px
                     image_fov_horz = self.status_msg.width_deg
                     image_fov_vert = self.status_msg.height_deg
                     pixel_vert_angle_deg = 0

@@ -204,6 +204,7 @@ def set_navposes_dict(navposes_dict, log_name_list = []):
     success = nepi_sdk.set_param(param_namespace, navposes_dict, log_name_list = log_name_list)
     return success
 
+##########################
 
 def get_timezone(timeout = 1000, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'timezone')

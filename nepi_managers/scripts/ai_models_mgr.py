@@ -41,7 +41,7 @@ from nepi_sdk import nepi_img
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 from nepi_interfaces.msg import MgrSystemStatus
 
-from nepi_interfaces.msg import UpdateBool, MgrAiModelsStatus, AiModelStatus
+from nepi_interfaces.msg import UpdateBool, MgrAiModelsStatus, AiModelStatus, MgrSystemStatus
 
 from nepi_interfaces.srv import AiModelStatusQuery, AiModelStatusQueryRequest, AiModelStatusQueryResponse
 
@@ -72,6 +72,12 @@ class AIDetectorManager:
 
     status_msg = MgrAiModelsStatus()
     status_published = False
+
+    active_nodes = []
+    active_topics = []
+    active_topic_types = []
+    active_services = []
+
     #######################
     ### Node Initialization
 
@@ -245,6 +251,13 @@ class AIDetectorManager:
                 'qsize': 10,
                 'callback': self.updateModelStateCb, 
                 'callback_args': ()
+            },
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self.systemStatusCb
             }
 
         }
@@ -288,6 +301,14 @@ class AIDetectorManager:
         nepi_sdk.spin()
         #########################################################
 
+
+    ####################
+    # Wait for System and Config Statuses Callbacks
+    def systemStatusCb(self,msg):
+        self.active_nodes = msg.active_nodes
+        self.active_topics = msg.active_topics
+        self.active_topic_types = msg.active_topic_types
+        self.active_services = msg.active_services
 
     def initCb(self, do_updates = False):
       success = True
@@ -345,7 +366,8 @@ class AIDetectorManager:
         models_dict = self.copyModelsDict()
         for model_name in models_dict.keys():
                 if models_dict[model_name]['active'] == True:
-                  self.killModel(model_name)
+                  node_name = models_dict[model_name]['node_name']
+                  self.killModel(node_name)
         time.sleep(1)
         aif_classes = list(self.aifs_classes_dict.keys())
         for aif_class in aif_classes:
@@ -530,14 +552,12 @@ class AIDetectorManager:
         for model_name in purge_list:
             try:
                 node_name = models_dict[model_name]['node_name']
-                self.msg_if.pub_warn("Killing model: " + node_name)
+                #self.msg_if.pub_warn("Calling Mgr Kill model: " + node_name)
                 models_dict[model_name]['active'] = False
                 del self.models_namespace_dict[model_name]
-                self.killModel(model_name)
-                self.models_dict_lock.acquire()
-                self.models_dict[model_name]['running'] = False
-                self.models_dict[model_name]['msg'] = "Model killed"
-                self.models_dict_lock.release()
+                node_name = models_dict[model_name]['node_name']
+                self.killModel(node_name)
+
                 nepi_sdk.wait()
             except Exception as e:
                 self.msg_if.pub_warn("Failed to Kill model: " + node_name + " : " + str(e))
@@ -554,7 +574,7 @@ class AIDetectorManager:
                 node_namespace = self.loadModel(model_name, model_dict)
 
                 #self.models_dict_lock.acquire()
-                self.models_dict[model_name]['running'] = False
+                #self.models_dict[model_name]['running'] = False
 
                 if node_namespace is not None:
                     self.msg_if.pub_warn("Got Launch Namespace for Model: " + model_name + " : " + str(node_namespace))
@@ -575,31 +595,28 @@ class AIDetectorManager:
         #self.msg_if.pub_warn("Running Check with active models list: " + str(active_models_list))
         # self.msg_if.pub_warn("Run Check with models_namespace_dict keys: " + str(self.models_namespace_dict.keys())) 
         for model_name in models_dict.keys():
-            if model_name in self.models_namespace_dict.keys():
-                model_dict = models_dict[model_name]
-                was_running = False
-                if 'running' in model_dict.keys():
-                    was_running =  model_dict['running']
-                model_node_name = model_dict['node_name']
-                #self.msg_if.pub_warn("Check for running model node name: " + str(model_node_name))
-                running = nepi_sdk.check_node_by_name(model_node_name)  
-                #self.models_dict_lock.acquire()
-                self.models_dict[model_name]['running'] = running
-                if running == True:
-                    self.models_dict[model_name]['msg'] = "Model running"
-                    if was_running == False:
-                        self.msg_if.pub_warn("Model Running: " + model_node_name)
-                elif running == False:
-                    if was_running == True and model_name in active_models_list:
-                        self.models_dict[model_name]['msg'] = "Model stopped not running"
-                        self.models_dict[model_name]['active'] = False
-                    else:
-                        self.models_dict[model_name]['msg'] = "Model not running"
-                #self.models_dict_lock.release()
-            else:
-                #self.models_dict_lock.acquire()
-                self.models_dict[model_name]['running'] = False
-                #self.models_dict_lock.release()
+            model_dict = models_dict[model_name]
+            was_running = False
+            if 'running' in model_dict.keys():
+                was_running =  model_dict['running']
+            model_node_name = model_dict['node_name']
+            self.msg_if.pub_warn("Check for running model node name: " + str(model_node_name) " in " + str(self.active_nodes))
+
+            running = model_node_name in self.active_nodes 
+            #self.models_dict_lock.acquire()
+            self.models_dict[model_name]['running'] = running
+            if running == True:
+                self.models_dict[model_name]['msg'] = "Model running"
+                if was_running == False:
+                    self.msg_if.pub_warn("Model Running: " + model_node_name)
+                    
+            elif running == False:
+                if was_running == True and model_name in active_models_list:
+                    self.models_dict[model_name]['msg'] = "Model stopped not running"
+                    self.models_dict[model_name]['active'] = False
+                else:
+                    self.models_dict[model_name]['msg'] = "Model not running"
+            #self.models_dict_lock.release()
 
                 
     
@@ -621,6 +638,7 @@ class AIDetectorManager:
         #     self.msg_if.pub_warn("Ending Updater with g model dict with keys: " + str(key) + ' : ' + str(self.models_dict[key].keys()))
         # self.msg_if.pub_warn("**********************")
         # self.msg_if.pub_warn(" ")
+
 
         nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
@@ -659,13 +677,17 @@ class AIDetectorManager:
                 else:
                     # Call Kill model
                     aif_class = self.aifs_classes_dict[aif_name]
-                    self.msg_if.pub_info("Killing model " + model_name)
-                    if model_name in list(self.models_namespace_dict.keys()):
-                        node_name = os.path.basename(self.models_namespace_dict[model_name])
+                    #self.msg_if.pub_info("Calling AIF Kill model " + model_name)
+                    #self.msg_if.pub_info("Checking for model in namespace dict " + str(self.models_namespace_dict.keys()))
+                    if model_name in self.models_namespace_dict.keys():
+                        #node_name = os.path.basename(self.models_namespace_dict[model_name])
                         del self.models_namespace_dict[model_name]
-                        aif_class.killModel(model_name)
-                        # Kill Img Pub Node if running
-                        nepi_sdk.kill_node(model_name + '_img_pub')
+                    aif_class.killModel(model_name)
+                    # Kill Img Pub Node if running
+                    nepi_sdk.kill_node(model_name + '_img_pub')
+                    self.models_dict_lock.acquire()
+                    self.models_dict[model_name]['msg'] = "Model killed"
+                    self.models_dict_lock.release()
   
     def save_config(self):
         # Save framework and model dictionaries

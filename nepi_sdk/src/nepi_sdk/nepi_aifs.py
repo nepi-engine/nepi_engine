@@ -271,6 +271,7 @@ def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
         try:
             model_name = model_dict['model_name']
             model_type = model_dict['type']
+            node_name = model_dict['node_name']
 
             if model_type not in node_file_dict.keys():
                 logger.log_warn("Model " + str(model_name) + " specifies non-supported model type " + str(model_type) + "... not adding this model")
@@ -279,7 +280,7 @@ def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
                 node_file_name = node_file_dict[model_type]
             logger.log_warn("Starting launch process for model " + str(model_name) + " type: " + str(model_type) + " node_file: " + str(node_file_name))
 
-            node_name = model_dict['node_name']
+            
             node_namespace = os.path.join(launch_namespace,node_name)
             pkg_name = model_dict['pkg_name']
             node_file_folder = os.path.join("/opt/nepi/nepi_engine/lib",pkg_name)
@@ -311,7 +312,7 @@ def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
                 
                 [success, msg, node_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name, namespace=launch_namespace)
                 if success == True:
-                    node_dict[model_name] = {'node_name': node_name, 'namesapce':node_namespace, 'process':node_process}
+                    node_dict[node_name] = {'node_name': node_name, 'node_namespace':node_namespace, 'process':node_process}
                 else:
                     logger.log_info("Node launch failed with msg: " + str(msg))
         except Exception as e:
@@ -320,16 +321,18 @@ def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
         return success, node_namespace, node_dict
 
 
-def killModelNode(model_name, node_dict):       
+def killModelNode(node_name, node_dict):       
     success = False 
-    if model_name in node_dict.keys():
-        node_name = node_dict[model_name]['node_name']
-        node_namespace = node_dict[model_name]['node_namespace']
-        node_process = node_dict[model_name]['process']
+    logger.log_warn("Killing Model Node " + str(node_name))
+    if node_name in node_dict.keys():
+        node_namespace = node_dict[node_name]['node_namespace']
+        node_process = node_dict[node_name]['process']
         logger.log_info("Killing model node: " + node_name)
         if not (None == node_process):
             success = nepi_sdk.kill_node_process(node_namespace,node_process)
         if success == True:
             logger.log_info("Killed model node: " + node_name)
-        del node_dict[model_name]
+        del node_dict[node_name]
+    else:
+       logger.log_warn("Node name not in node dict " + str(node_name))
     return success, node_dict

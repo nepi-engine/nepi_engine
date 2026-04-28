@@ -64,6 +64,7 @@ class config_mgr(object):
     config_folders['system_cfg']=SYSTEM_CFG_PATH
 
     save_disabled = False
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "config_mgr" # Can be overwitten by luanch command
@@ -323,6 +324,9 @@ class config_mgr(object):
             self.msg_if.pub_warn("Could not find params file for namespace: " + namespace  + " at " + file_pathname )
             return False
         else:
+            if os.path.getsize(file_pathname) == 0:
+                self.msg_if.pub_warn("Params file is empty for namespace: " + namespace  + " at " + file_pathname )
+                return False
             self.msg_if.pub_warn("Loading Params for namespace: " + namespace  + " from file " + file_pathname )
             params_dict = None
             try:

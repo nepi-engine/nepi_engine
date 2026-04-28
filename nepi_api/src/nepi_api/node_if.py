@@ -56,6 +56,8 @@ EXAMPLE_CONFIGS_DICT = {
 
 class NodeConfigsIF:
 
+    MAX_SAVE_RATE = 1
+
     msg_if = None
     ready = False
     configs_dict = None
@@ -67,7 +69,9 @@ class NodeConfigsIF:
     resetCb = None
     factoryResetCb = None
 
-
+    save_triggered = False
+    save_all_triggered = False
+    last_save = nepi_sdk.get_time()
     ### IF Initialization
     def __init__(self, 
                 configs_dict,
@@ -184,7 +188,7 @@ class NodeConfigsIF:
             if init_configs == True:
                 self.msg_if.pub_warn("Calling parent reset function", log_name_list = self.log_name_list)
                 self.reset_config()
-
+        nepi_sdk.start_timer_process(self.MAX_SAVE_RATE, self._updaterCb, oneshot = True)
         ##############################  
         # Complete Initialization Process
         self.ready = True
@@ -236,12 +240,13 @@ class NodeConfigsIF:
 
     def save_config(self):
         self.msg_if.pub_debug("Saving Config: " + str(self.namespace))
-        self.save_params_pub.publish(self.namespace)
+        self.save_triggered = True
 
 
     def save_config_all(self):
         self.msg_if.pub_debug("Saving Config All: " + str(self.namespace))
-        self.save_params_all_pub.publish(self.namespace)
+        self.save_all_triggered = True
+
 
 
     def delete_config_all(self):
@@ -275,6 +280,15 @@ class NodeConfigsIF:
     ###############################
     # Class Private Methods
     ###############################
+
+    def _updaterCb(self, timer):
+        if self.save_all_triggered == True:
+            self.save_params_all_pub.publish(self.namespace)
+        elif self.save_triggered == True:
+            self.save_params_pub.publish(self.namespace)
+        self.save_triggered = False
+        self.save_all_triggered = False
+        nepi_sdk.start_timer_process(self.MAX_SAVE_RATE, self._updaterCb, oneshot = True)
 
     def _saveCb(self,msg):
         self.save_config()

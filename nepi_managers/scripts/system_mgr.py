@@ -23,7 +23,8 @@ import time
 import shutil
 from collections import deque
 import re
-import datetime
+from datetime import datetime, timezone
+
 import subprocess
 import importlib
 import copy
@@ -191,6 +192,8 @@ class SystemMgrNode():
     ready = False
 
     config_saved = False
+
+    timezone_str = 'UTC'
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -209,8 +212,18 @@ class SystemMgrNode():
 
 
         ###############################
-        # Initialize Class Variables
+        # Initialize System Params
 
+        # Create an aware datetime object
+        dt = datetime.now(timezone.utc)
+        nepi_system.set_timezone(dt)
+        nepi_system.set_navposes_dict(dict())
+        nepi_system.set_active_drivers([])
+        nepi_system.set_ai_models_dict(dict())
+        nepi_system.set_devices_alias_dict(dict())
+
+        ###############################
+        # Initialize Class Variables
 
         self.nepi_config = nepi_system.load_nepi_system_config()
         self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
