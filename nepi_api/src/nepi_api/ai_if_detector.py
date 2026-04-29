@@ -31,7 +31,7 @@ from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 
-from nepi_interfaces.msg import NavPose, ImageStatus, Localization
+from nepi_interfaces.msg import NavPose, ImageStatus, Localization, MgrSystemStatus
 from nepi_interfaces.msg import StringArray, BoundingBox, AiBoundingBoxes
 from nepi_interfaces.msg import Target, Targets, TargetingStatus
 from nepi_interfaces.msg import AiDetectorStatus
@@ -92,6 +92,7 @@ class AiDetectorIF:
     IMAGE_DATA_PRODUCT = 'detection_image'
     IMAGE_SUB_MSG = 'Waiting for Source Image'
     IMAGE_PUB_MSG = 'Loading Image Publisher'
+    IMAGE_FILTERS = ['detection','targeting','tracking']
 
     BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
     BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
@@ -100,6 +101,7 @@ class AiDetectorIF:
     all_namespace = None
 
     status_msg = AiDetectorStatus()
+    targets_status_msg = TargetingStatus()
 
     states_dict = None
     triggers_dict = dict()
@@ -110,6 +112,8 @@ class AiDetectorIF:
     
 
     data_products = ['bounding_boxes',IMAGE_DATA_PRODUCT]
+
+    available_image_topics = []
 
     api_lib_folder = '/opt/nepi/nepi_engine/lib/nepi_api'
 
@@ -195,7 +199,7 @@ class AiDetectorIF:
     max_proc_rate_hz = DEFAULT_MAX_PROC_RATE
     max_img_rate_hz = DEFAULT_MAX_IMG_RATE
     use_last_image = DEFAULT_USE_LAST_IMAGE
-    selected_img_topics = []
+    selected_images = []
 
     pub_image_enabled=True
     launch_node_process=None
@@ -206,6 +210,14 @@ class AiDetectorIF:
     img_file_processing = False
 
     next_image_topic="None"
+
+    detection_has_published = False
+    targeting_has_published = False
+
+    active_nodes = []
+    active_topics = []
+    active_topic_types = []
+    active_services = []
 
     def __init__(self, 
                 namespace,
@@ -320,7 +332,7 @@ class AiDetectorIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.enabled
             },
-            'selected_img_topics': {
+            'selected_images': {
                 'namespace': self.node_namespace,
                 'factory_val': []
             },
@@ -426,32 +438,25 @@ class AiDetectorIF:
             },
             'targets': {
                 'msg': Targets,
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace,
                 'topic': 'targets',
-                'qsize': 1,
-                'latch': True
-            },
-            'targeting_status': {
-                'msg': TargetingStatus,
-                'namespace': self.node_namespace + '/targeting',
-                'topic': 'status',
                 'qsize': 1,
                 'latch': True
             },
             'targets_all': {
                 'msg': Targets,
-                'namespace': self.base_namespace + '/targeting',
+                'namespace': self.base_namespace,
                 'topic': 'targets',
                 'qsize': 1,
                 'latch': True
             },
-            'targeting_status_all': {
+            'targets_status': {
                 'msg': TargetingStatus,
-                'namespace': self.base_namespace + '/targeting',
+                'namespace': self.node_namespace + '/targets',
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
-            },
+            }
         }
 
         # if self.enable_image_pub == True:
@@ -474,6 +479,14 @@ class AiDetectorIF:
                 'msg': Bool,
                 'qsize': 10,
                 'callback': self.enableCb, 
+                'callback_args': ()
+            },
+            'set_img_topic': {
+                'namespace': self.node_namespace,
+                'topic': 'set_img_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setImageTopicCb, 
                 'callback_args': ()
             },
             'add_img_topic': {
@@ -516,20 +529,12 @@ class AiDetectorIF:
                 'callback': self.processImageFileCb, 
                 'callback_args': ()
             },
-            'add_all_classes': {
+            'set_class': {
                 'namespace': self.node_namespace,
-                'topic': 'add_all_classes',
-                'msg': Empty,
+                'topic': 'set_class',
+                'msg': String,
                 'qsize': 10,
-                'callback': self.addAllClassesCb, 
-                'callback_args': ()
-            },
-            'remove_all_classes': {
-                'namespace': self.node_namespace,
-                'topic': 'remove_all_classes',
-                'msg': Empty,
-                'qsize': 10,
-                'callback': self.removeAllClassesCb, 
+                'callback': self.setClassCb, 
                 'callback_args': ()
             },
             'add_class': {
@@ -546,6 +551,22 @@ class AiDetectorIF:
                 'msg': String,
                 'qsize': 10,
                 'callback': self.removeClassCb, 
+                'callback_args': ()
+            },
+            'add_all_classes': {
+                'namespace': self.node_namespace,
+                'topic': 'add_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.addAllClassesCb, 
+                'callback_args': ()
+            },
+            'remove_all_classes': {
+                'namespace': self.node_namespace,
+                'topic': 'remove_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.removeAllClassesCb, 
                 'callback_args': ()
             },
             'set_threshold': {
@@ -651,7 +672,113 @@ class AiDetectorIF:
                 'qsize': 10,
                 'callback': self.setSleepSuspendTimeCb, 
                 'callback_args': ()
-            }
+            },
+            ###############
+            # Trargeting
+            ##############
+            'targets_enable': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.enableCb, 
+                'callback_args': ()
+            },
+            'targets_set_img_topic': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'set_img_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setImageTopicCb, 
+                'callback_args': ()
+            },
+            'targets_add_img_topic': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'add_img_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.addImageTopicCb, 
+                'callback_args': ()
+            },
+            'targets_add_img_topics': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'add_img_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.addImageTopicsCb, 
+                'callback_args': ()
+            },
+            'targets_remove_img_topic': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'remove_img_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.removeImageTopicCb, 
+                'callback_args': ()
+            },
+            'targets_remove_img_topics': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'remove_img_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.removeImageTopicsCb, 
+                'callback_args': ()
+            },
+            'targets_process_img_file': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'process_img_file',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.processImageFileCb, 
+                'callback_args': ()
+            },
+            'targets_add_all_classes': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'add_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.addAllClassesCb, 
+                'callback_args': ()
+            },
+            'targets_remove_all_classes': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'remove_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.removeAllClassesCb, 
+                'callback_args': ()
+            },
+            'targets_add_class': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'add_class',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.addClassCb, 
+                'callback_args': ()
+            },
+            'targets_remove_class': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'remove_class',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.removeClassCb, 
+                'callback_args': ()
+            },
+            'targets_set_threshold': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'set_threshold',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setThresholdCb, 
+                'callback_args': ()
+            },
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self.systemStatusCb
+            },
         }
 
 
@@ -753,6 +880,11 @@ class AiDetectorIF:
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ##########################
 
+    def systemStatusCb(self,msg):
+        self.active_nodes = msg.active_nodes
+        self.active_topics = msg.active_topics
+        self.active_topic_types = msg.active_topic_types
+        self.active_services = msg.active_services
 
     def launch_image_pub_node(self):
         """Launches the detection image publisher node as a subprocess.
@@ -849,8 +981,8 @@ class AiDetectorIF:
             self.max_proc_rate_hz = self.node_if.get_param('max_proc_rate_hz')
             self.max_img_rate_hz = self.node_if.get_param('max_img_rate_hz')
             self.use_last_image = self.node_if.get_param('use_last_image')
-            self.selected_img_topics = self.node_if.get_param('selected_img_topics')
-            self.msg_if.pub_info("Init selected images: " + str(self.selected_img_topics), log_name_list = self.log_name_list)
+            self.selected_images = self.node_if.get_param('selected_images')
+            self.msg_if.pub_info("Init selected images: " + str(self.selected_images), log_name_list = self.log_name_list)
 
             self.node_if.save_config()
         if do_updates == True:
@@ -885,6 +1017,23 @@ class AiDetectorIF:
             self.node_if.save_config()
         if enabled == False and not nepi_sdk.is_shutdown():
             self.next_image_topic = "None"
+
+
+
+    def setClassCb(self,msg):
+        self.msg_if.pub_info("Received Set class: " + msg.data)
+        class_name = msg.data
+        self.setClass(class_name)
+
+
+    def setClass(self, class_name):
+        #self.msg_if.pub_info("Set Class: " + class_name)         
+        self.selected_images = [class_name]
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.save_config()
+
 
     def addAllClassesCb(self,msg):
         self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
@@ -934,7 +1083,19 @@ class AiDetectorIF:
             self.node_if.set_param('selected_classes', sel_classes)
             self.node_if.save_config()
 
+    def setImageTopicCb(self,msg):
+        self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
+        img_topic = msg.data
+        self.setImageTopic(img_topic)
 
+
+    def setImageTopic(self, img_topic, save_config = True):
+        self.msg_if.pub_info("Set Image Topic: " + img_topic)         
+        self.selected_images = [img_topic]
+        self.publish_status()
+        if self.node_if is not None and save_config == True:
+            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.save_config()
 
     def addImageTopicCb(self,msg):
         self.msg_if.pub_info("Received Add Image Topic: " + msg.data)
@@ -951,15 +1112,15 @@ class AiDetectorIF:
 
     def addImageTopic(self,img_topic):   
         self.msg_if.pub_info("Adding Image Topic: " + img_topic)
-        img_topics = copy.deepcopy(self.selected_img_topics)
+        img_topics = copy.deepcopy(self.selected_images)
         if img_topic not in img_topics:
             img_topics.append(img_topic)
         else:
             self.msg_if.pub_warn('Selected image topic not found as image or folder')
-        self.selected_img_topics = img_topics
+        self.selected_images = img_topics
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('selected_img_topics',self.selected_img_topics)
+            self.node_if.set_param('selected_images',self.selected_images)
             self.node_if.save_config()
 
 
@@ -979,13 +1140,13 @@ class AiDetectorIF:
 
     def removeImageTopic(self,img_topic,save_config = True):
         self.msg_if.pub_info("Removing Image Topic: " + img_topic)         
-        img_topics = copy.deepcopy(self.selected_img_topics)
+        img_topics = copy.deepcopy(self.selected_images)
         if img_topic in img_topics:
             img_topics.remove(img_topic)
-        self.selected_img_topics = img_topics
+        self.selected_images = img_topics
         self.publish_status()
         if self.node_if is not None and save_config == True:
-            self.node_if.set_param('selected_img_topics',self.selected_img_topics)
+            self.node_if.set_param('selected_images',self.selected_images)
             self.node_if.save_config()
 
 
@@ -1159,17 +1320,33 @@ class AiDetectorIF:
 
     def updaterCb(self,timer):
         #self.msg_if.pub_warn("Updating with image topic: " +  self.img_topic)
-        selected_img_topics = copy.deepcopy(self.selected_img_topics)
+        selected_images = copy.deepcopy(self.selected_images)
         active_img_topics = self.getActiveImgTopics()
 
+        ##############
+        last_available = copy.deepcopy(self.available_image_topics)
+        
+        topics = nepi_sdk.find_topics_by_msg('Image', topics_list = self.active_topics, types_list = self.active_topic_types)
+        available_image_topics = []
+        for topic in topics:
+            valid_topic = True
+            for filter in self.IMAGE_FILTERS:
+                if filter in topic:
+                    valid_topic = False
+            if valid_topic == True:
+                available_image_topics.append(topic)
+        if available_image_topics != last_available:
+            self.available_image_topics = available_image_topics
+            needs_publish = True
 
+        ##############
         #self.msg_if.pub_warn("")
-        #self.msg_if.pub_warn("Updating with image topics: " +  str(selected_img_topics))
+        #self.msg_if.pub_warn("Updating with image topics: " +  str(selected_images))
         #self.msg_if.pub_warn("Updating with active image topics: " +  str(active_img_topics))
         purge_list = []
         # Update Image subscribers
         found_img_topics = []
-        for img_topic in selected_img_topics:
+        for img_topic in selected_images:
             img_topic = nepi_sdk.find_topic(img_topic, exact = True)
             if img_topic != '':
                 found_img_topics.append(img_topic)
@@ -1178,7 +1355,7 @@ class AiDetectorIF:
                     success = self.subscribeImgTopic(img_topic)              
         # Update Image Subs purge list
         for img_topic in active_img_topics:
-            if img_topic not in found_img_topics or img_topic not in selected_img_topics:
+            if img_topic not in found_img_topics or img_topic not in selected_images:
                 purge_list.append(img_topic)
         if len(purge_list) > 0:
             self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
@@ -1306,6 +1483,8 @@ class AiDetectorIF:
                 img_info_dict['img_pub_topic'] = img_pub_topic 
                 img_info_dict['img_connected'] = connected 
                 img_info_dict['active'] = True
+
+                img_info_dict['has_range'] = False
                 img_info_dict['width_deg'] = 110
                 img_info_dict['height_deg'] = 70
 
@@ -1475,7 +1654,7 @@ class AiDetectorIF:
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         enabled = self.enabled
         if enabled == True:
-            img_topics = self.selected_img_topics
+            img_topics = self.selected_images
             connected_list = []
             for topic in img_topics:
                 if topic in imgs_info_dict.keys():
@@ -1578,7 +1757,6 @@ class AiDetectorIF:
     def imageStatusCb(self,status_msg, args):     
         img_topic = args
         if img_topic in self.imgs_info_dict.keys():
-
             self.imgs_info_dict[img_topic]['width_deg'] = status_msg.width_deg
             self.imgs_info_dict[img_topic]['height_deg'] = status_msg.height_deg
             self.imgs_info_dict[img_topic]['navpose_topic'] = status_msg.navpose_topic
@@ -1880,6 +2058,7 @@ class AiDetectorIF:
 
                 target_range_m = -999
                 if np_depth_map is not None:
+                    self.imgs_info_dict[img_topic]['has_range'] = True
                     try:
                         target_range_m = nepi_img.get_range_from_npDepthMap(np_depth_map, detect_dict)
                     except Exception as e:
@@ -2170,10 +2349,9 @@ class AiDetectorIF:
         """
         #self.msg_if.pub_warn("Starting Detector Status Pub")
 
-        self.status_msg.ai_detector_name = self.model_name
-        self.status_msg.display_name = self.node_name
-        self.status_msg.description = self.model_description
+        self.status_msg.name = self.model_name
         self.status_msg.framework = self.model_framework
+        self.status_msg.description = self.model_description
 
         self.status_msg.node_name = self.node_name
         self.status_msg.namespace = self.namespace
@@ -2204,13 +2382,40 @@ class AiDetectorIF:
         self.status_msg.max_img_rate_hz = self.max_img_rate_hz
         self.status_msg.use_last_image = self.use_last_image
 
-        self.status_msg.selected_img_topics = self.selected_img_topics
+
+        self.status_msg.available_image_topics = self.available_image_topics
+        self.status_msg.selected_images = self.selected_images
+
+
+
+
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
+
+
+        img_has_ranges = []
+        img_hfovs = []
+        img_vfovs = []
+        img_connects = []
+        for img_topic in imgs_info_dict.keys():
+            img_connected = imgs_info_dict[img_topic]['img_connected']
+            img_connects.append(img_connected)
+            img_has_ranges.append(imgs_info_dict[img_topic]['has_range'])
+            img_hfovs.append(imgs_info_dict[img_topic]['width_deg'])
+            img_vfovs.append(imgs_info_dict[img_topic]['height_deg'])
+        self.status_msg.images_connected = img_connects
+        self.status_msg.images_have_range = img_has_ranges
+        self.status_msg.images_fov_horz_degs = img_hfovs
+        self.status_msg.images_fov_vert_degs = img_vfovs
+        img_selected = len(img_connects) > 0 or self.img_file_processing
+        self.status_msg.image_selected = img_selected 
+        img_connected = True in img_connects or self.img_file_processing
+        self.status_msg.image_connected = img_connected 
+
 
 
         img_source_topics = []
         img_det_namespaces = []
         img_pub_topics = []
-        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         for img_topic in imgs_info_dict.keys():
                 state = imgs_info_dict[img_topic]['active']
                 if state == True:
@@ -2219,29 +2424,16 @@ class AiDetectorIF:
         self.status_msg.image_source_topics = img_source_topics
         self.status_msg.image_pub_topics = img_pub_topics
 
-        connected_img_topics = []
-        img_connects = []
-        for img_topic in imgs_info_dict.keys():
-            img_connected = imgs_info_dict[img_topic]['img_connected']
-            img_connects.append(img_connected)
-            if img_connected == True:
-               connected_img_topics.append(img_topic) 
-        self.status_msg.images_connected = img_connects
-        img_selected = len(img_connects) > 0
-        self.status_msg.image_selected = img_selected or self.img_file_processing
-        img_connected = True in img_connects
-        self.status_msg.image_connected = img_connected or self.img_file_processing
-
-
 
         #################
 
         self.status_msg.enabled = self.enabled
-        self.status_msg.running = self.enabled and img_selected and img_connected and self.sleep_state == False
+        running = self.enabled and img_selected and img_connected and self.sleep_state == False
+        self.status_msg.running = running
         detecting = False
         if self.states_dict is not None:
             detecting = copy.deepcopy(self.states_dict['detection']['value']) == 'True'
-        self.status_msg.detecting = detecting
+        self.status_msg.state = detecting
         self.status_msg.msg_str = self.msg_str
 
         #################
@@ -2262,35 +2454,55 @@ class AiDetectorIF:
         self.status_msg.max_detect_rate = max_detect_rate
     
         #self.msg_if.pub_warn("Ending Detector Status Pub")
-        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.status_msg))
+        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.status_msg), throttle_s = 5)
         if self.node_if is not None:
+            # if self.detection_has_published == False:
+            #     self.msg_if.pub_warn("Publishing Detection Status Msg: " + str(self.status_msg))
+            # self.detection_has_published = True
             self.node_if.publish_pub('status_pub',self.status_msg)
 
 
         # ################
         # # Targeting Status
-        # targeting_status_msg = TargetingStatus()
 
-        # targeting_status_msg.process_name = self.node_name
-        # targeting_status_msg.process_namespace = self.node_namespace
-        # targeting_status_msg.process_type = 'detection'
-        # targeting_status_msg.process_description = self.model_description
+        self.targets_status_msg.name = self.node_name
+        self.targets_status_msg.node_name = self.node_name
+        self.targets_status_msg.namespace = self.node_namespace
+        self.targets_status_msg.group = 'ai_detection'
+        self.targets_status_msg.description = self.model_description
 
-        # targeting_status_msg.save_data_topic = self.save_data_namespace
+        self.targets_status_msg.save_data_topic = self.save_data_namespace
 
-        # targeting_status_msg.available_classes = self.classes
-        # targeting_status_msg.selected_classes = sel_classes
+        #################
+        self.targets_status_msg.enabled = self.enabled
+        self.targets_status_msg.running = running
+        self.targets_status_msg.state = detecting
+        self.targets_status_msg.msg_str = self.msg_str
 
-        # targeting_status_msg.connected_source_topics = connected_img_topics
+        self.targets_status_msg.available_source_topics = self.available_image_topics
+        self.targets_status_msg.selected_sources = self.selected_images
+        self.targets_status_msg.sources_connected = img_connects
+        self.targets_status_msg.sources_have_range = img_has_ranges
+        self.targets_status_msg.sources_fov_horz_degs = img_hfovs
+        self.targets_status_msg.sources_fov_vert_degs = img_vfovs
 
-        # targeting_status_msg.enabled = self.status_msg.enabled
-        # targeting_status_msg.running = self.status_msg.running
-        # if self.node_if is not None:
-        #     self.node_if.publish_pub('targeting_status',targeting_status_msg)
-        #     self.node_if.publish_pub('targeting_status_all',targeting_status_msg)
+        self.targets_status_msg.source_selected = img_selected 
+        self.targets_status_msg.source_connected = img_connected 
 
+        self.targets_status_msg.available_classes = self.classes
+        self.targets_status_msg.selected_classes = sel_classes
 
+        self.targets_status_msg.threshold_filter = self.threshold
 
+        self.targets_status_msg.pub_image_enabled = self.pub_image_enabled
+        self.targets_status_msg.image_source_topics  = img_source_topics
+        self.targets_status_msg.image_pub_topics = img_pub_topics
 
+        #self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(self.targets_status_msg), throttle_s = 5)
+        if self.node_if is not None:
+            # if self.targeting_has_published == False:
+            #     self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(self.targets_status_msg))
+            # self.targeting_has_published = True
+            self.node_if.publish_pub('targets_status',self.targets_status_msg)
 
 

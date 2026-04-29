@@ -167,7 +167,6 @@ def supports_all_config(namespace):
     return supports_all
 
 
-##########################
 
 def get_devices_alias_dict(timeout = 1000, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'devices_alias_dict')
@@ -226,6 +225,36 @@ def get_active_drivers(timeout = 1000, log_name_list = []):
 def set_active_drivers(value, log_name_list = []):
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_drivers')
     success = nepi_sdk.set_param(param_namespace, value, log_name_list = log_name_list)
+    return success
+
+
+##########################
+
+def get_active_apps(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_apps')
+    devices_alias_dict = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    if devices_alias_dict is None:
+        devices_alias_dict = dict()
+    return devices_alias_dict
+
+def set_active_apps(devices_alias_dict, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_apps')
+    success = nepi_sdk.set_param(param_namespace, devices_alias_dict, log_name_list = log_name_list)
+    return success
+
+
+##########################
+
+def get_active_ai_detectors(timeout = 1000, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_ai_detectors')
+    devices_alias_dict = nepi_sdk.wait_for_param(param_namespace, timeout = timeout, log_name_list = log_name_list)
+    if devices_alias_dict is None:
+        devices_alias_dict = dict()
+    return devices_alias_dict
+
+def set_active_ai_detectors(devices_alias_dict, log_name_list = []):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'active_ai_detectors')
+    success = nepi_sdk.set_param(param_namespace, devices_alias_dict, log_name_list = log_name_list)
     return success
 
 ''' Need to add

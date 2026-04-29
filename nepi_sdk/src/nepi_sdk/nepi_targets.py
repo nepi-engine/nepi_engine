@@ -40,7 +40,7 @@ logger = Logger(log_name = log_name)
 
 ########################
 ## Library Data
-
+BEST_FILTER_OPTIONS = ['SMALLEST','LARGEST','PROBABILITY']
 
 BLANK_TARGET_DICT = {
 '''
@@ -117,7 +117,6 @@ Target[] targets
 '''
 }
 
-TARGET_BEST_FILTER_OPTIONS = ['SMALLEST','LARGEST']
 
 BLANK_TARGET_SETTINGS_DICT = {
 '''
@@ -253,11 +252,11 @@ def convert_target_msg2dict(target_msg, log_name_list = []):
   return target_data_dict
 
 
-def filter_by_names(targets_dict_list, targets_ordered_list):
+def filter_by_classes(targets_dict_list, class_filter_list):
     #print(targets_dict_list)
 
     filtered_targets = []
-    for name in targets_ordered_list:
+    for name in class_filter_list:
         for target_dict in targets_dict_list:
             if target_dict['target_name'] == name:
                 filtered_targets.append(target_dict)
@@ -266,16 +265,102 @@ def filter_by_names(targets_dict_list, targets_ordered_list):
     # for target_dict in filtered_targets:   
     #     logger.log_info("Returning target with name: " + str(name))
     return filtered_targets
+    
 
 
-def filter_by_area(targets_dict_list, min_area_ratio = .01, max_area_ratio = .99):
+def filter_by_area(targets_dict_list, size_min_filter = .01, size_max_filter = .99):
     #print(targets_dict_list)
 
     filtered_targets = []
 
     for target_dict in targets_dict_list:
         target_area = target_dict['area_ratio']
-        if target_area >= min_area_ratio and target_area <= max_area_ratio:
+        if target_area >= size_min_filter and target_area <= size_max_filter:
+            filtered_targets.append(target_dict)
+    #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
+    return filtered_targets
+
+
+
+# def filter_by_range(self,targets_dict_list, size_min_filter = .01, size_max_filter = .99):
+#     ################
+#     # Filter by min max range and angles
+#     filtered_dict_list = []
+#     cur_position = copy.deepcopy(self.current_position)
+#     if cur_position is not None:
+#       [cur_pan,cur_tilt] = [cur_position[0],cur_position[1]]
+#       range_min = self.track_range_min_m
+#       range_max = self.track_range_max_m
+#       pan_min = self.track_pan_min_deg
+#       pan_max = self.track_pan_max_deg
+#       tilt_min = self.track_tilt_min_deg
+#       tilt_max = self.track_tilt_max_deg
+
+#       for target_dict in targets_dict_list:
+#           target_valid = True
+#           range_m = target_dict['range_m']
+#           if (range_m < range_min or range_m > range_max) and range_m != -999:
+#             target_valid = False
+#           target_pan_angle = target_dict['azimuth_deg']
+#           pan_angle =  cur_pan + target_pan_angle
+#           if (pan_angle < pan_min or pan_angle > pan_max) and target_pan_angle != -999:
+#             target_valid = False
+#           target_tilt_angle = cur_pan + target_dict['elevation_deg']
+#           tilt_angle =  cur_tilt + target_tilt_angle
+#           if (tilt_angle < tilt_min or tilt_angle > tilt_max) and target_tilt_angle != -999:
+#             target_valid = False
+#           if target_valid == True:
+#             filtered_dict_list.append(target_dict)
+#           #self.msg_if.pub_warn("Range Angle Filter returned: " + str(target_dict['target_name']) + " : " + str(target_valid) )
+#           #self.msg_if.pub_warn(str([range_m,cur_pan,cur_tilt]))
+#           #self.msg_if.pub_warn(str([range_m,target_pan_angle,target_tilt_angle]))
+#           #self.msg_if.pub_warn(str([range_m,pan_angle,tilt_angle]))
+#     return filtered_dict_list
+
+# def filter_by_bearings(self,targets_dict_list):
+#     ################
+#     # Filter by min max range and angles
+#     filtered_dict_list = []
+#     cur_position = copy.deepcopy(self.current_position)
+#     if cur_position is not None:
+#       [cur_pan,cur_tilt] = [cur_position[0],cur_position[1]]
+#       range_min = self.track_range_min_m
+#       range_max = self.track_range_max_m
+#       pan_min = self.track_pan_min_deg
+#       pan_max = self.track_pan_max_deg
+#       tilt_min = self.track_tilt_min_deg
+#       tilt_max = self.track_tilt_max_deg
+
+#       for target_dict in targets_dict_list:
+#           target_valid = True
+#           range_m = target_dict['range_m']
+#           if (range_m < range_min or range_m > range_max) and range_m != -999:
+#             target_valid = False
+#           target_pan_angle = target_dict['azimuth_deg']
+#           pan_angle =  cur_pan + target_pan_angle
+#           if (pan_angle < pan_min or pan_angle > pan_max) and target_pan_angle != -999:
+#             target_valid = False
+#           target_tilt_angle = cur_pan + target_dict['elevation_deg']
+#           tilt_angle =  cur_tilt + target_tilt_angle
+#           if (tilt_angle < tilt_min or tilt_angle > tilt_max) and target_tilt_angle != -999:
+#             target_valid = False
+#           if target_valid == True:
+#             filtered_dict_list.append(target_dict)
+#           #self.msg_if.pub_warn("Range Angle Filter returned: " + str(target_dict['target_name']) + " : " + str(target_valid) )
+#           #self.msg_if.pub_warn(str([range_m,cur_pan,cur_tilt]))
+#           #self.msg_if.pub_warn(str([range_m,target_pan_angle,target_tilt_angle]))
+#           #self.msg_if.pub_warn(str([range_m,pan_angle,tilt_angle]))
+#     return filtered_dict_list
+
+
+def filter_by_threshold(targets_dict_list, threshold_filter):
+    #print(targets_dict_list)
+
+    filtered_targets = []
+
+    for target_dict in targets_dict_list:
+        prob = target_dict['probability']
+        if prob >= threshold_filter:
             filtered_targets.append(target_dict)
     #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
     return filtered_targets

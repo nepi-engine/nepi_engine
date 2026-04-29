@@ -219,8 +219,10 @@ class SystemMgrNode():
         nepi_system.set_timezone(dt)
         nepi_system.set_navposes_dict(dict())
         nepi_system.set_active_drivers([])
-        nepi_system.set_ai_models_dict(dict())
         nepi_system.set_devices_alias_dict(dict())
+        nepi_system.set_active_apps([])
+        nepi_system.set_ai_models_dict(dict())
+        nepi_system.set_active_ai_detectors([])
 
         ###############################
         # Initialize Class Variables

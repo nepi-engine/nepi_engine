@@ -201,8 +201,20 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path):
                 logger.log_warn("File does not appear to be a valid A/I model config file: " + f + "... not adding this model")
                 continue
               #logger.log_warn("Import success: " + str(success) + " with cfg_dict " + str(cfg_dict))
+
+            param_file = os.path.basename(f)
+            file_name = os.path.splitext(param_file)[0]
+
             cfg_dict_keys = cfg_dict[model_key].keys()
             logger.log_warn("Imported model key names: " + str(cfg_dict_keys))
+            
+            if 'display_name' in cfg_dict_keys:
+                model_name = cfg_dict[model_key]['display_name']['name']
+            else:
+                model_name = file_name    
+            display_name = model_name
+
+
             if ("framework" not in cfg_dict_keys):
                 logger.log_warn("Framework does not specified in model yaml file: " + f + "... not adding this model")
                 continue
@@ -216,9 +228,9 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path):
                 logger.log_warn("File does not specify a classes: " + f + "... not adding this model")
                 continue
 
-            param_file = os.path.basename(f)
+
             framework = cfg_dict[model_key]["framework"]["name"]
-            model_name = os.path.splitext(param_file)[0]
+           
 
             if framework != framework_name:
                 logger.log_warn("Model " + model_name + " not a MODEL_FRAMEWORK model" + framework + "... not adding this model")
@@ -235,9 +247,7 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path):
 
             model_size_mb = float(os.path.getsize(weight_file_path) / 1000000)
 
-            display_name = model_name
-            if 'display_name' in cfg_dict_keys:
-                display_name = cfg_dict[model_key]['display_name']['name']
+
 
             node_name = display_name
             if 'node_name' in cfg_dict_keys:
