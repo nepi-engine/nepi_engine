@@ -216,7 +216,8 @@ class SystemMgrNode():
 
         # Create an aware datetime object
         dt = datetime.now(timezone.utc)
-        nepi_system.set_timezone(dt)
+        tzs = dt.strftime('%Z')
+        nepi_system.set_timezone(tzs)
         nepi_system.set_navposes_dict(dict())
         nepi_system.set_active_drivers([])
         nepi_system.set_devices_alias_dict(dict())

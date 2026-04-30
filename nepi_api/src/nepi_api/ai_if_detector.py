@@ -33,7 +33,7 @@ from sensor_msgs.msg import Image
 
 from nepi_interfaces.msg import NavPose, ImageStatus, Localization, MgrSystemStatus
 from nepi_interfaces.msg import StringArray, BoundingBox, AiBoundingBoxes
-from nepi_interfaces.msg import Target, Targets, TargetingStatus
+from nepi_interfaces.msg import Target, Targets, TargetingStatus, TargetingUpdate
 from nepi_interfaces.msg import AiDetectorStatus
 from nepi_interfaces.srv import AiDetectorStatusQuery, AiDetectorStatusQueryRequest, AiDetectorStatusQueryResponse
 
@@ -161,6 +161,7 @@ class AiDetectorIF:
 
     detecting = False
 
+    targeting_topic = 'targeting'
     targeting_state = False
 
 
@@ -438,7 +439,7 @@ class AiDetectorIF:
             },
             'targets': {
                 'msg': Targets,
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'targets',
                 'qsize': 1,
                 'latch': True
@@ -452,7 +453,7 @@ class AiDetectorIF:
             },
             'targets_status': {
                 'msg': TargetingStatus,
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
@@ -692,7 +693,7 @@ class AiDetectorIF:
             'set_config': {
                 'namespace': self.node_namespace,
                 'topic': 'set_config',
-                'msg': AiDetectorStatus,
+                'msg': TargetingUpdate,
                 'qsize': 10,
                 'callback': self.setConfigCb, 
                 'callback_args': ()
@@ -701,7 +702,7 @@ class AiDetectorIF:
             # Trargeting
             ##############
             'targets_enable': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'enable',
                 'msg': Bool,
                 'qsize': 10,
@@ -709,7 +710,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_set_source_topic': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'set_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -725,7 +726,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_add_source_topic': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'add_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -733,7 +734,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_add_source_topics': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'add_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -741,7 +742,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_remove_source_topic': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'remove_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -749,7 +750,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_remove_source_topics': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'remove_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -757,7 +758,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_process_source_file': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'process_source_file',
                 'msg': String,
                 'qsize': 10,
@@ -765,7 +766,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_set_class': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'set_class',
                 'msg': String,
                 'qsize': 10,
@@ -773,7 +774,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_set_classes': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'set_classes',
                 'msg': StringArray,
                 'qsize': 10,
@@ -781,7 +782,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_add_class': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'add_class',
                 'msg': String,
                 'qsize': 10,
@@ -789,7 +790,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_remove_class': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'remove_class',
                 'msg': String,
                 'qsize': 10,
@@ -797,7 +798,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_add_all_classes': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'add_all_classes',
                 'msg': Empty,
                 'qsize': 10,
@@ -805,7 +806,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_remove_all_classes': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'remove_all_classes',
                 'msg': Empty,
                 'qsize': 10,
@@ -813,7 +814,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targets_set_threshold': {
-                'namespace': self.node_namespace + '/targeting',
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'set_threshold',
                 'msg': Float32,
                 'qsize': 10,
@@ -2568,7 +2569,7 @@ class AiDetectorIF:
 
         self.targets_status_msg.name = self.node_name
         self.targets_status_msg.node_name = self.node_name
-        self.targets_status_msg.namespace = self.node_namespace + '/targets'
+        self.targets_status_msg.namespace = self.node_namespace + '/' + self.targeting_topic
         self.targets_status_msg.group = 'ai_detection'
         self.targets_status_msg.description = self.model_description
 
