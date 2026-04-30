@@ -438,7 +438,7 @@ class AiDetectorIF:
             },
             'targets': {
                 'msg': Targets,
-                'namespace': self.node_namespace,
+                'namespace': self.node_namespace + '/targeting',
                 'topic': 'targets',
                 'qsize': 1,
                 'latch': True
@@ -452,7 +452,7 @@ class AiDetectorIF:
             },
             'targets_status': {
                 'msg': TargetingStatus,
-                'namespace': self.node_namespace + '/targets',
+                'namespace': self.node_namespace + '/targeting',
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
@@ -478,7 +478,7 @@ class AiDetectorIF:
                 'topic': 'enable',
                 'msg': Bool,
                 'qsize': 10,
-                'callback': self.enableCb, 
+                'callback': self.setEnableCb, 
                 'callback_args': ()
             },
             'set_img_topic': {
@@ -487,6 +487,14 @@ class AiDetectorIF:
                 'msg': String,
                 'qsize': 10,
                 'callback': self.setImageTopicCb, 
+                'callback_args': ()
+            },
+            'set_img_topics': {
+                'namespace': self.node_namespace,
+                'topic': 'set_img_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.setImageTopicsCb, 
                 'callback_args': ()
             },
             'add_img_topic': {
@@ -535,6 +543,14 @@ class AiDetectorIF:
                 'msg': String,
                 'qsize': 10,
                 'callback': self.setClassCb, 
+                'callback_args': ()
+            },
+            'set_classes': {
+                'namespace': self.node_namespace,
+                'topic': 'set_classes',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.setClassesCb, 
                 'callback_args': ()
             },
             'add_class': {
@@ -673,6 +689,14 @@ class AiDetectorIF:
                 'callback': self.setSleepSuspendTimeCb, 
                 'callback_args': ()
             },
+            'set_config': {
+                'namespace': self.node_namespace,
+                'topic': 'set_config',
+                'msg': AiDetectorStatus,
+                'qsize': 10,
+                'callback': self.setConfigCb, 
+                'callback_args': ()
+            },
             ###############
             # Trargeting
             ##############
@@ -681,71 +705,79 @@ class AiDetectorIF:
                 'topic': 'enable',
                 'msg': Bool,
                 'qsize': 10,
-                'callback': self.enableCb, 
+                'callback': self.setEnableCb, 
                 'callback_args': ()
             },
-            'targets_set_img_topic': {
+            'targets_set_source_topic': {
                 'namespace': self.node_namespace + '/targeting',
-                'topic': 'set_img_topic',
+                'topic': 'set_source_topic',
                 'msg': String,
                 'qsize': 10,
                 'callback': self.setImageTopicCb, 
                 'callback_args': ()
             },
-            'targets_add_img_topic': {
+            'targets_set_source_topic': {
+                'namespace': self.node_namespace,
+                'topic': 'set_source_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setImageTopicsCb, 
+                'callback_args': ()
+            },
+            'targets_add_source_topic': {
                 'namespace': self.node_namespace + '/targeting',
-                'topic': 'add_img_topic',
+                'topic': 'add_source_topic',
                 'msg': String,
                 'qsize': 10,
                 'callback': self.addImageTopicCb, 
                 'callback_args': ()
             },
-            'targets_add_img_topics': {
+            'targets_add_source_topics': {
                 'namespace': self.node_namespace + '/targeting',
-                'topic': 'add_img_topics',
+                'topic': 'add_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
                 'callback': self.addImageTopicsCb, 
                 'callback_args': ()
             },
-            'targets_remove_img_topic': {
+            'targets_remove_source_topic': {
                 'namespace': self.node_namespace + '/targeting',
-                'topic': 'remove_img_topic',
+                'topic': 'remove_source_topic',
                 'msg': String,
                 'qsize': 10,
                 'callback': self.removeImageTopicCb, 
                 'callback_args': ()
             },
-            'targets_remove_img_topics': {
+            'targets_remove_source_topics': {
                 'namespace': self.node_namespace + '/targeting',
-                'topic': 'remove_img_topics',
+                'topic': 'remove_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
                 'callback': self.removeImageTopicsCb, 
                 'callback_args': ()
             },
-            'targets_process_img_file': {
+            'targets_process_source_file': {
                 'namespace': self.node_namespace + '/targeting',
-                'topic': 'process_img_file',
+                'topic': 'process_source_file',
                 'msg': String,
                 'qsize': 10,
                 'callback': self.processImageFileCb, 
                 'callback_args': ()
             },
-            'targets_add_all_classes': {
+            'targets_set_class': {
                 'namespace': self.node_namespace + '/targeting',
-                'topic': 'add_all_classes',
-                'msg': Empty,
+                'topic': 'set_class',
+                'msg': String,
                 'qsize': 10,
-                'callback': self.addAllClassesCb, 
+                'callback': self.setClassCb, 
                 'callback_args': ()
             },
-            'targets_remove_all_classes': {
+            'targets_set_classes': {
                 'namespace': self.node_namespace + '/targeting',
-                'topic': 'remove_all_classes',
-                'msg': Empty,
+                'topic': 'set_classes',
+                'msg': StringArray,
                 'qsize': 10,
-                'callback': self.removeAllClassesCb, 
+                'callback': self.setClassesCb, 
                 'callback_args': ()
             },
             'targets_add_class': {
@@ -762,6 +794,22 @@ class AiDetectorIF:
                 'msg': String,
                 'qsize': 10,
                 'callback': self.removeClassCb, 
+                'callback_args': ()
+            },
+            'targets_add_all_classes': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'add_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.addAllClassesCb, 
+                'callback_args': ()
+            },
+            'targets_remove_all_classes': {
+                'namespace': self.node_namespace + '/targeting',
+                'topic': 'remove_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.removeAllClassesCb, 
                 'callback_args': ()
             },
             'targets_set_threshold': {
@@ -1006,82 +1054,21 @@ class AiDetectorIF:
 
 
 
-    def enableCb(self,msg):
+    def setEnableCb(self,msg):
         self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
         enabled = msg.data
+        self.setEnable(enabled)
+
+    def setEnable(self,enabled, save_config = True):
         last_val = copy.deepcopy(self.enabled)
         self.enabled = enabled
         self.publish_status()
-        if self.node_if is not None and enabled != last_val: 
+        if self.node_if is not None and enabled != last_val and save_config == True:
             self.node_if.set_param('enabled',self.enabled)
             self.node_if.save_config()
         if enabled == False and not nepi_sdk.is_shutdown():
             self.next_image_topic = "None"
 
-
-
-    def setClassCb(self,msg):
-        self.msg_if.pub_info("Received Set class: " + msg.data)
-        class_name = msg.data
-        self.setClass(class_name)
-
-
-    def setClass(self, class_name):
-        #self.msg_if.pub_info("Set Class: " + class_name)         
-        self.selected_images = [class_name]
-        self.publish_status()
-        if self.node_if is not None:
-            self.node_if.set_param('selected_images',self.selected_images)
-            self.node_if.save_config()
-
-
-    def addAllClassesCb(self,msg):
-        self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
-        self.addAllClasses()
-
-    def addAllClasses(self):
-        self.publish_status(do_updates = False) # Updated Here
-        self.selected_classes = self.classes
-        self.publish_status()
-        if self.node_if is not None:
-            self.node_if.set_param('selected_classes', self.classes)
-            self.node_if.save_config()
-
-
-    def removeAllClassesCb(self,msg):
-        self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
-        self.selected_classes = []
-        self.publish_status(do_updates = False) # Updated Here
-        if self.node_if is not None:
-            self.node_if.set_param('selected_classes',[])
-            self.node_if.save_config()
-
-
-    def addClassCb(self,msg):
-        self.msg_if.pub_info('Got add class msg: ' + str(msg))
-        class_name = msg.data
-        if class_name in self.classes:
-            sel_classes = copy.deepcopy(self.selected_classes)
-            if class_name not in sel_classes:
-                sel_classes.append(class_name)
-            self.selected_classes = sel_classes
-            self.publish_status(do_updates = False) # Updated Here
-            if self.node_if is not None:
-                self.node_if.set_param('selected_classes', sel_classes)
-                self.node_if.save_config()
-
-
-    def removeClassCb(self,msg):
-        self.msg_if.pub_info('Got remove class msg: ' + str(msg))
-        class_name = msg.data
-        sel_classes = copy.deepcopy(self.selected_classes)
-        if class_name in sel_classes:
-            sel_classes.remove(class_name)
-        self.selected_classes = sel_classes
-        self.publish_status(do_updates = False) # Updated Here
-        if self.node_if is not None:
-            self.node_if.set_param('selected_classes', sel_classes)
-            self.node_if.save_config()
 
     def setImageTopicCb(self,msg):
         self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
@@ -1096,6 +1083,21 @@ class AiDetectorIF:
         if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_images',self.selected_images)
             self.node_if.save_config()
+
+    def setImageTopicsCb(self,msg):
+        self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
+        img_topics = msg.data
+        self.setImageTopics(img_topics)
+
+
+    def setImageTopics(self, img_topics, save_config = True):
+        self.msg_if.pub_info("Set Image Topics: " + img_topics)         
+        self.selected_images = img_topics
+        self.publish_status()
+        if self.node_if is not None and save_config == True:
+            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.save_config()
+
 
     def addImageTopicCb(self,msg):
         self.msg_if.pub_info("Received Add Image Topic: " + msg.data)
@@ -1149,6 +1151,85 @@ class AiDetectorIF:
             self.node_if.set_param('selected_images',self.selected_images)
             self.node_if.save_config()
 
+
+
+    def setClassCb(self,msg):
+        self.msg_if.pub_info("Received Set class: " + msg.data)
+        class_name = msg.data
+        self.setClass(class_name)
+
+
+    def setClass(self, class_name):
+        #self.msg_if.pub_info("Set Class: " + class_name)         
+        self.selected_images = [class_name]
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.save_config()
+
+
+    def setClassesCb(self,msg):
+        self.msg_if.pub_info("Received Set classes: " + msg.data)
+        class_names = msg.data
+        self.setClasses(class_names)
+
+
+    def setClasses(self, class_names):
+        #self.msg_if.pub_info("Set Class: " + class_name)         
+        self.selected_images = class_names
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.save_config()
+
+
+    def addAllClassesCb(self,msg):
+        self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
+        self.addAllClasses()
+
+    def addAllClasses(self):
+        self.publish_status(do_updates = False) # Updated Here
+        self.selected_classes = self.classes
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('selected_classes', self.classes)
+            self.node_if.save_config()
+
+
+    def removeAllClassesCb(self,msg):
+        self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
+        self.selected_classes = []
+        self.publish_status(do_updates = False) # Updated Here
+        if self.node_if is not None:
+            self.node_if.set_param('selected_classes',[])
+            self.node_if.save_config()
+
+
+    def addClassCb(self,msg):
+        self.msg_if.pub_info('Got add class msg: ' + str(msg))
+        class_name = msg.data
+        if class_name in self.classes:
+            sel_classes = copy.deepcopy(self.selected_classes)
+            if class_name not in sel_classes:
+                sel_classes.append(class_name)
+            self.selected_classes = sel_classes
+            self.publish_status(do_updates = False) # Updated Here
+            if self.node_if is not None:
+                self.node_if.set_param('selected_classes', sel_classes)
+                self.node_if.save_config()
+
+
+    def removeClassCb(self,msg):
+        self.msg_if.pub_info('Got remove class msg: ' + str(msg))
+        class_name = msg.data
+        sel_classes = copy.deepcopy(self.selected_classes)
+        if class_name in sel_classes:
+            sel_classes.remove(class_name)
+        self.selected_classes = sel_classes
+        self.publish_status(do_updates = False) # Updated Here
+        if self.node_if is not None:
+            self.node_if.set_param('selected_classes', sel_classes)
+            self.node_if.save_config()
 
 
     def setOverlayLabelsCb(self,msg):
@@ -1234,8 +1315,12 @@ class AiDetectorIF:
 
  
 
+
     def setThresholdCb(self,msg):
         threshold = msg.data
+        self.setThreshold(threshold)
+
+    def setThreshold(self,threshold):
         #self.msg_if.pub_info("Received Threshold Update: " + str(threshold))
         if threshold <  MIN_THRESHOLD:
             threshold = MIN_THRESHOLD
@@ -1300,7 +1385,23 @@ class AiDetectorIF:
             self.node_if.set_param('pub_image_enabled',self.pub_image_enabled)
             self.node_if.save_config()
 
-    #######################################
+
+
+    def setConfigCb(self,msg):
+        status_msg = msg
+        config_dict = nepi_sdk.convert_msg2dict(status_msg)
+        self.setConfig(config_dict)
+
+    def setConfig(self,config_dict):
+        self.setEnable(config_dict['enabled'], save_config = False)
+        self.setImageTopics(config_dict['selected_images'], save_config = False)
+        self.setClasses(config_dict['selected_classes'], save_config = False)
+        self.setThreshold(config_dict['threshold_filter'], save_config = False)
+        if self.node_if is not None:
+            self.node_if.set_param('pub_image_enabled',self.pub_image_enabled)
+            self.node_if.save_config()
+
+    ###############.########################
     # Class Functions
 
     def statusPublishCb(self,timer):
@@ -2467,7 +2568,7 @@ class AiDetectorIF:
 
         self.targets_status_msg.name = self.node_name
         self.targets_status_msg.node_name = self.node_name
-        self.targets_status_msg.namespace = self.node_namespace
+        self.targets_status_msg.namespace = self.node_namespace + '/targets'
         self.targets_status_msg.group = 'ai_detection'
         self.targets_status_msg.description = self.model_description
 
