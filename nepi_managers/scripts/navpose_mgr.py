@@ -626,6 +626,9 @@ class NavPoseMgr(object):
 
             navposes_info_dict = self.node_if.get_param('navposes_info_dict')
             if navposes_info_dict is not None:
+                for key in self.BLANK_CONNECT_DICT.keys():
+                    if key not in navposes_info_dict.keys():
+                        navposes_info_dict[key] = self.BLANK_CONNECT_DICT[key]
                 self.navposes_info_dict = navposes_info_dict
 
             navposes_fixed_dict = self.node_if.get_param('navposes_fixed_dict')
