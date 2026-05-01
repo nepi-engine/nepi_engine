@@ -88,7 +88,7 @@ class NavPoseMgr(object):
 
     NAVPOSE_COMPONENT_NAMES = ['navpose_init','navpose_source_replace','navpose_source_offset','navpose_update_offset','navpose_update_reset']
 
-    BLANK_CONNECT_DICT = {
+    BLANK_COMP_DICT = {
             'init_topic': "",
             'init_transform': copy.deepcopy(ZERO_TRANSFORM_DICT),
             'init_options': ['ONCE','TIMED','ALLWAYS'],
@@ -125,14 +125,14 @@ class NavPoseMgr(object):
             'msgs': [],
         }
     
-    BLANK_CONNECTS_DICT = {
-        'location': copy.deepcopy(BLANK_CONNECT_DICT),
-        'heading': copy.deepcopy(BLANK_CONNECT_DICT),
-        'orientation': copy.deepcopy(BLANK_CONNECT_DICT),
-        'position': copy.deepcopy(BLANK_CONNECT_DICT),
-        'altitude': copy.deepcopy(BLANK_CONNECT_DICT),
-        'depth': copy.deepcopy(BLANK_CONNECT_DICT),
-        'pan_tilt': copy.deepcopy(BLANK_CONNECT_DICT)
+    BLANK_CONNECT_DICT = {
+        'location': copy.deepcopy(BLANK_COMP_DICT),
+        'heading': copy.deepcopy(BLANK_COMP_DICT),
+        'orientation': copy.deepcopy(BLANK_COMP_DICT),
+        'position': copy.deepcopy(BLANK_COMP_DICT),
+        'altitude': copy.deepcopy(BLANK_COMP_DICT),
+        'depth': copy.deepcopy(BLANK_COMP_DICT),
+        'pan_tilt': copy.deepcopy(BLANK_COMP_DICT)
     }
 
     BLANK_STATES_DICT = {
@@ -627,15 +627,22 @@ class NavPoseMgr(object):
             navposes_info_dict = self.node_if.get_param('navposes_info_dict')
             if navposes_info_dict is not None:
                 for frame in navposes_info_dict.keys():
-                    connect_dict = navposes_info_dict[frame]['connect_dict']
-                    for key in self.BLANK_CONNECT_DICT.keys():
-                        if key not in connect_dict.keys():
-                            navposes_info_dict[frame]['connect_dict'][key] = self.BLANK_CONNECT_DICT[key]
-                self.navposes_info_dict = navposes_info_dict
+                    if 'connect_dict' not in navposes_info_dict.keys():
+                        navposes_info_dict[frame]['connect_dict'] = self.BLANK_CONNECT_DICT
+                    for comp_name in self.BLANK_CONNECT_DICT:
+                        if comp_name not in navposes_info_dict[frame]['connect_dict'].keys():
+                            navposes_info_dict[frame]['connect_dict'][comp_name] = copy.deepcopy(self.BLANK_COMP_DICT)
+                        comp_dict = navposes_info_dict[frame]['connect_dict'][comp_name]
+                        for key in self.BLANK_COMP_DICT.keys():
+                            if key not in comp_dict.keys():
+                                navposes_info_dict[frame]['connect_dict'][comp_name][key] = self.BLANK_COMP_DICT[key]
+                navposes_info_dict = navposes_info_dict
+            else:
+                navposes_info_dict = dict()
 
-            navposes_fixed_dict = self.node_if.get_param('navposes_fixed_dict')
-            if navposes_fixed_dict is not None:
-                self.navposes_fixed_dict = navposes_fixed_dict
+            self.navposes_info_dict_lock.acquire()
+            self.navposes_info_dict = copy.deepcopy(navposes_info_dict)
+            self.navposes_info_dict_lock.release()
 
 
             self.frame_nav = self.node_if.get_param('frame_nav')
@@ -696,14 +703,19 @@ class NavPoseMgr(object):
         self.navposes_info_dict_lock.release()
 
         frames = list(navposes_info_dict.keys())
+     
 
         navpose_frames = []
         navpose_topics = []
         for frame in frames:
             if frame in navposes_info_dict.keys():
-                if 'namespace' in navposes_info_dict[frame].keys():
-                    navpose_frames.append(frame)
-                    navpose_topics.append(navposes_info_dict[frame]['namespace'])
+                navpose_frames.append(frame)
+                if 'namespace' not in navposes_info_dict[frame].keys():
+                    navposes_info_dict[frame]['namespace'] = ''
+                navpose_topics.append(navposes_info_dict[frame]['namespace'])
+
+
+
        
         ############
         ## Update System NavPoses Dict
@@ -743,7 +755,7 @@ class NavPoseMgr(object):
                 connect_dict = navposes_info_dict[frame_name]['connect_dict']
 
                 #self.msg_if.pub_warn("Updating NavPose dict for frame: " + str(frame_name) + " connect_dict: " + str(connect_dict))
-                comp_names = list(self.BLANK_CONNECTS_DICT.keys())
+                comp_names = list(self.BLANK_CONNECT_DICT.keys())
 
 
 
@@ -1085,7 +1097,7 @@ class NavPoseMgr(object):
                 info_dict_entry['data_product'] = data_product
                 info_dict_entry['description'] = description
                 info_dict_entry['max_pub_rate'] = self.FACTORY_PUB_RATE_HZ
-                info_dict_entry['connect_dict'] = copy.deepcopy(self.BLANK_CONNECTS_DICT)
+                info_dict_entry['connect_dict'] = copy.deepcopy(self.BLANK_CONNECT_DICT)
                 info_dict_entry['pan_tilt_adjusted'] = False
 
             elif init_dict_entry is not None:
@@ -1094,8 +1106,8 @@ class NavPoseMgr(object):
                 info_dict_entry['frame_name'] = frame_name
                 info_dict_entry['data_product'] = data_product
                 info_dict_entry['description'] = frame_name
-                connects_dict = copy.deepcopy(self.BLANK_CONNECTS_DICT)
-                connect_dict = copy.deepcopy(self.BLANK_CONNECT_DICT)
+                connects_dict = copy.deepcopy(self.BLANK_CONNECT_DICT)
+                connect_dict = copy.deepcopy(self.BLANK_COMP_DICT)
                 for comp_name in connects_dict.keys():
                     if comp_name not in info_dict_entry['connect_dict'].keys():
                         info_dict_entry['connect_dict'][comp_name] = connects_dict[comp_name]
@@ -1186,7 +1198,7 @@ class NavPoseMgr(object):
         
             ###################
             # Register frame topics if set
-            for comp_name in self.BLANK_CONNECTS_DICT.keys():
+            for comp_name in self.BLANK_CONNECT_DICT.keys():
                 try:
                     info_dict_entry['connect_dict'][comp_name]['connected'] = False
                     info_dict_entry['connect_dict'][comp_name]['avg_rate'] = 0
@@ -1220,7 +1232,7 @@ class NavPoseMgr(object):
 
             # Unregister Register frame topics if set
             topics = list(self.navpose_subs_dict.keys())
-            for comp_name in self.BLANK_CONNECTS_DICT.keys():
+            for comp_name in self.BLANK_CONNECT_DICT.keys():
                 for topic in topics:
                     try:
                         self.unregisterCompTopic(frame_name, comp_name, topic)
@@ -2059,7 +2071,7 @@ class NavPoseMgr(object):
 
                     if navpose_fixed_dict != nepi_nav.BLANK_NAVPOSE_DICT:
                         fixed_for_init = copy.deepcopy(navpose_fixed_dict)
-                        for comp_name in self.BLANK_CONNECTS_DICT.keys():
+                        for comp_name in self.BLANK_CONNECT_DICT.keys():
                             has_name = 'has_' + comp_name
                             comp_init_topic = navpose_info_dict['connect_dict'][comp_name]['init_topic']
                             if comp_init_topic == 'Fixed':
@@ -2084,7 +2096,7 @@ class NavPoseMgr(object):
                     if navpose_source_dict != nepi_nav.BLANK_NAVPOSE_DICT:
                         navpose_source_replace_dict = copy.deepcopy(navpose_source_dict)
                         navpose_source_offset_dict = copy.deepcopy(navpose_source_dict)
-                        for comp_name in self.BLANK_CONNECTS_DICT.keys():
+                        for comp_name in self.BLANK_CONNECT_DICT.keys():
                             source_option = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_option']
                             has_name = 'has_' + comp_name
                             if source_option == 'REPLACES':
