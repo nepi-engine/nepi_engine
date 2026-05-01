@@ -626,9 +626,11 @@ class NavPoseMgr(object):
 
             navposes_info_dict = self.node_if.get_param('navposes_info_dict')
             if navposes_info_dict is not None:
-                for key in self.BLANK_CONNECT_DICT.keys():
-                    if key not in navposes_info_dict.keys():
-                        navposes_info_dict[key] = self.BLANK_CONNECT_DICT[key]
+                for frame in navposes_info_dict.keys():
+                    connect_dict = navposes_info_dict[frame]['connect_dict']
+                    for key in self.BLANK_CONNECT_DICT.keys():
+                        if key not in connect_dict.keys():
+                            navposes_info_dict[frame]['connect_dict'][key] = self.BLANK_CONNECT_DICT[key]
                 self.navposes_info_dict = navposes_info_dict
 
             navposes_fixed_dict = self.node_if.get_param('navposes_fixed_dict')
@@ -693,12 +695,15 @@ class NavPoseMgr(object):
         navposes_update_times_dict = copy.deepcopy(self.navposes_update_times_dict)
         self.navposes_info_dict_lock.release()
 
-        navpose_frames = list(navposes_info_dict.keys())
+        frames = list(navposes_info_dict.keys())
 
-
+        navpose_frames = []
         navpose_topics = []
-        for frame_name in navpose_frames:
-            navpose_topics.append(navposes_info_dict[frame_name]['namespace'])
+        for frame in frames:
+            if frame in navposes_info_dict.keys():
+                if 'namespace' in navposes_info_dict[frame].keys():
+                    navpose_frames.append(frame)
+                    navpose_topics.append(navposes_info_dict[frame]['namespace'])
        
         ############
         ## Update System NavPoses Dict
