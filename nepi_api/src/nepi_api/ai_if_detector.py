@@ -1119,7 +1119,7 @@ class AiDetectorIF:
         if img_topic not in img_topics:
             img_topics.append(img_topic)
         else:
-            self.msg_if.pub_warn('Selected image topic not found as image or folder')
+            self.msg_if.pub_warn('Image topic allready selected')
         self.selected_images = img_topics
         self.publish_status()
         if self.node_if is not None:
@@ -1162,10 +1162,10 @@ class AiDetectorIF:
 
     def setClass(self, class_name):
         #self.msg_if.pub_info("Set Class: " + class_name)         
-        self.selected_images = [class_name]
+        self.selected_classes = [class_name]
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.set_param('selected_classes',self.selected_classes)
             self.node_if.save_config()
 
 
@@ -1177,10 +1177,10 @@ class AiDetectorIF:
 
     def setClasses(self, class_names):
         #self.msg_if.pub_info("Set Class: " + class_name)         
-        self.selected_images = class_names
+        self.selected_classes = class_names
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.set_param('selected_classes',self.selected_classes)
             self.node_if.save_config()
 
 
