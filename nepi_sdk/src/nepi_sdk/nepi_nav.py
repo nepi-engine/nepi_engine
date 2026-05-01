@@ -755,29 +755,36 @@ def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
     if npdata_dict_org is not None and npdata_dict_new is not None:
       try:
         if npdata_dict_new['has_location'] == True:
+            npdata_dict_org['has_location'] = True
             npdata_dict_org['time_location'] = npdata_dict_new['time_location']
             npdata_dict_org['latitude'] = npdata_dict_new['latitude']
             npdata_dict_org['longitude'] = npdata_dict_new['longitude']
         if npdata_dict_new['has_heading'] == True:
+            npdata_dict_org['has_heading'] = True
             npdata_dict_org['time_heading'] = npdata_dict_new['time_heading']
-            npdata_dict_org['heading'] = npdata_dict_new['heading']
+            npdata_dict_org['heading_deg'] = npdata_dict_new['heading_deg']
         if npdata_dict_new['has_orientation'] == True:
+            npdata_dict_org['has_orientation'] = True
             npdata_dict_org['time_orientation'] = npdata_dict_new['time_orientation']
             npdata_dict_org['roll_deg'] = npdata_dict_new['roll_deg']
             npdata_dict_org['pitch_deg'] = npdata_dict_new['pitch_deg']
             npdata_dict_org['yaw_deg'] = npdata_dict_new['yaw_deg']
         if npdata_dict_new['has_position'] == True:
+            npdata_dict_org['has_position'] = True
             npdata_dict_org['time_position'] = npdata_dict_new['time_position']
             npdata_dict_org['x_m'] = npdata_dict_new['x_m']
             npdata_dict_org['y_m'] = npdata_dict_new['y_m']
             npdata_dict_org['z_m'] = npdata_dict_new['z_m']
         if npdata_dict_new['has_altitude'] == True:
+            npdata_dict_org['has_altitude'] = True
             npdata_dict_org['time_altitude'] = npdata_dict_new['time_altitude']
             npdata_dict_org['altitude_m'] = npdata_dict_new['altitude_m']
         if npdata_dict_new['has_depth'] == True:
-            npdata_dict_org['time_detph'] = npdata_dict_new['time_depth']
+            npdata_dict_org['has_depth'] = True
+            npdata_dict_org['time_depth'] = npdata_dict_new['time_depth']
             npdata_dict_org['depth_m'] = npdata_dict_new['depth_m']
         if npdata_dict_new['has_pan_tilt'] == True:
+            npdata_dict_org['has_pan_tilt'] = True
             npdata_dict_org['time_pan_tilt'] = npdata_dict_new['time_pan_tilt']
             npdata_dict_org['pan_deg'] = npdata_dict_new['pan_deg']
             npdata_dict_org['tilt_deg'] = npdata_dict_new['tilt_deg']
@@ -896,6 +903,43 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg = None
       logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return np_msg
+
+
+def convert_navpose_msg2dict(np_msg, log_name_list = []):
+  if np_msg is None:
+    return None
+  try:
+    npdata_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
+    npdata_dict['navpose_frame'] = np_msg.navpose_frame
+    npdata_dict['navpose_description'] = np_msg.navpose_description
+    npdata_dict['frame_nav'] = np_msg.frame_nav
+    npdata_dict['frame_altitude'] = np_msg.frame_altitude
+    npdata_dict['frame_depth'] = np_msg.frame_depth
+    npdata_dict['geoid_height_meters'] = np_msg.geoid_height_meters
+    npdata_dict['has_location'] = np_msg.has_location
+    npdata_dict['latitude'] = np_msg.latitude
+    npdata_dict['longitude'] = np_msg.longitude
+    npdata_dict['has_heading'] = np_msg.has_heading
+    npdata_dict['heading_deg'] = np_msg.heading_deg
+    npdata_dict['has_orientation'] = np_msg.has_orientation
+    npdata_dict['roll_deg'] = np_msg.roll_deg
+    npdata_dict['pitch_deg'] = np_msg.pitch_deg
+    npdata_dict['yaw_deg'] = np_msg.yaw_deg
+    npdata_dict['has_position'] = np_msg.has_position
+    npdata_dict['x_m'] = np_msg.x_m
+    npdata_dict['y_m'] = np_msg.y_m
+    npdata_dict['z_m'] = np_msg.z_m
+    npdata_dict['has_altitude'] = np_msg.has_altitude
+    npdata_dict['altitude_m'] = np_msg.altitude_m
+    npdata_dict['has_depth'] = np_msg.has_depth
+    npdata_dict['depth_m'] = np_msg.depth_m
+    npdata_dict['has_pan_tilt'] = np_msg.has_pan_tilt
+    npdata_dict['pan_deg'] = np_msg.pan_deg
+    npdata_dict['tilt_deg'] = np_msg.tilt_deg
+  except Exception as e:
+    logger.log_warn("Failed to convert NavPose msg to dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+    return None
+  return npdata_dict
 
 
 def convert_navposes_msg2dict(npsdata_msg, log_name_list = []):
