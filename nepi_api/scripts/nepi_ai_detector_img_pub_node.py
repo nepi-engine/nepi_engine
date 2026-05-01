@@ -1010,7 +1010,7 @@ class AiDetectorImgPub:
             #self.msg_if.pub_warn("Detector provided classes list: " + str(self.classes))
             num_colors = len(self.classes_list)
             self.classes_colors_list = nepi_img.create_bgr_jet_colormap_list(num_colors)
-            self.msg_if.pub_warn("Created classes color list: " + str(self.classes_colors_list))
+            #self.msg_if.pub_warn("Created classes color list: " + str(self.classes_colors_list))
 
 
         self.pub_image_enabled = self.status_msg.pub_image_enabled

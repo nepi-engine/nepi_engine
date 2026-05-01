@@ -220,6 +220,8 @@ class AiDetectorIF:
     active_topic_types = []
     active_services = []
 
+    save_config_enabled = True
+
     def __init__(self, 
                 namespace,
                 model_name, 
@@ -690,13 +692,12 @@ class AiDetectorIF:
                 'callback': self.setSleepSuspendTimeCb, 
                 'callback_args': ()
             },
-            'set_config': {
-                'namespace': self.node_namespace,
-                'topic': 'set_config',
-                'msg': TargetingUpdate,
-                'qsize': 10,
-                'callback': self.setConfigCb, 
-                'callback_args': ()
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self.systemStatusCb
             },
             ###############
             # Trargeting
@@ -717,10 +718,10 @@ class AiDetectorIF:
                 'callback': self.setImageTopicCb, 
                 'callback_args': ()
             },
-            'targets_set_source_topic': {
+            'targets_set_sources_topic': {
                 'namespace': self.node_namespace,
-                'topic': 'set_source_topic',
-                'msg': String,
+                'topic': 'set_sources_topic',
+                'msg': StringArray,
                 'qsize': 10,
                 'callback': self.setImageTopicsCb, 
                 'callback_args': ()
@@ -821,13 +822,22 @@ class AiDetectorIF:
                 'callback': self.setThresholdCb, 
                 'callback_args': ()
             },
-            'system_status': {
-                'msg': MgrSystemStatus,
-                'namespace': self.base_namespace,
-                'topic': 'status',
-                'qsize': 5,
-                'callback': self.systemStatusCb
+            'targets_config': {
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
+                'topic': 'set_save_config_enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setConfigSaveCb, 
+                'callback_args': ()
             },
+            'targets_set_config': {
+                'namespace': self.node_namespace + '/' + self.targeting_topic,
+                'topic': 'set_config',
+                'msg': TargetingUpdate,
+                'qsize': 10,
+                'callback': self.setConfigCb, 
+                'callback_args': ()
+            }
         }
 
 
@@ -1012,6 +1022,12 @@ class AiDetectorIF:
         return self.states_dict
 
 
+    def save_config(self):
+        if self.save_config_enabled == True:
+            if self.node_if is not None:
+                self.node_if.save_config()  
+
+
     def initCb(self,do_updates = False):
         self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
         if self.node_if is not None:
@@ -1033,7 +1049,7 @@ class AiDetectorIF:
             self.selected_images = self.node_if.get_param('selected_images')
             self.msg_if.pub_info("Init selected images: " + str(self.selected_images), log_name_list = self.log_name_list)
 
-            self.node_if.save_config()
+            self.save_config()
         if do_updates == True:
             pass
         self.publish_status()
@@ -1054,6 +1070,7 @@ class AiDetectorIF:
         self.initCb(do_updates = do_updates)
 
 
+    ##########################################
 
     def setEnableCb(self,msg):
         self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
@@ -1066,7 +1083,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None and enabled != last_val and save_config == True:
             self.node_if.set_param('enabled',self.enabled)
-            self.node_if.save_config()
+            self.save_config()
         if enabled == False and not nepi_sdk.is_shutdown():
             self.next_image_topic = "None"
 
@@ -1083,7 +1100,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_images',self.selected_images)
-            self.node_if.save_config()
+            self.save_config()
 
     def setImageTopicsCb(self,msg):
         self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
@@ -1092,12 +1109,12 @@ class AiDetectorIF:
 
 
     def setImageTopics(self, img_topics, save_config = True):
-        self.msg_if.pub_info("Set Image Topics: " + img_topics)         
+        self.msg_if.pub_info("Set Image Topics: " + str(img_topics))         
         self.selected_images = img_topics
         self.publish_status()
         if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_images',self.selected_images)
-            self.node_if.save_config()
+            self.save_config()
 
 
     def addImageTopicCb(self,msg):
@@ -1124,7 +1141,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('selected_images',self.selected_images)
-            self.node_if.save_config()
+            self.save_config()
 
 
     def removeImageTopicCb(self,msg):
@@ -1150,7 +1167,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_images',self.selected_images)
-            self.node_if.save_config()
+            self.save_config()
 
 
 
@@ -1160,13 +1177,13 @@ class AiDetectorIF:
         self.setClass(class_name)
 
 
-    def setClass(self, class_name):
+    def setClass(self, class_name,save_config = True):
         #self.msg_if.pub_info("Set Class: " + class_name)         
         self.selected_classes = [class_name]
         self.publish_status()
-        if self.node_if is not None:
+        if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_classes',self.selected_classes)
-            self.node_if.save_config()
+            self.save_config()
 
 
     def setClassesCb(self,msg):
@@ -1175,13 +1192,13 @@ class AiDetectorIF:
         self.setClasses(class_names)
 
 
-    def setClasses(self, class_names):
+    def setClasses(self, class_names,save_config = True):
         #self.msg_if.pub_info("Set Class: " + class_name)         
         self.selected_classes = class_names
         self.publish_status()
-        if self.node_if is not None:
+        if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_classes',self.selected_classes)
-            self.node_if.save_config()
+            self.save_config()
 
 
     def addAllClassesCb(self,msg):
@@ -1194,7 +1211,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('selected_classes', self.classes)
-            self.node_if.save_config()
+            self.save_config()
 
 
     def removeAllClassesCb(self,msg):
@@ -1203,7 +1220,7 @@ class AiDetectorIF:
         self.publish_status(do_updates = False) # Updated Here
         if self.node_if is not None:
             self.node_if.set_param('selected_classes',[])
-            self.node_if.save_config()
+            self.save_config()
 
 
     def addClassCb(self,msg):
@@ -1217,7 +1234,7 @@ class AiDetectorIF:
             self.publish_status(do_updates = False) # Updated Here
             if self.node_if is not None:
                 self.node_if.set_param('selected_classes', sel_classes)
-                self.node_if.save_config()
+                self.save_config()
 
 
     def removeClassCb(self,msg):
@@ -1230,7 +1247,7 @@ class AiDetectorIF:
         self.publish_status(do_updates = False) # Updated Here
         if self.node_if is not None:
             self.node_if.set_param('selected_classes', sel_classes)
-            self.node_if.save_config()
+            self.save_config()
 
 
     def setOverlayLabelsCb(self,msg):
@@ -1238,14 +1255,14 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('overlay_labels',self.overlay_labels)
-            self.node_if.save_config()
+            self.save_config()
 
     def setOverlayRangeBearingCb(self,msg):
         self.overlay_range_bearing = msg.data
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('overlay_range_bearing',self.overlay_range_bearing)
-            self.node_if.save_config()
+            self.save_config()
 
 
     def setOverlayClfNameCb(self,msg):
@@ -1253,7 +1270,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('overlay_clf_name',self.overlay_clf_name)
-            self.node_if.save_config()
+            self.save_config()
 
 
 
@@ -1265,7 +1282,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('overlay_img_name',self.overlay_img_name)
-            self.node_if.save_config()
+            self.save_config()
 
  
 
@@ -1281,7 +1298,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('max_proc_rate_hz',self.max_proc_rate_hz)
-            self.node_if.save_config()
+            self.save_config()
 
  
 
@@ -1296,14 +1313,14 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('max_img_rate_hz',self.max_img_rate_hz)
-            self.node_if.save_config()
+            self.save_config()
 
     def setUseLastImageCb(self,msg):
         self.use_last_image = msg.data
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('use_last_image',self.use_last_image)
-            self.node_if.save_config()
+            self.save_config()
 
 
 
@@ -1312,7 +1329,7 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('img_tiling',self.img_tiling)
-            self.node_if.save_config()
+            self.save_config()
 
  
 
@@ -1321,7 +1338,7 @@ class AiDetectorIF:
         threshold = msg.data
         self.setThreshold(threshold)
 
-    def setThreshold(self,threshold):
+    def setThreshold(self,threshold, save_config = True):
         #self.msg_if.pub_info("Received Threshold Update: " + str(threshold))
         if threshold <  MIN_THRESHOLD:
             threshold = MIN_THRESHOLD
@@ -1330,9 +1347,9 @@ class AiDetectorIF:
         last_val = copy.deepcopy(self.threshold)
         self.threshold = threshold
         self.publish_status()
-        if self.node_if is not None and last_val != self.threshold:
+        if self.node_if is not None and last_val != self.threshold and save_config == True:
             self.node_if.set_param('threshold',self.threshold)
-            self.node_if.save_config()
+            self.save_config()
 
 
 
@@ -1342,7 +1359,7 @@ class AiDetectorIF:
 
         if self.node_if is not None:
             self.node_if.set_param('sleep_enabled',self.sleep_enabled)
-            self.node_if.save_config()
+            self.save_config()
 
 
 
@@ -1353,7 +1370,7 @@ class AiDetectorIF:
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param('sleep_suspend_sec',self.sleep_suspend_sec)
-                self.node_if.save_config()
+                self.save_config()
 
 
     def setSleepSuspendTimeCb(self,msg):
@@ -1363,7 +1380,7 @@ class AiDetectorIF:
             self.publish_status()
             if self.node_if is not None:
                 self.node_if.set_param('sleep_run_sec',self.sleep_run_sec)
-                self.node_if.save_config()
+                self.save_config()
 
 
     def setPubImageCb(self,msg):
@@ -1384,23 +1401,27 @@ class AiDetectorIF:
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('pub_image_enabled',self.pub_image_enabled)
-            self.node_if.save_config()
+            self.save_config()
 
 
+    def setConfigSaveCb(self,msg):
+        enabled = msg.data
+        self.save_config_enabled = enabled
+             
 
     def setConfigCb(self,msg):
         status_msg = msg
         config_dict = nepi_sdk.convert_msg2dict(status_msg)
-        self.setConfig(config_dict)
+        self.updateTargeting(config_dict)
 
-    def setConfig(self,config_dict):
+    def updateTargeting(self,config_dict):
         self.setEnable(config_dict['enabled'], save_config = False)
-        self.setImageTopics(config_dict['selected_images'], save_config = False)
+        self.setImageTopics(config_dict['selected_sources'], save_config = False)
         self.setClasses(config_dict['selected_classes'], save_config = False)
         self.setThreshold(config_dict['threshold_filter'], save_config = False)
         if self.node_if is not None:
             self.node_if.set_param('pub_image_enabled',self.pub_image_enabled)
-            self.node_if.save_config()
+            self.save_config()
 
     ###############.########################
     # Class Functions

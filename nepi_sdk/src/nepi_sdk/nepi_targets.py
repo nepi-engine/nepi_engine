@@ -359,7 +359,7 @@ def filter_by_threshold(targets_dict_list, threshold_filter):
     filtered_targets = []
 
     for target_dict in targets_dict_list:
-        prob = target_dict['probability']
+        prob = target_dict['target_confidence']
         if prob >= threshold_filter:
             filtered_targets.append(target_dict)
     #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
@@ -375,8 +375,8 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
         if best_target is not None:
             bsize = best_target['area_ratio']
             tsize = target_dict['area_ratio']
-            bprob = best_target['probability']
-            tprob = target_dict['probability']
+            bprob = best_target['target_confidence']
+            tprob = target_dict['target_confidence']
             if best_filter == 'LARGEST' and tsize < bsize:
                 best = False
             elif best_filter == 'SMALLEST' and tsize > bsize:
