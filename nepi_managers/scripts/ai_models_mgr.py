@@ -600,7 +600,7 @@ class AIDetectorManager:
             if 'running' in model_dict.keys():
                 was_running =  model_dict['running']
             model_node_name = model_dict['node_name']
-            self.msg_if.pub_warn("Check for running model node name: " + str(model_node_name) + " in " + str(self.active_nodes))
+            #self.msg_if.pub_warn("Check for running model node name: " + str(model_node_name) + " in " + str(self.active_nodes))
 
             running = model_node_name in self.active_nodes 
             #self.models_dict_lock.acquire()
