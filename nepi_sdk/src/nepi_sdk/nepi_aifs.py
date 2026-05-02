@@ -163,7 +163,7 @@ def unimportAIFClass(module_name):
 
 def loadModelsDict(framework_name, pkg_name, models_folder_path):
     models_dict = dict()
-    base_path = os.path.basename(models_folder_path)
+    base_path = os.path.dirname(models_folder_path)
     if os.path.exists(base_path) == False:
         logger.log_warn("Failed to find models folder: " + base_path)
         return models_dict  
