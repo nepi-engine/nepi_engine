@@ -847,9 +847,9 @@ def find_topics_by_msg(msg_type, topics_list = None, types_list = None):
   try:
     for i, topic in enumerate(topics_list):
       topic_str = topics_list[i]
-      msg_str = types_list[i]
+      msg_str = os.path.basename(types_list[i])
       #log_msg_warn("msg check: " + str([msg_type, topic_str, msg_str]))
-      if msg_str.find(msg_type) != -1:
+      if msg_str == msg_type:
         find_topics.append(topic_str)
         #log_msg_warn("msg found: " + str([msg_type, topic_str]))
 

@@ -101,7 +101,6 @@ class AiDetectorIF:
     all_namespace = None
 
     status_msg = AiDetectorStatus()
-    targets_status_msg = TargetingStatus()
 
     states_dict = None
     triggers_dict = dict()
@@ -157,13 +156,14 @@ class AiDetectorIF:
     imgs_dict = dict()
     imgs_has_subs_dict = dict()
 
+    detection_has_published = False
     first_detect_complete = False
-
     detecting = False
 
-    targeting_topic = 'targeting'
+    targets_status_msg = TargetingStatus()
+    targeting_topic = 'targets'
     targeting_state = False
-
+    targeting_has_published = False
 
     image_receive_latencies = [0,0,0,0,0,0,0,0,0,0]
     image_receive_rates = [0,0,0,0,0,0,0,0,0,0]
@@ -212,8 +212,7 @@ class AiDetectorIF:
 
     next_image_topic="None"
 
-    detection_has_published = False
-    targeting_has_published = False
+
 
     active_nodes = []
     active_topics = []
@@ -441,15 +440,15 @@ class AiDetectorIF:
             },
             'targets': {
                 'msg': Targets,
-                'namespace': self.node_namespace + '/' + self.targeting_topic,
-                'topic': 'targets',
+                'namespace': self.node_namespace,
+                'topic': self.targeting_topic,
                 'qsize': 1,
                 'latch': True
             },
             'targets_all': {
                 'msg': Targets,
                 'namespace': self.base_namespace,
-                'topic': 'targets',
+                'topic': self.targeting_topic,
                 'qsize': 1,
                 'latch': True
             },
@@ -692,6 +691,14 @@ class AiDetectorIF:
                 'callback': self.setSleepSuspendTimeCb, 
                 'callback_args': ()
             },
+            'set_save_config_enable': {
+                'namespace': self.node_namespace,
+                'topic': 'set_save_config_enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setConfigSaveCb, 
+                'callback_args': ()
+            },
             'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
@@ -822,7 +829,7 @@ class AiDetectorIF:
                 'callback': self.setThresholdCb, 
                 'callback_args': ()
             },
-            'targets_config': {
+            'targets_set_save_config_enable': {
                 'namespace': self.node_namespace + '/' + self.targeting_topic,
                 'topic': 'set_save_config_enable',
                 'msg': Bool,
@@ -2491,6 +2498,8 @@ class AiDetectorIF:
         #self.status_msg.sleep_run_sec = int(self.sleep_run_sec)
         self.status_msg.sleep_state = self.sleep_state
 
+        self.status_msg.save_config_enabled = self.save_config_enabled
+
 
         #################
         # Pub Detection Status
@@ -2595,6 +2604,7 @@ class AiDetectorIF:
         self.targets_status_msg.description = self.model_description
 
         self.targets_status_msg.save_data_topic = self.save_data_namespace
+        self.targets_status_msg.save_config_enabled = self.save_config_enabled
 
         #################
         self.targets_status_msg.enabled = self.enabled

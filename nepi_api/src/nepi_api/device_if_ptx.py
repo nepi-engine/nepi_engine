@@ -90,6 +90,9 @@ class PTXActuatorIF:
     has_calibration = False
     
 
+    move_decimal_place = 0
+    report_decimal_place = 2
+
 
     # Define some member variables
     pan_now_deg = 0.0
@@ -465,6 +468,14 @@ class PTXActuatorIF:
             'min_tilt_softstop_deg': {
                 'namespace': self.namespace,
                 'factory_val': self.factoryLimits['min_tilt_softstop_deg']
+            },
+            'move_decimal_place': {
+                'namespace': self.namespace,
+                'factory_val': 0
+            },
+            'report_decimal_place': {
+                'namespace': self.namespace,
+                'factory_val': 2
             }
         }
 
@@ -694,10 +705,26 @@ class PTXActuatorIF:
                 'topic': 'calibrate_center',
                 'msg': Empty,
                 'qsize': 1,
-                'callback': self._calibrateCenterCB, 
+                'callback': self._calibrateCenterCB,
+                'callback_args': ()
+            },
+            'set_move_decimal_place': {
+                'namespace': self.namespace,
+                'topic': 'set_move_decimal_place',
+                'msg': Int32,
+                'qsize': 1,
+                'callback': self._setMoveDecimalPlaceCb,
+                'callback_args': ()
+            },
+            'set_report_decimal_place': {
+                'namespace': self.namespace,
+                'topic': 'set_report_decimal_place',
+                'msg': Int32,
+                'qsize': 1,
+                'callback': self._setReportDecimalPlaceCb,
                 'callback_args': ()
             }
-            
+
         }
         
         
@@ -829,6 +856,13 @@ class PTXActuatorIF:
 
             self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
             self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
+
+            move_decimal_place = self.node_if.get_param('move_decimal_place')
+            if move_decimal_place is not None:
+                self.move_decimal_place = move_decimal_place
+            report_decimal_place = self.node_if.get_param('report_decimal_place')
+            if report_decimal_place is not None:
+                self.report_decimal_place = report_decimal_place
 
             # self.goHome()
 
@@ -1086,7 +1120,7 @@ class PTXActuatorIF:
         return valid
 
 
-    def getPositionWithinSoftLimits(self, pan_deg, tilt_deg):
+    def getPositionConditioned(self, pan_deg, tilt_deg):
         [adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max] = self.getLimitsSoftstopAdj()
         #self.msg_if.pub_info("Checking Positions against soft limits: " + str([pan_deg, tilt_deg]), log_name_list = self.log_name_list)
         #self.msg_if.pub_info("Got Soft Limits: " + str([adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max]), log_name_list = self.log_name_list)
@@ -1098,6 +1132,10 @@ class PTXActuatorIF:
             tilt_deg = adj_tilt_max
         if (tilt_deg < adj_tilt_min):
             tilt_deg = adj_tilt_min
+
+        place = self.move_decimal_place
+        pan_deg = nepi_utils.get_sign(pan_deg) * (math.floor( abs(pan_deg * 10**(place)) ) / 10**(place))
+        tilt_deg = nepi_utils.get_sign(tilt_deg) * (math.floor( abs(tilt_deg * 10**(place)) ) / 10**(place))
         return pan_deg,tilt_deg
 
 
@@ -1135,7 +1173,6 @@ class PTXActuatorIF:
         if valid == False:
             self.msg_if.pub_warn("Invalid softstop requested " + str(msg))
         
-
   
     def _stopMovingCb(self, _):
         self.msg_if.pub_warn("Got Stop Moving All msg")
@@ -1267,7 +1304,7 @@ class PTXActuatorIF:
         self.gotPosition(pan_deg_adj,tilt_deg_adj)
 
     def gotPosition(self,pan_deg,tilt_deg):
-            [pan_deg,tilt_deg] = self.getPositionWithinSoftLimits(pan_deg, tilt_deg)
+            [pan_deg,tilt_deg] = self.getPositionConditioned(pan_deg, tilt_deg)
             self.pan_goal_deg = pan_deg
             self.tilt_goal_deg = tilt_deg
             #self.msg_if.pub_info("Driving to Pan/Tilt deg position  " + "%.2f" % (pan_deg * self.rpi) + " " + "%.2f" % (tilt_deg * self.rti))
@@ -1280,7 +1317,7 @@ class PTXActuatorIF:
         self.gotoPanPosition(pan_deg_adj)
 
     def gotoPanPosition(self,pan_deg):
-        [pan_deg,tilt_deg] = self.getPositionWithinSoftLimits(pan_deg, self.tilt_goal_deg)
+        [pan_deg,tilt_deg] = self.getPositionConditioned(pan_deg, self.tilt_goal_deg)
         self.pan_goal_deg = pan_deg
         if self.gotoPanPositionCb is not None:
             #self.msg_if.pub_info("Driving to pan deg" + "%.2f" % (pan_deg * self.rpi))
@@ -1298,7 +1335,7 @@ class PTXActuatorIF:
         self.gotoTiltPosition(tilt_deg_adj)
 
     def gotoTiltPosition(self,tilt_deg):
-        [pan_deg,tilt_deg] = self.getPositionWithinSoftLimits(self.pan_goal_deg, tilt_deg)
+        [pan_deg,tilt_deg] = self.getPositionConditioned(self.pan_goal_deg, tilt_deg)
         self.tilt_goal_deg = tilt_deg
         if self.gotoTiltPositionCb is not None:
             #self.msg_if.pub_info("Driving to tilt deg " + "%.2f" % (tilt_deg * self.rti))
@@ -1402,6 +1439,24 @@ class PTXActuatorIF:
         if self.calibrateCenterCB is not None:
             self.calibrateCenterCB()
 
+    def _setMoveDecimalPlaceCb(self, msg):
+        val = msg.data
+        if val < 0:
+            self.msg_if.pub_warn("Invalid move_decimal_place requested: " + str(val))
+            return
+        self.move_decimal_place = val
+        self.node_if.set_param('move_decimal_place', val)
+        self.msg_if.pub_info("Updated move_decimal_place to " + str(val))
+
+    def _setReportDecimalPlaceCb(self, msg):
+        val = msg.data
+        if val < 0:
+            self.msg_if.pub_warn("Invalid report_decimal_place requested: " + str(val))
+            return
+        self.report_decimal_place = val
+        self.node_if.set_param('report_decimal_place', val)
+        self.msg_if.pub_info("Updated report_decimal_place to " + str(val))
+
     def stopPanCb(self):
         if self.node_if is not None:
             self.node_if.publish_pub('stop_pan_callback_pub',Empty())
@@ -1465,8 +1520,14 @@ class PTXActuatorIF:
             last_time = copy.deepcopy(self.pan_last_time)
             delta_time = cur_time - last_time
 
-            self.current_position = self.getPositionCb()
-            [pan_deg ,tilt_deg] = self.current_position
+            self.status_msg.move_decimal_place = self.move_decimal_place
+            self.status_msg.report_decimal_place = self.report_decimal_place
+
+            [pan_deg ,tilt_deg] = self.getPositionCb()
+            place = self.report_decimal_place
+            pan_deg = nepi_utils.get_sign(pan_deg) * (math.floor( abs(pan_deg * 10**(place)) ) / 10**(place))
+            tilt_deg = nepi_utils.get_sign(tilt_deg) * (math.floor( abs(tilt_deg * 10**(place)) ) / 10**(place))
+            self.current_position = [pan_deg ,tilt_deg]
                 
                 
             current_pan_position = pan_deg
@@ -1481,7 +1542,7 @@ class PTXActuatorIF:
                 self.pan_speed_history.pop(0)
             self.speed_pan_dps = sum(self.pan_speed_history) / len(self.pan_speed_history)
 
-            #self.status_msg.speed_pan_dps =  abs(self.speed_pan_dps)
+            self.status_msg.speed_pan_dps =  abs(self.speed_pan_dps)
 
             current_tilt_position = tilt_deg
             last_tilt_position = self.last_position[1]
@@ -1498,7 +1559,7 @@ class PTXActuatorIF:
 
 
 
-            #self.status_msg.speed_tilt_dps =  abs(self.speed_tilt_dps)
+            self.status_msg.speed_tilt_dps =  abs(self.speed_tilt_dps)
             #self.msg_if.pub_warn("Using PT position: " + str(self.current_position[0]) + " : " + str(self.current_position[1]))
                         
             self.status_msg.speed_pan_dps =  abs(self.speed_pan_dps)

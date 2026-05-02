@@ -932,6 +932,12 @@ def value_is_between(value, bound1, bound2):
     # Python allows chained comparisons
     return lower_bound <= value <= upper_bound
 
+def get_sign(number):
+    sign = 1
+    if number < 0:
+        sign = -1
+    return sign
+
 ##################
 ## Misc String Functions
 
