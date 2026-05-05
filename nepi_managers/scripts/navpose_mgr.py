@@ -1892,6 +1892,7 @@ class NavPoseMgr(object):
                             should_init = (init_option == 'ALLWAYS') or (init_option == 'ONCE' and init_state != True) or (init_option == 'TIMED' and timer > delay)
 
                             if should_init == True:
+                                transform_dict = None
                                 if comp_name != 'pan_tilt':
                                     transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
@@ -1923,6 +1924,7 @@ class NavPoseMgr(object):
 
                             type_name = 'source'
 
+                            transform_dict = None
                             if comp_name != 'pan_tilt':
                                 transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
@@ -1955,6 +1957,7 @@ class NavPoseMgr(object):
 
                             type_name = 'update'
 
+                            transform_dict = None
                             if comp_name != 'pan_tilt':
                                 transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
@@ -2134,8 +2137,8 @@ class NavPoseMgr(object):
                         #self.msg_if.pub_warn("Navpose Solution Update Offsets: " + str(navpose_solution.keys()))
 
                     if navpose_update_reset_dict != nepi_nav.BLANK_NAVPOSE_DICT:
-                        navpose_solution = nepi_nav.update_navpose_dict_from_offsets(navpose_solution, navpose_update_reset_dict)
-                        #self.msg_if.pub_warn("Navpose Solution Update Offsets: " + str(navpose_solution.keys()))
+                        navpose_solution = nepi_nav.update_navpose_dict_from_dict(navpose_solution, navpose_update_reset_dict)
+                        #self.msg_if.pub_warn("Navpose Solution Update Replaces: " + str(navpose_solution.keys()))
                     
 
 
