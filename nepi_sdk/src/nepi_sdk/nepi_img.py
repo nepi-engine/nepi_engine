@@ -1471,13 +1471,4 @@ def get_cv2_plot(data_dict):
     
     return img
 
-# --- Example Usage ---
-data = {
-    "Line A": ([1, 2, 3, 4], [10, 20, 15, 25]),
-    "Line B": ([1, 2, 3, 4], [5, 12, 10, 18])
-}
 
-plot_img = get_cv2_plot(data)
-cv2.imshow("Time Series Plot", plot_img) #
-cv2.waitKey(0)
-cv2.destroyAllWindows()

@@ -46,12 +46,15 @@ BLANK_PROCESS_DICT = {
 
 BLANK_PREDICT_DICT = {
     'enabled': True,
+    'process_dict': dict(),
     'source_topic': 'None',
     'data_names_list': [],
     'max_log_sec': PREDICT_DEFAULT_LOG_TIME,
     'max_log_hz': PREDICT_DEFAULT_LOG_RATE,
     'predict_time_sec': PREDICT_DEFAULT_PREDICT_TIME,
     'quality_filter': PREDICT_DEFAULT_QUALITY_FILTER
+    
+
 }
 
 for process in PREDICT_PROCESS_OPTIONS:
@@ -108,20 +111,33 @@ BLANK_SOLUTION_DICT = {
 # Misc Util Functions
 
 
-def create_predict_dict():
+def create_predict_dict(data_names_list):
   predict_dict = copy.deepcopy(BLANK_PREDICT_DICT)
   return predict_dict
 
 def update_predict_dict(key_name, key_value, predict_dict):
-  if key_name in predict_dict.keys():
-      predict_dict[key_name] = key_value
-  return 
+  if key_name != 'data_names_list' and key_name != 'process_dict':
+    if key_name in predict_dict.keys():
+        predict_dict[key_name] = key_value
+  return predict_dict
+
+def update_process_dict(process_name, key_name, key_value, predict_dict):
+  success = False
+  if process_name in predict_dict['process_dict'].keys():
+    process_dict = predict_dict['process_dict'][process_name]
+    if key_name in process_dict.keys():
+        process_dict[key_name] = key_value
+        predict_dict['process_dict'][process_name] = process_dict
+        success = True
+  return predict_dict
 
 
-def create_datas_dict(data_names_list):
+def create_datas_dict(predict_dict):
+    data_names = predict_dict['data_names_list']
     datas_dict = copy.deepcopy(BLANK_DATAS_DICT)
-    datas_dict['data_names_list'] = data_names_list
+    datas_dict['data_names_list'] = data_names
     return datas_dict
+    
 
 def update_datas_dict(data_time_sec, data_list, datas_dict, predict_dict):
     data_time_msec = int(round(data_time_sec * 1000),0)
@@ -163,15 +179,6 @@ def update_datas_dict(data_time_sec, data_list, datas_dict, predict_dict):
     return datas_dict
 
 
-def create_datas_dict_from_dict(data_dict):
-    data_names_list = []
-    for key in data_dict.keys():
-        if 'timestamp' not in key:
-            value = data_dict[key]
-            if isinstance(value, (int, float)):
-                data_names_list.append(key)
-    datas_dict = create_datas_dict(data_names_list)            
-    return datas_dict
 
 def update_datas_dict_from_dict(data_time_sec, data_dict, datas_dict):
     data_names_list = datas_dict['data_names_list']
