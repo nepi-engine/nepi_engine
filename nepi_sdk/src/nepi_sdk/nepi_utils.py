@@ -41,6 +41,8 @@ import glob
 import pytz
 import datetime
 
+from pathlib import Path
+
 from nepi_sdk import nepi_sdk
 log_name = "nepi_utils"
 logger = nepi_sdk.logger(log_name = log_name)
@@ -837,7 +839,26 @@ def check_password(nepi_uid, username, password):
         return True
     else:
         return False
-    
+
+def delete_files_wildcard(path, pattern):
+    """
+    Deletes files in a folder matching a wildcard pattern using pathlib.
+    Example pattern: "*.txt" or "temp_*"
+    """
+    success = False
+
+    if os.path.exists(path):
+        success = True
+        delete_path = Path(path)
+        # glob() returns a generator of Path objects matching the pattern
+        for file in delete_path.glob(pattern):
+            try:
+                if file.is_file():
+                    file.unlink()
+                    print(f"Deleted: {file.name}")
+            except OSError as e:
+                print(f"Error deleting {file}: {e}")   
+    return success
     
 #########################
 ### List Helper Functions
@@ -898,24 +919,6 @@ def get_caller_class_name(self):
 
 ##############
 ## Misc Math Functions
-
-def rotate_3d(vector, axis, angle_degrees):
-    angle_radians = np.deg2rad(angle_degrees)
-    if axis == 'x':
-        R = np.array([[1, 0, 0],
-                      [0, np.cos(angle_radians), -np.sin(angle_radians)],
-                      [0, np.sin(angle_radians), np.cos(angle_radians)]])
-    elif axis == 'y':
-        R = np.array([[np.cos(angle_radians), 0, np.sin(angle_radians)],
-                      [0, 1, 0],
-                      [-np.sin(angle_radians), 0, np.cos(angle_radians)]])
-    elif axis == 'z':
-        R = np.array([[np.cos(angle_radians), -np.sin(angle_radians), 0],
-                      [np.sin(angle_radians), np.cos(angle_radians), 0],
-                      [0, 0, 1]])
-    else:
-        raise ValueError("Invalid axis. Choose 'x', 'y', or 'z'.")
-    return np.dot(R, vector)
 
 def check_ratio(ratio, dec=2):
     ratio = round(ratio,dec)

@@ -24,6 +24,7 @@
 
 import os
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 import math
 import time
 import tf
@@ -459,10 +460,16 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['tilt_deg'] = msg.pan_deg
         except:
           pass
+      
 
-    if transform_dict is not None:
-      if transform_dict != BLANK_TRANSFORM_DICT:
-        navpose_dict = transform_navpose_dict(navpose_dict, transform_dict)
+    if name == 'pan_tilt':
+      if transform_dict is None:
+        transform_dict = BLANK_TRANSFORM_DICT
+      navpose_dict = update_navpose_dict_pantilt(navpose_dict,transform_dict)
+    else:
+      if transform_dict is not None:
+        if transform_dict != BLANK_TRANSFORM_DICT:
+          navpose_dict = transform_navpose_dict(navpose_dict,transform_dict)
     return navpose_dict
 
 
@@ -543,7 +550,40 @@ def convert_transform_msg2dict(transform_msg):
     logger.log_warn("Failed to convert Transform Msg to dict: " + str(e), throttle_s = 5.0)
   return transform_dict
 
-def transform_navpose_dict(npdata_dict, transform_dict, log_name_list = []):
+def transform_object_pose(current_pose, rpy_rotation, units='deg'):
+    """
+    Transforms an object's XYZRPY pose given a RPY rotation in base frame.
+    
+    Args:
+        current_pose: List or array [x, y, z, r, p, y]
+        rpy_rotation: Rotation to apply [r, p, y] (base frame)
+        units: 'deg' or 'rad'
+        
+    Returns:
+        Updated [x, y, z, r, p, y]
+    """
+    # 1. Decompose input
+    x, y, z, r, p, y = current_pose
+    dr, dp, dy = rpy_rotation
+    
+    # 2. Create rotation objects
+    # Current orientation
+    r_obj = R.from_euler('xyz', [r, p, y], degrees=(units=='deg'))
+    # Rotation to apply in base frame
+    r_base = R.from_euler('xyz', [dr, dp, dy], degrees=(units=='deg'))
+    
+    # 3. Combine rotations (Base frame rotation = Premultiplication)
+    r_new = r_base * r_obj
+    new_rpy = r_new.as_euler('xyz', degrees=(units=='deg'))
+    
+    # 4. Position remains same if rotation is about own origin in base frame
+    # If rotation is about base frame origin, position must be rotated:
+    new_pos = r_base.apply([x, y, z])
+    
+    return [new_pos[0], new_pos[1], new_pos[2], 
+            new_rpy[0], new_rpy[1], new_rpy[2]]
+
+def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None, log_name_list = []):
   success = True
   navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
   if npdata_dict is None:
@@ -618,6 +658,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, log_name_list = []):
           navpose_dict['time_pan_tilt'] = npdata_dict['time_pan_tilt']
           navpose_dict['pan_deg'] = npdata_dict['pan_deg']
           navpose_dict['tilt_deg'] = npdata_dict['tilt_deg']
+          if pt_transform_dict is None:
+            pt_transform_dict = BLANK_TRANSFORM_DICT
+          navpose_dict = update_navpose_dict_pantilt(navpose_dict,pt_transform_dict)
 
       except Exception as e:
         success = False
@@ -625,6 +668,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, log_name_list = []):
     if success == True:
       pass
   return navpose_dict
+
 
 
 #######################
@@ -739,7 +783,14 @@ BLANK_NAVPOSE_DICT = {
     'time_pan_tilt': nepi_utils.get_time(),
     # Pan Tilt should be provided in positive degs
     'pan_deg': 0.0,
-    'tilt_deg': 0.0
+    'tilt_deg': 0.0,
+    'pan_tilt_heading_deg': 0.0,
+    'pan_tilt_x_m': 0.0,
+    'pan_tilt_y_m': 0.0,
+    'pan_tilt_z_m': 0.0,
+    'pan_tilt_roll_deg': 0.0,
+    'pan_tilt_pitch_deg': 0.0,
+    'pan_tilt_yaw_deg': 0.0,
 }
 
 
@@ -800,6 +851,13 @@ def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
             npdata_dict_org['time_pan_tilt'] = npdata_dict_new['time_pan_tilt']
             npdata_dict_org['pan_deg'] = npdata_dict_new['pan_deg']
             npdata_dict_org['tilt_deg'] = npdata_dict_new['tilt_deg']
+            npdata_dict_org['pan_tilt_heading_deg'] = npdata_dict_new['pan_tilt_heading_deg']
+            npdata_dict_org['pan_tilt_x_m'] = npdata_dict_new['pan_tilt_x_m']
+            npdata_dict_org['pan_tilt_y_m'] = npdata_dict_new['pan_tilt_y_m']
+            npdata_dict_org['pan_tilt_z_m'] = npdata_dict_new['pan_tilt_z_m']
+            npdata_dict_org['pan_tilt_roll_deg'] = npdata_dict_new['pan_tilt_roll_deg']
+            npdata_dict_org['pan_tilt_pitch_deg'] = npdata_dict_new['pan_tilt_pitch_deg']
+            npdata_dict_org['pan_tilt_yaw_deg'] = npdata_dict_new['pan_tilt_yaw_deg']
         np_dict = npdata_dict_org
       except:
         pass
@@ -1338,3 +1396,129 @@ def point_from_geopoints(geopoint1,geopoint2,heading_deg):
   return delta_x_ned_m,delta_y_ned_m,delta_altitude_m
 
 
+
+
+
+################################
+### Pan Tilt Utility Functions
+
+
+
+def rotate_enu_point(xyz_vector, angle_deg, axis='z'):
+    theta = np.radians(angle_deg)
+    c, s = np.cos(theta), np.sin(theta)
+    
+    if axis == 'x': # East
+        R = np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+    elif axis == 'y': # North
+        R = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+    elif axis == 'z': # Up
+        R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+    else:
+        raise ValueError("Axis must be 'x', 'y', or 'z'")
+    new_vector = np.dot(R, xyz_vector)
+    return new_vector
+
+def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
+    theta = np.radians(angle_deg)
+    c, s = np.cos(theta), np.sin(theta)
+    
+    if axis == 'x': # East
+        R = np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+    elif axis == 'y': # North
+        R = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+    elif axis == 'z': # Up
+        R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+    else:
+        raise ValueError("Axis must be 'x', 'y', or 'z'")
+    new_vector = np.dot(R, rpy_vector)
+    if axis == 'x': # East
+        new_vector[0] = rpy_vector[0] + angle_deg
+    elif axis == 'y': # North
+        new_vector[1] = rpy_vector[1] + angle_deg
+    elif axis == 'z': # Up
+        new_vector[2] = rpy_vector[2] + angle_deg
+    else:
+        raise ValueError("Axis must be 'x', 'y', or 'z'")    
+    return new_vector
+
+
+def update_transform_from_pantilt(transform, pan_deg, tilt_deg):
+    xo = transform[0]
+    yo = transform[1]
+    zo = transform[2]
+    aro = 0 # transform[3]
+    apo = 0 # transform[4]
+    ayo = 0 # transform[5]
+
+    [x,y,z,ar,ap,ay] = [xo,yo,zo,aro,apo,ayo]
+    
+
+    [xt,yt,zt]  = rotate_enu_point([x,y,z],tilt_deg,'y')
+    [x,y,z] = [xt,yt,zt] 
+
+    [xp,yp,zp]   = rotate_enu_point([x,y,z],pan_deg,'z')
+    [x,y,z] = [xp,yp,zp]     
+
+    [art,apt,ayt]  = rotate_enu_angles([ar,ap,ay],tilt_deg,'y')
+    [ar,ap,ay] = [art,apt,ayt] 
+
+    [arp,app,ayp]  = rotate_enu_angles([ar,ap,ay],pan_deg,'z')
+    [ar,ap,ay] = [arp,app,ayp] 
+  
+    new_tranform = [x,y,z,ar,ap,ay]
+    return new_tranform
+
+# # Example Usage:
+# # Current: 10m forward, 0 deg rotation
+# current = [10, 0, 0, 0, 0, 0] 
+# # Rotate 90 deg around Base Z
+# pan = 35
+# tilt = 35
+
+# new_pose = update_transform_from_pantilt(current, pan, tilt)
+# print(f"New Pose: {np.round(new_pose, 2)}")
+
+
+
+def update_navpose_dict_pantilt(npdata_dict, transform_dict, log_name_list = []):
+  success = True
+  if npdata_dict is None:
+    success = False
+    logger.log_info("Got None navpose dict", throttle_s = 5.0)
+  elif npdata_dict['has_pan_tilt'] == True:
+      heading_deg = npdata_dict['heading_deg']
+      if heading_deg == -999:
+        heading_deg = 0
+      npdata_dict['pan_tilt_heading'] = heading_deg + npdata_dict['pan_deg']
+
+
+      pt_transform = update_transform_from_pantilt(transform_dict,npdata_dict['pan_deg'],npdata_dict['tilt_deg'])
+
+      [x,y,z,roll,pitch,yaw] = pt_transform
+
+      try:
+
+        if npdata_dict['has_orientation'] == True:
+          npdata_dict['pan_tilt_roll_deg'] = npdata_dict['roll_deg'] + roll
+          npdata_dict['pan_tilt_pitch_deg'] = npdata_dict['pitch_deg'] + pitch
+          npdata_dict['pan_tilt_yaw_deg'] = npdata_dict['yaw_deg'] + yaw
+        else:
+          npdata_dict['pan_tilt_roll_deg'] =  roll
+          npdata_dict['pan_tilt_pitch_deg'] =  pitch
+          npdata_dict['pan_tilt_yaw_deg'] =  yaw
+
+        if npdata_dict['has_position'] == True:
+          npdata_dict['pan_tilt_x_m'] = npdata_dict['x_m'] + x
+          npdata_dict['pan_tilt_y_m'] = npdata_dict['y_m'] + y
+          npdata_dict['pan_tilt_z_m'] = npdata_dict['z_m'] + z
+        else:
+          npdata_dict['pan_tilt_x_m'] =  x
+          npdata_dict['pan_tilt_y_m'] =  y
+          npdata_dict['pan_tilt_z_m'] =  z
+
+
+      except Exception as e:
+        success = False
+        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+  return npdata_dict

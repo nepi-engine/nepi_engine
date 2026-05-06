@@ -357,8 +357,11 @@ class config_mgr(object):
         cfg_path = self.USER_CFG_PATH
         if os.path.exists(cfg_path) and self.save_disabled == False:
             config_pathname = self.get_config_pathname(cfg_path, namespace, all_config = save_all)
-            #backup_pathname = os.path.dirname(config_pathname) + '/.' + os.path.basename(config_pathname)
-
+            if save_all == True:
+                clear_pathname = config_pathname.replace('ALL.yaml','')
+                clear_path = os.path.dirname(clear_pathname)
+                clear_string = os.path.basename(clear_pathname)
+                success = nepi_utils.delete_files_wildcard(clear_path,clear_string)
             #self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + config_pathname )
             # First, write to the user file
             nepi_sdk.save_params_to_file(config_pathname, namespace)
@@ -477,8 +480,10 @@ class config_mgr(object):
             #self.msg_if.pub_warn("Checking for Saved config for namespace: " + restore_namespace + " folder: " + str(folder))
             if folder in self.config_folders.keys():
                 source_path = self.config_folders[folder]
+                source_pathnames = []
                 # Restore config if exits
                 source_pathname = self.get_config_pathname(source_path, restore_namespace)
+                source_pathnames.append(source_pathname)
                 #self.msg_if.pub_warn("Checking for Saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
                 if nepi_system.supports_all_config(source_namespace) == True:
                     source_pathname_all = self.get_config_pathname(source_path, source_namespace, all_config = True)
@@ -486,20 +491,22 @@ class config_mgr(object):
                     if source_pathname_all is not None:
                         if os.path.exists(source_pathname_all):
                             source_pathname = source_pathname_all
+                            source_pathnames.append(source_pathname)
                 #self.msg_if.pub_warn("Checking for saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
                 success = False
-                if os.path.exists(source_pathname):
-                    #self.msg_if.pub_warn("Loading config for namespace: " + restore_namespace + " from: " + str(source_pathname))
-                    success = self.update_from_file(source_pathname, restore_namespace)
-                    if success == True:
-                        self.msg_if.pub_warn("Loaded saved config for namespace: " + restore_namespace + " from: " + str(source_pathname))
-                        return success
-                    else:
-                        self.msg_if.pub_warn("Failed to load. Removing config file for namespace: " + restore_namespace + " from: " + str(source_pathname))
-                        try:
-                            os.remove(source_pathname)
-                        except Exception as e:
-                            print(f"An error occurred: {e}")
+                for source_pathname in source_pathnames:
+                    if os.path.exists(source_pathname):
+                        #self.msg_if.pub_warn("Loading config for namespace: " + restore_namespace + " from: " + str(source_pathname))
+                        success = self.update_from_file(source_pathname, restore_namespace)
+                        if success == True:
+                            self.msg_if.pub_warn("Loaded saved config for namespace: " + restore_namespace + " from: " + str(source_pathname))
+                            return success
+                        else:
+                            self.msg_if.pub_warn("Failed to load. Removing config file for namespace: " + restore_namespace + " from: " + str(source_pathname))
+                            try:
+                                os.remove(source_pathname)
+                            except Exception as e:
+                                print(f"An error occurred: {e}")
         return success
 
 
