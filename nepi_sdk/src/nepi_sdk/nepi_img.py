@@ -40,6 +40,8 @@ from scipy.sparse import diags, csr_matrix
 from scipy.sparse.linalg import spsolve
 
 
+import matplotlib.pyplot as plt
+import io
 
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
@@ -1433,3 +1435,49 @@ def get_sparse_neighbor(p: int, n: int, m: int):
         d[i * m + j + 1] = (i, j + 1, 1)
     return d   
 
+
+
+
+################################
+# Data Plotting
+
+def get_cv2_plot(data_dict):
+    """
+    Converts a dict {label: (times, values)} into a BGR OpenCV image.
+    """
+    # Create the plot using Matplotlib
+    fig, ax = plt.subplots(figsize=(8, 6))
+    
+    for label, (times, values) in data_dict.items():
+        ax.plot(times, values, label=label) #
+
+    ax.set_title("Time Series Data")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Values")
+    ax.legend()
+    ax.grid(True)
+
+    # Save the plot to an in-memory buffer
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=100)
+    buf.seek(0)
+
+    # Convert buffer to a numpy array for OpenCV
+    file_bytes = np.asarray(bytearray(buf.read()), dtype=np.uint8)
+    img = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+
+    # Clean up Matplotlib figure to free memory
+    plt.close(fig)
+    
+    return img
+
+# --- Example Usage ---
+data = {
+    "Line A": ([1, 2, 3, 4], [10, 20, 15, 25]),
+    "Line B": ([1, 2, 3, 4], [5, 12, 10, 18])
+}
+
+plot_img = get_cv2_plot(data)
+cv2.imshow("Time Series Plot", plot_img) #
+cv2.waitKey(0)
+cv2.destroyAllWindows()

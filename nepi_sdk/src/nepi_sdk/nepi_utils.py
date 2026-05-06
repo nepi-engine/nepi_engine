@@ -899,24 +899,6 @@ def get_caller_class_name(self):
 ##############
 ## Misc Math Functions
 
-def rotate_3d(vector, axis, angle_degrees):
-    angle_radians = np.deg2rad(angle_degrees)
-    if axis == 'x':
-        R = np.array([[1, 0, 0],
-                      [0, np.cos(angle_radians), -np.sin(angle_radians)],
-                      [0, np.sin(angle_radians), np.cos(angle_radians)]])
-    elif axis == 'y':
-        R = np.array([[np.cos(angle_radians), 0, np.sin(angle_radians)],
-                      [0, 1, 0],
-                      [-np.sin(angle_radians), 0, np.cos(angle_radians)]])
-    elif axis == 'z':
-        R = np.array([[np.cos(angle_radians), -np.sin(angle_radians), 0],
-                      [np.sin(angle_radians), np.cos(angle_radians), 0],
-                      [0, 0, 1]])
-    else:
-        raise ValueError("Invalid axis. Choose 'x', 'y', or 'z'.")
-    return np.dot(R, vector)
-
 def check_ratio(ratio, dec=2):
     ratio = round(ratio,dec)
     if ratio < 0.0:
