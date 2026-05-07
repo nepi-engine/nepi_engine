@@ -239,12 +239,12 @@ class NodeConfigsIF:
                 pass
 
     def save_config(self):
-        self.msg_if.pub_debug("Saving Config: " + str(self.namespace))
+        self.msg_if.pub_info("Saving Config: " + str(self.namespace))
         self.save_triggered = True
 
 
     def save_config_all(self):
-        self.msg_if.pub_debug("Saving Config All: " + str(self.namespace))
+        self.msg_if.pub_info("Saving Config All: " + str(self.namespace))
         self.save_all_triggered = True
 
 

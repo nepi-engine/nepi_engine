@@ -457,7 +457,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['has_pan_tilt'] = True
           navpose_dict['time_pan_tilt'] = msg.timestamp
           navpose_dict['pan_deg'] = msg.pan_deg
-          navpose_dict['tilt_deg'] = msg.pan_deg
+          navpose_dict['tilt_deg'] = msg.tilt_deg
         except:
           pass
       
@@ -592,18 +592,24 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
   else:
     if transform_dict != BLANK_TRANSFORM_DICT:
       invert = 1 if transform_dict['x_invert'] else -1
-      x = transform_dict['x_m'] * invert
+      x = transform_dict['x_invert'] * invert
+      npdata_dict['x_m'] = npdata_dict['x_m'] * invert
       invert = 1 if transform_dict['y_invert'] else -1
-      y = transform_dict['y_m'] * invert
+      y = transform_dict['y_invert'] * invert
+      npdata_dict['y_m'] = npdata_dict['y_m'] * invert
       invert = 1 if transform_dict['z_invert'] else -1
-      z = transform_dict['z_m'] * invert
+      z = transform_dict['z_invert'] * invert
+      npdata_dict['z_m'] = npdata_dict['z_m'] * invert
 
       invert = 1 if transform_dict['roll_invert'] else -1
-      roll = transform_dict['roll_deg'] * invert
+      roll = transform_dict['roll_invert'] * invert
+      npdata_dict['roll_deg'] = npdata_dict['roll_deg'] * invert
       invert = 1 if transform_dict['pitch_invert'] else -1
-      pitch = transform_dict['pitch_deg'] * invert
+      pitch = transform_dict['pitch_invert'] * invert
+      npdata_dict['pitch_deg'] = npdata_dict['pitch_deg'] * invert
       invert = 1 if transform_dict['yaw_invert'] else -1
-      yaw = transform_dict['yaw_deg'] * invert
+      yaw = transform_dict['yaw_invert'] * invert
+      npdata_dict['yaw_deg'] = npdata_dict['yaw_deg'] * invert
 
       invert = 1 if transform_dict['heading_invert'] else -1
       heading = transform_dict['heading_deg'] * invert
@@ -661,6 +667,11 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           if pt_transform_dict is None:
             pt_transform_dict = BLANK_TRANSFORM_DICT
           navpose_dict = update_navpose_dict_pantilt(navpose_dict,pt_transform_dict)
+
+          navpose_dict['pan_tilt_heading_deg'] = npdata_dict['pan_tilt_heading_deg']
+          navpose_dict['pan_tilt_x_m'] = npdata_dict['pan_tilt_x_m']
+          navpose_dict['pan_tilt_y_m'] = npdata_dict['pan_tilt_y_m']
+          navpose_dict['pan_tilt_z_m'] = npdata_dict['pan_tilt_z_m']
 
       except Exception as e:
         success = False
@@ -969,6 +980,13 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg.time_pan_tilt = npdata_dict['time_pan_tilt'] if np_msg.has_pan_tilt else 0.0
       np_msg.pan_deg = npdata_dict['pan_deg'] if np_msg.has_pan_tilt else -999
       np_msg.tilt_deg = npdata_dict['tilt_deg'] if np_msg.has_pan_tilt else -999
+      np_msg.pan_tilt_heading_deg = npdata_dict['pan_tilt_heading_deg'] if np_msg.has_pan_tilt else 0.0
+      np_msg.pan_tilt_x_m = npdata_dict['pan_tilt_x_m'] if np_msg.has_pan_tilt else 0.0
+      np_msg.pan_tilt_y_m = npdata_dict['pan_tilt_y_m'] if np_msg.has_pan_tilt else 0.0
+      np_msg.pan_tilt_z_m = npdata_dict['pan_tilt_z_m'] if np_msg.has_pan_tilt else 0.0
+      np_msg.pan_tilt_roll_deg = npdata_dict['pan_tilt_roll_deg'] if np_msg.has_pan_tilt else 0.0
+      np_msg.pan_tilt_pitch_deg = npdata_dict['pan_tilt_pitch_deg'] if np_msg.has_pan_tilt else 0.0
+      np_msg.pan_tilt_yaw_deg = npdata_dict['pan_tilt_yaw_deg'] if np_msg.has_pan_tilt else 0.0
     except Exception as e:
       np_msg = None
       logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
@@ -1006,6 +1024,13 @@ def convert_navpose_msg2dict(np_msg, log_name_list = []):
     npdata_dict['has_pan_tilt'] = np_msg.has_pan_tilt
     npdata_dict['pan_deg'] = np_msg.pan_deg
     npdata_dict['tilt_deg'] = np_msg.tilt_deg
+    npdata_dict['pan_tilt_heading_deg'] = np_msg.pan_tilt_heading_deg
+    npdata_dict['pan_tilt_x_m'] = np_msg.pan_tilt_x_m
+    npdata_dict['pan_tilt_y_m'] = np_msg.pan_tilt_y_m
+    npdata_dict['pan_tilt_z_m'] = np_msg.pan_tilt_z_m
+    npdata_dict['pan_tilt_roll_deg'] = np_msg.pan_tilt_roll_deg
+    npdata_dict['pan_tilt_pitch_deg'] = np_msg.pan_tilt_pitch_deg
+    npdata_dict['pan_tilt_yaw_deg'] = np_msg.pan_tilt_yaw_deg
   except Exception as e:
     logger.log_warn("Failed to convert NavPose msg to dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
     return None
@@ -1444,30 +1469,36 @@ def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
 
 
 def update_transform_from_pantilt(transform, pan_deg, tilt_deg):
-    xo = transform[0]
-    yo = transform[1]
-    zo = transform[2]
-    aro = 0 # transform[3]
-    apo = 0 # transform[4]
-    ayo = 0 # transform[5]
+    xo = transform['x_m']
+    yo = transform['y_m']
+    zo = transform['z_m']
+    aro = 0 # transform['roll_deg']
+    apo = 0 # transform['pitch_deg']
+    ayo = 0 # transform['yaw_deg']
 
     [x,y,z,ar,ap,ay] = [xo,yo,zo,aro,apo,ayo]
-    
+
 
     [xt,yt,zt]  = rotate_enu_point([x,y,z],tilt_deg,'y')
-    [x,y,z] = [xt,yt,zt] 
+    [x,y,z] = [xt,yt,zt]
 
     [xp,yp,zp]   = rotate_enu_point([x,y,z],pan_deg,'z')
-    [x,y,z] = [xp,yp,zp]     
+    [x,y,z] = [xp,yp,zp]
 
     [art,apt,ayt]  = rotate_enu_angles([ar,ap,ay],tilt_deg,'y')
-    [ar,ap,ay] = [art,apt,ayt] 
+    [ar,ap,ay] = [art,apt,ayt]
 
     [arp,app,ayp]  = rotate_enu_angles([ar,ap,ay],pan_deg,'z')
-    [ar,ap,ay] = [arp,app,ayp] 
-  
-    new_tranform = [x,y,z,ar,ap,ay]
-    return new_tranform
+    [ar,ap,ay] = [arp,app,ayp]
+
+    new_transform = dict(transform)
+    new_transform['x_m'] = x
+    new_transform['y_m'] = y
+    new_transform['z_m'] = z
+    new_transform['roll_deg'] = ar
+    new_transform['pitch_deg'] = ap
+    new_transform['yaw_deg'] = ay
+    return new_transform
 
 # # Example Usage:
 # # Current: 10m forward, 0 deg rotation
@@ -1490,12 +1521,18 @@ def update_navpose_dict_pantilt(npdata_dict, transform_dict, log_name_list = [])
       heading_deg = npdata_dict['heading_deg']
       if heading_deg == -999:
         heading_deg = 0
-      npdata_dict['pan_tilt_heading'] = heading_deg + npdata_dict['pan_deg']
+      
+      npdata_dict['pan_tilt_heading_deg'] = heading_deg + npdata_dict['pan_deg']
 
 
       pt_transform = update_transform_from_pantilt(transform_dict,npdata_dict['pan_deg'],npdata_dict['tilt_deg'])
 
-      [x,y,z,roll,pitch,yaw] = pt_transform
+      x = pt_transform['x_m']
+      y = pt_transform['y_m']
+      z = pt_transform['z_m']
+      roll = pt_transform['roll_deg']
+      pitch = pt_transform['pitch_deg']
+      yaw = pt_transform['yaw_deg']
 
       try:
 
