@@ -633,25 +633,24 @@ class NavPoseMgr(object):
             self.navposes_max_pub_rate = self.node_if.get_param('navposes_max_pub_rate')
 
             navposes_info_dict = self.node_if.get_param('navposes_info_dict')
-            # if navposes_info_dict is not None:
-            #     for frame in navposes_info_dict.keys():
-            #         if 'connect_dict' not in navposes_info_dict.keys():
-            #             navposes_info_dict[frame]['connect_dict'] = self.BLANK_CONNECT_DICT
-            #         for comp_name in self.BLANK_CONNECT_DICT:
-            #             if comp_name not in navposes_info_dict[frame]['connect_dict'].keys():
-            #                 navposes_info_dict[frame]['connect_dict'][comp_name] = copy.deepcopy(self.BLANK_COMP_DICT)
-            #             comp_dict = navposes_info_dict[frame]['connect_dict'][comp_name]
-            #             for key in self.BLANK_COMP_DICT.keys():
-            #                 if key not in comp_dict.keys():
-            #                     navposes_info_dict[frame]['connect_dict'][comp_name][key] = self.BLANK_COMP_DICT[key]
-            #     navposes_info_dict = navposes_info_dict
-            # else:
-            #     navposes_info_dict = dict()
             if navposes_info_dict is not None:
-
-                self.navposes_info_dict_lock.acquire()
-                self.navposes_info_dict = copy.deepcopy(navposes_info_dict)
-                self.navposes_info_dict_lock.release()
+                for frame in navposes_info_dict.keys():
+                    if 'connect_dict' not in navposes_info_dict.keys():
+                        navposes_info_dict[frame]['connect_dict'] = self.BLANK_CONNECT_DICT
+                    for comp_name in self.BLANK_CONNECT_DICT:
+                        if comp_name not in navposes_info_dict[frame]['connect_dict'].keys():
+                            navposes_info_dict[frame]['connect_dict'][comp_name] = copy.deepcopy(self.BLANK_COMP_DICT)
+                        comp_dict = navposes_info_dict[frame]['connect_dict'][comp_name]
+                        for key in self.BLANK_COMP_DICT.keys():
+                            if key not in comp_dict.keys():
+                                navposes_info_dict[frame]['connect_dict'][comp_name][key] = self.BLANK_COMP_DICT[key]
+                navposes_info_dict = navposes_info_dict
+            else:
+                navposes_info_dict = dict()
+            
+            self.navposes_info_dict_lock.acquire()
+            self.navposes_info_dict = copy.deepcopy(navposes_info_dict)
+            self.navposes_info_dict_lock.release()
 
 
             self.frame_nav = self.node_if.get_param('frame_nav')
@@ -660,14 +659,14 @@ class NavPoseMgr(object):
 
  
             if do_updates == True:
-                # navposes_info_dict = copy.deepcopy(self.navposes_info_dict)
-                # for frame_name in self.navposes_init_frames:
-                #     if frame_name in navposes_info_dict.keys():
-                #         navpose_info_dict = navposes_info_dict[frame_name]
-                #     else:
-                #         navpose_info_dict = None
-                # for frame_name in navposes_info_dict.keys():
-                #     self.addNavpose(frame_name, init_dict_entry = navposes_info_dict[frame_name], do_updates = False)
+                navposes_info_dict = copy.deepcopy(self.navposes_info_dict)
+                for frame_name in self.navposes_init_frames:
+                    if frame_name in navposes_info_dict.keys():
+                        navpose_info_dict = navposes_info_dict[frame_name]
+                    else:
+                        navpose_info_dict = None
+                for frame_name in navposes_info_dict.keys():
+                    self.addNavpose(frame_name, init_dict_entry = navposes_info_dict[frame_name], do_updates = False)
                     
                 self.msg_if.pub_warn("Initializing NavPoses Dict with navpose_info_dict: " + str(self.navposes_info_dict))
                 self.updateNavposesData()
