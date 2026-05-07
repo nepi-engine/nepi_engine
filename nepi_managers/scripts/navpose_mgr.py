@@ -434,7 +434,7 @@ class NavPoseMgr(object):
             },
             'copy_frame': {
                 'namespace': self.node_namespace,
-                'topic': 'add_frame',
+                'topic': 'copy_frame',
                 'msg': UpdateString,
                 'qsize': 1,
                 'callback': self._copyFrameCb, 
@@ -461,7 +461,15 @@ class NavPoseMgr(object):
                 'topic': 'reset_frame_navpose',
                 'msg': String,
                 'qsize': 1,
-                'callback': self._resetFrameNavposeCb, 
+                'callback': self._resetFrameNavposeCb,
+                'callback_args': ()
+            },
+            'rename_frame': {
+                'namespace': self.node_namespace,
+                'topic': 'rename_frame',
+                'msg': UpdateString,
+                'qsize': 1,
+                'callback': self._renameFrameCb,
                 'callback_args': ()
             },
             'set_frame_description': {
@@ -639,7 +647,7 @@ class NavPoseMgr(object):
                 navposes_info_dict = navposes_info_dict
             else:
                 navposes_info_dict = dict()
-
+            
             self.navposes_info_dict_lock.acquire()
             self.navposes_info_dict = copy.deepcopy(navposes_info_dict)
             self.navposes_info_dict_lock.release()
@@ -657,10 +665,10 @@ class NavPoseMgr(object):
                         navpose_info_dict = navposes_info_dict[frame_name]
                     else:
                         navpose_info_dict = None
+                for frame_name in navposes_info_dict.keys():
+                    self.addNavpose(frame_name, init_dict_entry = navposes_info_dict[frame_name], do_updates = False)
                     
-                    self.addNavpose(frame_name, init_dict_entry = navpose_info_dict, do_updates = False)
-                    
-                #self.msg_if.pub_warn("Initializing NavPoses Dict with navpose_info_dict: " + str(self.navposes_info_dict))
+                self.msg_if.pub_warn("Initializing NavPoses Dict with navpose_info_dict: " + str(self.navposes_info_dict))
                 self.updateNavposesData()
 
 
@@ -1222,6 +1230,25 @@ class NavPoseMgr(object):
 
 
 
+    def renameNavpose(self, old_name, new_name):
+        if old_name == self.NAVPOSE_BASE_FRAME:
+            self.msg_if.pub_info("Can't rename base frame")
+            return
+        if old_name not in self.navposes_info_dict.keys():
+            self.msg_if.pub_info("Frame not found for rename: " + str(old_name))
+            return
+        if new_name in self.navposes_info_dict.keys():
+            self.msg_if.pub_info("Rename target already exists: " + str(new_name))
+            return
+        self.navposes_info_dict_lock.acquire()
+        init_dict_entry = copy.deepcopy(self.navposes_info_dict[old_name])
+        self.navposes_info_dict_lock.release()
+        if old_name in self.navposes_fixed_dict.keys():
+            self.navposes_fixed_dict[new_name] = copy.deepcopy(self.navposes_fixed_dict[old_name])
+        self.addNavpose(new_name, init_dict_entry=init_dict_entry, do_updates=False)
+        self.removeNavpose(old_name)
+        self.updateNavposesData()
+
     def removeNavpose(self, frame_name):
         if frame_name == self.NAVPOSE_BASE_FRAME:
             self.msg_if.pub_info("Can't Remove Base Frame: " + str(frame_name))
@@ -1246,18 +1273,41 @@ class NavPoseMgr(object):
             self.navposes_info_dict_lock.release()
             nepi_sdk.sleep(1)
 
-
-            # Remove from node dict
+            # Remove publishers
             self.navposes_pubs_dict_lock.acquire()
-            self.navposes_pubs_dict[frame_name].unregister_pubs()
-            nepi_sdk.sleep(1)
-            del self.navposes_pubs_dict[frame_name]
+            if frame_name in self.navposes_pubs_dict:
+                try:
+                    self.navposes_pubs_dict[frame_name].unregister_pubs()
+                    nepi_sdk.sleep(1)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to unregister pubs for: " + str(frame_name) + ' : ' + str(e))
+                del self.navposes_pubs_dict[frame_name]
             self.navposes_pubs_dict_lock.release()
 
-            # Remove from Navpose Dict
+            # Remove all per-frame runtime dicts
             self.navposes_source_dict_lock.acquire()
-            del self.navposes_source_dict[frame_name]
+            self.navposes_source_dict.pop(frame_name, None)
             self.navposes_source_dict_lock.release()
+
+            self.navposes_init_dict_lock.acquire()
+            self.navposes_init_dict.pop(frame_name, None)
+            self.navposes_init_dict_lock.release()
+
+            self.navposes_update_dict_lock.acquire()
+            self.navposes_update_dict.pop(frame_name, None)
+            self.navposes_update_offset_dict.pop(frame_name, None)
+            self.navposes_update_reset_dict.pop(frame_name, None)
+            self.navposes_update_dict_lock.release()
+
+            self.navposes_init_states_dict.pop(frame_name, None)
+            self.navposes_init_times_dict.pop(frame_name, None)
+            self.navposes_source_states_dict.pop(frame_name, None)
+            self.navposes_source_times_dict.pop(frame_name, None)
+            self.navposes_update_states_dict.pop(frame_name, None)
+            self.navposes_update_times_dict.pop(frame_name, None)
+            self.navposes_solution_dict.pop(frame_name, None)
+            self.navposes_pub_times_dict.pop(frame_name, None)
+            self.navposes_fixed_dict.pop(frame_name, None)
 
             self.updateNavposesData()
 
@@ -1749,8 +1799,12 @@ class NavPoseMgr(object):
 
     def _resetFrameNavposeCb(self,msg):
         frame_name = msg.data
-        self.resetFrameNavpose(frame_name) 
+        self.resetFrameNavpose(frame_name)
 
+    def _renameFrameCb(self, msg):
+        old_name = msg.name
+        new_name = msg.value
+        self.renameNavpose(old_name, new_name)
 
     def _setFramePublishRateCb(self,msg):
         frame_name = msg.name
@@ -1892,9 +1946,7 @@ class NavPoseMgr(object):
                             should_init = (init_option == 'ALLWAYS') or (init_option == 'ONCE' and init_state != True) or (init_option == 'TIMED' and timer > delay)
 
                             if should_init == True:
-                                transform_dict = None
-                                if comp_name != 'pan_tilt':
-                                    transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                                transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
                                 navpose_update_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                                 if frame_name in navposes_init_dict.keys():
@@ -1924,9 +1976,7 @@ class NavPoseMgr(object):
 
                             type_name = 'source'
 
-                            transform_dict = None
-                            if comp_name != 'pan_tilt':
-                                transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
 
                             navpose_source_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -1957,9 +2007,7 @@ class NavPoseMgr(object):
 
                             type_name = 'update'
 
-                            transform_dict = None
-                            if comp_name != 'pan_tilt':
-                                transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
                             last_navpose_update_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_update_dict.keys():
@@ -2010,6 +2058,13 @@ class NavPoseMgr(object):
 
     ### Setup a regular background navpose get and publish timer callback
     def _getPublishSaveDataCb(self,timer):
+        try:
+            self._getPublishSaveDataWork()
+        except Exception as e:
+            self.msg_if.pub_warn("_getPublishSaveDataCb error: " + str(e))
+        nepi_sdk.start_timer_process(0.1, self._getPublishSaveDataCb, oneshot = True)
+
+    def _getPublishSaveDataWork(self):
         timestamp = nepi_utils.get_time()
 
 
@@ -2038,6 +2093,9 @@ class NavPoseMgr(object):
 
         update_navposes = copy.deepcopy(self.update_navposes)
         for frame_name in navposes_source_dict.keys():
+
+            if frame_name not in self.navposes_info_dict:
+                continue
 
             navpose_info_dict = copy.deepcopy(self.navposes_info_dict[frame_name])
 
@@ -2226,11 +2284,6 @@ class NavPoseMgr(object):
             if self.save_data_if is not None and len(list(self.navposes_save_dict.keys())) > 0 and save_navpose == True:
                     self.save_data_if.save('navposes',self.navposes_save_dict)
                     self.navposes_save_dict = dict()
-                    
-            
-
-        process_delay = 0.1
-        nepi_sdk.start_timer_process(process_delay, self._getPublishSaveDataCb, oneshot = True)
 
 
 
