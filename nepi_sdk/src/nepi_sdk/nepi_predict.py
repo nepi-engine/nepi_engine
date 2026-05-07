@@ -40,16 +40,65 @@ logger = Logger(log_name = log_name)
 
 
 
+
+
+##################
+EXAMPLE_DATA_DICT = {
+    'FLOAT_TIME_MSEC_1': ['VAR_VALUE_1', 'VAR_VALUE_2'],
+    'FLOAT_TIME_MSEC_2': ['VAR_VALUE_1', 'VAR_VALUE_2']
+}
+
+EXAMPLE_DATAS_DICT = {
+    'data_names_list': ['VAR_NAME_1','VAR_NAME_1'],
+    'data_dict': EXAMPLE_DATA_DICT,
+    'num_samples': 2,
+    'latest_time_sec': 0.0,
+    'oldest_time_sec': 0.0
+}
+
+BLANK_DATAS_DICT = {
+    'data_names_list': [],
+    'data_dict': dict(),
+    'num_samples': 0,
+    'latest_time_sec': 0.0,
+    'latest_data': [],
+    'oldest_time_sec': 0.0
+}
+
+##################
+
+# -999 used for None and no result values
+
+BLANK_RESULT_DICT = {
+    'process_name': '',
+    'weight'
+    'has_result': False,
+    'predict_list': [],
+    'quality_list': [],
+}
+
+BLANK_SOLUTION_DICT = {
+    'data_names_list': [],
+    'active_processes': [],
+    'results_dict': dict(),
+    'data_time_sec': 0.0,
+    'process_time_sec': 0.0,
+    'predict_time_sec': 0.0,
+    'predict_list': [],
+    'quality_list': []
+}
+
    
 
 
 #########################
 # Predict Process Functions
 #########################
+
 PREDICT_DEFAULT_LOG_TIME = 5
 PREDICT_DEFAULT_LOG_RATE = 2
-PREDICT_DEFAULT_PREDICT_TIME = 1
-PREDICT_DEFAULT_QUALITY_FILTER = 0.5
+PREDICT_DEFAULT_PREDICT_TIME = 0
+PREDICT_DEFAULT_QUALITY_FILTER = 1
 
 PREDICT_DICT = {
     'enabled': True,
@@ -63,21 +112,23 @@ PREDICT_DICT = {
 
 }
 
+PROCESS_DEFAULT_LOG_TIME = 5
+PROCESS_DEFAULT_LOG_RATE = 2
+PROCESS_DEFAULT_MIN_SAMPLES = 10
+PROCESS_DEFAULT_SENSITIVITY = 0.5
+
 BLANK_PROCESS_DICT = {
     'process_name': '',
     'enabled': True,
-    'max_process_sec': PREDICT_DEFAULT_LOG_TIME,
-    'max_process_hz': PREDICT_DEFAULT_LOG_RATE,
-    'sensitivity': PREDICT_DEFAULT_PREDICT_TIME,
+    'min_samples': PROCESS_DEFAULT_MIN_SAMPLES,
+    'max_process_sec': PROCESS_DEFAULT_LOG_TIME,
+    'max_process_hz': PROCESS_DEFAULT_LOG_RATE,
+    'sensitivity': PROCESS_DEFAULT_SENSITIVITY,
     'weight': 1,
     'arg_names': ['None'],
     'arg_values': [0.0]
 }
 
-
-PREDICT_PROCESS_OPTIONS_DICT = dict()
-
-PREDICT_PROCESS_ARGS_DICT = dict()
 
 def set_process_setting(process_name, key_name, key_value, predict_dict):
   success = False
@@ -117,10 +168,15 @@ def set_process_arg(process_name, arg_name, arg_values, predict_dict):
   return predict_dict
 
 
+PREDICT_PROCESS_OPTIONS_DICT = dict()
+PREDICT_PROCESS_ARGS_DICT = dict()
 
-#########################
 
-def process_1(datas_dict, process_dict, predict_time_sec, min_samples=10):
+
+###############################################################################
+###############################################################################
+
+def process_1(datas_dict, process_dict, predict_time_sec):
     enabled = process_dict['enabled']
     data_names = datas_dict['data_names_list']
     num_vars = len(data_names)
@@ -132,6 +188,7 @@ def process_1(datas_dict, process_dict, predict_time_sec, min_samples=10):
     result_dict = copy.deepcopy(BLANK_RESULT_DICT)
     result_dict['process_name'] =  process_dict['process_name']
 
+    min_samples = process_dict['min_samples']
     if enabled == False or len(data_times) < min_samples:
         result_dict['weight'] = 0.0
         result_dict['predict_list'] = [-999] * num_vars
@@ -156,17 +213,16 @@ def process_1(datas_dict, process_dict, predict_time_sec, min_samples=10):
         result_dict['has_results'] = True
     return result_dict
 
-#####################
-
 
 PREDICT_PROCESS_OPTIONS_DICT['Process1'] = process_1
 
 PREDICT_DICT['process_dict']['Process1'] =  {
     'process_name': 'Process1',
     'enabled': True,
-    'max_process_sec': PREDICT_DEFAULT_LOG_TIME,
-    'max_process_hz': PREDICT_DEFAULT_LOG_RATE,
-    'sensitivity': PREDICT_DEFAULT_PREDICT_TIME,
+    'min_samples': PROCESS_DEFAULT_MIN_SAMPLES,
+    'max_process_sec': PROCESS_DEFAULT_LOG_TIME,
+    'max_process_hz': PROCESS_DEFAULT_LOG_RATE,
+    'sensitivity': PROCESS_DEFAULT_SENSITIVITY,
     'weight': 1,
     'arg_names': ['arg1', 'arg2'],
     'arg_values': [0.0, 0.0]
@@ -174,9 +230,10 @@ PREDICT_DICT['process_dict']['Process1'] =  {
 
 
 
-#########################
+###############################################################################
+###############################################################################
 
-def process_sin_wave(datas_dict, process_dict, predict_time_sec, min_samples=10):
+def process_sin_wave(datas_dict, process_dict, predict_time_sec):
     enabled = process_dict['enabled']
     data_names = datas_dict['data_names_list']
     num_vars = len(data_names)
@@ -188,6 +245,7 @@ def process_sin_wave(datas_dict, process_dict, predict_time_sec, min_samples=10)
     result_dict = copy.deepcopy(BLANK_RESULT_DICT)
     result_dict['process_name'] =  process_dict['process_name']
 
+    min_samples = process_dict['min_samples']
     if enabled == False or len(data_times) < min_samples:
         result_dict['weight'] = 0.0
         result_dict['predict_list'] = [-999] * num_vars
@@ -217,20 +275,21 @@ PREDICT_PROCESS_OPTIONS_DICT['Sin_Wave'] = process_sin_wave
 PREDICT_DICT['process_dict']['Sin_Wave'] =  {
     'process_name': 'Sin_Wave',
     'enabled': True,
-    'max_process_sec': PREDICT_DEFAULT_LOG_TIME,
-    'max_process_hz': PREDICT_DEFAULT_LOG_RATE,
-    'sensitivity': PREDICT_DEFAULT_PREDICT_TIME,
+    'min_samples': PROCESS_DEFAULT_MIN_SAMPLES,
+    'max_process_sec': PROCESS_DEFAULT_LOG_TIME,
+    'max_process_hz': PROCESS_DEFAULT_LOG_RATE,
+    'sensitivity': PROCESS_DEFAULT_SENSITIVITY,
     'weight': 1,
     'arg_names': ['arg1', 'arg2'],
     'arg_values': [0.0, 0.0]
 }
 
 
+###############################################################################
+###############################################################################
 
-#########################
 
-
-def process_spline(data_dict, process_dict, min_samples=10):
+def process_spline(data_dict, process_dict, predict_time_sec):
     enabled = process_dict['enabled']
     data_names = datas_dict['data_names_list']
     num_vars = len(data_names)
@@ -242,6 +301,7 @@ def process_spline(data_dict, process_dict, min_samples=10):
     result_dict = copy.deepcopy(BLANK_RESULT_DICT)
     result_dict['process_name'] =  process_dict['process_name']
 
+    min_samples = process_dict['min_samples']
     if enabled == False or len(data_times) < min_samples:
         result_dict['weight'] = 0.0
         result_dict['predict_list'] = [-999] * num_vars
@@ -253,7 +313,6 @@ def process_spline(data_dict, process_dict, min_samples=10):
         ### RUN PREDICTION PROCESS
 
         ### FILTER OUT -999 values
-        
         predict_list = data_dict[data_times[-1]]
         quality_list = [1] * num_vars
 
@@ -270,15 +329,17 @@ PREDICT_PROCESS_OPTIONS_DICT['Spline'] = process_spline
 PREDICT_DICT['process_dict']['Spline'] =  {
     'process_name': 'Spline',
     'enabled': True,
-    'max_process_sec': PREDICT_DEFAULT_LOG_TIME,
-    'max_process_hz': PREDICT_DEFAULT_LOG_RATE,
-    'sensitivity': PREDICT_DEFAULT_PREDICT_TIME,
+    'min_samples': PROCESS_DEFAULT_MIN_SAMPLES,
+    'max_process_sec': PROCESS_DEFAULT_LOG_TIME,
+    'max_process_hz': PROCESS_DEFAULT_LOG_RATE,
+    'sensitivity': PROCESS_DEFAULT_SENSITIVITY,
     'weight': 1,
     'arg_names': ['arg1', 'arg2'],
     'arg_values': [0.0, 0.0]
 }
 
-#########################
+###############################################################################
+###############################################################################
 
 
 #########################
@@ -357,55 +418,6 @@ def predict(datas_dict, predict_dict):
 
 
 
-#################################
-# Predict Utilties
-#################################
-
-
-##################
-EXAMPLE_DATA_DICT = {
-    'FLOAT_TIME_MSEC_1': ['VAR_VALUE_1', 'VAR_VALUE_2'],
-    'FLOAT_TIME_MSEC_2': ['VAR_VALUE_1', 'VAR_VALUE_2']
-}
-
-EXAMPLE_DATAS_DICT = {
-    'data_names_list': ['VAR_NAME_1','VAR_NAME_1'],
-    'data_dict': EXAMPLE_DATA_DICT,
-    'num_samples': 2,
-    'latest_time_sec': 0.0,
-    'oldest_time_sec': 0.0
-}
-
-BLANK_DATAS_DICT = {
-    'data_names_list': [],
-    'data_dict': dict(),
-    'num_samples': 0,
-    'latest_time_sec': 0.0,
-    'oldest_time_sec': 0.0
-}
-
-##################
-
-# -999 used for None and no result values
-
-BLANK_RESULT_DICT = {
-    'process_name': '',
-    'weight'
-    'has_result': False,
-    'predict_list': [],
-    'quality_list': [],
-}
-
-BLANK_SOLUTION_DICT = {
-    'data_names_list': [],
-    'active_processes': [],
-    'results_dict': dict(),
-    'data_time_sec': 0.0,
-    'process_time_sec': 0.0,
-    'predict_time_sec': 0.0,
-    'predict_list': [],
-    'quality_list': []
-}
 
 
 ##########################
@@ -475,6 +487,7 @@ def update_datas_dict(data_time_sec, data_list, datas_dict, predict_dict):
     num_data = len(data_times)
     datas_dict['num_samples'] = num_data
     datas_dict['latest_time_sec'] = max(data_times)
+    datas_dict['latest_data'] = data_list
     datas_dict['oldest_time_sec'] = min(data_times)
 
     return datas_dict
