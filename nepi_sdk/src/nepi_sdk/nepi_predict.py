@@ -1,12 +1,22 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2024 Numurus, LLC <https://www.numurus.com>.
+# Copyright (c) 2024 Numurus <https://www.numurus.com>.
 #
-# This file is part of nepi-engine
-# (see https://github.com/nepi-engine).
+# This file is part of nepi engine (nepi_engine) repo
+# (see https://github.com/nepi-engine/nepi_engine)
 #
-# License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
+# License: NEPI Engine repo source-code and NEPI Images that use this source-code
+# are licensed under the "Numurus Software License", 
+# which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
+# Redistributions in source code must retain this top-level comment block.
+# Plagiarizing this software to sidestep the license obligations is illegal.
+#
+# Contact Information:
+# ====================
+# - mailto:nepi@numurus.com
+#
+
 
 
 #import os
@@ -23,42 +33,33 @@ import numpy as np
 from nepi_sdk import nepi_utils
 
 
+
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_lines"
 logger = Logger(log_name = log_name)
 
 
-PREDICT_PROCESS_OPTIONS = ['Time Series1','Time Series2']
+
 PREDICT_DEFAULT_LOG_TIME = 5
 PREDICT_DEFAULT_LOG_RATE = 2
 PREDICT_DEFAULT_PREDICT_TIME = 1
 PREDICT_DEFAULT_QUALITY_FILTER = 0.5
 
 ##################
-BLANK_PROCESS_DICT = {
-    'process_name': '',
-    'enabled': True,
-    'max_process_sec': PREDICT_DEFAULT_LOG_TIME,
-    'max_process_hz': PREDICT_DEFAULT_LOG_RATE,
-    'sensitivity': PREDICT_DEFAULT_PREDICT_TIME,
-    'weight': 1
-}
+
 
 BLANK_PREDICT_DICT = {
     'enabled': True,
-    'process_dict': dict(),
     'source_topic': 'None',
     'data_names_list': [],
     'max_log_sec': PREDICT_DEFAULT_LOG_TIME,
     'max_log_hz': PREDICT_DEFAULT_LOG_RATE,
     'predict_time_sec': PREDICT_DEFAULT_PREDICT_TIME,
-    'quality_filter': PREDICT_DEFAULT_QUALITY_FILTER
-    
+    'quality_filter': PREDICT_DEFAULT_QUALITY_FILTER,
+    'process_dict': dict(),
 
 }
 
-for process in PREDICT_PROCESS_OPTIONS:
-   BLANK_PREDICT_DICT['process_dict'][process] = copy.deepcopy(BLANK_PROCESS_DICT)
 
 
 ##################
@@ -109,7 +110,7 @@ BLANK_SOLUTION_DICT = {
 
 ##########################
 # Misc Util Functions
-
+#########################
 
 def create_predict_dict(data_names_list):
   predict_dict = copy.deepcopy(BLANK_PREDICT_DICT)
@@ -240,10 +241,69 @@ def filter_datas_dict(datas_dict, process_dict):
     return datas_dict
    
 
-#########################
-# Predict process Functions
 
-def process_time_series1(datas_dict, process_dict, predict_time_sec, min_samples=10):
+#########################
+# Predict Process Functions
+#########################
+
+BLANK_PROCESS_DICT = {
+    'process_name': '',
+    'enabled': True,
+    'max_process_sec': PREDICT_DEFAULT_LOG_TIME,
+    'max_process_hz': PREDICT_DEFAULT_LOG_RATE,
+    'sensitivity': PREDICT_DEFAULT_PREDICT_TIME,
+    'weight': 1,
+    'arg_names': ['None'],
+    'arg_values': [0.0]
+}
+
+
+PREDICT_PROCESS_OPTIONS_DICT = dict()
+
+PREDICT_PROCESS_ARGS_DICT = dict()
+
+def set_process_setting(process_name, key_name, key_value, predict_dict):
+  success = False
+  if process_name in predict_dict['process_dict'].keys():
+    process_dict = predict_dict['process_dict'][process_name]
+    if key_name in process_dict.keys():
+        process_dict[key_name] = key_value
+        predict_dict['process_dict'][process_name] = process_dict
+        success = True
+  return predict_dict
+
+
+def get_process_arg(process_name, arg_name, predict_dict):
+  success = False
+  arg_values = None
+  if process_name in predict_dict['process_dict'].keys():
+    process_dict = predict_dict['process_dict'][process_name]
+    if 'arg_names' in process_dict:
+        arg_names = process_dict['arg_names']
+        arg_ind = arg_names.index(arg_name)
+        if arg_ind != -1:
+            arg_values = process_dict['arg_values'][arg_ind]
+            success = True
+  return arg_values
+
+def set_process_arg(process_name, arg_name, arg_values, predict_dict):
+  success = False
+  if process_name in predict_dict['process_dict'].keys():
+    process_dict = predict_dict['process_dict'][process_name]
+    if 'arg_names' in process_dict:
+        arg_names = process_dict['arg_names']
+        arg_ind = arg_names.index(arg_name)
+        if arg_ind != -1:
+            process_dict['arg_values'][arg_ind] = arg_values
+            predict_dict['process_dict'][process_name] = process_dict
+            success = True
+  return predict_dict
+
+
+
+#########################
+
+def process_1(datas_dict, process_dict, predict_time_sec, min_samples=10):
     enabled = process_dict['enabled']
     data_names = datas_dict['data_names_list']
     num_vars = len(data_names)
@@ -279,8 +339,66 @@ def process_time_series1(datas_dict, process_dict, predict_time_sec, min_samples
         result_dict['has_results'] = True
     return result_dict
 
+PREDICT_PROCESS_OPTIONS_DICT['Process1'] = process_1
 
-def process_time_series2(data_dict, process_dict, min_samples=10):
+PREDICT_PROCESS_ARGS_DICT['Process1'] = {
+    'arg_names': ['arg1', 'arg2'],
+    'arg_values': [0.0, 0.0]
+}
+
+
+
+#########################
+
+def process_sin_wave(datas_dict, process_dict, predict_time_sec, min_samples=10):
+    enabled = process_dict['enabled']
+    data_names = datas_dict['data_names_list']
+    num_vars = len(data_names)
+    datas_dict = filter_datas_dict(datas_dict,process_dict)
+    data_dict = datas_dict['data_dict']
+    data_times = list(data_dict.keys())
+    num_data = len(data_times)
+
+    result_dict = copy.deepcopy(BLANK_RESULT_DICT)
+    result_dict['process_name'] =  process_dict['process_name']
+
+    if enabled == False or len(data_times) < min_samples:
+        result_dict['weight'] = 0.0
+        result_dict['predict_list'] = [-999] * num_vars
+        result_dict['quality_list'] = [0] * num_vars
+    else:
+        sensitivity = process_dict['sensitivity']
+
+        ###########################################
+        ### RUN PREDICTION PROCESS
+
+        ### FILTER OUT -999 values
+
+        predict_step = predict_time_sec
+        predict_list = data_dict[data_times[-1]]
+        quality_list = [1] * num_vars
+        
+
+        ###########################################
+        result_dict['weight'] =  process_dict['weight']
+        result_dict['predict_list'] = predict_list
+        result_dict['quality_list'] = quality_list
+        result_dict['has_results'] = True
+    return result_dict
+
+PREDICT_PROCESS_OPTIONS_DICT['Sin Wave'] = process_sin_wave
+
+PREDICT_PROCESS_ARGS_DICT['Sin Wave'] = {
+    'arg_names': ['arg1', 'arg2'],
+    'arg_values': [0.0, 0.0]
+}
+
+
+
+#########################
+
+
+def process_spline(data_dict, process_dict, min_samples=10):
     enabled = process_dict['enabled']
     data_names = datas_dict['data_names_list']
     num_vars = len(data_names)
@@ -315,14 +433,28 @@ def process_time_series2(data_dict, process_dict, min_samples=10):
     return result_dict
 
 
-PREDICT_PROCESS_OPTIONS_DICT = {
-    'Time Series1': process_time_series1,
-    'Time Series2': process_time_series2
+PREDICT_PROCESS_OPTIONS_DICT['Spline'] = process_spline
+
+PREDICT_PROCESS_ARGS_DICT['Spline'] = {
+    'arg_names': ['arg1', 'arg2'],
+    'arg_values': [0.0, 0.0]
 }
+
+#########################
+
+
+PREDICT_PROCESS_OPTIONS = list(PREDICT_PROCESS_OPTIONS_DICT.keys())
+for process in PREDICT_PROCESS_OPTIONS:
+   BLANK_PREDICT_DICT['process_dict'][process] = copy.deepcopy(BLANK_PROCESS_DICT)
+   BLANK_PREDICT_DICT['process_dict'][process]['arg_names'] = PREDICT_PROCESS_ARGS_DICT[process]['arg_names']
+   BLANK_PREDICT_DICT['process_dict'][process]['arg_values'] = PREDICT_PROCESS_ARGS_DICT[process]['arg_values']
+
+
 
 
 #########################
 # Predict Function
+#########################
 
 def predict(datas_dict, predict_dict):
     result_dict = None
