@@ -22,7 +22,7 @@
 import copy
 import numpy as np
 # import cv2
-# import math
+import math
 # import pandas as pd
 # from scipy.stats import linregress
 # from scipy.signal import medfilt
@@ -34,7 +34,7 @@ from nepi_sdk import nepi_utils
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_lines"
+log_name = "nepi_predict"
 logger = Logger(log_name = log_name)
 
 
@@ -426,6 +426,7 @@ def predict(datas_dict, predict_dict):
 
 def create_predict_dict(data_names_list):
   predict_dict = copy.deepcopy(PREDICT_DICT)
+  predict_dict['data_names_list'] = data_names_list
   return predict_dict
 
 def update_predict_dict(key_name, key_value, predict_dict):
@@ -453,7 +454,7 @@ def create_datas_dict(predict_dict):
     
 
 def update_datas_dict(data_time_sec, data_list, datas_dict, predict_dict):
-    data_time_msec = int(round(data_time_sec * 1000),0)
+    data_time_msec = int(math.floor(data_time_sec * 1000))
     data_names = datas_dict['data_names_list']
     num_vars = len(data_names)
     data_dict = datas_dict['data_dict']
@@ -461,19 +462,22 @@ def update_datas_dict(data_time_sec, data_list, datas_dict, predict_dict):
     num_data = len(data_times)
 
     if len(data_list) != num_vars:
+       logger.log_info(" predicts data update got mismatched lists")
        return datas_dict
 
-    if num_data == 0:
+    datas_dict['latest_data'] = data_list
+    if num_data < 2:
        datas_dict['data_dict'][data_time_msec] = data_list
+       logger.log_info("Predicts Initial data list: " + str(data_list) )
        return datas_dict
     
     oldest_time = min(data_times)
     latest_time = max(data_times)
 
     max_log_sec = predict_dict['max_log_sec']
-    if (latest_time - oldest_time) > max_log_sec:
-        filter_time = latest_time - max_log_sec
-        purge_times = [item for sublist in data_times for item in sublist if item < filter_time]
+    if (latest_time - oldest_time) / 1000 > max_log_sec:
+        filter_time = latest_time - max_log_sec * 1000
+        purge_times = [x for x in data_times if x < filter_time]
         for purge_time in purge_times:
             data_dict.pop(purge_time, None)  
     
@@ -487,7 +491,6 @@ def update_datas_dict(data_time_sec, data_list, datas_dict, predict_dict):
     num_data = len(data_times)
     datas_dict['num_samples'] = num_data
     datas_dict['latest_time_sec'] = max(data_times)
-    datas_dict['latest_data'] = data_list
     datas_dict['oldest_time_sec'] = min(data_times)
 
     return datas_dict
@@ -515,13 +518,14 @@ def filter_datas_dict(datas_dict, process_dict):
     if num_data < 2:
        return datas_dict
     
-    oldest_time = min(data_times)
-    latest_time = max(data_times)
+    oldest_time = min(data_times) / 1000
+    latest_time = max(data_times) / 1000
 
     max_process_sec = process_dict['max_process_sec']
-    if (latest_time - oldest_time) > max_process_sec:
-        filter_time = latest_time - max_process_sec
-        purge_times = [item for sublist in data_times for item in sublist if item < filter_time]
+
+    if (latest_time - oldest_time) / 1000 > max_process_sec:
+        filter_time = latest_time - max_process_sec * 1000
+        purge_times = [x for x in data_times if x < filter_time]
         for purge_time in purge_times:
             data_dict.pop(purge_time, None)  
     

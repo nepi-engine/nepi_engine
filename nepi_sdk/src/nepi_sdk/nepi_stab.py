@@ -38,20 +38,19 @@ from nepi_sdk import nepi_predict
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_lines"
+log_name = "nepi_stab"
 logger = Logger(log_name = log_name)
 
 
 STAB_DEFAULT_SOURCE = nepi_sdk.get_base_namespace() + '/navposes/base_frame/navpose'
 
-STAB_DATA_NAMES = ['heading_deg',
-                    'roll_deg',
-                    'pitch_deg',]
+STAB_DATA_NAMES = ['heading_deg','roll_deg','pitch_deg',]
 
 
 BLANK_STAB_SETTINGS_DICT = {
-    'stab_update_time': 1.0,
-    'stab_goal_deg': 10.0,
+    
+    'stab_update_rate': 0.3,
+    'stab_goal_deg': 1.0,
     'stab_move_deg': 2.0,
     'stab_move_ratio': 1.0,
     'stab_reset_time_sec': 3.0,
@@ -59,6 +58,8 @@ BLANK_STAB_SETTINGS_DICT = {
     'max_pan_dps': 10.0,
     'max_tilt_dps': 10.0,
     'avg_move_delay': 1.0,
+
+    'num_adj_avg': 1
 }
 
 
@@ -78,10 +79,12 @@ BLANK_STAB_DATA_DICT = {
 
     'pan_dps': 0.0,
     'pan_deg': 0.0,
+    'pan_adjs': [],
     'pan_adj': 0.0,
 
     'tilt_dps': 0.0,
     'tilt_deg': 0.0,
+    'tilt_adjs': [],
     'tilt_adj': 0.0    
 }
    
@@ -155,8 +158,8 @@ def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
     new_vector = np.dot(R, rpy_vector)
     return new_vector
 
-def update_data_from_msg(msg, predict_data_dict, predict_settings_dict):
-    navpose_dict = nepi_nav.convert_navposes_msg2dict(msg)
+def update_data_from_msg(msg, predict_data_dict, predict_settings_dict, verbose = False):
+    navpose_dict = nepi_nav.convert_navpose_msg2dict(msg)
     #######################
     # Update predict_data_dict 
     new_data = []
@@ -171,7 +174,9 @@ def update_data_from_msg(msg, predict_data_dict, predict_settings_dict):
         new_data.append(data)
 
     timestamp = nepi_utils.get_time()
-    predict_data_dict = nepi_predict.update_predict_data_dict(timestamp,new_data,predict_data_dict,predict_settings_dict)
+    if verbose == True:
+        logger.log_info("Stabs Got first update inputs: " + str([timestamp,new_data,predict_data_dict,predict_settings_dict]) )
+    predict_data_dict = nepi_predict.update_datas_dict(timestamp,new_data,predict_data_dict,predict_settings_dict)
 
     return predict_data_dict
 
@@ -238,20 +243,21 @@ def process_data_from_dict(predict_data_dict, predict_settings_dict, stab_settin
       
         results_dict = dict()
         for i,data_name in enumerate(data_names):
-            cur_deg = latest_data[data_name]
+            cur_deg = latest_data[i]
             cur_est = solution_dict['predict_list'][i]
-            cur_error = -999
-            results_dict[data_name] = [cur_deg,cur_est,cur_error]
+            results_dict[data_name] = [cur_deg,cur_est]
 
 
         stab_data_dict['process_time'] = solution_dict['process_time_sec']
         stab_data_dict['predict_time'] = solution_dict['predict_time_sec']
 
+        if results_dict['heading_deg'][0] == -999:
+            results_dict['heading_deg'] = [0,0]
         stab_data_dict['heading_deg'] = results_dict['heading_deg'][0]
         stab_data_dict['heading_est'] = results_dict['heading_deg'][1]
 
         stab_data_dict['roll_deg'] = results_dict['roll_deg'][0]
-        stab_data_dict['roll_est'] = results_dict['roll_deg'][2]
+        stab_data_dict['roll_est'] = results_dict['roll_deg'][1]
 
         stab_data_dict['pitch_deg'] = results_dict['pitch_deg'][0]
         stab_data_dict['pitch_est'] = results_dict['pitch_deg'][1]
@@ -260,23 +266,36 @@ def process_data_from_dict(predict_data_dict, predict_settings_dict, stab_settin
         # Calculate pan tilt adjustments
         pan_radians = np.radians(pan_deg)
         tilt_radians = np.radians(tilt_deg)
-        
         rpy_vector = [stab_data_dict['roll_est'], stab_data_dict['pitch_est'], stab_data_dict['heading_est'] ]
-        [ar,ap,ay] = rpy_vector
-        [art,apt,ayt]  = rotate_enu_angles([ar,ap,ay],tilt_deg,'y')
-        [ar,ap,ay] = [art,apt,ayt]
-        [arp,app,ayp]  = rotate_enu_angles([ar,ap,ay],pan_deg,'z')
-        [ar,ap,ay] = [arp,app,ayp]
+        if -999 not in rpy_vector:
+            [ar,ap,ay] = rpy_vector
+            [art,apt,ayt]  = rotate_enu_angles([ar,ap,ay],tilt_deg,'y')
+            [ar,ap,ay] = [art,apt,ayt]
+            [arp,app,ayp]  = rotate_enu_angles([ar,ap,ay],pan_deg,'z')
+            [ar,ap,ay] = [arp,app,ayp]
 
-        ####
-        pan_adj = 0 #####
-        ####
+            num_avg = p_adjs = stab_settings_dict['num_adj_avg']
+            ####
+            p_adj = 0 #####
+            pan_adjs = stab_data_dict['pan_adjs']
+            if (len(pan_adjs) >= num_avg):
+                pan_adjs.pop(0)
+            pan_adjs.append(p_adj)
+            pan_adj =  sum(pan_adjs) / len(pan_adjs)
+            
+            ####
 
-        tilt_adj = -1 * (ar * np.sin(pan_radians) + ap * np.cos(pan_radians))
+            t_adj = -1 * (ar * np.sin(pan_radians) + ap * np.cos(pan_radians))
+            tilt_adjs = stab_data_dict['tilt_adjs']
+            if (len(tilt_adjs) >= num_avg):
+               tilt_adjs.pop(0)
+            tilt_adjs.append(t_adj)
+            tilt_adj =  sum(tilt_adjs) / len(tilt_adjs)
 
-
-        stab_data_dict['pan_adj'] = pan_adj
-        stab_data_dict['tilt_adj'] = tilt_adj   
+            stab_data_dict['pan_adjs'] = pan_adjs
+            stab_data_dict['pan_adj'] = pan_adj
+            stab_data_dict['tilt_adjs'] = tilt_adjs 
+            stab_data_dict['tilt_adj'] = tilt_adj   
 
 
     return stab_data_dict
