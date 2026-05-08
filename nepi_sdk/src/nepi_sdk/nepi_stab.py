@@ -281,21 +281,23 @@ def process_data_from_dict(predict_data_dict, predict_settings_dict, stab_settin
             if (len(pan_adjs) >= num_avg):
                 pan_adjs.pop(0)
             pan_adjs.append(p_adj)
-            pan_adj =  sum(pan_adjs) / len(pan_adjs)
+            # pan_adj =  sum(pan_adjs) / len(pan_adjs)
+            pan_adj = 0
             
             ####
 
-            t_adj = -1 * (ar * np.sin(pan_radians) + ap * np.cos(pan_radians))
+            t_adj = -1 * (-1 * ar * np.sin(pan_radians) + ap * np.cos(pan_radians))
             tilt_adjs = stab_data_dict['tilt_adjs']
             if (len(tilt_adjs) >= num_avg):
                tilt_adjs.pop(0)
             tilt_adjs.append(t_adj)
-            tilt_adj =  sum(tilt_adjs) / len(tilt_adjs)
+            # tilt_adj =  sum(tilt_adjs) / len(tilt_adjs)
+            tilt_adj = t_adj
 
             stab_data_dict['pan_adjs'] = pan_adjs
             stab_data_dict['pan_adj'] = pan_adj
             stab_data_dict['tilt_adjs'] = tilt_adjs 
-            stab_data_dict['tilt_adj'] = tilt_adj   
+            stab_data_dict['tilt_adj'] = tilt_adj  
 
 
     return stab_data_dict
