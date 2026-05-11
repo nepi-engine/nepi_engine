@@ -1331,7 +1331,7 @@ class PTXActuatorIF:
     def _gotoTiltPositionCb(self, msg):
         #self.msg_if.pub_warn("Got goto tilt position msg: " + str(msg))
         tilt_deg_adj = self.getTiltAdj(msg.data)
-        self.msg_if.pub_warn("Got adj goto tilt position msg: " + str(tilt_deg_adj))
+        #self.msg_if.pub_warn("Got adj goto tilt position msg: " + str(tilt_deg_adj))
         self.gotoTiltPosition(tilt_deg_adj)
 
     def gotoTiltPosition(self,tilt_deg):
@@ -1385,7 +1385,7 @@ class PTXActuatorIF:
 
     def _jogTimedPanCb(self, msg):
         self.stopPanCb()
-        self.msg_if.pub_warn("Got job pan msg: " + str(msg))
+        #self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
             self.pan_goal_deg = -999
             direction = msg.direction * self.rpi
@@ -1397,7 +1397,7 @@ class PTXActuatorIF:
 
     def _jogTimedTiltCb(self, msg):
         self.stopTiltCb()
-        self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
+        #self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
             self.tilt_goal_deg = -999
             direction = msg.direction * self.rti

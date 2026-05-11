@@ -1,11 +1,20 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2024 Numurus, LLC <https://www.numurus.com>.
+# Copyright (c) 2024 Numurus <https://www.numurus.com>.
 #
-# This file is part of nepi-engine
-# (see https://github.com/nepi-engine).
+# This file is part of nepi engine (nepi_engine) repo
+# (see https://github.com/nepi-engine/nepi_engine)
 #
-# License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
+# License: NEPI Engine repo source-code and NEPI Images that use this source-code
+# are licensed under the "Numurus Software License", 
+# which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
+#
+# Redistributions in source code must retain this top-level comment block.
+# Plagiarizing this software to sidestep the license obligations is illegal.
+#
+# Contact Information:
+# ====================
+# - mailto:nepi@numurus.com
 #
 
 
@@ -13,7 +22,7 @@
 import copy
 import numpy as np
 # import cv2
-# import math
+import math
 # import pandas as pd
 # from scipy.stats import linregress
 # from scipy.signal import medfilt
@@ -23,42 +32,14 @@ import numpy as np
 from nepi_sdk import nepi_utils
 
 
+
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_lines"
+log_name = "nepi_predict"
 logger = Logger(log_name = log_name)
 
 
-PREDICT_PROCESS_OPTIONS = ['Time Series1','Time Series2']
-PREDICT_DEFAULT_LOG_TIME = 5
-PREDICT_DEFAULT_LOG_RATE = 2
-PREDICT_DEFAULT_PREDICT_TIME = 1
-PREDICT_DEFAULT_QUALITY_FILTER = 0.5
 
-##################
-BLANK_PROCESS_DICT = {
-    'process_name': '',
-    'enabled': True,
-    'max_process_sec': PREDICT_DEFAULT_LOG_TIME,
-    'max_process_hz': PREDICT_DEFAULT_LOG_RATE,
-    'sensitivity': PREDICT_DEFAULT_PREDICT_TIME,
-    'weight': 1
-}
 
-BLANK_PREDICT_DICT = {
-    'enabled': True,
-    'process_dict': dict(),
-    'source_topic': 'None',
-    'data_names_list': [],
-    'max_log_sec': PREDICT_DEFAULT_LOG_TIME,
-    'max_log_hz': PREDICT_DEFAULT_LOG_RATE,
-    'predict_time_sec': PREDICT_DEFAULT_PREDICT_TIME,
-    'quality_filter': PREDICT_DEFAULT_QUALITY_FILTER
-    
-
-}
-
-for process in PREDICT_PROCESS_OPTIONS:
-   BLANK_PREDICT_DICT['process_dict'][process] = copy.deepcopy(BLANK_PROCESS_DICT)
 
 
 ##################
@@ -80,6 +61,7 @@ BLANK_DATAS_DICT = {
     'data_dict': dict(),
     'num_samples': 0,
     'latest_time_sec': 0.0,
+    'latest_data': [],
     'oldest_time_sec': 0.0
 }
 
@@ -106,22 +88,49 @@ BLANK_SOLUTION_DICT = {
     'quality_list': []
 }
 
-
-##########################
-# Misc Util Functions
+   
 
 
-def create_predict_dict(data_names_list):
-  predict_dict = copy.deepcopy(BLANK_PREDICT_DICT)
-  return predict_dict
+#########################
+# Predict Process Functions
+#########################
 
-def update_predict_dict(key_name, key_value, predict_dict):
-  if key_name != 'data_names_list' and key_name != 'process_dict':
-    if key_name in predict_dict.keys():
-        predict_dict[key_name] = key_value
-  return predict_dict
+PREDICT_DEFAULT_LOG_TIME = 5
+PREDICT_DEFAULT_LOG_RATE = 2
+PREDICT_DEFAULT_PREDICT_TIME = 0
+PREDICT_DEFAULT_QUALITY_FILTER = 1
 
-def update_process_dict(process_name, key_name, key_value, predict_dict):
+PREDICT_DICT = {
+    'enabled': True,
+    'source_topic': 'None',
+    'data_names_list': [],
+    'max_log_sec': PREDICT_DEFAULT_LOG_TIME,
+    'max_log_hz': PREDICT_DEFAULT_LOG_RATE,
+    'predict_time_sec': PREDICT_DEFAULT_PREDICT_TIME,
+    'quality_filter': PREDICT_DEFAULT_QUALITY_FILTER,
+    'process_dict': dict(),
+
+}
+
+PROCESS_DEFAULT_LOG_TIME = 5
+PROCESS_DEFAULT_LOG_RATE = 2
+PROCESS_DEFAULT_MIN_SAMPLES = 10
+PROCESS_DEFAULT_SENSITIVITY = 0.5
+
+BLANK_PROCESS_DICT = {
+    'process_name': '',
+    'enabled': True,
+    'min_samples': PROCESS_DEFAULT_MIN_SAMPLES,
+    'max_process_sec': PROCESS_DEFAULT_LOG_TIME,
+    'max_process_hz': PROCESS_DEFAULT_LOG_RATE,
+    'sensitivity': PROCESS_DEFAULT_SENSITIVITY,
+    'weight': 1,
+    'arg_names': ['None'],
+    'arg_values': [0.0]
+}
+
+
+def set_process_setting(process_name, key_name, key_value, predict_dict):
   success = False
   if process_name in predict_dict['process_dict'].keys():
     process_dict = predict_dict['process_dict'][process_name]
@@ -132,118 +141,42 @@ def update_process_dict(process_name, key_name, key_value, predict_dict):
   return predict_dict
 
 
-def create_datas_dict(predict_dict):
-    data_names = predict_dict['data_names_list']
-    datas_dict = copy.deepcopy(BLANK_DATAS_DICT)
-    datas_dict['data_names_list'] = data_names
-    return datas_dict
-    
+def get_process_arg(process_name, arg_name, predict_dict):
+  success = False
+  arg_values = None
+  if process_name in predict_dict['process_dict'].keys():
+    process_dict = predict_dict['process_dict'][process_name]
+    if 'arg_names' in process_dict:
+        arg_names = process_dict['arg_names']
+        arg_ind = arg_names.index(arg_name)
+        if arg_ind != -1:
+            arg_values = process_dict['arg_values'][arg_ind]
+            success = True
+  return arg_values
 
-def update_datas_dict(data_time_sec, data_list, datas_dict, predict_dict):
-    data_time_msec = int(round(data_time_sec * 1000),0)
-    data_names = datas_dict['data_names_list']
-    num_vars = len(data_names)
-    data_dict = datas_dict['data_dict']
-    data_times = list(data_dict.keys())
-    num_data = len(data_times)
+def set_process_arg(process_name, arg_name, arg_values, predict_dict):
+  success = False
+  if process_name in predict_dict['process_dict'].keys():
+    process_dict = predict_dict['process_dict'][process_name]
+    if 'arg_names' in process_dict:
+        arg_names = process_dict['arg_names']
+        arg_ind = arg_names.index(arg_name)
+        if arg_ind != -1:
+            process_dict['arg_values'][arg_ind] = arg_values
+            predict_dict['process_dict'][process_name] = process_dict
+            success = True
+  return predict_dict
 
-    if len(data_list) != num_vars:
-       return datas_dict
 
-    if num_data == 0:
-       datas_dict['data_dict'][data_time_msec] = data_list
-       return datas_dict
-    
-    oldest_time = min(data_times)
-    latest_time = max(data_times)
-
-    max_log_sec = predict_dict['max_log_sec']
-    if (latest_time - oldest_time) > max_log_sec:
-        filter_time = latest_time - max_log_sec
-        purge_times = [item for sublist in data_times for item in sublist if item < filter_time]
-        for purge_time in purge_times:
-            data_dict.pop(purge_time, None)  
-    
-    max_log_hz = predict_dict['max_log_hz']
-    time_step = float(1) / max_log_hz
-    if (data_time_msec - latest_time) >= time_step:
-       data_dict[data_time_msec] = data_list
-    
-    datas_dict['data_dict'] = data_dict
-    data_times = list(data_dict.keys())
-    num_data = len(data_times)
-    datas_dict['num_samples'] = num_data
-    datas_dict['latest_time_sec'] = max(data_times)
-    datas_dict['oldest_time_sec'] = min(data_times)
-
-    return datas_dict
+PREDICT_PROCESS_OPTIONS_DICT = dict()
+PREDICT_PROCESS_ARGS_DICT = dict()
 
 
 
-def update_datas_dict_from_dict(data_time_sec, data_dict, datas_dict):
-    data_names_list = datas_dict['data_names_list']
-    data_list = []
-    for data_name in data_names_list:
-        if data_name in data_dict.keys():
-            data = data_dict[data_name]
-        else:
-            data = -999
-        data_list.append(data)
-    datas_dict = update_datas_dict(data_time_sec, data_list, datas_dict)
-    return datas_dict
+###############################################################################
+###############################################################################
 
-
-def filter_datas_dict(datas_dict, process_dict):
-    data_dict = datas_dict['data_dict']
-    data_times = list(data_dict.keys())
-    num_data = len(data_times)
-
-    if num_data < 2:
-       return datas_dict
-    
-    oldest_time = min(data_times)
-    latest_time = max(data_times)
-
-    max_process_sec = process_dict['max_process_sec']
-    if (latest_time - oldest_time) > max_process_sec:
-        filter_time = latest_time - max_process_sec
-        purge_times = [item for sublist in data_times for item in sublist if item < filter_time]
-        for purge_time in purge_times:
-            data_dict.pop(purge_time, None)  
-    
-    data_times = list(data_dict.keys())
-    sorted_times = sorted(data_times, reverse=True)
-    filtered_dict = dict()
-    last_time = None
-    max_process_hz = process_dict['max_process_hz']
-    time_step = float(1) / max_process_hz
-    for data_time in sorted_times:
-        valid_time = False
-        if last_time is None:
-            valid_time = True
-        elif (data_time - last_time) >= time_step:
-            valid_time = True
-        if valid_time == True:
-            try:
-                filtered_dict[data_time] = data_dict[data_time]
-                last_time = data_time
-            except:
-                pass
-    
-    datas_dict['data_dict'] = filtered_dict
-    data_times = list(filtered_dict.keys())
-    num_data = len(data_times)
-    datas_dict['num_samples'] = num_data
-    datas_dict['latest_time_sec'] = max(data_times)
-    datas_dict['oldest_time_sec'] = min(data_times)
-
-    return datas_dict
-   
-
-#########################
-# Predict process Functions
-
-def process_time_series1(datas_dict, process_dict, predict_time_sec, min_samples=10):
+def process_1(datas_dict, process_dict, predict_time_sec):
     enabled = process_dict['enabled']
     data_names = datas_dict['data_names_list']
     num_vars = len(data_names)
@@ -255,6 +188,7 @@ def process_time_series1(datas_dict, process_dict, predict_time_sec, min_samples
     result_dict = copy.deepcopy(BLANK_RESULT_DICT)
     result_dict['process_name'] =  process_dict['process_name']
 
+    min_samples = process_dict['min_samples']
     if enabled == False or len(data_times) < min_samples:
         result_dict['weight'] = 0.0
         result_dict['predict_list'] = [-999] * num_vars
@@ -280,7 +214,26 @@ def process_time_series1(datas_dict, process_dict, predict_time_sec, min_samples
     return result_dict
 
 
-def process_time_series2(data_dict, process_dict, min_samples=10):
+PREDICT_PROCESS_OPTIONS_DICT['Process1'] = process_1
+
+PREDICT_DICT['process_dict']['Process1'] =  {
+    'process_name': 'Process1',
+    'enabled': True,
+    'min_samples': PROCESS_DEFAULT_MIN_SAMPLES,
+    'max_process_sec': PROCESS_DEFAULT_LOG_TIME,
+    'max_process_hz': PROCESS_DEFAULT_LOG_RATE,
+    'sensitivity': PROCESS_DEFAULT_SENSITIVITY,
+    'weight': 1,
+    'arg_names': ['arg1', 'arg2'],
+    'arg_values': [0.0, 0.0]
+}
+
+
+
+###############################################################################
+###############################################################################
+
+def process_sin_wave(datas_dict, process_dict, predict_time_sec):
     enabled = process_dict['enabled']
     data_names = datas_dict['data_names_list']
     num_vars = len(data_names)
@@ -292,6 +245,7 @@ def process_time_series2(data_dict, process_dict, min_samples=10):
     result_dict = copy.deepcopy(BLANK_RESULT_DICT)
     result_dict['process_name'] =  process_dict['process_name']
 
+    min_samples = process_dict['min_samples']
     if enabled == False or len(data_times) < min_samples:
         result_dict['weight'] = 0.0
         result_dict['predict_list'] = [-999] * num_vars
@@ -303,7 +257,62 @@ def process_time_series2(data_dict, process_dict, min_samples=10):
         ### RUN PREDICTION PROCESS
 
         ### FILTER OUT -999 values
+
+        predict_step = predict_time_sec
+        predict_list = data_dict[data_times[-1]]
+        quality_list = [1] * num_vars
         
+
+        ###########################################
+        result_dict['weight'] =  process_dict['weight']
+        result_dict['predict_list'] = predict_list
+        result_dict['quality_list'] = quality_list
+        result_dict['has_results'] = True
+    return result_dict
+
+PREDICT_PROCESS_OPTIONS_DICT['Sin_Wave'] = process_sin_wave
+
+PREDICT_DICT['process_dict']['Sin_Wave'] =  {
+    'process_name': 'Sin_Wave',
+    'enabled': True,
+    'min_samples': PROCESS_DEFAULT_MIN_SAMPLES,
+    'max_process_sec': PROCESS_DEFAULT_LOG_TIME,
+    'max_process_hz': PROCESS_DEFAULT_LOG_RATE,
+    'sensitivity': PROCESS_DEFAULT_SENSITIVITY,
+    'weight': 1,
+    'arg_names': ['arg1', 'arg2'],
+    'arg_values': [0.0, 0.0]
+}
+
+
+###############################################################################
+###############################################################################
+
+
+def process_spline(data_dict, process_dict, predict_time_sec):
+    enabled = process_dict['enabled']
+    data_names = datas_dict['data_names_list']
+    num_vars = len(data_names)
+    datas_dict = filter_datas_dict(datas_dict,process_dict)
+    data_dict = datas_dict['data_dict']
+    data_times = list(data_dict.keys())
+    num_data = len(data_times)
+
+    result_dict = copy.deepcopy(BLANK_RESULT_DICT)
+    result_dict['process_name'] =  process_dict['process_name']
+
+    min_samples = process_dict['min_samples']
+    if enabled == False or len(data_times) < min_samples:
+        result_dict['weight'] = 0.0
+        result_dict['predict_list'] = [-999] * num_vars
+        result_dict['quality_list'] = [0] * num_vars
+    else:
+        sensitivity = process_dict['sensitivity']
+
+        ###########################################
+        ### RUN PREDICTION PROCESS
+
+        ### FILTER OUT -999 values
         predict_list = data_dict[data_times[-1]]
         quality_list = [1] * num_vars
 
@@ -315,14 +324,27 @@ def process_time_series2(data_dict, process_dict, min_samples=10):
     return result_dict
 
 
-PREDICT_PROCESS_OPTIONS_DICT = {
-    'Time Series1': process_time_series1,
-    'Time Series2': process_time_series2
+PREDICT_PROCESS_OPTIONS_DICT['Spline'] = process_spline
+
+PREDICT_DICT['process_dict']['Spline'] =  {
+    'process_name': 'Spline',
+    'enabled': True,
+    'min_samples': PROCESS_DEFAULT_MIN_SAMPLES,
+    'max_process_sec': PROCESS_DEFAULT_LOG_TIME,
+    'max_process_hz': PROCESS_DEFAULT_LOG_RATE,
+    'sensitivity': PROCESS_DEFAULT_SENSITIVITY,
+    'weight': 1,
+    'arg_names': ['arg1', 'arg2'],
+    'arg_values': [0.0, 0.0]
 }
+
+###############################################################################
+###############################################################################
 
 
 #########################
 # Predict Function
+#########################
 
 def predict(datas_dict, predict_dict):
     result_dict = None
@@ -395,4 +417,142 @@ def predict(datas_dict, predict_dict):
     return solution_dict
 
 
-            
+
+
+
+##########################
+# Misc Util Functions
+#########################
+
+def create_predict_dict(data_names_list):
+  predict_dict = copy.deepcopy(PREDICT_DICT)
+  predict_dict['data_names_list'] = data_names_list
+  return predict_dict
+
+def update_predict_dict(key_name, key_value, predict_dict):
+  if key_name != 'data_names_list' and key_name != 'process_dict':
+    if key_name in predict_dict.keys():
+        predict_dict[key_name] = key_value
+  return predict_dict
+
+def update_process_dict(process_name, key_name, key_value, predict_dict):
+  success = False
+  if process_name in predict_dict['process_dict'].keys():
+    process_dict = predict_dict['process_dict'][process_name]
+    if key_name in process_dict.keys():
+        process_dict[key_name] = key_value
+        predict_dict['process_dict'][process_name] = process_dict
+        success = True
+  return predict_dict
+
+
+def create_datas_dict(predict_dict):
+    data_names = predict_dict['data_names_list']
+    datas_dict = copy.deepcopy(BLANK_DATAS_DICT)
+    datas_dict['data_names_list'] = data_names
+    return datas_dict
+    
+
+def update_datas_dict(data_time_sec, data_list, datas_dict, predict_dict):
+    data_time_msec = int(math.floor(data_time_sec * 1000))
+    data_names = datas_dict['data_names_list']
+    num_vars = len(data_names)
+    data_dict = datas_dict['data_dict']
+    data_times = list(data_dict.keys())
+    num_data = len(data_times)
+
+    if len(data_list) != num_vars:
+       logger.log_info(" predicts data update got mismatched lists")
+       return datas_dict
+
+    datas_dict['latest_data'] = data_list
+    if num_data < 2:
+       datas_dict['data_dict'][data_time_msec] = data_list
+       logger.log_info("Predicts Initial data list: " + str(data_list) )
+       return datas_dict
+    
+    oldest_time = min(data_times)
+    latest_time = max(data_times)
+
+    max_log_sec = predict_dict['max_log_sec']
+    if (latest_time - oldest_time) / 1000 > max_log_sec:
+        filter_time = latest_time - max_log_sec * 1000
+        purge_times = [x for x in data_times if x < filter_time]
+        for purge_time in purge_times:
+            data_dict.pop(purge_time, None)  
+    
+    max_log_hz = predict_dict['max_log_hz']
+    time_step = float(1) / max_log_hz
+    if (data_time_msec - latest_time) >= time_step:
+       data_dict[data_time_msec] = data_list
+    
+    datas_dict['data_dict'] = data_dict
+    data_times = list(data_dict.keys())
+    num_data = len(data_times)
+    datas_dict['num_samples'] = num_data
+    datas_dict['latest_time_sec'] = max(data_times)
+    datas_dict['oldest_time_sec'] = min(data_times)
+
+    return datas_dict
+
+
+
+def update_datas_dict_from_dict(data_time_sec, data_dict, datas_dict):
+    data_names_list = datas_dict['data_names_list']
+    data_list = []
+    for data_name in data_names_list:
+        if data_name in data_dict.keys():
+            data = data_dict[data_name]
+        else:
+            data = -999
+        data_list.append(data)
+    datas_dict = update_datas_dict(data_time_sec, data_list, datas_dict)
+    return datas_dict
+
+
+def filter_datas_dict(datas_dict, process_dict):
+    data_dict = datas_dict['data_dict']
+    data_times = list(data_dict.keys())
+    num_data = len(data_times)
+
+    if num_data < 2:
+       return datas_dict
+    
+    oldest_time = min(data_times) / 1000
+    latest_time = max(data_times) / 1000
+
+    max_process_sec = process_dict['max_process_sec']
+
+    if (latest_time - oldest_time) / 1000 > max_process_sec:
+        filter_time = latest_time - max_process_sec * 1000
+        purge_times = [x for x in data_times if x < filter_time]
+        for purge_time in purge_times:
+            data_dict.pop(purge_time, None)  
+    
+    data_times = list(data_dict.keys())
+    sorted_times = sorted(data_times, reverse=True)
+    filtered_dict = dict()
+    last_time = None
+    max_process_hz = process_dict['max_process_hz']
+    time_step = float(1) / max_process_hz
+    for data_time in sorted_times:
+        valid_time = False
+        if last_time is None:
+            valid_time = True
+        elif (data_time - last_time) >= time_step:
+            valid_time = True
+        if valid_time == True:
+            try:
+                filtered_dict[data_time] = data_dict[data_time]
+                last_time = data_time
+            except:
+                pass
+    
+    datas_dict['data_dict'] = filtered_dict
+    data_times = list(filtered_dict.keys())
+    num_data = len(data_times)
+    datas_dict['num_samples'] = num_data
+    datas_dict['latest_time_sec'] = max(data_times)
+    datas_dict['oldest_time_sec'] = min(data_times)
+
+    return datas_dict            
