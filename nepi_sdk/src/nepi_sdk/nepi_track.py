@@ -49,11 +49,11 @@ BLANK_TRACKING_DICT = {
     'targets_topic': 'None',
     'source_topic': 'None',
     'class_filter': 'None',
-    'size_min_filter': 0.1,
+    'size_min_filter': 0.01,
     'size_max_filter': 0.99,
     'range_min_filter': 0.01,
     'range_max_filter': 1000,
-    'threshold_filter': 0.1,
+    'threshold_filter': 0.01,
     'best_filter': 'LARGEST'
 }
 

@@ -79,7 +79,7 @@ class NavPoseMgr(object):
     NAVPOSE_ALT_FRAME_OPTIONS = nepi_nav.NAVPOSE_ALT_FRAME_OPTIONS
     NAVPOSE_DEPTH_FRAME_OPTIONS = nepi_nav.NAVPOSE_DEPTH_FRAME_OPTIONS
 
-    FACTORY_PUB_RATE_HZ = 10.0
+    MAX_PUB_RATE = 30.0
     FACTORY_3D_FRAME = 'base_frame' 
     FACTORY_NAV_FRAME = 'ENU'
     FACTORY_ALT_FRAME = 'WGS84'
@@ -597,7 +597,7 @@ class NavPoseMgr(object):
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
             if d == 'navposes':
-                factory_data_rates[d][0] = self.FACTORY_PUB_RATE_HZ
+                factory_data_rates[d][0] = self.MAX_PUB_RATE
         sd_namespace = self.base_namespace + '/navposes'  
         self.save_data_if = SaveDataIF(namespace = sd_namespace, data_products = self.data_products_list, factory_rate_dict = factory_data_rates)
 
@@ -1104,7 +1104,7 @@ class NavPoseMgr(object):
                 info_dict_entry['frame_name'] = frame_name
                 info_dict_entry['data_product'] = data_product
                 info_dict_entry['description'] = description
-                info_dict_entry['max_pub_rate'] = self.FACTORY_PUB_RATE_HZ
+                info_dict_entry['max_pub_rate'] = self.MAX_PUB_RATE
                 info_dict_entry['connect_dict'] = copy.deepcopy(self.BLANK_CONNECT_DICT)
                 info_dict_entry['pan_tilt_adjusted'] = False
 
@@ -2062,7 +2062,9 @@ class NavPoseMgr(object):
             self._getPublishSaveDataWork()
         except Exception as e:
             self.msg_if.pub_warn("_getPublishSaveDataCb error: " + str(e))
-        nepi_sdk.start_timer_process(0.1, self._getPublishSaveDataCb, oneshot = True)
+        rate = self.MAX_PUB_RATE
+        delay = float(1) / rate
+        nepi_sdk.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)
 
     def _getPublishSaveDataWork(self):
         timestamp = nepi_utils.get_time()
