@@ -601,27 +601,6 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
   else:
     if transform_dict != BLANK_TRANSFORM_DICT:
-      invert = 1 if transform_dict['x_invert'] else -1
-      x = transform_dict['x_invert'] * invert
-      npdata_dict['x_m'] = npdata_dict['x_m'] * invert
-      invert = 1 if transform_dict['y_invert'] else -1
-      y = transform_dict['y_invert'] * invert
-      npdata_dict['y_m'] = npdata_dict['y_m'] * invert
-      invert = 1 if transform_dict['z_invert'] else -1
-      z = transform_dict['z_invert'] * invert
-      npdata_dict['z_m'] = npdata_dict['z_m'] * invert
-
-      invert = 1 if transform_dict['roll_invert'] else -1
-      roll = transform_dict['roll_deg'] * invert
-      npdata_dict['roll_deg'] = npdata_dict['roll_deg'] * invert
-      invert = 1 if transform_dict['pitch_invert'] else -1
-      pitch = transform_dict['pitch_deg'] * invert
-      npdata_dict['pitch_deg'] = npdata_dict['pitch_deg'] * invert
-      
-
-      invert = 1 if transform_dict['heading_invert'] else -1
-      heading = transform_dict['heading_deg'] * invert
-
       try:
 
         if npdata_dict['has_location'] == True:
@@ -631,9 +610,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
             cur_geo = GeoPoint()
             cur_geo.latitude = npdata_dict['latitude']
             cur_geo.longitude = npdata_dict['longitude']
-            tr_geo = get_geopoint_at_enu_point(cur_geo,[x,y,z])
-            navpose_dict['latitude'] = tr_geo.latitude
-            navpose_dict['longitude'] = tr_geo.longitude
+            # tr_geo = get_geopoint_at_enu_point(cur_geo,[x,y,z])
+            # navpose_dict['latitude'] = tr_geo.latitude
+            # navpose_dict['longitude'] = tr_geo.longitude
           else:
             invert = 1 if transform_dict['latitude'] else -1
             navpose_dict['latitude'] = npdata_dict['latitude'] * invert  + transform_dict['latitude']
@@ -644,29 +623,29 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         if npdata_dict['has_heading'] == True:
           navpose_dict['has_heading'] = True
           navpose_dict['time_heading'] = npdata_dict['time_heading']
-          invert = 1 if transform_dict['heading_deg'] else -1
+          invert = 1 if transform_dict['heading_invert'] else -1
           navpose_dict['heading_deg'] = npdata_dict['heading_deg'] * invert  + transform_dict['heading_deg']
 
         if npdata_dict['has_orientation'] == True:
           navpose_dict['has_orientation'] = True
           navpose_dict['time_orientation'] = npdata_dict['time_orientation']
 
-          invert = 1 if transform_dict['roll_deg'] else -1
+          invert = 1 if transform_dict['roll_invert'] else -1
           navpose_dict['roll_deg'] = npdata_dict['roll_deg'] * invert  + transform_dict['roll_deg']
-          invert = 1 if transform_dict['pitch_deg'] else -1
+          invert = 1 if transform_dict['pitch_invert'] else -1
           navpose_dict['pitch_deg'] = npdata_dict['pitch_deg'] * invert  + transform_dict['pitch_deg']
-          invert = 1 if transform_dict['yaw_deg'] else -1
+          invert = 1 if transform_dict['yaw_invert'] else -1
           navpose_dict['yaw_deg'] = npdata_dict['yaw_deg'] * invert  + transform_dict['yaw_deg']
 
         if npdata_dict['has_position'] == True:
           navpose_dict['has_position'] = True
           navpose_dict['time_position'] = npdata_dict['time_position']
 
-          invert = 1 if transform_dict['x_m'] else -1
+          invert = 1 if transform_dict['x_invert'] else -1
           navpose_dict['x_m'] = npdata_dict['x_m'] * invert  + transform_dict['x_m']
-          invert = 1 if transform_dict['y_m'] else -1
+          invert = 1 if transform_dict['y_invert'] else -1
           navpose_dict['y_m'] = npdata_dict['y_m'] * invert  + transform_dict['y_m']
-          invert = 1 if transform_dict['z_m'] else -1
+          invert = 1 if transform_dict['z_invert'] else -1
           navpose_dict['z_m'] = npdata_dict['z_m'] * invert  + transform_dict['z_m']
 
         if npdata_dict['has_altitude'] == True:
@@ -687,9 +666,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['has_pan_tilt'] = True
           navpose_dict['time_pan_tilt'] = npdata_dict['time_pan_tilt']
 
-          invert = 1 if transform_dict['yaw_deg'] else -1
+          invert = 1 if transform_dict['yaw_invert'] else -1
           navpose_dict['pan_deg'] = npdata_dict['pan_deg'] * invert  + transform_dict['yaw_deg']
-          invert = 1 if transform_dict['pitch_deg'] else -1
+          invert = 1 if transform_dict['pitch_invert'] else -1
           navpose_dict['tilt_deg'] = npdata_dict['tilt_deg'] * invert  + transform_dict['pitch_deg']
           if pt_transform_dict is None:
             pt_transform_dict = BLANK_TRANSFORM_DICT
