@@ -2053,6 +2053,7 @@ class NavPoseMgr(object):
                             self.navposes_update_times_dict[frame_name][comp_name]['last_time'] = cur_time
 
                             self.navposes_update_states_dict[frame_name][comp_name] = True
+                            #self.msg_if.pub_warn("navpose_source_dict: " + str(navpose_source_dict))
 
 
 
