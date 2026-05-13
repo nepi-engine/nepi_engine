@@ -589,6 +589,23 @@ def transform_object_pose(current_pose, rpy_rotation, units='deg'):
     return [new_pos[0], new_pos[1], new_pos[2], 
             new_rpy[0], new_rpy[1], new_rpy[2]]
 
+
+
+def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
+    theta = np.radians(angle_deg)
+    c, s = np.cos(theta), np.sin(theta)
+    
+    if axis == 'x': # East
+        R = np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+    elif axis == 'y': # North
+        R = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+    elif axis == 'z': # Up
+        R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+    else:
+        raise ValueError("Axis must be 'x', 'y', or 'z'")
+    new_vector = np.dot(R, rpy_vector)
+    return new_vector
+
 def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None, log_name_list = []):
   #logger.log_warn("passing transform_dict: " + str(transform_dict), throttle_s = 5.0)
   #logger.log_warn("passing transform_dict: " + str(npdata_dict), throttle_s = 5.0)
