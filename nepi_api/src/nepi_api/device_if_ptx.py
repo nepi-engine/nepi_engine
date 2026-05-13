@@ -158,9 +158,11 @@ class PTXActuatorIF:
 
     last_time = 0
 
-    pan_speed_history = []
-    tilt_speed_history = []
-    SPEED_SMOOTHING_WINDOW = 7
+    pan_pos_history = []
+    tilt_pos_history = []
+    pan_time_history = []
+    tilt_time_history = []
+    SPEED_SMOOTHING_WINDOW = 20
     delay = False
 
 
