@@ -137,7 +137,7 @@ class PTXActuatorIF:
     speed_ratio = 0.5
     speed_pan_ratio = speed_ratio
     speed_tilt_ratio = speed_ratio
-    speed_max_dps = 0.0
+    speed_max_dps = -999
 
 
     tr_source_ref_description = 'tilt_axis_center'
@@ -200,7 +200,7 @@ class PTXActuatorIF:
                  navpose_update_rate = 10,
                  deviceResetCb = None,
                  calibrateCenterCB = None,
-                 speed_max_dps = 0.0,
+                 speed_max_dps = None,
                  log_name = None,
                  log_name_list = [],
                  msg_if = None
@@ -230,7 +230,8 @@ class PTXActuatorIF:
 
         ##############################
         # Initialize Class Variables
-        self.speed_max_dps = speed_max_dps
+        if speed_max_dps is not None:
+            self.speed_max_dps = speed_max_dps
         self.device_name = device_info["device_name"]
         self.path = device_info["path"]
         self.serial_num = device_info["serial_number"]
@@ -1624,7 +1625,7 @@ class PTXActuatorIF:
         self.status_msg.reverse_pan_enabled = self.reverse_pan_enabled
         self.status_msg.reverse_tilt_enabled = self.reverse_tilt_enabled
 
-        self.status_msg.speed_max = self.speed_max_dps
+        self.status_msg.speed_max_dps = self.speed_max_dps
         self.status_msg.speed_ratio = self.speed_ratio
         self.status_msg.has_seperate_pan_tilt_speed = self.has_seperate_pan_tilt_speed
         self.status_msg.speed_pan_ratio = self.speed_pan_ratio
