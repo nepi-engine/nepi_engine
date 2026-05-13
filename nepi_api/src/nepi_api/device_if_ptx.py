@@ -1624,7 +1624,7 @@ class PTXActuatorIF:
         self.status_msg.reverse_pan_enabled = self.reverse_pan_enabled
         self.status_msg.reverse_tilt_enabled = self.reverse_tilt_enabled
 
-        self.status_msg.speed_max = self.speed_max_dps
+        self.status_msg.speed_max_dps = self.speed_max_dps
         self.status_msg.speed_ratio = self.speed_ratio
         self.status_msg.has_seperate_pan_tilt_speed = self.has_seperate_pan_tilt_speed
         self.status_msg.speed_pan_ratio = self.speed_pan_ratio
