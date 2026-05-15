@@ -41,7 +41,7 @@ log_name = "nepi_stab"
 logger = Logger(log_name = log_name)
 
 
-PAN_TILT_SOURCE_MESSAGES = ['NavPoseOrientation']
+PAN_TILT_SOURCE_MESSAGES = ['NavPose','NavPoseOrientation']
 
 PAN_TILT_STAB_DATA_DICT = {
     'data_time': 0.0,
@@ -83,7 +83,6 @@ DEFAULT_PAN_TILT_STAB_PROCESS = 'pt_stab_1'
 
 
 def pt_stab_1(pt_connect_if, 
-                        pan_tilt_max_speed_dps,
                         pan_min_max_degs,
                         til_min_max_degs,
                         stab_data_dict, 
@@ -111,13 +110,18 @@ def pt_stab_1(pt_connect_if,
         stab_vel_deg = stab_settings_dict['stab_vel_deg']
             
 
-
         ##########################
         # APPLY PT UPDATES IF NEEDED
         [pan_goal, tilt_goal] = goto_position
+
         pan_deg = stab_data_dict['pan_deg']
+        pan_dps = stab_data_dict['pan_dps']
         tilt_deg = stab_data_dict['tilt_deg']
-        
+        tilt_dps = stab_data_dict['tilt_dps']
+        pan_tilt_max_speed_dps = stab_settings_dict['pan_tilt_max_speed_dps']
+        stab_min_dps = stab_settings_dict['stab_pt_min_speed_ratio'] * pan_tilt_max_speed_dps 
+        stab_max_dps = stab_settings_dict['stab_pt_max_speed_ratio'] * pan_tilt_max_speed_dps
+    
     
         # pan_adj = stab_data_dict['pan_adj']
         # pan_adj_last = stab_data_dict_last['pan_adj']
@@ -127,8 +131,6 @@ def pt_stab_1(pt_connect_if,
         #         adj_pan_goal = pan_goal + pan_adj
         #         stab_data_dict['pan_goal'] = adj_pan_goal
         #         stab_speed_ratio = stab_settings_dict['stab_pt_max_speed_ratio']
-        #         pan_dps = stab_speed_ratio * pan_tilt_max_speed_dps
-        #         stab_data_dict['pan_dps'] = pan_dps
         #         pt_connect_if.set_pan_speed_ratio(stab_speed_ratio)
         #         pt_connect_if.goto_to_pan_position(adj_pan_goal)
         
@@ -143,9 +145,9 @@ def pt_stab_1(pt_connect_if,
         if stab_tilt_enabled == True:
             if adj_tilt_delta > stab_pos_deg: # or abs(adj_tilt_goal_delta)  > stab_pos_deg :
                 stab_data_dict['tilt_goal'] = adj_tilt_goal
-                stab_speed_ratio = stab_settings_dict['stab_pt_max_speed_ratio']
-                tilt_dps = stab_speed_ratio * pan_tilt_max_speed_dps
-                stab_data_dict['tilt_dps'] = tilt_dps
+                
+                tilt_dps = stab_min_dps + (stab_max_dps - stab_min_dps) * adj_tilt_goal_delta / stab_pos_deg
+                stab_speed_ratio = tilt_dps / pan_tilt_max_speed_dps
                 pt_connect_if.set_tilt_speed_ratio(stab_speed_ratio)
                 pt_connect_if.goto_to_tilt_position(adj_tilt_goal)
                 logger.log_info("Stab Control updated: " + str([adj_tilt_delta, stab_speed_ratio, adj_tilt_goal]), throttle_s=1)
@@ -161,6 +163,7 @@ pt_stab_1_settings = {
 
     'stab_num_avg': 3,
 
+    'pan_tilt_max_speed_dps': 10,
     'stab_pt_min_speed_ratio': 0.1,
     'stab_pt_max_speed_ratio': 0.9,
 }
@@ -174,7 +177,6 @@ PAN_TILT_STAB_PROCESSES_DICT['pt_stab_1'] = {'process_function': pt_stab_1,
 
 
 def pt_stab_2(pt_connect_if, 
-                        pan_tilt_max_speed_dps,
                         pan_min_max_degs,
                         til_min_max_degs,
                         stab_data_dict, 
@@ -202,13 +204,18 @@ def pt_stab_2(pt_connect_if,
         stab_vel_deg = stab_settings_dict['stab_vel_deg']
             
 
-
         ##########################
         # APPLY PT UPDATES IF NEEDED
         [pan_goal, tilt_goal] = goto_position
+
         pan_deg = stab_data_dict['pan_deg']
+        pan_dps = stab_data_dict['pan_dps']
         tilt_deg = stab_data_dict['tilt_deg']
-        
+        tilt_dps = stab_data_dict['tilt_dps']
+        pan_tilt_max_speed_dps = stab_settings_dict['pan_tilt_max_speed_dps']
+        stab_min_dps = stab_settings_dict['stab_pt_min_speed_ratio'] * pan_tilt_max_speed_dps 
+        stab_max_dps = stab_settings_dict['stab_pt_max_speed_ratio'] * pan_tilt_max_speed_dps
+    
     
         # pan_adj = stab_data_dict['pan_adj']
         # pan_adj_last = stab_data_dict_last['pan_adj']
@@ -218,8 +225,6 @@ def pt_stab_2(pt_connect_if,
         #         adj_pan_goal = pan_goal + pan_adj
         #         stab_data_dict['pan_goal'] = adj_pan_goal
         #         stab_speed_ratio = stab_settings_dict['stab_pt_max_speed_ratio']
-        #         pan_dps = stab_speed_ratio * pan_tilt_max_speed_dps
-        #         stab_data_dict['pan_dps'] = pan_dps
         #         pt_connect_if.set_pan_speed_ratio(stab_speed_ratio)
         #         pt_connect_if.goto_to_pan_position(adj_pan_goal)
         
@@ -234,9 +239,9 @@ def pt_stab_2(pt_connect_if,
         if stab_tilt_enabled == True:
             if adj_tilt_delta > stab_pos_deg: # or abs(adj_tilt_goal_delta)  > stab_pos_deg :
                 stab_data_dict['tilt_goal'] = adj_tilt_goal
-                stab_speed_ratio = stab_settings_dict['stab_pt_max_speed_ratio']
-                tilt_dps = stab_speed_ratio * pan_tilt_max_speed_dps
-                stab_data_dict['tilt_dps'] = tilt_dps
+                
+                tilt_dps = stab_min_dps + (stab_max_dps - stab_min_dps) * adj_tilt_goal_delta / stab_pos_deg
+                stab_speed_ratio = tilt_dps / pan_tilt_max_speed_dps
                 pt_connect_if.set_tilt_speed_ratio(stab_speed_ratio)
                 pt_connect_if.goto_to_tilt_position(adj_tilt_goal)
                 logger.log_info("Stab Control updated: " + str([adj_tilt_delta, stab_speed_ratio, adj_tilt_goal]), throttle_s=1)
@@ -252,7 +257,7 @@ pt_stab_2_settings = {
     'stab_reset_time_sec': 3.0,
 
     'stab_num_avg': 3,
-
+    'pan_tilt_max_speed_dps': 10,
     'stab_pt_min_speed_ratio': 0.1,
     'stab_pt_max_speed_ratio': 0.9,
 }
@@ -266,11 +271,20 @@ PAN_TILT_STAB_PROCESSES_DICT['pt_stab_2'] = {'process_function': pt_stab_2,
 # Stab Utility Functions
 #########################
 
-def create_pan_tilt_stab_processes_dict():
+def create_pan_tilt_processes_dict():
     processes_dict = dict()
     for process_name in PAN_TILT_STAB_PROCESSES_DICT.keys():
         processes_dict[process_name] = PAN_TILT_STAB_PROCESSES_DICT[process_name]['default_settings_dict']
     return processes_dict
 
-def get_blank_pan_tilt_stab_data_dict():
+def update_pan_tilt_processes_dict(stab_processes_dict):
+    clean_stab_dict = create_pan_tilt_processes_dict()
+    for stab_process in clean_stab_dict.keys():
+        if stab_process in stab_processes_dict.keys():
+            for key in clean_stab_dict[stab_process].keys():
+                if key in stab_processes_dict[stab_process].keys():
+                    clean_stab_dict[stab_process][key] = stab_processes_dict[stab_process][key]
+    return clean_stab_dict
+
+def get_blank_pan_tilt_data_dict():
     return copy.deepcopy(PAN_TILT_STAB_DATA_DICT)
