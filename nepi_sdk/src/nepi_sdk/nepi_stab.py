@@ -30,6 +30,8 @@ import numpy as np
 # from scipy.interpolate import CubicSpline
 
 
+from nepi_interfaces.msg import NavPose, NavPoseOrientation
+
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
@@ -41,7 +43,7 @@ log_name = "nepi_stab"
 logger = Logger(log_name = log_name)
 
 
-PAN_TILT_SOURCE_MESSAGES = ['NavPose','NavPoseOrientation']
+PAN_TILT_SOURCE_MESSAGE_DICT = {'NavPose' : NavPose, 'NavPoseOrientation': NavPoseOrientation}
 
 PAN_TILT_STAB_DATA_DICT = {
     'data_time': 0.0,
