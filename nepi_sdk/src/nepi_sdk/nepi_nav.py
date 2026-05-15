@@ -618,24 +618,21 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
   else:
     if transform_dict != BLANK_TRANSFORM_DICT:
+      [x,y,z] = [transform_dict['x_m'],transform_dict['y_m'],transform_dict['z_m']]
+      [ar,ap,ay] = [transform_dict['roll_deg'],transform_dict['pitch_deg'],transform_dict['yaw_deg']]
+
       try:
 
         if npdata_dict['has_location'] == True:
           navpose_dict['has_location'] = True
           navpose_dict['time_location'] = npdata_dict['time_location']
-          if x != 0 or y != 0 or z != 0:
-            cur_geo = GeoPoint()
-            cur_geo.latitude = npdata_dict['latitude']
-            cur_geo.longitude = npdata_dict['longitude']
-            # tr_geo = get_geopoint_at_enu_point(cur_geo,[x,y,z])
-            # navpose_dict['latitude'] = tr_geo.latitude
-            # navpose_dict['longitude'] = tr_geo.longitude
-          else:
-            invert = 1 if transform_dict['latitude'] else -1
-            navpose_dict['latitude'] = npdata_dict['latitude'] * invert  + transform_dict['latitude']
+          cur_geo = GeoPoint()
+          cur_geo.latitude = npdata_dict['latitude']
+          cur_geo.longitude = npdata_dict['longitude']
+          tr_geo = get_geopoint_at_enu_point(cur_geo,[x,y,z])
+          navpose_dict['latitude'] = tr_geo.latitude
+          navpose_dict['longitude'] = tr_geo.longitude
 
-            invert = 1 if transform_dict['longitude'] else -1
-            navpose_dict['longitude'] = npdata_dict['longitude'] * invert  + transform_dict['longitude']
 
         if npdata_dict['has_heading'] == True:
           navpose_dict['has_heading'] = True
@@ -648,22 +645,35 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['time_orientation'] = npdata_dict['time_orientation']
 
           invert = 1 if transform_dict['roll_invert'] else -1
-          navpose_dict['roll_deg'] = npdata_dict['roll_deg'] * invert  + transform_dict['roll_deg']
+          npr = npdata_dict['roll_deg'] * invert
           invert = 1 if transform_dict['pitch_invert'] else -1
-          navpose_dict['pitch_deg'] = npdata_dict['pitch_deg'] * invert  + transform_dict['pitch_deg']
+          npp = npdata_dict['pitch_deg'] * invert
           invert = 1 if transform_dict['yaw_invert'] else -1
-          navpose_dict['yaw_deg'] = npdata_dict['yaw_deg'] * invert  + transform_dict['yaw_deg']
+          npy = npdata_dict['yaw_deg'] * invert
+
+          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ar,'x')
+          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ap,'y')
+          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ay,'z')
+          
+          [ navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg'] ]=  [npr,npp,npy]
+
 
         if npdata_dict['has_position'] == True:
           navpose_dict['has_position'] = True
           navpose_dict['time_position'] = npdata_dict['time_position']
 
           invert = 1 if transform_dict['x_invert'] else -1
-          navpose_dict['x_m'] = npdata_dict['x_m'] * invert  + transform_dict['x_m']
+          npx = npdata_dict['x_deg'] * invert + x
           invert = 1 if transform_dict['y_invert'] else -1
-          navpose_dict['y_m'] = npdata_dict['y_m'] * invert  + transform_dict['y_m']
+          npy = npdata_dict['y_deg'] * invert + y
           invert = 1 if transform_dict['z_invert'] else -1
-          navpose_dict['z_m'] = npdata_dict['z_m'] * invert  + transform_dict['z_m']
+          npz = npdata_dict['z_deg'] * invert + z
+
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ar,'x')
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ap,'y')
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ay,'z')
+          
+          [ navpose_dict['x_m'], navpose_dict['y_m'], navpose_dict['z_m'] ]=  [npx,npy,npz]
 
         if npdata_dict['has_altitude'] == True:
           navpose_dict['has_altitude'] = True
@@ -672,12 +682,33 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           invert = 1 if transform_dict['altitude_m'] else -1
           navpose_dict['altitude_m'] = npdata_dict['altitude_m'] * invert  + transform_dict['altitude_m']
 
+          npx = 0
+          invert = 1 if transform_dict['y_invert'] else -1
+          npy = npdata_dict['altitude_m'] * invert + y
+          npz = 0
+
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ar,'x')
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ap,'y')
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ay,'z')
+          
+          navpose_dict['altitude_m'] = npy
+
+
         if npdata_dict['has_depth'] == True:
           navpose_dict['has_depth'] = True
           navpose_dict['time_depth'] = npdata_dict['time_depth']
 
-          invert = 1 if transform_dict['depth_m'] else -1
-          navpose_dict['depth_m'] = npdata_dict['depth_m'] * invert  + transform_dict['depth_m']
+          npx = 0
+          invert = 1 if transform_dict['y_invert'] else -1
+          npy = npdata_dict['depth_m'] * invert + y
+          npz = 0
+
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ar,'x')
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ap,'y')
+          [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ay,'z')
+          
+          navpose_dict['depth_m'] = npy
+
 
         if npdata_dict['has_pan_tilt'] == True:
           navpose_dict['has_pan_tilt'] = True
@@ -1444,14 +1475,6 @@ def point_from_geopoints(geopoint1,geopoint2,heading_deg):
   return delta_x_ned_m,delta_y_ned_m,delta_altitude_m
 
 
-
-
-
-################################
-### Pan Tilt Utility Functions
-
-
-
 def rotate_enu_point(xyz_vector, angle_deg, axis='z'):
     theta = np.radians(angle_deg)
     c, s = np.cos(theta), np.sin(theta)
@@ -1467,6 +1490,7 @@ def rotate_enu_point(xyz_vector, angle_deg, axis='z'):
     new_vector = np.dot(R, xyz_vector)
     return new_vector
 
+
 def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
     theta = np.radians(angle_deg)
     c, s = np.cos(theta), np.sin(theta)
@@ -1480,15 +1504,13 @@ def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
     else:
         raise ValueError("Axis must be 'x', 'y', or 'z'")
     new_vector = np.dot(R, rpy_vector)
-    if axis == 'x': # East
-        new_vector[0] = rpy_vector[0] + angle_deg
-    elif axis == 'y': # North
-        new_vector[1] = rpy_vector[1] + angle_deg
-    elif axis == 'z': # Up
-        new_vector[2] = rpy_vector[2] + angle_deg
-    else:
-        raise ValueError("Axis must be 'x', 'y', or 'z'")    
     return new_vector
+
+
+################################
+### Pan Tilt Utility Functions
+
+
 
 
 def update_transform_from_pantilt(transform, pan_deg, tilt_deg):
@@ -1509,9 +1531,11 @@ def update_transform_from_pantilt(transform, pan_deg, tilt_deg):
     [x,y,z] = [xp,yp,zp]
 
     [art,apt,ayt]  = rotate_enu_angles([ar,ap,ay],tilt_deg,'y')
+    apt = apt + tilt_deg
     [ar,ap,ay] = [art,apt,ayt]
 
     [arp,app,ayp]  = rotate_enu_angles([ar,ap,ay],pan_deg,'z')
+    ayp = ayp + pan_deg
     [ar,ap,ay] = [arp,app,ayp]
 
     new_transform = dict(transform)

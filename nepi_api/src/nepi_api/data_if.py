@@ -168,7 +168,7 @@ class NavPoseIF:
     callback_dict = copy.deepcopy(DEFAULT_CALLBACK_DICT)
 
     ready = False
-    namespace = '~'
+    namespace = '~/navpose'
 
     node_if = None
     save_data_if = None
@@ -176,10 +176,10 @@ class NavPoseIF:
 
     status_msg = NavPoseStatus()
 
-    last_pub_time = None
-
+    data_product = 'navpose'
     needs_data = False
-
+    
+    last_pub_time = None
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
 
@@ -187,7 +187,7 @@ class NavPoseIF:
     frame_altitude = 'WGS84'
     frame_depth = 'MSL'
 
-    data_product = 'navpose'
+
 
     navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
