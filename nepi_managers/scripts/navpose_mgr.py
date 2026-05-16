@@ -192,9 +192,9 @@ class NavPoseMgr(object):
     frame_depth = 'DEPTH'
 
 
-    navposes_info_dict = dict()
-    last_navposes_info_dict = dict()
-    navposes_info_dict_lock = threading.Lock()
+    naposes_settings_dict = dict()
+    last_naposes_settings_dict = dict()
+    naposes_settings_dict_lock = threading.Lock()
 
 
     navposes_fixed_dict = dict()
@@ -321,9 +321,9 @@ class NavPoseMgr(object):
                 'namespace': self.node_namespace,
                 'factory_val': self.navposes_max_pub_rate
             },
-            'navposes_info_dict': {
+            'naposes_settings_dict': {
                 'namespace': self.node_namespace,
-                'factory_val': self.navposes_info_dict
+                'factory_val': self.naposes_settings_dict
             },
             'navposes_fixed_dict': {
                 'namespace': self.node_namespace,
@@ -632,25 +632,25 @@ class NavPoseMgr(object):
 
             self.navposes_max_pub_rate = self.node_if.get_param('navposes_max_pub_rate')
 
-            navposes_info_dict = self.node_if.get_param('navposes_info_dict')
-            if navposes_info_dict is not None:
-                for frame in navposes_info_dict.keys():
-                    if 'connect_dict' not in navposes_info_dict.keys():
-                        navposes_info_dict[frame]['connect_dict'] = self.BLANK_CONNECT_DICT
+            naposes_settings_dict = self.node_if.get_param('naposes_settings_dict')
+            if naposes_settings_dict is not None:
+                for frame in naposes_settings_dict.keys():
+                    if 'connect_dict' not in naposes_settings_dict.keys():
+                        naposes_settings_dict[frame]['connect_dict'] = self.BLANK_CONNECT_DICT
                     for comp_name in self.BLANK_CONNECT_DICT:
-                        if comp_name not in navposes_info_dict[frame]['connect_dict'].keys():
-                            navposes_info_dict[frame]['connect_dict'][comp_name] = copy.deepcopy(self.BLANK_COMP_DICT)
-                        comp_dict = navposes_info_dict[frame]['connect_dict'][comp_name]
+                        if comp_name not in naposes_settings_dict[frame]['connect_dict'].keys():
+                            naposes_settings_dict[frame]['connect_dict'][comp_name] = copy.deepcopy(self.BLANK_COMP_DICT)
+                        comp_dict = naposes_settings_dict[frame]['connect_dict'][comp_name]
                         for key in self.BLANK_COMP_DICT.keys():
                             if key not in comp_dict.keys():
-                                navposes_info_dict[frame]['connect_dict'][comp_name][key] = self.BLANK_COMP_DICT[key]
-                navposes_info_dict = navposes_info_dict
+                                naposes_settings_dict[frame]['connect_dict'][comp_name][key] = self.BLANK_COMP_DICT[key]
+                naposes_settings_dict = naposes_settings_dict
             else:
-                navposes_info_dict = dict()
+                naposes_settings_dict = dict()
             
-            self.navposes_info_dict_lock.acquire()
-            self.navposes_info_dict = copy.deepcopy(navposes_info_dict)
-            self.navposes_info_dict_lock.release()
+            self.naposes_settings_dict_lock.acquire()
+            self.naposes_settings_dict = copy.deepcopy(naposes_settings_dict)
+            self.naposes_settings_dict_lock.release()
 
 
             self.frame_nav = self.node_if.get_param('frame_nav')
@@ -659,21 +659,21 @@ class NavPoseMgr(object):
 
  
             if do_updates == True:
-                navposes_info_dict = copy.deepcopy(self.navposes_info_dict)
+                naposes_settings_dict = copy.deepcopy(self.naposes_settings_dict)
                 for frame_name in self.navposes_init_frames:
-                    if frame_name in navposes_info_dict.keys():
-                        navpose_info_dict = navposes_info_dict[frame_name]
+                    if frame_name in naposes_settings_dict.keys():
+                        navpose_info_dict = naposes_settings_dict[frame_name]
                     else:
                         navpose_info_dict = None
-                for frame_name in navposes_info_dict.keys():
-                    self.addNavpose(frame_name, init_dict_entry = navposes_info_dict[frame_name], do_updates = False)
+                for frame_name in naposes_settings_dict.keys():
+                    self.addNavpose(frame_name, init_dict_entry = navpose_info_dict, do_updates = False)
                     
-                self.msg_if.pub_warn("Initializing NavPoses Dict with navpose_info_dict: " + str(self.navposes_info_dict))
+                self.msg_if.pub_warn("Initializing NavPoses Dict with navpose_info_dict: " + str(self.naposes_settings_dict))
                 self.updateNavposesData()
 
 
             self.publish_status()
-            self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+            self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
             self.node_if.save_config()
 
     def resetCb(self,do_updates = True):
@@ -703,24 +703,24 @@ class NavPoseMgr(object):
 
     def updateNavposesData(self):
 
-        self.navposes_info_dict_lock.acquire()
-        navposes_info_dict = copy.deepcopy(self.navposes_info_dict)
+        self.naposes_settings_dict_lock.acquire()
+        naposes_settings_dict = copy.deepcopy(self.naposes_settings_dict)
         navposes_init_times_dict = copy.deepcopy(self.navposes_init_times_dict)
         navposes_source_times_dict = copy.deepcopy(self.navposes_source_times_dict)
         navposes_update_times_dict = copy.deepcopy(self.navposes_update_times_dict)
-        self.navposes_info_dict_lock.release()
+        self.naposes_settings_dict_lock.release()
 
-        frames = list(navposes_info_dict.keys())
+        frames = list(naposes_settings_dict.keys())
      
 
         navpose_frames = []
         navpose_topics = []
         for frame in frames:
-            if frame in navposes_info_dict.keys():
+            if frame in naposes_settings_dict.keys():
                 navpose_frames.append(frame)
-                if 'namespace' not in navposes_info_dict[frame].keys():
-                    navposes_info_dict[frame]['namespace'] = ''
-                navpose_topics.append(navposes_info_dict[frame]['namespace'])
+                if 'namespace' not in naposes_settings_dict[frame].keys():
+                    naposes_settings_dict[frame]['namespace'] = ''
+                navpose_topics.append(naposes_settings_dict[frame]['namespace'])
 
 
 
@@ -733,7 +733,7 @@ class NavPoseMgr(object):
         navposes_settings_dict['frame_alt'] = self.frame_alt
         navposes_settings_dict['frame_depth'] = self.frame_depth
 
-        navposes_settings_dict['navpose_options'] = list(navposes_info_dict.keys())     
+        navposes_settings_dict['navpose_options'] = list(naposes_settings_dict.keys())     
 
         navposes_settings_dict['navpose_pub_topics'] = navpose_topics
         self.navposes_settings_dict = navposes_settings_dict
@@ -757,10 +757,10 @@ class NavPoseMgr(object):
         for frame_name in navpose_frames:
     
 
-            if frame_name in navposes_info_dict.keys():
+            if frame_name in naposes_settings_dict.keys():
             
 
-                connect_dict = navposes_info_dict[frame_name]['connect_dict']
+                connect_dict = naposes_settings_dict[frame_name]['connect_dict']
 
                 #self.msg_if.pub_warn("Updating NavPose dict for frame: " + str(frame_name) + " connect_dict: " + str(connect_dict))
                 comp_names = list(self.BLANK_CONNECT_DICT.keys())
@@ -920,7 +920,7 @@ class NavPoseMgr(object):
                 solution_msg = NavPoseSolution()
                 solution_msg.frame_name = frame_name
 
-                namespace = navposes_info_dict[frame_name]['namespace'] 
+                namespace = naposes_settings_dict[frame_name]['namespace'] 
                 solution_msg.frame_namespace = namespace     
                 solution_msg.navpose_topic = os.path.join(namespace,'navpose')
                 solution_msg.navpose_fixed_topic = os.path.join(namespace,'navpose_fixed')
@@ -964,8 +964,8 @@ class NavPoseMgr(object):
                 solution_msg.has_updated = states_false == 0 and states_true > 0
 
                 state = False
-                if frame_name in self.navposes_info_dict.keys():
-                    info_dict = self.navposes_info_dict[frame_name]
+                if frame_name in self.naposes_settings_dict.keys():
+                    info_dict = self.naposes_settings_dict[frame_name]
                     if 'connect_dict' in info_dict.keys():
                         for comp_name in info_dict['connect_dict'].keys():
                             if info_dict['connect_dict'][comp_name]['init_topic'] == 'Fixed':
@@ -979,9 +979,9 @@ class NavPoseMgr(object):
                     state = navpose_dict['has_pan_tilt']           
                 solution_msg.has_pan_tilt = state
 
-                solution_msg.pan_tilt_adjusted = navposes_info_dict[frame_name]['pan_tilt_adjusted']
+                solution_msg.pan_tilt_adjusted = naposes_settings_dict[frame_name]['pan_tilt_adjusted']
                
-                solution_msg.max_pub_rate = navposes_info_dict[frame_name]['max_pub_rate']
+                solution_msg.max_pub_rate = naposes_settings_dict[frame_name]['max_pub_rate']
 
                 if frame_name in self.navposes_pub_times_dict.keys():
                     times_dict = navposes_init_times_dict[frame_name][comp_name]
@@ -1006,9 +1006,9 @@ class NavPoseMgr(object):
         self.status_msg.navpose_frames_topics = navpose_topics
         self.status_msg.navpose_frames_solutions = navpose_solution_msg_list
 
-        for frame_name in self.navposes_info_dict.keys():
+        for frame_name in self.naposes_settings_dict.keys():
             try:
-                self.navposes_info_dict[frame_name]['ready'] = True
+                self.naposes_settings_dict[frame_name]['ready'] = True
             except:
                 pass
 
@@ -1019,12 +1019,12 @@ class NavPoseMgr(object):
 
         ###########
         ## Update navposes data
-        if self.last_navposes_info_dict != self.navposes_info_dict:
+        if self.last_naposes_settings_dict != self.naposes_settings_dict:
             self.publish_status()
             self.update_navposes = True
             if self.node_if is not None:
                 self.node_if.save_config()
-        self.last_navposes_info_dict = copy.deepcopy(self.navposes_info_dict)
+        self.last_naposes_settings_dict = copy.deepcopy(self.naposes_settings_dict)
 
 
     def registerCompTopic(self, frame_name, comp_name, topic):
@@ -1097,7 +1097,7 @@ class NavPoseMgr(object):
         
 
                 
-        if frame_name not in self.navposes_info_dict.keys() or (reset == True and frame_name in self.navposes_info_dict.keys()):
+        if frame_name not in self.naposes_settings_dict.keys() or (reset == True and frame_name in self.naposes_settings_dict.keys()):
             self.msg_if.pub_info("Updating navpose entry for: " + str(frame_name))
             if init_dict_entry is None or reset == True:
                 info_dict_entry = dict()
@@ -1134,9 +1134,9 @@ class NavPoseMgr(object):
 
             info_dict_entry['ready'] = False
             self.msg_if.pub_info("Registering new navpose: " + str(frame_name))
-            self.navposes_info_dict_lock.acquire()
-            self.navposes_info_dict[frame_name] = info_dict_entry
-            self.navposes_info_dict_lock.release()
+            self.naposes_settings_dict_lock.acquire()
+            self.naposes_settings_dict[frame_name] = info_dict_entry
+            self.naposes_settings_dict_lock.release()
 
             self.navposes_fixed_dict[frame_name] = navpose_fixed
 
@@ -1144,20 +1144,20 @@ class NavPoseMgr(object):
 
         ###################
         # Update other navpose frame required components
-        if frame_name in self.navposes_info_dict.keys():
+        if frame_name in self.naposes_settings_dict.keys():
 
 
 
-            self.navposes_info_dict_lock.acquire()
-            info_dict_entry = copy.deepcopy(self.navposes_info_dict[frame_name])
-            self.navposes_info_dict_lock.release()
+            self.naposes_settings_dict_lock.acquire()
+            info_dict_entry = copy.deepcopy(self.naposes_settings_dict[frame_name])
+            self.naposes_settings_dict_lock.release()
 
 
             self.msg_if.pub_warn("Updating navpose components for: " + str(frame_name) ) #+ ' : ' + str(info_dict_entry))
-            self.navposes_info_dict[frame_name]['data_product'] = data_product
+            self.naposes_settings_dict[frame_name]['data_product'] = data_product
 
             if description is not None:
-                self.navposes_info_dict[frame_name]['description'] = description
+                self.naposes_settings_dict[frame_name]['description'] = description
 
             
 
@@ -1234,15 +1234,15 @@ class NavPoseMgr(object):
         if old_name == self.NAVPOSE_BASE_FRAME:
             self.msg_if.pub_info("Can't rename base frame")
             return
-        if old_name not in self.navposes_info_dict.keys():
+        if old_name not in self.naposes_settings_dict.keys():
             self.msg_if.pub_info("Frame not found for rename: " + str(old_name))
             return
-        if new_name in self.navposes_info_dict.keys():
+        if new_name in self.naposes_settings_dict.keys():
             self.msg_if.pub_info("Rename target already exists: " + str(new_name))
             return
-        self.navposes_info_dict_lock.acquire()
-        init_dict_entry = copy.deepcopy(self.navposes_info_dict[old_name])
-        self.navposes_info_dict_lock.release()
+        self.naposes_settings_dict_lock.acquire()
+        init_dict_entry = copy.deepcopy(self.naposes_settings_dict[old_name])
+        self.naposes_settings_dict_lock.release()
         if old_name in self.navposes_fixed_dict.keys():
             self.navposes_fixed_dict[new_name] = copy.deepcopy(self.navposes_fixed_dict[old_name])
         self.addNavpose(new_name, init_dict_entry=init_dict_entry, do_updates=False)
@@ -1252,7 +1252,7 @@ class NavPoseMgr(object):
     def removeNavpose(self, frame_name):
         if frame_name == self.NAVPOSE_BASE_FRAME:
             self.msg_if.pub_info("Can't Remove Base Frame: " + str(frame_name))
-        elif frame_name not in self.navposes_info_dict.keys():
+        elif frame_name not in self.naposes_settings_dict.keys():
             self.msg_if.pub_info("NavPose entry does not exist for: " + str(frame_name))
         else:
 
@@ -1268,9 +1268,9 @@ class NavPoseMgr(object):
 
 
             # Remove from info dict
-            self.navposes_info_dict_lock.acquire()
-            del self.navposes_info_dict[frame_name]
-            self.navposes_info_dict_lock.release()
+            self.naposes_settings_dict_lock.acquire()
+            del self.naposes_settings_dict[frame_name]
+            self.naposes_settings_dict_lock.release()
             nepi_sdk.sleep(1)
 
             # Remove publishers
@@ -1390,7 +1390,7 @@ class NavPoseMgr(object):
             self.node_if.save_config()
      
     def resetFrameNavpose(self, frame_name):
-        if frame_name in self.navposes_info_dict.keys():
+        if frame_name in self.naposes_settings_dict.keys():
             self.navposes_init_states_dict[frame_name] = copy.deepcopy(self.BLANK_STATES_DICT)
             self.navposes_init_times_dict[frame_name] = copy.deepcopy(self.BLANK_TIMES_DICT)
             self.navposes_init_dict[frame_name] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -1414,12 +1414,12 @@ class NavPoseMgr(object):
 
 
     def setFrameDescription(self,frame_name, desc):
-        if frame_name in self.navposes_info_dict.keys():
-            self.navposes_info_dict[frame_name]['description'] = desc
+        if frame_name in self.naposes_settings_dict.keys():
+            self.naposes_settings_dict[frame_name]['description'] = desc
             self.publish_status()
             self.updateNavposesData()
             if self.node_if is not None:
-                self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+                self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
                 self.node_if.save_config()
         else:
             self.publish_status()
@@ -1447,26 +1447,26 @@ class NavPoseMgr(object):
             rate = min
         if rate > max:
             rate = max
-        if frame_name in self.navposes_info_dict.keys():
-            self.navposes_info_dict[frame_name]['max_pub_rate'] = rate
+        if frame_name in self.naposes_settings_dict.keys():
+            self.naposes_settings_dict[frame_name]['max_pub_rate'] = rate
             self.publish_status()
             self.updateNavposesData()
             if self.node_if is not None:
-                self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+                self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
                 self.node_if.save_config()
         else:
             self.publish_status()
 
 
     def setFrameCompTopic(self, frame_name, comp_name, type_name, topic):
-        if frame_name in self.navposes_info_dict.keys():
+        if frame_name in self.naposes_settings_dict.keys():
             avail_topics_dict = copy.deepcopy(self.avail_topics_dict)
-            if comp_name in self.navposes_info_dict[frame_name]['connect_dict'].keys() and (type_name == 'init' or type_name == 'source' or type_name == 'update'):
+            if comp_name in self.naposes_settings_dict[frame_name]['connect_dict'].keys() and (type_name == 'init' or type_name == 'source' or type_name == 'update'):
 
 
-                cur_init_topic = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_topic']
-                cur_source_topic = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_topic']
-                cur_update_topic = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_topic']
+                cur_init_topic = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_topic']
+                cur_source_topic = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['source_topic']
+                cur_update_topic = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_topic']
 
 
                 if type_name == 'init':
@@ -1477,19 +1477,19 @@ class NavPoseMgr(object):
 
                         ## Update Connect Dict
                         if topic == 'Fixed':
-                            self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_connected'] = True
+                            self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_connected'] = True
                             self.navposes_init_states_dict[frame_name][comp_name] = True
-                            self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_topic'] = 'Fixed'
+                            self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_topic'] = 'Fixed'
 
                         elif topic == 'None' or topic == '':
-                            self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_connected'] = False
+                            self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_connected'] = False
                             self.navposes_init_states_dict[frame_name][comp_name] = None
-                            self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_topic'] = 'None'
+                            self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_topic'] = 'None'
                         elif comp_name in avail_topics_dict.keys():
                             if topic in avail_topics_dict[comp_name]['topics']:
-                                self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_connected'] = False
+                                self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_connected'] = False
                                 self.navposes_init_states_dict[frame_name][comp_name] = False
-                                self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_topic'] = topic
+                                self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_topic'] = topic
 
                                 self.registerCompTopic(frame_name, comp_name, topic)
                                 self.subscribeTopic(topic)
@@ -1502,11 +1502,11 @@ class NavPoseMgr(object):
 
                         if topic == 'None' or topic == '':
                             self.navposes_source_states_dict[frame_name][comp_name] = None
-                            self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_topic'] = 'None'
+                            self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['source_topic'] = 'None'
                         elif comp_name in avail_topics_dict.keys():
                             if topic in avail_topics_dict[comp_name]['topics']:
                                 self.navposes_source_states_dict[frame_name][comp_name] = False
-                                self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_topic'] = topic
+                                self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['source_topic'] = topic
 
                                 self.registerCompTopic(frame_name, comp_name, topic)
                                 self.subscribeTopic(topic)
@@ -1519,11 +1519,11 @@ class NavPoseMgr(object):
 
                         if topic == 'None' or topic == '':
                             self.navposes_update_states_dict[frame_name][comp_name] = None
-                            self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_topic'] = 'None'
+                            self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_topic'] = 'None'
                         elif comp_name in avail_topics_dict.keys():
                             if topic in avail_topics_dict[comp_name]['topics']:
                                 self.navposes_update_states_dict[frame_name][comp_name] = False
-                                self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_topic'] = topic
+                                self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_topic'] = topic
 
                                 self.registerCompTopic(frame_name, comp_name, topic)
                                 self.subscribeTopic(topic)
@@ -1532,7 +1532,7 @@ class NavPoseMgr(object):
                 self.publish_status()
                 self.updateNavposesData()
                 if self.node_if is not None:
-                    self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+                    self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
                     self.node_if.save_config()
         else:
             self.publish_status()
@@ -1542,18 +1542,18 @@ class NavPoseMgr(object):
 
 
     def setFrameCompTransform(self, frame_name, comp_name, type_name, transform_dict):
-        if frame_name in self.navposes_info_dict.keys():
-            if comp_name in self.navposes_info_dict[frame_name]['connect_dict'].keys():
+        if frame_name in self.naposes_settings_dict.keys():
+            if comp_name in self.naposes_settings_dict[frame_name]['connect_dict'].keys():
                 if type_name == 'init':
-                    self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_transform'] = transform_dict
+                    self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_transform'] = transform_dict
                 elif type_name == 'source':
-                    self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_transform'] = transform_dict
+                    self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['source_transform'] = transform_dict
                 elif type_name == 'update':
-                    self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_transform'] = transform_dict
+                    self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_transform'] = transform_dict
                 self.publish_status()
                 self.updateNavposesData()
                 if self.node_if is not None:
-                    self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+                    self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
                     self.node_if.save_config()
         else:
             self.publish_status()
@@ -1567,24 +1567,24 @@ class NavPoseMgr(object):
 
 
     def setFrameCompOption(self,frame_name, comp_name, type_name, option):
-        if frame_name in self.navposes_info_dict.keys():
-            if comp_name in self.navposes_info_dict[frame_name]['connect_dict'].keys():
+        if frame_name in self.naposes_settings_dict.keys():
+            if comp_name in self.naposes_settings_dict[frame_name]['connect_dict'].keys():
                 if type_name == 'init':
-                    options = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_options']
+                    options = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_options']
                     if option in options:
-                        self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_option'] = option
+                        self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_option'] = option
                 elif type_name == 'source':
-                    options = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_options']
+                    options = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['source_options']
                     if option in options:
-                        self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_option'] = option
+                        self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['source_option'] = option
                 elif type_name == 'update':
-                    options = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_options']
+                    options = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_options']
                     if option in options:
-                        self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_option'] = option
+                        self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_option'] = option
                 self.publish_status()
                 self.updateNavposesData()
                 if self.node_if is not None:
-                    self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+                    self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
                     self.node_if.save_config()
         else:
             self.publish_status()
@@ -1604,15 +1604,15 @@ class NavPoseMgr(object):
 
 
     def setFrameCompInitTimedSec(self,frame_name, comp_name, delay):
-        if frame_name in self.navposes_info_dict.keys():
-            if comp_name in self.navposes_info_dict[frame_name]['connect_dict'].keys():
+        if frame_name in self.naposes_settings_dict.keys():
+            if comp_name in self.naposes_settings_dict[frame_name]['connect_dict'].keys():
                 if delay < 0.1:
                     delay = 0.1
-                self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_timed_sec'] = delay
+                self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_timed_sec'] = delay
                 self.publish_status()
                 self.updateNavposesData()
                 if self.node_if is not None:
-                    self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+                    self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
                     self.node_if.save_config()
         else:
             self.publish_status()
@@ -1620,25 +1620,25 @@ class NavPoseMgr(object):
 
 
     def setFrameCompUpdateResetsOnCrossing(self, frame_name, comp_name, enabled):
-        if frame_name in self.navposes_info_dict.keys():
-            if comp_name in self.navposes_info_dict[frame_name]['connect_dict'].keys():
-                self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_resets_on_crossing'] = enabled
+        if frame_name in self.naposes_settings_dict.keys():
+            if comp_name in self.naposes_settings_dict[frame_name]['connect_dict'].keys():
+                self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_resets_on_crossing'] = enabled
                 self.publish_status()
                 self.updateNavposesData()
                 if self.node_if is not None:
-                    self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+                    self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
                     self.node_if.save_config()
         else:
             self.publish_status()
 
     def setFrameCompUpdateResetsCrossing(self, frame_name, comp_name, crossing):
-        if frame_name in self.navposes_info_dict.keys():
-            if comp_name in self.navposes_info_dict[frame_name]['connect_dict'].keys():
-                self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_resets_crossing'] = crossing
+        if frame_name in self.naposes_settings_dict.keys():
+            if comp_name in self.naposes_settings_dict[frame_name]['connect_dict'].keys():
+                self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_resets_crossing'] = crossing
                 self.publish_status()
                 self.updateNavposesData()
                 if self.node_if is not None:
-                    self.node_if.set_param('navposes_info_dict',self.navposes_info_dict)
+                    self.node_if.set_param('naposes_settings_dict',self.naposes_settings_dict)
                     self.node_if.save_config()
         else:
             self.publish_status()
@@ -1648,7 +1648,7 @@ class NavPoseMgr(object):
     def setFrameFixedNavPose(self, frame_name, navpose_dict = None):
         if navpose_dict is None:
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-        if frame_name in self.navposes_info_dict.keys():
+        if frame_name in self.naposes_settings_dict.keys():
             self.navposes_fixed_dict[frame_name] = navpose_dict
             self.publish_status()
             self.update_navposes = True
@@ -1781,11 +1781,11 @@ class NavPoseMgr(object):
     def _copyFrameCb(self,msg):
         frame_name = msg.name
         source = msg.value
-        self.navposes_info_dict_lock.acquire()
-        navposes_info_dict = copy.deepcopy(self.navposes_info_dict)
-        self.navposes_info_dict_lock.release()
-        if source in navposes_info_dict.keys():
-            info_dict_entry = navposes_info_dict[source]
+        self.naposes_settings_dict_lock.acquire()
+        naposes_settings_dict = copy.deepcopy(self.naposes_settings_dict)
+        self.naposes_settings_dict_lock.release()
+        if source in naposes_settings_dict.keys():
+            info_dict_entry = naposes_settings_dict[source]
             self.addNavpose(frame_name, init_dict_entry = info_dict_entry)
 
 
@@ -1898,12 +1898,12 @@ class NavPoseMgr(object):
         if topic in self.navpose_subs_dict.keys():
             frame_names = list(self.navpose_subs_dict[topic]['subs_dict'].keys())
             for frame_name in frame_names:
-                if frame_name != 'None' and frame_name in self.navposes_source_dict.keys() and frame_name in self.navposes_info_dict.keys():
+                if frame_name != 'None' and frame_name in self.navposes_source_dict.keys() and frame_name in self.naposes_settings_dict.keys():
                     comp_names = self.navpose_subs_dict[topic]['subs_dict'][frame_name]
                     for comp_name in comp_names:
-                        cur_init_topic = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_topic']
-                        cur_source_topic = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_topic']
-                        cur_update_topic = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_topic']
+                        cur_init_topic = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_topic']
+                        cur_source_topic = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['source_topic']
+                        cur_update_topic = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_topic']
 
 
                         self.navposes_init_dict_lock.acquire()
@@ -1927,7 +1927,7 @@ class NavPoseMgr(object):
                         if cur_init_topic == topic:
                             type_name = 'init'
 
-                            init_option = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_option']
+                            init_option = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_option']
 
                             init_state = True
                             if frame_name in self.navposes_init_states_dict.keys():
@@ -1941,12 +1941,12 @@ class NavPoseMgr(object):
                                     last_time = times_dict['last_time']         
                             cur_time = nepi_utils.get_time()
                             timer = cur_time - last_time
-                            delay = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['init_timed_sec']
+                            delay = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_timed_sec']
 
                             should_init = (init_option == 'ALLWAYS') or (init_option == 'ONCE' and init_state != True) or (init_option == 'TIMED' and timer > delay)
 
                             if should_init == True:
-                                transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                                transform_dict = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
                                 navpose_update_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                                 if frame_name in navposes_init_dict.keys():
@@ -1976,7 +1976,7 @@ class NavPoseMgr(object):
 
                             type_name = 'source'
 
-                            transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
 
                             navpose_source_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -2007,7 +2007,7 @@ class NavPoseMgr(object):
 
                             type_name = 'update'
 
-                            transform_dict = self.navposes_info_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
                             last_navpose_update_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_update_dict.keys():
@@ -2023,14 +2023,14 @@ class NavPoseMgr(object):
                      
                             navpose_update_dict = nepi_nav.update_navpose_dict_from_msg(comp_name, last_navpose_update_dict, msg, transform_dict=transform_dict)
 
-                            update_option = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_option']
+                            update_option = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_option']
                             if update_option == 'OFFSETS':
                                 
                                 navpose_update_offset = nepi_nav.update_navpose_dict_from_msg(comp_name, navpose_update_offset, msg, transform_dict=transform_dict)
 
                             elif update_option == 'RESETS':
-                                update_resets_on_crossing = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_resets_on_crossing']
-                                update_resets_crossing = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['update_resets_crossing']
+                                update_resets_on_crossing = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_resets_on_crossing']
+                                update_resets_crossing = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_resets_crossing']
 
                                 navpose_source_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                                 if frame_name in navposes_source_dict.keys():
@@ -2097,12 +2097,12 @@ class NavPoseMgr(object):
         update_navposes = copy.deepcopy(self.update_navposes)
         for frame_name in navposes_source_dict.keys():
 
-            if frame_name not in self.navposes_info_dict:
+            if frame_name not in self.naposes_settings_dict:
                 continue
 
-            navpose_info_dict = copy.deepcopy(self.navposes_info_dict[frame_name])
+            navpose_info_dict = copy.deepcopy(self.naposes_settings_dict[frame_name])
 
-            if frame_name in self.navposes_info_dict.keys():
+            if frame_name in self.naposes_settings_dict.keys():
 
                 # Publish NavPose if Needed
                 cur_time = nepi_utils.get_time()
@@ -2161,7 +2161,7 @@ class NavPoseMgr(object):
                         navpose_source_replace_dict = copy.deepcopy(navpose_source_dict)
                         navpose_source_offset_dict = copy.deepcopy(navpose_source_dict)
                         for comp_name in self.BLANK_CONNECT_DICT.keys():
-                            source_option = self.navposes_info_dict[frame_name]['connect_dict'][comp_name]['source_option']
+                            source_option = self.naposes_settings_dict[frame_name]['connect_dict'][comp_name]['source_option']
                             has_name = 'has_' + comp_name
                             if source_option == 'REPLACES':
                                 navpose_source_offset_dict[has_name] = False
@@ -2211,8 +2211,8 @@ class NavPoseMgr(object):
                     #     pan_deg = navpose_dict['pan_deg']
                     #     tilt_deg = navpose_dict['tilt_deg']
                     #     transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
-                    #     if 'pan_tilt' in self.navposes_info_dict[frame_name]['connect_dict'].keys():
-                    #         transform_dict = self.navposes_info_dict[frame_name]['connect_dict']['pan_tilt']['tranform']
+                    #     if 'pan_tilt' in self.naposes_settings_dict[frame_name]['connect_dict'].keys():
+                    #         transform_dict = self.naposes_settings_dict[frame_name]['connect_dict']['pan_tilt']['tranform']
                     #     navpose_dict = nepi_nav.
 
 

@@ -137,7 +137,7 @@ class PTXActuatorIF:
     speed_ratio = 0.5
     speed_pan_ratio = speed_ratio
     speed_tilt_ratio = speed_ratio
-    speed_max_dps = -999
+    speed_max_dps = 10
 
 
     tr_source_ref_description = 'tilt_axis_center'
@@ -200,7 +200,6 @@ class PTXActuatorIF:
                  navpose_update_rate = 10,
                  deviceResetCb = None,
                  calibrateCenterCB = None,
-                 speed_max_dps = None,
                  log_name = None,
                  log_name_list = [],
                  msg_if = None
@@ -230,8 +229,6 @@ class PTXActuatorIF:
 
         ##############################
         # Initialize Class Variables
-        if speed_max_dps is not None:
-            self.speed_max_dps = speed_max_dps
         self.device_name = device_info["device_name"]
         self.path = device_info["path"]
         self.serial_num = device_info["serial_number"]
@@ -439,6 +436,10 @@ class PTXActuatorIF:
         # Params Config Dict ####################
 
         self.PARAMS_DICT = {
+            'speed_max_dps': {
+                'namespace': self.namespace,
+                'factory_val': self.factory_controls_dict['speed_max_dps']
+            },
             'speed_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict['speed_ratio']
@@ -554,6 +555,14 @@ class PTXActuatorIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'set_speed_max_dps': {
+                'namespace': self.namespace,
+                'topic': 'set_speed_max_dps',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setMaxSpeedCb,
+                'callback_args': ()
+            },
             'speed_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_speed_ratio',
@@ -840,6 +849,7 @@ class PTXActuatorIF:
                                         self.min_tilt_softstop_deg,
                                         self.max_tilt_softstop_deg)
 
+            self.speed_max_dps = self.node_if.get_param('speed_max_dps')
             if self.has_adjustable_speed == False:
                 if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
                     speed_ratio = self.node_if.get_param('speed_ratio')
@@ -1213,6 +1223,15 @@ class PTXActuatorIF:
         self.publish_status()
 
 
+
+    def _setMaxSpeedCb(self, msg):
+            max_speed = msg.data
+            if (max_speed > 0.0):
+                self.speed_max_dps = max_speed
+                self.publish_status()
+                self.node_if.set_param('speed_max_dps',max_speed)
+                self.msg_if.pub_warn("Updated max speed to " + str(max_speed))
+
     def _setSpeedRatioCb(self, msg):
         if self.caps_report.has_adjustable_speed == True:
             speed_cur = math.floor(self.getSpeedRatioCb())
@@ -1226,7 +1245,7 @@ class PTXActuatorIF:
                 self.speed_pan_ratio = speed_ratio
                 self.speed_tilt_ratio = speed_ratio
                 self.publish_status()
-                self.msg_if.pub_info("-1")
+                
                 self.setSpeedRatioCb(speed_ratio)
                 self.node_if.set_param('speed_ratio',speed_ratio)
                 self.node_if.set_param('speed_pan_ratio',speed_ratio)
@@ -1248,7 +1267,7 @@ class PTXActuatorIF:
             elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
                 self.speed_ratio = speed_ratio
                 self.publish_status()
-                self.msg_if.pub_info("-1")
+                
                 self.setSpeedRatioCb(speed_ratio)
                 self.node_if.set_param('speed_ratio',speed_ratio)
                 self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
@@ -1267,7 +1286,7 @@ class PTXActuatorIF:
             elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
                 self.speed_ratio = speed_ratio
                 self.publish_status()
-                self.msg_if.pub_info("-1")
+                
                 self.setSpeedRatioCb(speed_ratio)
                 self.node_if.set_param('speed_ratio',speed_ratio)
                 self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
