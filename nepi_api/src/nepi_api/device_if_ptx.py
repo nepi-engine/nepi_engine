@@ -183,6 +183,8 @@ class PTXActuatorIF:
                  moveTiltCb = None, # Required; direction and time args
                  setSoftLimitsCb=None,
                  getSoftLimitsCb=None,
+                 getSpeedMaxCb = None,
+                 setSpeedMaxCb = None,
                  setSpeedRatioCb=None, # None ==> No speed adjustment capability; Speed ratio arg
                  getSpeedRatioCb=None, # None ==> No speed adjustment capabilitiy; Returns speed ratio
                  setPanSpeedRatioCb=None,
@@ -314,6 +316,12 @@ class PTXActuatorIF:
             self.has_timed_positioning = True
 
         # SPEED SETTINGS  #############
+        self.setSpeedMaxCb = setSpeedMaxCb
+        self.getSpeedMaxCb = getSpeedMaxCb
+        if self.getSpeedMaxCb is not None:
+            self.speed_max_dps = self.getSpeedMaxCb()
+
+
         self.setSpeedRatioCb = setSpeedRatioCb
         if setSpeedRatioCb is None:
             self.getSpeedRatioCb = self.getZeroCb #None
@@ -438,11 +446,11 @@ class PTXActuatorIF:
         self.PARAMS_DICT = {
             'speed_max_dps': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict['speed_max_dps']
+                'factory_val': self.speed_max_dps
             },
-            'speed_ratio': {
+            'speed_ratios': {
                 'namespace': self.namespace,
-                'factory_val': self.factory_controls_dict['speed_ratio']
+                'factory_val': [self.speed_pan_ratio,self.speed_tilt_ratio]
             },
             'home_position/pan_deg': {
                 'namespace': self.namespace,
@@ -850,25 +858,19 @@ class PTXActuatorIF:
                                         self.max_tilt_softstop_deg)
 
             self.speed_max_dps = self.node_if.get_param('speed_max_dps')
+            if self.setSpeedMaxCb is not None:
+                self.setSpeedMaxCb(self.speed_max_dps) 
+
             if self.has_adjustable_speed == False:
                 if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
-                    speed_ratio = self.node_if.get_param('speed_ratio')
+                    speed_ratios = self.node_if.get_param('speed_ratios')
                     self.msg_if.pub_warn("Initializing speed_ratio: " + str(self.speed_ratio))
-                    self.msg_if.pub_info("-2")
-                    self.setSpeedRatioCb(speed_ratio)
-                    nepi_sdk.sleep(1)
-                    self.speed_ratio = math.floor(self.getSpeedRatioCb())
-                    self.msg_if.pub_warn("Got Init speed ratio: " + str(self.speed_ratio))
 
+                   
                 if self.has_seperate_pan_tilt_speed == True:
-                    speed_pan_ratio = self.node_if.get_param('speed_pan_ratio')
-                    if speed_pan_ratio is not None and self.setPanSpeedRatioCb is not None:
-                        self.setPanSpeedRatioCb(speed_pan_ratio)
-                        self.speed_pan_ratio = self.getPanSpeedRatioCb()
-                    speed_tilt_ratio = self.node_if.get_param('speed_tilt_ratio')
-                    if speed_tilt_ratio is not None and self.setTiltSpeedRatioCb is not None:
-                        self.setTiltSpeedRatioCb(speed_tilt_ratio)
-                        self.speed_tilt_ratio = self.getTiltSpeedRatioCb()
+                    self.setPanSpeedRatioCb(speed_ratios[0])
+                    self.setTiltSpeedRatioCb(speed_ratios[1])
+                    self.speed_ratio = max(speed_ratios)
 
             self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
             self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
@@ -1228,68 +1230,61 @@ class PTXActuatorIF:
             max_speed = msg.data
             if (max_speed > 0.0):
                 self.speed_max_dps = max_speed
+                if self.setSpeedMaxCb is not None:
+                    self.setSpeedMaxCb(self.speed_max_dps) 
                 self.publish_status()
                 self.node_if.set_param('speed_max_dps',max_speed)
                 self.msg_if.pub_warn("Updated max speed to " + str(max_speed))
 
     def _setSpeedRatioCb(self, msg):
+        ratio = nepi_utils.check_ratio(msg.data)
+        self._setSpeedRatio(ratio)
+
+    def _setSpeedRatio(self,speed_ratio):
         if self.caps_report.has_adjustable_speed == True:
             speed_cur = math.floor(self.getSpeedRatioCb())
-            speed_ratio = msg.data
+            
             self.msg_if.pub_warn("new speed ratio " + "%.2f" % speed_ratio)
             self.msg_if.pub_warn("cur speed ratio " + "%.2f" % speed_cur)
-            if (speed_ratio < 0.0) or (speed_ratio > 1.0):
-                self.msg_if.pub_warn("Invalid speed ratio requested " + "%.2f" % speed_ratio)
-            elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
-                self.speed_ratio = speed_ratio
-                self.speed_pan_ratio = speed_ratio
-                self.speed_tilt_ratio = speed_ratio
-                self.publish_status()
-                
-                self.setSpeedRatioCb(speed_ratio)
-                self.node_if.set_param('speed_ratio',speed_ratio)
-                self.node_if.set_param('speed_pan_ratio',speed_ratio)
-                self.node_if.set_param('speed_tilt_ratio',speed_ratio)
-                self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
+
+            self.speed_ratio = speed_ratio
+            self.speed_pan_ratio = speed_ratio
+            self.speed_tilt_ratio = speed_ratio
+            self.publish_status()
+            
+            self.setSpeedRatioCb(speed_ratio)
+            self.node_if.set_param('speed_ratios',[speed_ratio,speed_ratio])
+    
         
 
     def _setPanSpeedRatioCb(self, msg):
+        ratio = nepi_utils.check_ratio(msg.data)
+        self._setPanSpeedRatio(ratio)
+
+    def _setPanSpeedRatio(self,speed_ratio):
         if self.caps_report.has_seperate_pan_tilt_speed == True:
-            speed_cur = math.floor(self.getSpeedRatioCb())
-            speed_ratio = msg.data
-            if (speed_ratio < 0.0) or (speed_ratio > 1.0):
-                self.msg_if.pub_warn("Invalid pan speed ratio requested " + "%.2f" % speed_ratio)
-            elif speed_cur != speed_ratio and self.setPanSpeedRatioCb is not None:
+            speed_cur = math.floor(self.getPanSpeedRatioCb())
+            if speed_cur != speed_ratio and self.setPanSpeedRatioCb is not None:
                 self.speed_pan_ratio = speed_ratio
                 self.setPanSpeedRatioCb(speed_ratio)
-                self.node_if.set_param('speed_pan_ratio', speed_ratio)
+                self.speed_ratio = max([speed_ratio,self.speed_tilt_ratio])
+                self.node_if.set_param('speed_ratios', [speed_ratio,self.speed_tilt_ratio])
                 self.publish_status()
-            elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
-                self.speed_ratio = speed_ratio
-                self.publish_status()
-                
-                self.setSpeedRatioCb(speed_ratio)
-                self.node_if.set_param('speed_ratio',speed_ratio)
-                self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
+           
 
     def _setTiltSpeedRatioCb(self, msg):
+        ratio = nepi_utils.check_ratio(msg.data)
+        self._setTiltSpeedRatio(ratio)
+
+    def _setTiltSpeedRatio(self,speed_ratio):
         if self.caps_report.has_seperate_pan_tilt_speed == True:
-            speed_cur = math.floor(self.getSpeedRatioCb())
-            speed_ratio = msg.data
-            if (speed_ratio < 0.0) or (speed_ratio > 1.0):
-                self.msg_if.pub_warn("Invalid tilt speed ratio requested " + "%.2f" % speed_ratio)
-            elif self.setTiltSpeedRatioCb is not None:
+            speed_cur = math.floor(self.getTiltSpeedRatioCb())
+            if speed_cur != speed_ratio and self.setTiltSpeedRatioCb is not None:
                 self.speed_tilt_ratio = speed_ratio
                 self.setTiltSpeedRatioCb(speed_ratio)
-                self.node_if.set_param('speed_tilt_ratio', speed_ratio)
+                self.speed_ratio = max([self.speed_pan_ratio,speed_ratio])
+                self.node_if.set_param('speed_ratios', [self.speed_pan_ratio,speed_ratio])
                 self.publish_status()
-            elif speed_cur != speed_ratio and self.setSpeedRatioCb is not None:
-                self.speed_ratio = speed_ratio
-                self.publish_status()
-                
-                self.setSpeedRatioCb(speed_ratio)
-                self.node_if.set_param('speed_ratio',speed_ratio)
-                self.msg_if.pub_warn("Updated speed ratio to " + str(speed_ratio))
 
     def _setHomePositionCb(self, msg):
         [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg, msg.tilt_deg)
