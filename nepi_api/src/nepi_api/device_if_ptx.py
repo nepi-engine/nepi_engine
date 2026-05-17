@@ -134,6 +134,7 @@ class PTXActuatorIF:
 
     current_position = [0.0,0.0]
     last_position = current_position
+    position_times = [0.0,0.0]
     speed_ratio = 0.5
     speed_pan_ratio = speed_ratio
     speed_tilt_ratio = speed_ratio
@@ -161,9 +162,9 @@ class PTXActuatorIF:
 
     pan_pos_history = []
     tilt_pos_history = []
-    pan_time_history = []
-    tilt_time_history = []
-    SPEED_SMOOTHING_WINDOW = 7
+    pan_time_history = [0]
+    tilt_time_history = [0]
+    SPEED_SMOOTHING_WINDOW = 5
     delay = False
 
 
@@ -192,6 +193,7 @@ class PTXActuatorIF:
                  getPanSpeedRatioCb=None,
                  getTiltSpeedRatioCb=None,
                  getPositionCb=None,
+                 getPositionTimesCb=None,
                  gotoPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
                  gotoPanPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
                  gotoTiltPositionCb=None, # None ==> No absolute positioning capability (pan_deg, tilt_deg, speed, float move_timeout_s) 
@@ -282,6 +284,7 @@ class PTXActuatorIF:
         if self.getPositionCb is not None:
             self.has_position_feedback = True
             self.has_limit_controls = True
+        self.getPositionTimesCb = getPositionTimesCb
 
         self.getNavPoseCb = getNavPoseCb
         if navpose_update_rate < 1:
@@ -1539,40 +1542,57 @@ class PTXActuatorIF:
         #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
         if self.has_absolute_positioning == True and self.getPositionCb is not None:
             
-            #self.msg_if.pub_warn("Got PT position: " + str(pan_deg) + " : " + str(tilt_deg))
+            
             cur_time = nepi_utils.get_time()
             last_time = copy.deepcopy(self.pan_last_time)
-            delta_time = cur_time - last_time
 
             self.status_msg.move_decimal_place = self.move_decimal_place
             self.status_msg.report_decimal_place = self.report_decimal_place
 
             [pan_deg ,tilt_deg] = self.getPositionCb()
+            #self.msg_if.pub_warn("Got PT position: " + str(pan_deg) + " : " + str(tilt_deg))
+            
+            if self.getPositionTimesCb is not None:
+                self.position_times = self.getPositionTimesCb()
+                #self.msg_if.pub_warn("Got Position Times: " + str(self.position_times))
+            else:
+                self.position_times = [cur_time,cur_time]
+            #self.msg_if.pub_warn("Using PT position times: " + str(self.position_times))
             place = self.report_decimal_place
             pan_deg = nepi_utils.get_sign(pan_deg) * (math.floor( abs(pan_deg * 10**(place)) ) / 10**(place))
             tilt_deg = nepi_utils.get_sign(tilt_deg) * (math.floor( abs(tilt_deg * 10**(place)) ) / 10**(place))
             self.current_position = [pan_deg ,tilt_deg]
-                
-                
-            self.pan_pos_history.append(pan_deg)
-            self.pan_time_history.append(cur_time)
-            if len(self.pan_pos_history) > self.SPEED_SMOOTHING_WINDOW:
-                self.pan_pos_history.pop(0)
-                self.pan_time_history.pop(0)
-            if len(self.pan_pos_history) >= 2:
-                total_pan_time = self.pan_time_history[-1] - self.pan_time_history[0]
-                if total_pan_time > 0:
-                    self.speed_pan_dps = (self.pan_pos_history[-1] - self.pan_pos_history[0]) / total_pan_time
+            #self.msg_if.pub_warn("Checking for time change: " + str([self.position_times[0],self.pan_time_history[-1]]))
+            if self.position_times[0] != self.pan_time_history[-1]:
+                self.pan_pos_history.append(pan_deg)
+                self.pan_time_history.append(self.position_times[0])
+                if len(self.pan_pos_history) > self.SPEED_SMOOTHING_WINDOW:
+                    self.pan_pos_history.pop(0)
+                    self.pan_time_history.pop(0)
+                if len(self.pan_pos_history) >= 2:
+                    #self.msg_if.pub_warn("Getting Pan Speed from pos: " + str(self.pan_pos_history))
+                    #self.msg_if.pub_warn("Getting Pan Speed from times: " + str(self.pan_time_history))
+                    speeds = []
+                    for i in range(len(self.pan_pos_history) - 1):
+                        delta_time = self.pan_time_history[i+1] - self.pan_time_history[i]
+                        speed = (self.pan_pos_history[i+1] - self.pan_pos_history[i]) / delta_time
+                        speeds.append(speed)
+                    self.speed_pan_dps = sum(speeds) / len(speeds)
+                    #self.msg_if.pub_warn("Got Pan Speed: " + str(self.speed_pan_dps))
 
-            self.tilt_pos_history.append(tilt_deg)
-            self.tilt_time_history.append(cur_time)
-            if len(self.tilt_pos_history) > self.SPEED_SMOOTHING_WINDOW:
-                self.tilt_pos_history.pop(0)
-                self.tilt_time_history.pop(0)
-            if len(self.tilt_pos_history) >= 2:
-                total_tilt_time = self.tilt_time_history[-1] - self.tilt_time_history[0]
-                if total_tilt_time > 0:
-                    self.speed_tilt_dps = (self.tilt_pos_history[-1] - self.tilt_pos_history[0]) / total_tilt_time
+            if self.position_times[1] != self.tilt_time_history[-1]:
+                self.tilt_pos_history.append(tilt_deg)
+                self.tilt_time_history.append(self.position_times[1])
+                if len(self.tilt_pos_history) > self.SPEED_SMOOTHING_WINDOW:
+                    self.tilt_pos_history.pop(0)
+                    self.tilt_time_history.pop(0)
+                if len(self.tilt_pos_history) >= 2:
+                    speeds = []
+                    for i in range(len(self.tilt_pos_history) - 1):
+                        delta_time = self.tilt_time_history[i+1] - self.tilt_time_history[i]
+                        speed = (self.tilt_pos_history[i+1] - self.tilt_pos_history[i]) / delta_time
+                        speeds.append(speed)
+                    self.speed_tilt_dps = sum(speeds) / len(speeds)
 
             #self.msg_if.pub_warn("Using PT position: " + str(self.current_position[0]) + " : " + str(self.current_position[1]))
 
