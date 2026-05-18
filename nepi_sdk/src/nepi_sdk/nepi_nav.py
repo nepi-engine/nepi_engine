@@ -472,7 +472,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           #logger.log_warn("navpose_dict befor: " + str([navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg']]),)
 
           navpose_dict = transform_navpose_dict(navpose_dict,transform_dict)
-          logger.log_warn("navpose_dict after: " + str([navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg']]), throttle_s = 5.0)
+          #logger.log_warn("navpose_dict after: " + str([navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg']]), throttle_s = 5.0)
 
           #logger.log_warn("navpose_dict: " + str(navpose_dict), throttle_s = 5.0)
 
@@ -652,8 +652,11 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           npy = npdata_dict['yaw_deg'] * invert
 
           [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ar,'x')
+          npr += ar
           [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ap,'y')
+          npp += ap
           [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ay,'z')
+          npy += ay
           
           [ navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg'] ]=  [npr,npp,npy]
 
@@ -875,6 +878,54 @@ BLANK_NAVPOSE_TRACK_DICT = {
     'pan_deg': 0.0,
     'tilt_deg': 0.0
 }
+
+def clear_navpose_dict_comp(comp_name,npdata_dict):
+    success = False
+    try:
+      if comp_name == 'location':
+          npdata_dict['has_location'] = False
+          npdata_dict['time_location'] = -999
+          npdata_dict['latitude'] = -999
+          npdata_dict['longitude'] = -999
+      if  comp_name == 'heading':
+          npdata_dict['has_heading'] = False
+          npdata_dict['time_heading'] = -999
+          npdata_dict['heading_deg'] = -999
+      if  comp_name == 'orientation':
+          npdata_dict['has_orientation'] = False
+          npdata_dict['time_orientation']  = -999
+          npdata_dict['roll_deg']  = -999
+          npdata_dict['pitch_deg']  = -999
+          npdata_dict['yaw_deg']  = -999
+      if  comp_name == 'position':
+          npdata_dict['has_position'] = False
+          npdata_dict['time_position'] = -999
+          npdata_dict['x_m']  = -999
+          npdata_dict['y_m']  = -999
+          npdata_dict['z_m']  = -999
+      if  comp_name == 'altitude':
+          npdata_dict['has_altitude'] = False
+          npdata_dict['time_altitude']  = -999
+          npdata_dict['altitude_m']  = -999
+      if  comp_name == 'depth':
+          npdata_dict['has_depth'] = False
+          npdata_dict['time_depth']  = -999
+          npdata_dict['depth_m']  = -999
+      if  comp_name == 'pan_tilt':
+          npdata_dict['has_pan_tilt'] = False
+          npdata_dict['time_pan_tilt']  = -999
+          npdata_dict['pan_deg']  = -999
+          npdata_dict['tilt_deg']  = -999
+          npdata_dict['pan_tilt_heading_deg']  = -999
+          npdata_dict['pan_tilt_x_m'] = -999
+          npdata_dict['pan_tilt_y_m']  = -999
+          npdata_dict['pan_tilt_z_m']  = -999
+          npdata_dict['pan_tilt_roll_deg']  = -999
+          npdata_dict['pan_tilt_pitch_deg'] = -999
+          npdata_dict['pan_tilt_yaw_deg']  = -999
+    except:
+      pass
+    return npdata_dict
 
 
 def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
