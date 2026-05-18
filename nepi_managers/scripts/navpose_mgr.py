@@ -941,8 +941,8 @@ class NavPoseMgr(object):
                     reset_connected = (reset_topic in self.navpose_subs_connected)
                     comp_info_msg.reset_topic_connected =  reset_connected
 
-                    comp_info_msg.resets_on_crossing =  connect_dict[comp_name]['resets_on_crossing']
-                    comp_info_msg.resets_crossing =  connect_dict[comp_name]['resets_crossing']
+                    comp_info_msg.reset_resets_on_crossing =  connect_dict[comp_name]['resets_on_crossing']
+                    comp_info_msg.reset_resets_crossing =  connect_dict[comp_name]['resets_crossing']
 
 
                     if frame_name in navposes_reset_times_dict.keys():
@@ -1996,7 +1996,7 @@ class NavPoseMgr(object):
                         cur_reset_topic = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['reset_topic']
 
 
-                        navpose_source_dict = nepi_sdk.convert_msg2dict()
+                        navpose_source_dict = nepi_sdk.convert_msg2dict(msg)
                         last_navpose_source_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                         if topic in self.navposes_source_dict.keys():
                             self.navposes_source_dict_lock.acquire()
@@ -2155,7 +2155,7 @@ class NavPoseMgr(object):
                             resets_crossing = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['resets_crossing']
                                 
 
-                            navpose_reset_dict = nepi_nav.reset_navpose_resets_dict_from_resets(navpose_reset_dict, navpose_update_dict, new_source_dict, last_source_dict, comp_name, resets_on_crossing, resets_crossing )
+                            navpose_reset_dict = nepi_nav.update_navpose_resets_dict_from_updates(navpose_reset_dict, navpose_update_dict, new_source_dict, last_source_dict, comp_name, resets_on_crossing, resets_crossing )
                             # if navpose_reset_dict['pitch_deg'] != last_navpose_reset_dict['pitch_deg']:
                             #     self.msg_if.pub_warn("*****************")
                             #     self.msg_if.pub_warn("Updated reset reset dict reset: " + str(navpose_reset_dict['pitch_deg']))
@@ -2195,11 +2195,6 @@ class NavPoseMgr(object):
 
     def _getPublishSaveDataWork(self):
         timestamp = nepi_utils.get_time()
-
-
-        self.navposes_solution_dict_lock.acquire()
-        navpose_solution_dict = self.navposes_solution_dict[frame_name]
-        self.navposes_solution_dict_lock.release()
 
         navposes_fixed_dict = copy.deepcopy(self.navposes_fixed_dict)
 
@@ -2287,10 +2282,8 @@ class NavPoseMgr(object):
 
                 if navpose_update_dict != nepi_nav.BLANK_NAVPOSE_DICT:
                     navpose_update_dict = copy.deepcopy(navpose_update_dict)
-                    navpose_update_offset_dict = copy.deepcopy(navpose_update_dict)
-                    for comp_name in self.BLANK_CONNECT_DICT.keys():
-                        update_option = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_option']
-                        has_name = 'has_' + comp_name
+                    # for comp_name in self.BLANK_CONNECT_DICT.keys():
+                    #     has_name = 'has_' + comp_name
                     navpose_solution = nepi_nav.update_navpose_dict_from_dict(navpose_solution, navpose_update_dict)
                     #self.msg_if.pub_warn("Navpose Solution Source Offsets: " + str(navpose_solution.keys()))
 
@@ -2301,7 +2294,7 @@ class NavPoseMgr(object):
                     navpose_offset_dict = navposes_offset_dict[frame_name]
 
                 if navpose_offset_dict != nepi_nav.BLANK_NAVPOSE_DICT:
-                    navpose_solution = nepi_nav.offset_navpose_dict_from_offsets(navpose_solution, navpose_offset_dict)
+                    navpose_solution = nepi_nav.update_navpose_dict_from_offsets(navpose_solution, navpose_offset_dict)
 
                 ###############
                 ## Apply Reset Updates
@@ -2310,7 +2303,7 @@ class NavPoseMgr(object):
                     navpose_reset_dict = navposes_reset_dict[frame_name]
 
                 if navpose_reset_dict != nepi_nav.BLANK_NAVPOSE_DICT:
-                    navpose_solution = nepi_nav.offset_navpose_dict_from_offsets(navpose_solution, navpose_reset_dict)
+                    navpose_solution = nepi_nav.update_navpose_dict_from_offsets(navpose_solution, navpose_reset_dict)
 
 
                 #############################
