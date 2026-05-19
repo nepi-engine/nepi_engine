@@ -617,12 +617,11 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
   #logger.log_warn("passing transform_dict: " + str(pt_transform_dict), throttle_s = 5.0)
 
   success = True
-  navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
-  if npdata_dict is None:
+  navpose_dict = copy.deepcopy(npdata_dict)
+  if navpose_dict is None:
     success = False
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
-  else:
-    if transform_dict != BLANK_TRANSFORM_DICT:
+  elif transform_dict != BLANK_TRANSFORM_DICT:
       [x,y,z] = [transform_dict['x_m'],transform_dict['y_m'],transform_dict['z_m']]
       [ar,ap,ay] = [transform_dict['roll_deg'],transform_dict['pitch_deg'],transform_dict['yaw_deg']]
 
@@ -738,8 +737,6 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
       except Exception as e:
         success = False
         logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
-    if success == True:
-      pass
   return navpose_dict
 
 

@@ -1,0 +1,9 @@
+manager:
+  pkg_name: nepi_managers
+  display_name: MANAGER-SCRIPTS
+  description: Manager for NEPI Scripts
+  type: MANAGER
+  node_file: scripts_mgr.py
+  etc_file: scripts_mgr.yaml
+  node_name: scripts_mgr
+

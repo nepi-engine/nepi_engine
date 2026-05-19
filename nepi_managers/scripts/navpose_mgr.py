@@ -1095,12 +1095,16 @@ class NavPoseMgr(object):
                         self.navpose_subs_dict[topic]['subs_dict'][frame_name] = [comp_name]
                     elif comp_name not in self.navpose_subs_dict[topic]['subs_dict'][frame_name]:
                         self.navpose_subs_dict[topic]['subs_dict'][frame_name].append(comp_name)
+            self.msg_if.pub_warn("Registering Updated navpose_subs_dict: " + str(self.navpose_subs_dict))
             if topic not in self.navpose_subs_registered:
+                self.msg_if.pub_warn("Registering Comp Topic: " + str(topic) + " " + str(frame_name) + " " + str(comp_name))
                 self.navpose_subs_registered.append(topic)
 
     def subscribeTopic(self, topic):
         success = self.unsubscribeTopic(topic) # Just in case it is registered
+        self.msg_if.pub_warn("Got Subscribe Request for Comp Topic: " + str(topic))
         if success == True and topic != '' and topic != 'None' and topic != 'Fixed' and topic in self.navpose_subs_dict.keys():
+                self.msg_if.pub_warn("Subscribing Comp Topic: " + str(topic))
                 if self.navpose_subs_dict[topic]['sub'] is None:
                     msg = None
                     if topic in self.avail_topics_dict['all_topics_dict'].keys():
@@ -1118,8 +1122,9 @@ class NavPoseMgr(object):
                         except:
                             pass
                         topic_sub = nepi_sdk.create_subscriber(topic, msg, self._compSubCb, queue_size = 1, callback_args= (topic), log_name_list = [])
-
+                        self.msg_if.pub_warn("Subscribed to Comp Topic: " + str(topic) + ' with message ' + str(msg))
                         self.navpose_subs_dict_lock.acquire()
+                        self.navpose_subs_dict[topic]['msg'] = msg
                         self.navpose_subs_dict[topic]['sub'] = topic_sub
                         self.navpose_subs_dict_lock.release()
                        
@@ -1128,6 +1133,51 @@ class NavPoseMgr(object):
 
 
 
+
+
+    def unregisterCompTopic(self, frame_name, comp_name, topic):
+        if topic != '' and topic != 'None' and topic != 'Fixed' and topic in self.navpose_subs_dict.keys():
+            if frame_name in self.navpose_subs_dict[topic]['subs_dict'].keys():
+                if comp_name in self.navpose_subs_dict[topic]['subs_dict'][frame_name]:
+                    self.navpose_subs_dict[topic]['subs_dict'][frame_name].remove(comp_name)
+                    if len(self.navpose_subs_dict[topic]['subs_dict'][frame_name]) == 0:
+                        del self.navpose_subs_dict[topic]['subs_dict'][frame_name]
+
+            if len(self.navpose_subs_dict[topic]['subs_dict'].keys()) == 0:
+                if topic in self.navpose_subs_registered:
+                    self.msg_if.pub_warn("Unregistering Comp Topic: " + str(topic))
+                    self.navpose_subs_registered.remove(topic)
+
+
+
+    def unsubscribeTopic(self, topic):
+        success = True
+        self.msg_if.pub_warn("Got Unsubscribe Request for Comp Topic: " + str(topic))
+        if topic != '' and topic != 'None' and topic != 'Fixed' and topic in self.navpose_subs_dict.keys():
+                if self.navpose_subs_dict[topic]['sub'] is not None:
+                        self.msg_if.pub_warn("Unsubscribing Comp Topic: " + str(topic))
+
+                        self.navpose_subs_dict_lock.acquire()
+
+                        try:
+                            self.navpose_subs_dict[topic]['sub'].unregister()
+                        except:
+                            success = False
+                        nepi_sdk.sleep(1)
+                        self.navpose_subs_dict[topic]['sub'] = None
+
+                        self.navpose_subs_dict_lock.release()       
+
+                try:
+                    self.navpose_subs_connecting.remove(topic)
+                except:
+                    pass
+    
+                try:
+                    self.navpose_subs_connected.remove(topic)
+                except:
+                    pass
+        return success
 
     def addNavpose(self, frame_name, description = None, init_dict_entry = None, reset = False, do_updates = True):
         self.msg_if.pub_warn("Adding navpose frame: " + str(frame_name))
@@ -1349,12 +1399,6 @@ class NavPoseMgr(object):
             self.navposes_init_dict.pop(frame_name, None)
             self.navposes_init_dict_lock.release()
 
-            self.navposes_source_dict_lock.acquire()
-            self.navposes_source_dict.pop(frame_name, None)
-            self.navposes_offset_dict.pop(frame_name, None)
-            self.navposes_reset_dict.pop(frame_name, None)
-            self.navposes_source_dict_lock.release()
-
             self.navposes_init_states_dict.pop(frame_name, None)
             self.navposes_init_times_dict.pop(frame_name, None)
             self.navposes_update_states_dict.pop(frame_name, None)
@@ -1367,50 +1411,6 @@ class NavPoseMgr(object):
 
             self.updateNavposesData()
 
-
-
-
-
-    def unregisterCompTopic(self, frame_name, comp_name, topic):
-        if topic != '' and topic != 'None' and topic != 'Fixed' and topic in self.navpose_subs_dict.keys():
-            if frame_name in self.navpose_subs_dict[topic]['subs_dict'].keys():
-                if comp_name in self.navpose_subs_dict[topic]['subs_dict'][frame_name]:
-                    self.navpose_subs_dict[topic]['subs_dict'][frame_name].remove(comp_name)
-                    if len(self.navpose_subs_dict[topic]['subs_dict'][frame_name]) == 0:
-                        del self.navpose_subs_dict[topic]['subs_dict'][frame_name]
-
-            if len(self.navpose_subs_dict[topic]['subs_dict'].keys()) == 0:
-                if topic in self.navpose_subs_registered:
-                    self.navpose_subs_registered.remove(topic)
-
-
-
-    def unsubscribeTopic(self, topic):
-        success = True
-        if topic != '' and topic != 'None' and topic != 'Fixed' and topic in self.navpose_subs_dict.keys():
-                if self.navpose_subs_dict[topic]['sub'] is not None:
-
-                        self.navpose_subs_dict_lock.acquire()
-
-                        try:
-                            self.navpose_subs_dict[topic]['sub'].unregister()
-                        except:
-                            success = False
-                        nepi_sdk.sleep(1)
-                        self.navpose_subs_dict[topic]['sub'] = None
-
-                        self.navpose_subs_dict_lock.release()       
-
-                try:
-                    self.navpose_subs_connecting.remove(topic)
-                except:
-                    pass
-    
-                try:
-                    self.navpose_subs_connected.remove(topic)
-                except:
-                    pass
-        return success
 
 
 
@@ -1447,10 +1447,6 @@ class NavPoseMgr(object):
      
     def resetFrameNavpose(self, frame_name):
         if frame_name in self.navposes_settings_dict.keys():
-
-            self.navposes_source_states_dict[frame_name] = copy.deepcopy(self.BLANK_STATES_DICT)
-            self.navposes_source_times_dict[frame_name] = copy.deepcopy(self.BLANK_TIMES_DICT)
-            self.navposes_source_dict[frame_name] = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
             self.navposes_init_states_dict[frame_name] = copy.deepcopy(self.BLANK_STATES_DICT)
             self.navposes_init_times_dict[frame_name] = copy.deepcopy(self.BLANK_TIMES_DICT)
@@ -1556,12 +1552,15 @@ class NavPoseMgr(object):
                                 self.navposes_init_states_dict[frame_name][comp_name] = False
                                 self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_topic'] = topic
 
+                                self.msg_if.pub_warn("Calling Register Comp Topic: " + str(topic))
                                 self.registerCompTopic(frame_name, comp_name, topic)
+                                self.msg_if.pub_warn("Calling Subscibe Comp Topic: " + str(topic))
                                 self.subscribeTopic(topic)
 
                 elif type_name == 'update':
 
                     if (topic == 'None' or topic == '') or ( cur_init_topic != topic and cur_update_topic != topic and cur_offset_topic != topic  and cur_reset_topic != topic):
+                        self.msg_if.pub_warn("Calling Unregister Comp Topic: " + str(topic))
                         self.unregisterCompTopic(frame_name, comp_name, cur_update_topic)
                         self.resetFrameNavpose(frame_name)
 
@@ -1573,7 +1572,9 @@ class NavPoseMgr(object):
                                 self.navposes_update_states_dict[frame_name][comp_name] = False
                                 self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_topic'] = topic
 
+                                self.msg_if.pub_warn("Calling Register Comp Topic: " + str(topic))
                                 self.registerCompTopic(frame_name, comp_name, topic)
+                                self.msg_if.pub_warn("Calling Subscibe Comp Topic: " + str(topic))
                                 self.subscribeTopic(topic)
 
                 elif type_name == 'offset':
@@ -1590,13 +1591,15 @@ class NavPoseMgr(object):
                                 self.navposes_offset_states_dict[frame_name][comp_name] = False
                                 self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['offset_topic'] = topic
 
+                                self.msg_if.pub_warn("Calling Register Comp Topic: " + str(topic))
                                 self.registerCompTopic(frame_name, comp_name, topic)
+                                self.msg_if.pub_warn("Calling Subscibe Comp Topic: " + str(topic))
                                 self.subscribeTopic(topic)
 
 
                 elif type_name == 'reset':
 
-                    if (topic == 'None' or topic == '') or ( cur_init_topic != topic and cur_update_topic != topic and cur_reset_topic != topic  and cur_reset_topic != topic):
+                    if (topic == 'None' or topic == '') or ( cur_init_topic != topic and cur_update_topic != topic and cur_offset_topic != topic  and cur_reset_topic != topic):
                         self.unregisterCompTopic(frame_name, comp_name, cur_reset_topic)
                         self.resetFrameNavpose(frame_name)
 
@@ -1607,8 +1610,9 @@ class NavPoseMgr(object):
                             if topic in avail_topics_dict[comp_name]['topics']:
                                 self.navposes_reset_states_dict[frame_name][comp_name] = False
                                 self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['reset_topic'] = topic
-
+                                self.msg_if.pub_warn("Calling Register Comp Topic: " + str(topic))
                                 self.registerCompTopic(frame_name, comp_name, topic)
+                                self.msg_if.pub_warn("Calling Subscibe Comp Topic: " + str(topic))
                                 self.subscribeTopic(topic)
 
 
@@ -1976,6 +1980,7 @@ class NavPoseMgr(object):
 
     def _compSubCb(self, msg, args):
         topic = args
+        #self.msg_if.pub_warn("Comp Sub Topic got msg: " + str(topic) + ' with message ' + str(msg))
         if topic not in self.navpose_subs_connected:
             self.navpose_subs_connected.append(topic)
 
@@ -1984,23 +1989,29 @@ class NavPoseMgr(object):
         except:
             pass
 
-        if topic in self.navpose_subs_dict.keys():
+        if topic not in self.navpose_subs_dict.keys():
+            self.msg_if.pub_warn("Comp Sub Topic check in subs_dict: " + str(topic) + ' with message ' + str(self.navpose_subs_dict.keys()))
+        else:
+            navposes_settings_dict = copy.deepcopy(self.navposes_settings_dict)
             frame_names = list(self.navpose_subs_dict[topic]['subs_dict'].keys())
+            #self.msg_if.pub_warn("Comp Sub Topic : " + str(topic) + ' got frame_names ' + str(frame_names))
             for frame_name in frame_names:
-                if frame_name != 'None' and frame_name in self.navposes_source_dict.keys() and frame_name in self.navposes_settings_dict.keys():
+                if frame_name == 'None':
+                    continue
+                if frame_name != 'None' and frame_name in navposes_settings_dict.keys():
                     comp_names = self.navpose_subs_dict[topic]['subs_dict'][frame_name]
                     for comp_name in comp_names:
-                        cur_init_topic = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_topic']
-                        cur_update_topic = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_topic']
-                        cur_offset_topic = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['offset_topic']
-                        cur_reset_topic = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['reset_topic']
+                        cur_init_topic = navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_topic']
+                        cur_update_topic = navposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_topic']
+                        cur_offset_topic = navposes_settings_dict[frame_name]['connect_dict'][comp_name]['offset_topic']
+                        cur_reset_topic = navposes_settings_dict[frame_name]['connect_dict'][comp_name]['reset_topic']
 
-
-                        navpose_source_dict = nepi_sdk.convert_msg2dict(msg)
+                        navpose_source_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+                        navpose_source_dict = nepi_nav.update_navpose_dict_from_msg(comp_name, navpose_source_dict, msg)
                         last_navpose_source_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                         if topic in self.navposes_source_dict.keys():
                             self.navposes_source_dict_lock.acquire()
-                            last_navpose_source_dict = self.navposes_source_dict[topic]
+                            last_navpose_source_dict = copy.deepcopy(self.navposes_source_dict[topic])
                             self.navposes_source_dict_lock.release()
 
                         self.navposes_source_dict_lock.acquire()
@@ -2030,7 +2041,7 @@ class NavPoseMgr(object):
                         if cur_init_topic == topic:
                             type_name = 'init'
 
-                            init_option = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_option']
+                            init_option = navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_option']
 
                             navpose_init_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_init_dict.keys():
@@ -2048,12 +2059,12 @@ class NavPoseMgr(object):
                                     last_time = times_dict['last_time']         
                             cur_time = nepi_utils.get_time()
                             timer = cur_time - last_time
-                            delay = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_timed_sec']
+                            delay = navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_timed_sec']
 
                             should_init = (init_option == 'ALLWAYS') or (init_option == 'ONCE' and init_state != True) or (init_option == 'TIMED' and timer > delay)
 
                             if should_init == True:
-                                transform_dict = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                                transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
 
                                 navpose_init_dict = nepi_nav.update_navpose_dict_from_msg(comp_name, navpose_init_dict, msg, transform_dict=transform_dict)
@@ -2079,7 +2090,7 @@ class NavPoseMgr(object):
 
                             type_name = 'update'
 
-                            transform_dict = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
 
                             navpose_update_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -2109,7 +2120,7 @@ class NavPoseMgr(object):
 
                             type_name = 'offset'
 
-                            transform_dict = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
                             navpose_offset_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_offset_dict.keys():
@@ -2120,7 +2131,7 @@ class NavPoseMgr(object):
 
                             self.navposes_offset_dict_lock.acquire()
                             self.navposes_offset_dict[frame_name] = navpose_offset_dict
-                            self.navposes_source_dict_lock.release()
+                            self.navposes_offset_dict_lock.release()
 
                             last_time = self.navposes_offset_times_dict[frame_name][comp_name]['last_time']
                             cur_time = nepi_utils.get_time()
@@ -2134,14 +2145,22 @@ class NavPoseMgr(object):
                             #self.msg_if.pub_warn("navpose_offset_dict: " + str(navpose_offset_dict))
 
                         ####################
+                        # self.msg_if.pub_warn("Current Reset Topic: " + str(cur_reset_topic))
+                        # self.msg_if.pub_warn("Current Source Topic: " + str(topic))
                         if cur_reset_topic == topic:
+                            #self.msg_if.pub_warn("Processing Reset Topic: " + str(topic))
 
                             type_name = 'reset'
 
-                            transform_dict = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
+                            # self.msg_if.pub_warn("Got reset source dict now last: " + str([navpose_source_dict['has_orientation'],navpose_source_dict['pitch_deg'],
+                            #                                                         last_navpose_source_dict['has_orientation'],last_navpose_source_dict['pitch_deg']]))
                             new_source_dict = nepi_nav.transform_navpose_dict(navpose_source_dict,transform_dict)
                             last_source_dict = nepi_nav.transform_navpose_dict(last_navpose_source_dict,transform_dict)
+                            # self.msg_if.pub_warn("Got reset source dict new last: " + str([new_source_dict['has_orientation'],new_source_dict['pitch_deg'],
+                            #                                                         last_source_dict['has_orientation'],last_source_dict['pitch_deg']]))
+
 
                             navpose_update_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_update_dict.keys():
@@ -2152,18 +2171,18 @@ class NavPoseMgr(object):
                                 navpose_reset_dict = copy.deepcopy(navposes_reset_dict[frame_name])
                                 last_reset_dict =  copy.deepcopy(navposes_reset_dict[frame_name])
                      
-                            resets_on_crossing = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['resets_on_crossing']
-                            resets_crossing = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['resets_crossing']
+                            resets_on_crossing = navposes_settings_dict[frame_name]['connect_dict'][comp_name]['resets_on_crossing']
+                            resets_crossing = navposes_settings_dict[frame_name]['connect_dict'][comp_name]['resets_crossing']
                                 
 
                             navpose_reset_dict = nepi_nav.update_navpose_resets_dict_from_updates(navpose_reset_dict, navpose_update_dict, new_source_dict, last_source_dict, comp_name, resets_on_crossing, resets_crossing )
-                            if new_source_dict['pitch_deg'] != last_source_dict['pitch_deg']:
-                                self.msg_if.pub_warn("*****************")
-                                self.msg_if.pub_warn("Updated reset reset dict update: " + str(navpose_update_dict['pitch_deg']))
-                                self.msg_if.pub_warn("Updated reset reset dict source: " + str(new_source_dict['pitch_deg']))
-                                self.msg_if.pub_warn("Updated reset reset dict       : " + str(last_source_dict['pitch_deg']))
-                                self.msg_if.pub_warn("Updated reset reset dict reset : " + str(last_reset_dict['pitch_deg']))
-                                self.msg_if.pub_warn("Updated reset reset dict       : " + str(navpose_reset_dict['pitch_deg']))
+                            # if new_source_dict['pitch_deg'] != last_source_dict['pitch_deg']:
+                            #     self.msg_if.pub_warn("*****************")
+                            #     self.msg_if.pub_warn("Updated reset reset dict update: " + str(navpose_update_dict['pitch_deg']))
+                            #     self.msg_if.pub_warn("Updated reset reset dict source: " + str(new_source_dict['pitch_deg']))
+                            #     self.msg_if.pub_warn("Updated reset reset dict       : " + str(last_source_dict['pitch_deg']))
+                            #     self.msg_if.pub_warn("Updated reset reset dict reset : " + str(last_reset_dict['pitch_deg']))
+                            #     self.msg_if.pub_warn("Updated reset reset dict       : " + str(navpose_reset_dict['pitch_deg']))
                                     
 
 
