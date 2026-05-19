@@ -275,6 +275,8 @@ class NavPoseMgr(object):
     active_topic_types = []
     active_services = []
 
+    save_filename = None
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "navpose_mgr" # Can be overwitten by luanch command
@@ -1104,17 +1106,17 @@ class NavPoseMgr(object):
         success = self.unsubscribeTopic(topic) # Just in case it is registered
         #self.msg_if.pub_warn("Got Subscribe Request for Comp Topic: " + str(topic))
         if success == True and topic != '' and topic != 'None' and topic != 'Fixed' and topic in self.navpose_subs_dict.keys():
-                self.msg_if.pub_warn("Subscribing Comp Topic: " + str(topic))
                 if self.navpose_subs_dict[topic]['sub'] is None:
                     msg = None
-                    if topic in self.avail_topics_dict['all_topics_dict'].keys():
+                    if topic in self.avail_topics_dict['all_topics_dict'].keys() and topic not in self.navpose_subs_connecting:
+                        self.msg_if.pub_warn("Subscribing Comp Topic: " + str(topic))
                         msg_type_str = self.avail_topics_dict['all_topics_dict'][topic]
                         # Resolve type string to message class (rospy.Subscriber requires class, not string)
                         for comp_dict in nepi_nav.NAVPOSE_MSG_DICT.values():
                             if msg_type_str in comp_dict:
                                 msg = comp_dict[msg_type_str]
                                 break
-                    if msg is not None and topic not in self.navpose_subs_connecting:
+                    if msg is not None:
                         if topic not in self.navpose_subs_connecting:
                             self.navpose_subs_connecting.append(topic)
                         try:
@@ -2212,7 +2214,6 @@ class NavPoseMgr(object):
             self.msg_if.pub_warn("_getPublishSaveDataCb error: " + str(e))
         rate = self.MAX_PUB_RATE
         delay = float(1) / rate
-        delay = 2
         nepi_sdk.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)
 
     def _getPublishSaveDataWork(self):
@@ -2390,16 +2391,14 @@ class NavPoseMgr(object):
             save_enabled = self.save_data_if.data_product_save_enabled('navposes') == True
             should_save = self.save_data_if.data_product_should_save('navposes') == True
             snapshot_enabled = self.save_data_if.data_product_snapshot_enabled('navposes') == True
-            add_navposes = save_enabled or snapshot_enabled
             save_navpose = should_save or snapshot_enabled
-            if add_navposes:
-                time_ns = nepi_utils.get_time()
-                data_time_str = nepi_utils.get_datetime_str_from_timestamp(time_ns, add_ms = True, add_us = True, add_tz = True, timezone = True)
-                self.navposes_save_dict[data_time_str] = self.navposes_solution_dict
-
+            time_ns = nepi_utils.get_time()
+            key_name = int(math.floor(time_ns * 1000))
             if self.save_data_if is not None and len(list(self.navposes_save_dict.keys())) > 0 and save_navpose == True:
-                    self.save_data_if.save('navposes',self.navposes_save_dict)
-                    self.navposes_save_dict = dict()
+                filename = self.save_data_if.save('navposes',self.navposes_save_dict, timestamp = time_ns, filename = self.save_filename, key_name = key_name)
+                if save_enabled == False:
+                    filename = None
+                self.save_filename = filename
 
 
 

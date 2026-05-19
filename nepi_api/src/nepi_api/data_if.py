@@ -24,6 +24,7 @@ import copy
 import numpy as np
 import copy
 import threading
+import math
 
 
 
@@ -791,7 +792,17 @@ class NavPoseIF:
             self.time_list.append(pub_time_sec)
 
             if self.save_data_if is not None:
-                self.save_data_if.save(self.data_product,np_dict,timestamp)
+                save_enabled = self.save_data_if.data_product_save_enabled('navpose') == True
+                should_save = self.save_data_if.data_product_should_save('navpose') == True
+                snapshot_enabled = self.save_data_if.data_product_snapshot_enabled('navpose') == True
+                save_navpose = should_save or snapshot_enabled
+                time_ns = nepi_utils.get_time()
+                key_name = int(math.floor(time_ns * 1000))
+                if self.save_data_if is not None and len(list(self.navposes_save_dict.keys())) > 0 and save_navpose == True:
+                    filename = self.save_data_if.save('navposes',self.navposes_save_dict, timestamp = time_ns, filename = self.save_filename, key_name = key_name)
+                    if save_enabled == False:
+                        filename = None
+                    self.save_filename = filename
 
 
 
