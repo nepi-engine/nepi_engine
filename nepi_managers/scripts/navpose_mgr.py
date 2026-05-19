@@ -86,7 +86,7 @@ class NavPoseMgr(object):
 
     ZERO_TRANSFORM_DICT = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
 
-    NAVPOSE_COMPONENT_NAMES = ['navpose_init','navpose_update','navpose_offset','navpose_reset_dict']
+    NAVPOSE_COMPONENT_NAMES = ['navpose_init','navpose_update','navpose_offset','navpose_reset']
 
     BLANK_COMP_DICT = {
             'init_topic': "",
@@ -1820,8 +1820,9 @@ class NavPoseMgr(object):
         # Subscribe Topics if Needed
         for topic in registered_topics:
             if topic not in (connecting_topics + connected_topics):
-                self.subscribeTopic(topic)
-                pub_status = True
+                if topic in avail_topics:
+                    self.subscribeTopic(topic)
+                    pub_status = True
         
         if pub_status == True:
             self.publish_status()
