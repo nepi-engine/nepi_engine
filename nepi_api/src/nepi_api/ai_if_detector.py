@@ -178,7 +178,7 @@ class AiDetectorIF:
     detect_process_latencies = [0,0,0,0,0,0,0,0,0,0]
     detect_process_rates = [0,0,0,0,0,0,0,0,0,0]
 
-
+    is_processing = False
     last_receive_image_time = nepi_sdk.get_time()
     last_process_image_time = nepi_sdk.get_time()
     last_process_detect_time = nepi_sdk.get_time()
@@ -1904,7 +1904,7 @@ class AiDetectorIF:
         
         stamp = image_msg.header.stamp
         timestamp = copy.deepcopy(float(stamp.to_sec()))
-        cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+        
         ###############################
         image_receive_delay = (nepi_sdk.get_time() - self.last_receive_image_time)
         if image_receive_delay > 0.01:
@@ -1914,8 +1914,8 @@ class AiDetectorIF:
             self.last_receive_image_time = nepi_sdk.get_time()
 
         #####################################
-        if img_topic == self.get_img_topic and self.got_img_topic is None:   
-
+        if img_topic == self.get_img_topic: #and self.got_img_topic is None:   
+            cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
 
             timestamp = copy.deepcopy(float(stamp.to_sec()))
 
@@ -2005,6 +2005,9 @@ class AiDetectorIF:
             # self.msg_if.pub_warn("Image_Process Time: " + str(image_process_latency))
             # self.msg_if.pub_warn("Image_Process Times: " + str(self.image_process_latencies))
 
+            if self.is_processing == True:
+                return
+            self.is_processing = True
             #####################################
             # Update Depth Map Data if available
             np_depth_map = None
@@ -2017,7 +2020,7 @@ class AiDetectorIF:
                     np_depth_map = copy.deepcopy(self.depth_map_dict[img_topic])
                     self.depth_map_dict_lock.release()
 
-            self.got_img_topic = None
+            #self.got_img_topic = None
 
 
 
@@ -2042,6 +2045,8 @@ class AiDetectorIF:
                 self.first_detect_complete = True
             except Exception as e:
                 self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
+
+            #self.msg_if.pub_warn("Processed Image Topic " + img_topic) 
 
             self.last_detect_time = nepi_sdk.get_time()
             ##############################
@@ -2084,9 +2089,8 @@ class AiDetectorIF:
 
             #####################################
             
-            #self.got_img_topic = None
-
-            #self.msg_if.pub_warn("Processed Image Topic " + img_topic) 
+            self.got_img_topic = None
+            self.is_processing = False
 
 
     def cleanBoxes(self,detect_dict_list):
