@@ -1102,7 +1102,7 @@ class NavPoseMgr(object):
 
     def subscribeTopic(self, topic):
         success = self.unsubscribeTopic(topic) # Just in case it is registered
-        self.msg_if.pub_warn("Got Subscribe Request for Comp Topic: " + str(topic))
+        #self.msg_if.pub_warn("Got Subscribe Request for Comp Topic: " + str(topic))
         if success == True and topic != '' and topic != 'None' and topic != 'Fixed' and topic in self.navpose_subs_dict.keys():
                 self.msg_if.pub_warn("Subscribing Comp Topic: " + str(topic))
                 if self.navpose_subs_dict[topic]['sub'] is None:
@@ -1152,7 +1152,7 @@ class NavPoseMgr(object):
 
     def unsubscribeTopic(self, topic):
         success = True
-        self.msg_if.pub_warn("Got Unsubscribe Request for Comp Topic: " + str(topic))
+        #self.msg_if.pub_warn("Got Unsubscribe Request for Comp Topic: " + str(topic))
         if topic != '' and topic != 'None' and topic != 'Fixed' and topic in self.navpose_subs_dict.keys():
                 if self.navpose_subs_dict[topic]['sub'] is not None:
                         self.msg_if.pub_warn("Unsubscribing Comp Topic: " + str(topic))
