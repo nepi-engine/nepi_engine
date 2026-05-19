@@ -418,7 +418,7 @@ class ReadWriteIF:
 
 
 
-    def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None):
+    def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None, filename = None, key_name = None):
         """Write a data object to disk using the appropriate format for its type.
 
         The data type is inferred automatically via get_data_type(). Supported types
@@ -439,10 +439,11 @@ class ReadWriteIF:
         if data_type in self.data_dict.keys():
                 save_function = self.data_dict[data_type]['write_function']
                 #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone), log_name_list = self.log_name_list, throttle_s = 5.0)
-                save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone)
+                filename = save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone, filename = filename, key_name = key_name)
                 found_type = True
         if found_type == False:
             self.msg_if.pub_warn("Data type not supported: " + str(data_type) + ' for data name: ' + str(data_name) + ' with data: ' + str(data), log_name_list = self.log_name_list, throttle_s = 5.0)
+        return filename
 
 
     def read_dict_file(self, filepath, filename):
@@ -471,7 +472,7 @@ class ReadWriteIF:
                 self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
         return data
 
-    def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml'):
+    def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml', filename = None, key_name = None):
         """Write a dictionary to a YAML file using a generated filename.
 
         Args:
@@ -497,16 +498,20 @@ class ReadWriteIF:
             if ext_str not in file_types:
                 self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
             else:
-                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
+                if filename is None:
+                    filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
-                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                    try:
+                        success = nepi_utils.add_dict_2_yaml(file_path, data, key_name = key_name)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
                 else:
                     try:
                         success = nepi_utils.write_dict_2_yaml(file_path, data)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
-        return success
+        return filename
 
 
     def read_array_file(self, filepath, filename):
@@ -539,7 +544,7 @@ class ReadWriteIF:
                 
         return data
 
-    def write_array_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'npy'):
+    def write_array_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'npy', filename = None, key_name = None):
         """Write a numpy array to a file using a generated filename.
 
         Args:
@@ -610,7 +615,7 @@ class ReadWriteIF:
                 
         return data
 
-    def write_image_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'png'):
+    def write_image_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'png', filename = None, key_name = None):
         """Write a numpy image array to an image file using a generated filename.
 
         Args:
@@ -676,7 +681,7 @@ class ReadWriteIF:
                 
         return data
 
-    def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'pcd'):
+    def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'pcd', filename = None, key_name = None):
         """Write an Open3D point cloud to a file using a generated filename.
 
         Args:
@@ -1590,7 +1595,7 @@ class SaveDataIF:
 
     #***************************
     # NEPI data saving utility functions
-    def save(self,data_product,data,timestamp = None,save_check=True):
+    def save(self,data_product,data,timestamp = None, save_check=True, filename = None, key_name = None):
         """Save a data object for a named data product if conditions are met.
 
         Checks whether disk space is available, whether the product should save
@@ -1619,11 +1624,14 @@ class SaveDataIF:
                 else:
                     timezone = 'UTC'
                 self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
-                self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp)
+                if should_save == False:
+                    filename = None
+                filename = self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp, filename = filename, key_name = key_name)
                 self.data_product_snapshot_reset(data_product)
                 self.save_rate_dict[data_product][1] = nepi_utils.get_time()
             self.msg_if.pub_debug("Finished Checking save data: " + data_product , log_name_list = self.log_name_list, throttle_s = 5)
             self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
+            return filename
 
 
     def create_filename_msg(self):
