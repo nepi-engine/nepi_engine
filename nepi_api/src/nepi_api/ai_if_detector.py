@@ -71,8 +71,8 @@ DEFAULT_THRESHOLD = 0.3
 
 MIN_MAX_RATE = 1
 MAX_MAX_RATE = 20
-DEFAULT_MAX_PROC_RATE = 4
-DEFAULT_MAX_IMG_RATE = 4
+DEFAULT_MAX_PROC_RATE = 10
+DEFAULT_MAX_IMG_RATE = 10
 DEFAULT_USE_LAST_IMAGE = True
 
 DEFAULT_WAIT_FOR_DETECT = False
@@ -1904,8 +1904,8 @@ class AiDetectorIF:
         
         stamp = image_msg.header.stamp
         timestamp = copy.deepcopy(float(stamp.to_sec()))
-
-         ###############################
+        cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+        ###############################
         image_receive_delay = (nepi_sdk.get_time() - self.last_receive_image_time)
         if image_receive_delay > 0.01:
             image_receive_rate = round( 1.0 / image_receive_delay , 3)
@@ -1931,7 +1931,7 @@ class AiDetectorIF:
             img_dict['timestamp'] = timestamp
             self.imgs_dict[img_topic] = img_dict                
 
-            cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+            
             self.processDetections(img_dict, cv2_img = cv2_img)
 
 
@@ -2017,7 +2017,7 @@ class AiDetectorIF:
                     np_depth_map = copy.deepcopy(self.depth_map_dict[img_topic])
                     self.depth_map_dict_lock.release()
 
-
+            self.got_img_topic = None
 
 
 
@@ -2084,7 +2084,7 @@ class AiDetectorIF:
 
             #####################################
             
-            self.got_img_topic = None
+            #self.got_img_topic = None
 
             #self.msg_if.pub_warn("Processed Image Topic " + img_topic) 
 
