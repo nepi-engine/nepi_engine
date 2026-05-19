@@ -559,10 +559,14 @@ class AiDetectorImgPub:
                 # Unsubscribe
                 self.img_node_lock.acquire()
                 if img_topic in self.img_node_dict.keys():
-                    self.img_node_dict[img_topic]['img_sub'].unregister()
-                    self.img_node_dict[img_topic]['img_status_sub'].unregister
-                    self.img_node_dict[img_topic]['img_pub'].unregister()
-                    self.img_node_dict[img_topic]['img_if'].unregister_pubs()
+                    if self.img_node_dict[img_topic]['img_sub'] is not None:
+                        self.img_node_dict[img_topic]['img_sub'].unregister()
+                    if self.img_node_dict[img_topic]['img_status_sub'] is not None:
+                        self.img_node_dict[img_topic]['img_status_sub'].unregister
+                    if self.img_node_dict[img_topic]['img_pub'] is not None:
+                        self.img_node_dict[img_topic]['img_pub'].unregister()
+                    if self.img_node_dict[img_topic]['img_if'] is not None:
+                        self.img_node_dict[img_topic]['img_if'].unregister_pubs()
                     nepi_sdk.sleep(1)
                     self.img_node_dict[img_topic]['img_sub'] = None
                     self.img_node_dict[img_topic]['img_status_sub'] = None

@@ -1914,20 +1914,17 @@ class AiDetectorIF:
 
         #####################################
         if img_topic == self.get_img_topic: #and self.got_img_topic is None:   
+            self.got_img_topic = img_topic
 
             timestamp = copy.deepcopy(float(stamp.to_sec()))
 
             #self.msg_if.pub_warn("Processing Image Topic " + img_topic)    
-            # Reset image get flags
-            self.get_img_topic = "None"
-            self.got_img_topic = img_topic
 
             # Update img_dict
             img_dict = dict()
             img_dict['topic'] = img_topic
             img_dict['msg_header'] = img_msg.header.stamp
-            img_dict['timestamp'] = timestamp
-            self.imgs_dict[img_topic] = img_dict                
+            img_dict['timestamp'] = timestamp     
 
             
             self.processDetections(img_dict, img_msg = img_msg)
@@ -1997,8 +1994,16 @@ class AiDetectorIF:
             if self.is_processing == True:
                 return
             self.is_processing = True
+
+            
             #####################################
             # Update Depth Map Data if available
+
+            #self.msg_if.pub_warn("Processing Image Topic " + img_topic)    
+            # Reset image get flags
+            self.get_img_topic = "None"
+            self.imgs_dict[img_topic] = img_dict  
+
             np_depth_map = None
             if img_msg is not None:
                 cv2_img = nepi_img.rosimg_to_cv2img(img_msg)
