@@ -2150,19 +2150,20 @@ class NavPoseMgr(object):
                             navpose_reset_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_reset_dict.keys():
                                 navpose_reset_dict = copy.deepcopy(navposes_reset_dict[frame_name])
+                                last_reset_dict =  copy.deepcopy(navposes_reset_dict[frame_name])
                      
                             resets_on_crossing = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['resets_on_crossing']
                             resets_crossing = self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['resets_crossing']
                                 
 
                             navpose_reset_dict = nepi_nav.update_navpose_resets_dict_from_updates(navpose_reset_dict, navpose_update_dict, new_source_dict, last_source_dict, comp_name, resets_on_crossing, resets_crossing )
-                            # if navpose_reset_dict['pitch_deg'] != last_navpose_reset_dict['pitch_deg']:
-                            #     self.msg_if.pub_warn("*****************")
-                            #     self.msg_if.pub_warn("Updated reset reset dict reset: " + str(navpose_reset_dict['pitch_deg']))
-                            #     self.msg_if.pub_warn("Updated reset reset dict reset: " + str(last_navpose_reset_dict['pitch_deg']))
-                            #     self.msg_if.pub_warn("Updated reset reset dict       : " + str(navpose_reset_dict['pitch_deg']))
-                            #     self.msg_if.pub_warn("Updated reset reset dict reset : " + str(last_reset_dict['pitch_deg']))
-                            #     self.msg_if.pub_warn("Updated reset reset dict       : " + str(navpose_reset_dict['pitch_deg']))
+                            if new_source_dict['pitch_deg'] != last_source_dict['pitch_deg']:
+                                self.msg_if.pub_warn("*****************")
+                                self.msg_if.pub_warn("Updated reset reset dict update: " + str(navpose_update_dict['pitch_deg']))
+                                self.msg_if.pub_warn("Updated reset reset dict source: " + str(new_source_dict['pitch_deg']))
+                                self.msg_if.pub_warn("Updated reset reset dict       : " + str(last_source_dict['pitch_deg']))
+                                self.msg_if.pub_warn("Updated reset reset dict reset : " + str(last_reset_dict['pitch_deg']))
+                                self.msg_if.pub_warn("Updated reset reset dict       : " + str(navpose_reset_dict['pitch_deg']))
                                     
 
 
@@ -2191,6 +2192,7 @@ class NavPoseMgr(object):
             self.msg_if.pub_warn("_getPublishSaveDataCb error: " + str(e))
         rate = self.MAX_PUB_RATE
         delay = float(1) / rate
+        delay = 2
         nepi_sdk.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)
 
     def _getPublishSaveDataWork(self):
@@ -2288,7 +2290,7 @@ class NavPoseMgr(object):
                     #self.msg_if.pub_warn("Navpose Solution Source Offsets: " + str(navpose_solution.keys()))
 
                 ###############
-                ## Apply Offset Updates
+                # Apply Offset Updates
                 navpose_offset_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                 if frame_name in navposes_offset_dict.keys():
                     navpose_offset_dict = navposes_offset_dict[frame_name]
