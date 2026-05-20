@@ -1636,7 +1636,7 @@ class NavPoseMgr(object):
                 if type_name == 'init':
                     self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_transform'] = transform_dict
                 elif type_name == 'update':
-                    self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['offset_transform'] = transform_dict
+                    self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_transform'] = transform_dict
                 elif type_name == 'offset':
                     self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['offset_transform'] = transform_dict
                 elif type_name == 'reset':
