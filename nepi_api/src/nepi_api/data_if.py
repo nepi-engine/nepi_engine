@@ -798,8 +798,9 @@ class NavPoseIF:
                 save_navpose = should_save or snapshot_enabled
                 time_ns = nepi_utils.get_time()
                 key_name = int(math.floor(time_ns * 1000))
-                if self.save_data_if is not None and len(list(self.navposes_save_dict.keys())) > 0 and save_navpose == True:
-                    filename = self.save_data_if.save('navposes',self.navposes_save_dict, timestamp = time_ns, filename = self.save_filename, key_name = key_name)
+                navposes_save_dict = {key_name: np_dict}
+                if self.save_data_if is not None and len(list(navposes_save_dict.keys())) > 0 and save_navpose == True:
+                    filename = self.save_data_if.save('navposes', navposes_save_dict, timestamp = time_ns, filename = self.save_filename, key_name = key_name)
                     if save_enabled == False:
                         filename = None
                     self.save_filename = filename
