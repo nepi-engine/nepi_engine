@@ -609,7 +609,7 @@ class SoftwareMgrNode():
     def save_data_prefix_callback(self, msg):
         save_data_prefix = msg.data
 
-        data_folder = self.storage_subdirs['data']
+        data_folder = self.data_folder
         if data_folder is None:
             return # No data directory
 
