@@ -2388,11 +2388,15 @@ class NavPoseMgr(object):
                 self.last_navposes_pub_time = nepi_utils.get_time()
 
             ##### Save Data if Needed
+            self.navposes_solution_dict_lock.acquire()
+            self.navposes_save_dict = copy.deepcopy(self.navposes_solution_dict)
+            self.navposes_solution_dict_lock.release()
             save_enabled = self.save_data_if.data_product_save_enabled('navposes') == True
             should_save = self.save_data_if.data_product_should_save('navposes') == True
             snapshot_enabled = self.save_data_if.data_product_snapshot_enabled('navposes') == True
             save_navpose = should_save or snapshot_enabled
             time_ns = nepi_utils.get_time()
+            self.navposes_save_dict['timestamp'] = time_ns
             key_name = int(math.floor(time_ns * 1000))
             if self.save_data_if is not None and len(list(self.navposes_save_dict.keys())) > 0 and save_navpose == True:
                 filename = self.save_data_if.save('navposes',self.navposes_save_dict, timestamp = time_ns, filename = self.save_filename, key_name = key_name)

@@ -593,21 +593,24 @@ def write_dict_2_yaml(file_path,dict_2_save, defaultFlowStyle=False,sortKeys=Fal
 
 def add_dict_2_yaml(file_path, dict_2_add, defaultFlowStyle=False,sortKeys=False, key_name = None):
     success = False
+    existing = {}
+    try:
+        with open(file_path, "r") as f:
+            loaded = yaml.safe_load(f)
+            if isinstance(loaded, dict):
+                existing = loaded
+    except Exception as e:
+        logger.log_info("Failed to read existing file for update: " + file_path + " " + str(e))
     if key_name is None:
-        dict_2_save = dict_2_add
+        existing.update(dict_2_add)
     else:
-        dict_2_save = dict()
-        try:
-            dict_2_save[key_name] = dict_2_add
-        except:
-            dict_2_save = None
-    if dict_2_save is not None:
-        try:
-            with open(file_path, "w") as f:
-                yaml.dump(dict_2_save, stream=f, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
-            success = True
-        except:
-            logger.log_info("Failed to write dict: " + str(dict_2_save) + " to file: " + file_path + " " + str(e))
+        existing[key_name] = dict_2_add
+    try:
+        with open(file_path, "w") as f:
+            yaml.dump(existing, stream=f, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
+        success = True
+    except Exception as e:
+        logger.log_info("Failed to write dict to file: " + file_path + " " + str(e))
     return success
   
 def read_csv_file(file_path):

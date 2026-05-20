@@ -508,7 +508,8 @@ class ReadWriteIF:
                         self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
                 else:
                     try:
-                        success = nepi_utils.write_dict_2_yaml(file_path, data)
+                        data_to_write = {key_name: data} if key_name is not None else data
+                        success = nepi_utils.write_dict_2_yaml(file_path, data_to_write)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
         return filename
