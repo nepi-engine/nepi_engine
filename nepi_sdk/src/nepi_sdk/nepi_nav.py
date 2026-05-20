@@ -641,26 +641,27 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         if npdata_dict['has_heading'] == True:
           navpose_dict['has_heading'] = True
           navpose_dict['time_heading'] = npdata_dict['time_heading']
-          invert = 1 if transform_dict['heading_invert'] else -1
+          invert = -1 if transform_dict['heading_invert'] else 1
           navpose_dict['heading_deg'] = npdata_dict['heading_deg'] * invert  + transform_dict['heading_deg']
 
         if npdata_dict['has_orientation'] == True:
           navpose_dict['has_orientation'] = True
           navpose_dict['time_orientation'] = npdata_dict['time_orientation']
 
-          invert = 1 if transform_dict['roll_invert'] else -1
+          invert = -1 if transform_dict['roll_invert'] else 1
           npr = npdata_dict['roll_deg'] * invert
-          invert = 1 if transform_dict['pitch_invert'] else -1
+          invert = -1 if transform_dict['pitch_invert'] else 1
           npp = npdata_dict['pitch_deg'] * invert
-          invert = 1 if transform_dict['yaw_invert'] else -1
+          invert = -1 if transform_dict['yaw_invert'] else 1
           npy = npdata_dict['yaw_deg'] * invert
 
-          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ar,'x')
-          npr += ar
-          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ap,'y')
-          npp += ap
-          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ay,'z')
+          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],-ay,'z')
           npy += ay
+          #[npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ap,'y')
+          npp += ap
+          #[npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ar,'x')
+          npr += ar
+
           
           [ navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg'] ]=  [npr,npp,npy]
 
@@ -669,11 +670,11 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['has_position'] = True
           navpose_dict['time_position'] = npdata_dict['time_position']
 
-          invert = 1 if transform_dict['x_invert'] else -1
+          invert = -1 if transform_dict['x_invert'] else 1
           npx = npdata_dict['x_deg'] * invert + x
-          invert = 1 if transform_dict['y_invert'] else -1
+          invert = -1 if transform_dict['y_invert'] else 1
           npy = npdata_dict['y_deg'] * invert + y
-          invert = 1 if transform_dict['z_invert'] else -1
+          invert = -1 if transform_dict['z_invert'] else 1
           npz = npdata_dict['z_deg'] * invert + z
 
           [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ar,'x')
@@ -686,11 +687,11 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['has_altitude'] = True
           navpose_dict['time_altitude'] = npdata_dict['time_altitude']
 
-          invert = 1 if transform_dict['altitude_m'] else -1
+          invert = -1 if transform_dict['altitude_m'] else 1
           navpose_dict['altitude_m'] = npdata_dict['altitude_m'] * invert  + transform_dict['altitude_m']
 
           npx = 0
-          invert = 1 if transform_dict['y_invert'] else -1
+          invert = -1 if transform_dict['y_invert'] else 1
           npy = npdata_dict['altitude_m'] * invert + y
           npz = 0
 
@@ -706,7 +707,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['time_depth'] = npdata_dict['time_depth']
 
           npx = 0
-          invert = 1 if transform_dict['y_invert'] else -1
+          invert = -1 if transform_dict['y_invert'] else 1
           npy = npdata_dict['depth_m'] * invert + y
           npz = 0
 
@@ -721,9 +722,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['has_pan_tilt'] = True
           navpose_dict['time_pan_tilt'] = npdata_dict['time_pan_tilt']
 
-          invert = 1 if transform_dict['yaw_invert'] else -1
+          invert = -1 if transform_dict['yaw_invert'] else 1
           navpose_dict['pan_deg'] = npdata_dict['pan_deg'] * invert  + transform_dict['yaw_deg']
-          invert = 1 if transform_dict['pitch_invert'] else -1
+          invert = -1 if transform_dict['pitch_invert'] else 1
           navpose_dict['tilt_deg'] = npdata_dict['tilt_deg'] * invert  + transform_dict['pitch_deg']
           if pt_transform_dict is None:
             pt_transform_dict = BLANK_TRANSFORM_DICT

@@ -812,6 +812,8 @@ class NepiDriversMgr(object):
                 if port not in self.active_paths_list:
                   port_name = os.path.basename(port)
                   avail_ports.append(port_name)
+            default_option = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']['serial_port']['default']
+            avail_ports = [default_option] + avail_ports
             self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']['serial_port']['options'] = avail_ports
             setting_cap.options_list = avail_ports
           else:
@@ -923,6 +925,8 @@ class NepiDriversMgr(object):
                 if port not in self.active_paths_list:
                   port_name = os.path.basename(port)
                   avail_ports.append(port_name)
+            default_option = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']['serial_port']['default']
+            avail_ports = [default_option] + avail_ports
             self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS']['serial_port']['options'] = avail_ports
             cap_msg.options_list = avail_ports
 

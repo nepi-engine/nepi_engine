@@ -173,8 +173,9 @@ class NavPoseMgr(object):
     node_if = None
 
     save_data_if = None
-    data_products_list = ['navposes']
-
+    data_products_list = []
+    navposes_save_dict = dict()
+    
     navposes_init_frames = [NAVPOSE_BASE_FRAME]
     navposes_topic = ''
 
@@ -266,7 +267,7 @@ class NavPoseMgr(object):
     navposes_solution_dict = dict()
     navpose_pubs_published = False
 
-    navposes_save_dict = dict()
+    
 
     offset_navposes = False
 
@@ -275,7 +276,7 @@ class NavPoseMgr(object):
     active_topic_types = []
     active_services = []
 
-    save_filename = None
+    navposes_filenames_dict = dict()
 
     #######################
     ### Node Initialization
@@ -386,13 +387,6 @@ class NavPoseMgr(object):
                 'msg': MgrNavPoseStatus,
                 'qsize': 1,
                 'latch': True
-            },
-            'navposes_pub': {
-                'namespace': self.base_namespace,
-                'topic': 'navposes',
-                'msg': NavPoses,  # This should be the correct message type
-                'qsize': 1,
-                'latch': False
             },
             'navposes_status_pub': {
                 'namespace': self.base_namespace + '/navposes',
@@ -608,11 +602,14 @@ class NavPoseMgr(object):
         ##############################
         # Set up save data services ########################################################
         factory_data_rates = {}
+        for frame_name in self.navposes_settings_dict.keys():
+            if frame_name not in self.data_products_list:
+                self.data_products_list.append(frame_name)
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
             if d == 'navposes':
                 factory_data_rates[d][0] = self.MAX_PUB_RATE
-        sd_namespace = self.base_namespace + '/navposes'  
+        sd_namespace = self.node_namespace
         self.save_data_if = SaveDataIF(namespace = sd_namespace, data_products = self.data_products_list, factory_rate_dict = factory_data_rates)
 
         nepi_sdk.sleep(1)
@@ -1332,6 +1329,12 @@ class NavPoseMgr(object):
                     self.node_if.set_param('navposes_fixed_dict',self.navposes_fixed_dict)
                     self.node_if.save_config()
 
+            ##################
+            # Add to save_data_if
+            if self.save_data_if is not None:
+                self.save_data_if.register_data_product(frame_name)
+                if frame_name not in self.data_products_list:
+                    self.data_products_list.append(frame_name)
             if do_updates == True:
                 self.updateNavposesData()
 
@@ -1376,6 +1379,10 @@ class NavPoseMgr(object):
 
 
             # Remove from info dict
+            if self.save_data_if is not None:
+                self.save_data_if.unregister_data_product(frame_name)
+                if frame_name in self.data_products_list:
+                    self.data_products_list.remove(frame_name)
             self.navposes_settings_dict_lock.acquire()
             del self.navposes_settings_dict[frame_name]
             self.navposes_settings_dict_lock.release()
@@ -1636,7 +1643,7 @@ class NavPoseMgr(object):
                 if type_name == 'init':
                     self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_transform'] = transform_dict
                 elif type_name == 'update':
-                    self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['offset_transform'] = transform_dict
+                    self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_transform'] = transform_dict
                 elif type_name == 'offset':
                     self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['offset_transform'] = transform_dict
                 elif type_name == 'reset':
@@ -2368,44 +2375,28 @@ class NavPoseMgr(object):
                 self.navposes_pub_times_dict[frame_name]['times'] = times  # Assign back to dict
                 self.navposes_pub_times_dict[frame_name]['last_time'] = cur_time  # Assign back to dict
 
+            last_navposes_save_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+            if frame_name in self.navposes_save_dict.keys():
+                last_navposes_save_dict = copy.deepcopy(self.navposes_save_dict[frame_name])
+            if last_navposes_save_dict != navpose_solution:
+
+                save_enabled = self.save_data_if.data_product_save_enabled(frame_name) == True
+                should_save = self.save_data_if.data_product_should_save(frame_name) == True
+                snapshot_enabled = self.save_data_if.data_product_snapshot_enabled(frame_name) == True
+                save_navpose = should_save or snapshot_enabled
+                time_ns = nepi_utils.get_time()
+                self.navposes_save_dict['timestamp'] = time_ns
+                key_name = int(math.floor(time_ns * 1000))
+                filename = None
+                if frame_name in self.navposes_filenames_dict.keys():
+                    filename = self.navposes_filenames_dict[frame_name]
+                if self.save_data_if is not None and save_navpose == True:
+                    filename = self.save_data_if.save(frame_name,navpose_solution, timestamp = time_ns, filename = filename, key_name = key_name)
+                    if save_enabled == False:
+                        filename = None
+                    self.navposes_filenames_dict[frame_name] = filename
+                    self.navposes_save_dict[frame_name] = copy.deepcopy(navpose_solution)
         
-                    
-
-        self.offset_navposes = False
-
-
-        if len(navposes_solution_msg.navpose_frames) > 0:
-            ####################
-            # Publish NavPoses
-            cur_time = nepi_utils.get_time()
-            last_time = self.last_navposes_pub_time
-            timer = cur_time - last_time
-            rate = self.navposes_max_pub_rate
-            delay = float(1.0)/rate
-
-            if self.node_if is not None and timer > delay:
-                self.node_if.publish_pub('navposes_pub',navposes_solution_msg)
-                self.last_navposes_pub_time = nepi_utils.get_time()
-
-            ##### Save Data if Needed
-            self.navposes_solution_dict_lock.acquire()
-            self.navposes_save_dict = copy.deepcopy(self.navposes_solution_dict)
-            self.navposes_solution_dict_lock.release()
-            save_enabled = self.save_data_if.data_product_save_enabled('navposes') == True
-            should_save = self.save_data_if.data_product_should_save('navposes') == True
-            snapshot_enabled = self.save_data_if.data_product_snapshot_enabled('navposes') == True
-            save_navpose = should_save or snapshot_enabled
-            time_ns = nepi_utils.get_time()
-            self.navposes_save_dict['timestamp'] = time_ns
-            key_name = int(math.floor(time_ns * 1000))
-            if self.save_data_if is not None and len(list(self.navposes_save_dict.keys())) > 0 and save_navpose == True:
-                filename = self.save_data_if.save('navposes',self.navposes_save_dict, timestamp = time_ns, filename = self.save_filename, key_name = key_name)
-                if save_enabled == False:
-                    filename = None
-                self.save_filename = filename
-
-
-
 
     def _publishStatusCb(self,timer):
         self.publish_status()
