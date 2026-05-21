@@ -69,19 +69,17 @@ from nepi_api.system_if import SaveDataIF
 
 class NavPoseMgr(object):
     MGR_NODE_NAME = 'navpose_mgr'
-
-    NAVPOSES_MAX_PUB_RATE = 20
     
     NAVPOSE_BASE_FRAME = 'base_frame'
     NAVPOSE_BASE_FRAME_DESC = 'NEPI base navpose frame'
 
-    NAVPOSE_PUB_RATE_OPTIONS = [1.0,NAVPOSES_MAX_PUB_RATE] 
     NAVPOSE_NAV_FRAME_OPTIONS = nepi_nav.NAVPOSE_NAV_FRAME_OPTIONS 
     NAVPOSE_ALT_FRAME_OPTIONS = nepi_nav.NAVPOSE_ALT_FRAME_OPTIONS
     NAVPOSE_DEPTH_FRAME_OPTIONS = nepi_nav.NAVPOSE_DEPTH_FRAME_OPTIONS
 
+    MIN_PUB_RATE = 1.0
     MAX_PUB_RATE = 30.0
-    FACTORY_3D_FRAME = 'base_frame' 
+
     FACTORY_NAV_FRAME = 'ENU'
     FACTORY_ALT_FRAME = 'WGS84'
 
@@ -239,7 +237,7 @@ class NavPoseMgr(object):
     navposes_pubs_dict = dict()
     navposes_pubs_dict_lock = threading.Lock()
 
-    navposes_max_pub_rate = NAVPOSES_MAX_PUB_RATE
+    max_pub_rate = MAX_PUB_RATE
     last_navposes_pub_time = nepi_utils.get_time()
 
     navposes_solution_dict = dict()
@@ -1483,8 +1481,8 @@ class NavPoseMgr(object):
 
 
     def setFramePublishRate(self, frame_name, rate):
-        min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
-        max = self.NAVPOSE_PUB_RATE_OPTIONS[1]
+        min = self.MIN_PUB_RATE
+        max = self.MAX_PUB_RATE
         if rate < min:
             rate = min
         if rate > max:
@@ -2194,7 +2192,7 @@ class NavPoseMgr(object):
         except Exception as e:
             self.msg_if.pub_warn("_getPublishSaveDataCb error: " + str(e))
         end_time = nepi_utils.get_time()
-        rate = self.navposes_max_pub_rate
+        rate = self.max_pub_rate
         delay = float(1) / rate - (end_time - start_time)
         if delay < 0.01:
             delay = 0.01
@@ -2322,43 +2320,47 @@ class NavPoseMgr(object):
                 navposes_solution_msg.navpose_frames.append(frame_name)
                 navposes_solution_msg.navposes.append(navpose_solution_msg)
     
-
-                self.navposes_pubs_dict_lock.acquire()
-
-                if frame_name in self.navposes_pubs_dict.keys():
-                    try:
-                        if self.navpose_pubs_published == False:
-                            #self.msg_if.pub_warn("Navpose Solution Msg: " + str(navpose_solution_msg))
-                            self.navpose_pubs_published = True
-                        self.navposes_pubs_dict[frame_name].publish_pub('navpose',navpose_solution_msg)
-                        self.navposes_pubs_dict[frame_name].publish_pub('navpose_fixed',nepi_nav.convert_navpose_dict2msg(navpose_fixed_dict))
-                        self.navposes_pubs_dict[frame_name].publish_pub('navpose_init',nepi_nav.convert_navpose_dict2msg(navpose_init_dict))
-                        self.navposes_pubs_dict[frame_name].publish_pub('navpose_update',nepi_nav.convert_navpose_dict2msg(navpose_update_dict))
-                        self.navposes_pubs_dict[frame_name].publish_pub('navpose_offset',nepi_nav.convert_navpose_dict2msg(navpose_offset_dict))
-                        self.navposes_pubs_dict[frame_name].publish_pub('navpose_reset',nepi_nav.convert_navpose_dict2msg(navpose_reset_dict))
-
-                            
-
-                    except Exception as e:
-                        self.msg_if.pub_warn("Navpose Publishing Failed: " + str(e))
-
-                self.navposes_pubs_dict_lock.release()
-
-                last_time = self.navposes_pub_times_dict[frame_name]['last_time']
-                cur_time = nepi_utils.get_time()
-                times = self.navposes_pub_times_dict[frame_name]['times']
-                times.pop(0)  # Remove first element
-                times.append(cur_time - last_time)  # Add new time difference
-                self.navposes_pub_times_dict[frame_name]['times'] = times  # Assign back to dict
-                self.navposes_pub_times_dict[frame_name]['last_time'] = cur_time  # Assign back to dict
-
                 last_navposes_save_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                 if frame_name in self.navposes_save_dict.keys():
                     last_navposes_save_dict = copy.deepcopy(self.navposes_save_dict[frame_name])
                 # self.msg_if.pub_warn("Navpose Solution Save Dict: " + str(navpose_solution))
                 # self.msg_if.pub_warn("Navpose Last Save Dict: " + str(last_navposes_save_dict))
-                if last_navposes_save_dict != navpose_solution:
+                heartbeat_delay = float(1.0)/self.MIN_PUB_RATE
+                last_time = self.navposes_pub_times_dict[frame_name]['last_time']
+                timer = nepi_utils.get_time() - last_time
+                if last_navposes_save_dict != navpose_solution or timer > heartbeat_delay:
 
+                    self.navposes_pubs_dict_lock.acquire()
+
+                    if frame_name in self.navposes_pubs_dict.keys():
+                        try:
+                            if self.navpose_pubs_published == False:
+                                #self.msg_if.pub_warn("Navpose Solution Msg: " + str(navpose_solution_msg))
+                                self.navpose_pubs_published = True
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose',navpose_solution_msg)
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_fixed',nepi_nav.convert_navpose_dict2msg(navpose_fixed_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_init',nepi_nav.convert_navpose_dict2msg(navpose_init_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_update',nepi_nav.convert_navpose_dict2msg(navpose_update_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_offset',nepi_nav.convert_navpose_dict2msg(navpose_offset_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_reset',nepi_nav.convert_navpose_dict2msg(navpose_reset_dict))
+
+                                
+
+                        except Exception as e:
+                            self.msg_if.pub_warn("Navpose Publishing Failed: " + str(e))
+
+                    self.navposes_pubs_dict_lock.release()
+
+                    last_time = self.navposes_pub_times_dict[frame_name]['last_time']
+                    cur_time = nepi_utils.get_time()
+                    times = self.navposes_pub_times_dict[frame_name]['times']
+                    times.pop(0)  # Remove first element
+                    times.append(cur_time - last_time)  # Add new time difference
+                    self.navposes_pub_times_dict[frame_name]['times'] = times  # Assign back to dict
+                    self.navposes_pub_times_dict[frame_name]['last_time'] = cur_time  # Assign back to dict
+
+
+                if last_navposes_save_dict != navpose_solution:
                     save_enabled = self.save_data_if.data_product_save_enabled(frame_name) == True
                     should_save = self.save_data_if.data_product_should_save(frame_name) == True
                     snapshot_enabled = self.save_data_if.data_product_snapshot_enabled(frame_name) == True
@@ -2390,7 +2392,7 @@ class NavPoseMgr(object):
         self.status_msg.frame_alt = self.frame_alt
         self.status_msg.frame_depth_options = self.NAVPOSE_DEPTH_FRAME_OPTIONS
         self.status_msg.frame_depth = self.frame_depth
-        self.status_msg.navposes_max_pub_rate = self.navposes_max_pub_rate
+        self.status_msg.max_pub_rate = self.max_pub_rate
 
         if self.node_if is not None:
             if self.status_published == False:
