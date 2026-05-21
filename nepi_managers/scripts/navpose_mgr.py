@@ -176,7 +176,6 @@ class NavPoseMgr(object):
     navposes_save_dict = dict()
     
     navposes_init_frames = [NAVPOSE_BASE_FRAME]
-    navposes_topic = ''
 
     status_msg = MgrNavPoseStatus()
     status_published = False
@@ -268,8 +267,6 @@ class NavPoseMgr(object):
 
     
 
-    offset_navposes = False
-
     active_nodes = []
     active_topics = []
     active_topic_types = []
@@ -302,15 +299,11 @@ class NavPoseMgr(object):
         config_folders = nepi_system.get_config_folders()
 
        
-        self.navposes_topic = self.base_namespace + '/navposes'
-
-        self.caps_response.navposes_topic = self.navposes_topic
         self.caps_response.frame_nav_options = self.NAVPOSE_NAV_FRAME_OPTIONS 
         self.caps_response.frame_alt_options = self.NAVPOSE_ALT_FRAME_OPTIONS
         self.caps_response.frame_depth_options = self.NAVPOSE_DEPTH_FRAME_OPTIONS
 
     
-        self.status_msg.navposes_topic  = self.navposes_topic
 
 
 
@@ -1059,7 +1052,6 @@ class NavPoseMgr(object):
         ## Update navposes data
         if self.last_navposes_settings_dict != self.navposes_settings_dict:
             self.publish_status()
-            self.offset_navposes = True
             if self.node_if is not None:
                 self.node_if.save_config()
         self.last_navposes_settings_dict = copy.deepcopy(self.navposes_settings_dict)
@@ -1724,7 +1716,6 @@ class NavPoseMgr(object):
         if frame_name in self.navposes_settings_dict.keys():
             self.navposes_fixed_dict[frame_name] = navpose_dict
             self.publish_status()
-            self.offset_navposes = True
             if self.node_if is not None:
                 self.node_if.set_param('navposes_fixed_dict',self.navposes_fixed_dict)
                 self.node_if.save_config()
@@ -2224,8 +2215,6 @@ class NavPoseMgr(object):
         navposes_solution_msg.navpose_frames = []
         navposes_solution_msg.navposes = []
 
-        offset_navposes = copy.deepcopy(self.offset_navposes)
-
         navposes_settings_dict = copy.deepcopy(self.navposes_settings_dict)
 
         for frame_name in navposes_settings_dict.keys():
@@ -2240,9 +2229,9 @@ class NavPoseMgr(object):
             timer = cur_time - last_time
             rate = navpose_settings_dict['max_pub_rate']
             delay = float(1.0)/rate
-
-            if self.node_if is not None and (timer > delay or offset_navposes == True):                
-                    
+            
+            if self.node_if is not None and (timer > delay):                
+                #self.msg_if.pub_warn("Using NavPose Rate:Delay:Timer : " + str([rate,delay,timer]), throttle_s = 2)
 
                 ### Update Solution Navpose
                 navpose_solution = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -2328,6 +2317,7 @@ class NavPoseMgr(object):
                 heartbeat_delay = float(1.0)/self.MIN_PUB_RATE
                 last_time = self.navposes_pub_times_dict[frame_name]['last_time']
                 timer = nepi_utils.get_time() - last_time
+
                 if last_navposes_save_dict != navpose_solution or timer > heartbeat_delay:
 
                     self.navposes_pubs_dict_lock.acquire()
@@ -2392,7 +2382,6 @@ class NavPoseMgr(object):
         self.status_msg.frame_alt = self.frame_alt
         self.status_msg.frame_depth_options = self.NAVPOSE_DEPTH_FRAME_OPTIONS
         self.status_msg.frame_depth = self.frame_depth
-        self.status_msg.max_pub_rate = self.max_pub_rate
 
         if self.node_if is not None:
             if self.status_published == False:
