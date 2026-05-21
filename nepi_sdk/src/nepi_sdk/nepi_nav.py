@@ -79,6 +79,16 @@ def get_navpose_publisher_namespaces():
     msg_type = 'nepi_interfaces/NavPose'
     return nepi_sdk.find_topics_by_msg(msg_type)
 
+def get_navpose_comp_publisher_namespaces(name, topics_list = None, types_list = None):
+    topic_list = []
+    msg_list = []
+    if name in NAVPOSE_MSG_DICT.keys():
+      msg_str_list = list(NAVPOSE_MSG_DICT[name].keys())
+      [topic_list,msg_list] = nepi_sdk.find_topics_by_msgs(msg_str_list, topics_list = topics_list, types_list = types_list)
+    return topic_list,msg_list
+
+
+
 ###############
 ### NavPose Solution Components
 
@@ -122,14 +132,271 @@ NAVPOSE_MSG_DICT = {
     }
 
 
-def get_navpose_comp_publisher_namespaces(name, topics_list = None, types_list = None):
-    topic_list = []
-    msg_list = []
-    if name in NAVPOSE_MSG_DICT.keys():
-      msg_str_list = list(NAVPOSE_MSG_DICT[name].keys())
-      [topic_list,msg_list] = nepi_sdk.find_topics_by_msgs(msg_str_list, topics_list = topics_list, types_list = types_list)
-    return topic_list,msg_list
+NAVPOSE_3D_FRAME_OPTIONS = ['base_frame','nepi_frame','sensor_frame','world_frame']
+NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED']
+NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH']
 
+BLANK_NAVPOSE_INFO_DICT = {
+        'frame_nav': 'ENU',
+        'frame_alt': 'WGS84',
+        'frame_depth': 'DEPTH'
+    }
+
+BLANK_HEADING_DATA_DICT = {
+    'time_heading': 0.0,
+    # Heading should be provided in Degrees True North
+    'heading_deg': 0.0,
+}
+
+BLANK_POSITION_DATA_DICT = {
+    'time_position': 0.0,
+    # Position should be provided in Meters ENU (x,y,z) with x forward, y left, and z up
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+}
+
+BLANK_ORIENTATION_DATA_DICT = {
+    'time_orientation': 0.0,
+    # Orientation should be provided in Degrees ENU
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+}
+
+BLANK_LOCATION_DATA_DICT = {
+    'time_location': 0.0,
+    # Location Lat,Long
+    'latitude': 0.0,
+    'longitude': 0.0
+}
+
+BLANK_ALTITUDE_DATA_DICT = {
+    'time_altitude': 0.0,
+    # Altitude should be provided in postivie meters WGS84
+    'altitude_m': 0.0,
+}
+
+BLANK_DEPTH_DATA_DICT = {
+    'time_depth': 0.0,
+    # Depth should be provided in positive distance from surface in meters
+    'depth_m': 0.0
+}
+
+BLANK_PAN_TILT_DATA_DICT = {
+    'time_pan_tilt': 0.0,
+    # Depth should be provided in positive distance from surface in meters
+    'pan_deg': 0.0,
+    'tilt_deg': 0.0
+}
+
+
+
+BLANK_NAVPOSE_DICT = {
+    'navpose_frame': 'None',
+    'navpose_description': 'None',
+    'frame_nav': 'ENU',
+    'frame_altitude': 'WGS84',
+    'frame_depth': 'MSL',
+
+    'geoid_height_meters': 0.0,
+
+    'has_location': False,
+    'time_location': 0.0,
+    # Location Lat,Long
+    'latitude': 0.0,
+    'longitude': 0.0,
+
+    'has_heading': False,
+    'time_heading': 0.0,
+    # Heading should be provided in Degrees True North
+    'heading_deg': 0.0,
+
+    'has_position': False,
+    'time_position': 0.0,
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+
+    'has_orientation': False,
+    'time_orientation': 0.0,
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+
+    'has_altitude': False,
+    'time_altitude': 0.0,
+    # Altitude should be provided in postivie meters in specified alt frame
+    'altitude_m': 0.0,
+
+    'has_depth': False,
+    'time_depth': 0.0,
+    # Depth should be provided in positive meters
+    'depth_m': 0.0,
+
+    'has_pan_tilt': False,
+    'time_pan_tilt': 0.0,
+    # Pan Tilt should be provided in positive degs
+    'pan_deg': 0.0,
+    'tilt_deg': 0.0,
+    'pan_tilt_heading_deg': 0.0,
+    'pan_tilt_x_m': 0.0,
+    'pan_tilt_y_m': 0.0,
+    'pan_tilt_z_m': 0.0,
+    'pan_tilt_roll_deg': 0.0,
+    'pan_tilt_pitch_deg': 0.0,
+    'pan_tilt_yaw_deg': 0.0,
+}
+
+
+
+BLANK_TRANSFORM_DICT = {
+    'source_ref_description': '',
+    'end_ref_descriptions': '',
+
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+
+    'x_invert': False,
+    'y_invert': False,
+    'z_invert': False,
+  
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+
+    'roll_invert': False,
+    'pitch_invert': False,
+    'yaw_invert': False,
+
+    'heading_deg': 0.0,
+    'heading_invert': False
+
+}
+
+
+BLANK_NAVPOSE_TRACK_DICT = {
+    # altitude in 'WGS84' frame
+    # depth in 'DEPTH' frame
+    'timestamp': 0.0,
+    # Location Lat,Long
+    'latitude': 0.0,
+    'longitude': 0.0,
+    'heading_deg': 0.0,
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+    'altitude_m': 0.0,
+    'depth_m': 0.0,
+    'pan_deg': 0.0,
+    'tilt_deg': 0.0
+}
+
+def clear_navpose_dict_comp(comp_name,npdata_dict):
+    success = False
+    try:
+      if comp_name == 'location':
+          npdata_dict['has_location'] = False
+          npdata_dict['time_location'] = 0.0
+          npdata_dict['latitude'] = 0.0
+          npdata_dict['longitude'] = 0.0
+      if  comp_name == 'heading':
+          npdata_dict['has_heading'] = False
+          npdata_dict['time_heading'] = 0.0
+          npdata_dict['heading_deg'] = 0.0
+      if  comp_name == 'orientation':
+          npdata_dict['has_orientation'] = False
+          npdata_dict['time_orientation']  = 0.0
+          npdata_dict['roll_deg']  = 0.0
+          npdata_dict['pitch_deg']  = 0.0
+          npdata_dict['yaw_deg']  = 0.0
+      if  comp_name == 'position':
+          npdata_dict['has_position'] = False
+          npdata_dict['time_position'] = 0.0
+          npdata_dict['x_m']  = 0.0
+          npdata_dict['y_m']  = 0.0
+          npdata_dict['z_m']  = 0.0
+      if  comp_name == 'altitude':
+          npdata_dict['has_altitude'] = False
+          npdata_dict['time_altitude']  = 0.0
+          npdata_dict['altitude_m']  = 0.0
+      if  comp_name == 'depth':
+          npdata_dict['has_depth'] = False
+          npdata_dict['time_depth']  = 0.0
+          npdata_dict['depth_m']  = 0.0
+      if  comp_name == 'pan_tilt':
+          npdata_dict['has_pan_tilt'] = False
+          npdata_dict['time_pan_tilt']  = 0.0
+          npdata_dict['pan_deg']  = 0.0
+          npdata_dict['tilt_deg']  = 0.0
+          npdata_dict['pan_tilt_heading_deg']  = 0.0
+          npdata_dict['pan_tilt_x_m'] = 0.0
+          npdata_dict['pan_tilt_y_m']  = 0.0
+          npdata_dict['pan_tilt_z_m']  = 0.0
+          npdata_dict['pan_tilt_roll_deg']  = 0.0
+          npdata_dict['pan_tilt_pitch_deg'] = 0.0
+          npdata_dict['pan_tilt_yaw_deg']  = 0.0
+    except:
+      pass
+    return npdata_dict
+
+
+def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
+    success = False
+    np_dict = copy.deepcopy(npdata_dict_org)
+    if npdata_dict_org is not None and npdata_dict_new is not None:
+      try:
+        if npdata_dict_new['has_location'] == True:
+            npdata_dict_org['has_location'] = True
+            npdata_dict_org['time_location'] = npdata_dict_new['time_location']
+            npdata_dict_org['latitude'] = npdata_dict_new['latitude']
+            npdata_dict_org['longitude'] = npdata_dict_new['longitude']
+        if npdata_dict_new['has_heading'] == True:
+            npdata_dict_org['has_heading'] = True
+            npdata_dict_org['time_heading'] = npdata_dict_new['time_heading']
+            npdata_dict_org['heading_deg'] = npdata_dict_new['heading_deg']
+        if npdata_dict_new['has_orientation'] == True:
+            npdata_dict_org['has_orientation'] = True
+            npdata_dict_org['time_orientation'] = npdata_dict_new['time_orientation']
+            npdata_dict_org['roll_deg'] = npdata_dict_new['roll_deg']
+            npdata_dict_org['pitch_deg'] = npdata_dict_new['pitch_deg']
+            npdata_dict_org['yaw_deg'] = npdata_dict_new['yaw_deg']
+        if npdata_dict_new['has_position'] == True:
+            npdata_dict_org['has_position'] = True
+            npdata_dict_org['time_position'] = npdata_dict_new['time_position']
+            npdata_dict_org['x_m'] = npdata_dict_new['x_m']
+            npdata_dict_org['y_m'] = npdata_dict_new['y_m']
+            npdata_dict_org['z_m'] = npdata_dict_new['z_m']
+        if npdata_dict_new['has_altitude'] == True:
+            npdata_dict_org['has_altitude'] = True
+            npdata_dict_org['time_altitude'] = npdata_dict_new['time_altitude']
+            npdata_dict_org['altitude_m'] = npdata_dict_new['altitude_m']
+        if npdata_dict_new['has_depth'] == True:
+            npdata_dict_org['has_depth'] = True
+            npdata_dict_org['time_depth'] = npdata_dict_new['time_depth']
+            npdata_dict_org['depth_m'] = npdata_dict_new['depth_m']
+        if npdata_dict_new['has_pan_tilt'] == True:
+            npdata_dict_org['has_pan_tilt'] = True
+            npdata_dict_org['time_pan_tilt'] = npdata_dict_new['time_pan_tilt']
+            npdata_dict_org['pan_deg'] = npdata_dict_new['pan_deg']
+            npdata_dict_org['tilt_deg'] = npdata_dict_new['tilt_deg']
+            npdata_dict_org['pan_tilt_heading_deg'] = npdata_dict_new['pan_tilt_heading_deg']
+            npdata_dict_org['pan_tilt_x_m'] = npdata_dict_new['pan_tilt_x_m']
+            npdata_dict_org['pan_tilt_y_m'] = npdata_dict_new['pan_tilt_y_m']
+            npdata_dict_org['pan_tilt_z_m'] = npdata_dict_new['pan_tilt_z_m']
+            npdata_dict_org['pan_tilt_roll_deg'] = npdata_dict_new['pan_tilt_roll_deg']
+            npdata_dict_org['pan_tilt_pitch_deg'] = npdata_dict_new['pan_tilt_pitch_deg']
+            npdata_dict_org['pan_tilt_yaw_deg'] = npdata_dict_new['pan_tilt_yaw_deg']
+        np_dict = npdata_dict_org
+      except:
+        pass
+    return np_dict
 
 
 
@@ -272,7 +539,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
       if msg_type == 'nepi_interfaces/NavPoseLocation':
         try:
           navpose_dict['has_location'] = True
-          navpose_dict['time_location'] = msg.timestamp
+          navpose_dict['time_location'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
           navpose_dict['latitude'] = msg.latitude
           navpose_dict['longitude'] = msg.longitude
         except:
@@ -298,7 +565,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
       if msg_type == 'nepi_interfaces/NavPoseHeading':
         try:
           navpose_dict['has_heading'] = True
-          navpose_dict['time_heading'] = msg.timestamp
+          navpose_dict['time_heading'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
           navpose_dict['heading_deg'] = msg.heading_deg
         except:
           pass
@@ -308,7 +575,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
       if msg_type == 'nepi_interfaces/NavPoseOrientation':
         try:
           navpose_dict['has_orientation'] = True
-          navpose_dict['time_orientation'] = msg.timestamp
+          navpose_dict['time_orientation'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
           navpose_dict['roll_deg'] = msg.roll_deg
           navpose_dict['pitch_deg'] = msg.pitch_deg
           navpose_dict['yaw_deg'] = msg.yaw_deg
@@ -355,7 +622,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
       if msg_type == 'nepi_interfaces/NavPosePosition':
         try:
           navpose_dict['has_position'] = True
-          navpose_dict['time_position'] = msg.timestamp
+          navpose_dict['time_position'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
           navpose_dict['x_m'] = msg.x_m
           navpose_dict['y_m'] = msg.y_m
           navpose_dict['z_m'] = msg.y_m
@@ -485,34 +752,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
 
 
 #######################
-# 3D Frame Helper Functions
-
-BLANK_TRANSFORM_DICT = {
-    'source_ref_description': '',
-    'end_ref_descriptions': '',
-
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 0.0,
-    'y_m': 0.0,
-    'z_m': 0.0,
-
-    'x_invert': False,
-    'y_invert': False,
-    'z_invert': False,
-  
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 0.0,
-    'pitch_deg': 0.0,
-    'yaw_deg': 0.0,
-
-    'roll_invert': False,
-    'pitch_invert': False,
-    'yaw_invert': False,
-
-    'heading_deg': 0.0,
-    'heading_invert': False
-
-}
+# Transpose Functions
 
 
 def check_tranform_dict(transform_dict):
@@ -595,21 +835,6 @@ def transform_object_pose(current_pose, rpy_rotation, units='deg'):
             new_rpy[0], new_rpy[1], new_rpy[2]]
 
 
-
-def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
-    theta = np.radians(angle_deg)
-    c, s = np.cos(theta), np.sin(theta)
-    
-    if axis == 'x': # East
-        R = np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
-    elif axis == 'y': # North
-        R = np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
-    elif axis == 'z': # Up
-        R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
-    else:
-        raise ValueError("Axis must be 'x', 'y', or 'z'")
-    new_vector = np.dot(R, rpy_vector)
-    return new_vector
 
 def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None, log_name_list = []):
   #logger.log_warn("passing transform_dict: " + str(transform_dict), throttle_s = 5.0)
@@ -744,243 +969,6 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
 #######################
 # NavPose Data Helper Functions
-
-NAVPOSE_3D_FRAME_OPTIONS = ['base_frame','nepi_frame','sensor_frame','world_frame']
-NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED']
-NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
-NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH']
-
-BLANK_NAVPOSE_INFO_DICT = {
-        'frame_nav': 'ENU',
-        'frame_alt': 'WGS84',
-        'frame_depth': 'DEPTH'
-    }
-
-BLANK_HEADING_DATA_DICT = {
-    'time_heading': nepi_utils.get_time(),
-    # Heading should be provided in Degrees True North
-    'heading_deg': 0.0,
-}
-
-BLANK_POSITION_DATA_DICT = {
-    'time_position': nepi_utils.get_time(),
-    # Position should be provided in Meters ENU (x,y,z) with x forward, y left, and z up
-    'x_m': 0.0,
-    'y_m': 0.0,
-    'z_m': 0.0,
-}
-
-BLANK_ORIENTATION_DATA_DICT = {
-    'time_orientation': nepi_utils.get_time(),
-    # Orientation should be provided in Degrees ENU
-    'roll_deg': 0.0,
-    'pitch_deg': 0.0,
-    'yaw_deg': 0.0,
-}
-
-BLANK_LOCATION_DATA_DICT = {
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'latitude': 0.0,
-    'longitude': 0.0
-}
-
-BLANK_ALTITUDE_DATA_DICT = {
-    'time_altitude': nepi_utils.get_time(),
-    # Altitude should be provided in postivie meters WGS84
-    'altitude_m': 0.0,
-}
-
-BLANK_DEPTH_DATA_DICT = {
-    'time_depth': nepi_utils.get_time(),
-    # Depth should be provided in positive distance from surface in meters
-    'depth_m': 0.0
-}
-
-BLANK_PAN_TILT_DATA_DICT = {
-    'time_pan_tilt': nepi_utils.get_time(),
-    # Depth should be provided in positive distance from surface in meters
-    'pan_deg': 0.0,
-    'tilt_deg': 0.0
-}
-
-
-
-BLANK_NAVPOSE_DICT = {
-    'navpose_frame': 'None',
-    'navpose_description': 'None',
-    'frame_nav': 'ENU',
-    'frame_altitude': 'WGS84',
-    'frame_depth': 'MSL',
-
-    'geoid_height_meters': 0.0,
-
-    'has_location': False,
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'latitude': 0.0,
-    'longitude': 0.0,
-
-    'has_heading': False,
-    'time_heading': nepi_utils.get_time(),
-    # Heading should be provided in Degrees True North
-    'heading_deg': 0.0,
-
-    'has_position': False,
-    'time_position': nepi_utils.get_time(),
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 0.0,
-    'y_m': 0.0,
-    'z_m': 0.0,
-
-    'has_orientation': False,
-    'time_orientation': nepi_utils.get_time(),
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 0.0,
-    'pitch_deg': 0.0,
-    'yaw_deg': 0.0,
-
-    'has_altitude': False,
-    'time_altitude': nepi_utils.get_time(),
-    # Altitude should be provided in postivie meters in specified alt frame
-    'altitude_m': 0.0,
-
-    'has_depth': False,
-    'time_depth': nepi_utils.get_time(),
-    # Depth should be provided in positive meters
-    'depth_m': 0.0,
-
-    'has_pan_tilt': False,
-    'time_pan_tilt': nepi_utils.get_time(),
-    # Pan Tilt should be provided in positive degs
-    'pan_deg': 0.0,
-    'tilt_deg': 0.0,
-    'pan_tilt_heading_deg': 0.0,
-    'pan_tilt_x_m': 0.0,
-    'pan_tilt_y_m': 0.0,
-    'pan_tilt_z_m': 0.0,
-    'pan_tilt_roll_deg': 0.0,
-    'pan_tilt_pitch_deg': 0.0,
-    'pan_tilt_yaw_deg': 0.0,
-}
-
-
-BLANK_NAVPOSE_TRACK_DICT = {
-    # altitude in 'WGS84' frame
-    # depth in 'DEPTH' frame
-    'timestamp': nepi_utils.get_time(),
-    # Location Lat,Long
-    'latitude': 0.0,
-    'longitude': 0.0,
-    'heading_deg': 0.0,
-    'roll_deg': 0.0,
-    'pitch_deg': 0.0,
-    'yaw_deg': 0.0,
-    'altitude_m': 0.0,
-    'depth_m': 0.0,
-    'pan_deg': 0.0,
-    'tilt_deg': 0.0
-}
-
-def clear_navpose_dict_comp(comp_name,npdata_dict):
-    success = False
-    try:
-      if comp_name == 'location':
-          npdata_dict['has_location'] = False
-          npdata_dict['time_location'] = 0.0
-          npdata_dict['latitude'] = 0.0
-          npdata_dict['longitude'] = 0.0
-      if  comp_name == 'heading':
-          npdata_dict['has_heading'] = False
-          npdata_dict['time_heading'] = 0.0
-          npdata_dict['heading_deg'] = 0.0
-      if  comp_name == 'orientation':
-          npdata_dict['has_orientation'] = False
-          npdata_dict['time_orientation']  = 0.0
-          npdata_dict['roll_deg']  = 0.0
-          npdata_dict['pitch_deg']  = 0.0
-          npdata_dict['yaw_deg']  = 0.0
-      if  comp_name == 'position':
-          npdata_dict['has_position'] = False
-          npdata_dict['time_position'] = 0.0
-          npdata_dict['x_m']  = 0.0
-          npdata_dict['y_m']  = 0.0
-          npdata_dict['z_m']  = 0.0
-      if  comp_name == 'altitude':
-          npdata_dict['has_altitude'] = False
-          npdata_dict['time_altitude']  = 0.0
-          npdata_dict['altitude_m']  = 0.0
-      if  comp_name == 'depth':
-          npdata_dict['has_depth'] = False
-          npdata_dict['time_depth']  = 0.0
-          npdata_dict['depth_m']  = 0.0
-      if  comp_name == 'pan_tilt':
-          npdata_dict['has_pan_tilt'] = False
-          npdata_dict['time_pan_tilt']  = 0.0
-          npdata_dict['pan_deg']  = 0.0
-          npdata_dict['tilt_deg']  = 0.0
-          npdata_dict['pan_tilt_heading_deg']  = 0.0
-          npdata_dict['pan_tilt_x_m'] = 0.0
-          npdata_dict['pan_tilt_y_m']  = 0.0
-          npdata_dict['pan_tilt_z_m']  = 0.0
-          npdata_dict['pan_tilt_roll_deg']  = 0.0
-          npdata_dict['pan_tilt_pitch_deg'] = 0.0
-          npdata_dict['pan_tilt_yaw_deg']  = 0.0
-    except:
-      pass
-    return npdata_dict
-
-
-def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
-    success = False
-    np_dict = copy.deepcopy(npdata_dict_org)
-    if npdata_dict_org is not None and npdata_dict_new is not None:
-      try:
-        if npdata_dict_new['has_location'] == True:
-            npdata_dict_org['has_location'] = True
-            npdata_dict_org['time_location'] = npdata_dict_new['time_location']
-            npdata_dict_org['latitude'] = npdata_dict_new['latitude']
-            npdata_dict_org['longitude'] = npdata_dict_new['longitude']
-        if npdata_dict_new['has_heading'] == True:
-            npdata_dict_org['has_heading'] = True
-            npdata_dict_org['time_heading'] = npdata_dict_new['time_heading']
-            npdata_dict_org['heading_deg'] = npdata_dict_new['heading_deg']
-        if npdata_dict_new['has_orientation'] == True:
-            npdata_dict_org['has_orientation'] = True
-            npdata_dict_org['time_orientation'] = npdata_dict_new['time_orientation']
-            npdata_dict_org['roll_deg'] = npdata_dict_new['roll_deg']
-            npdata_dict_org['pitch_deg'] = npdata_dict_new['pitch_deg']
-            npdata_dict_org['yaw_deg'] = npdata_dict_new['yaw_deg']
-        if npdata_dict_new['has_position'] == True:
-            npdata_dict_org['has_position'] = True
-            npdata_dict_org['time_position'] = npdata_dict_new['time_position']
-            npdata_dict_org['x_m'] = npdata_dict_new['x_m']
-            npdata_dict_org['y_m'] = npdata_dict_new['y_m']
-            npdata_dict_org['z_m'] = npdata_dict_new['z_m']
-        if npdata_dict_new['has_altitude'] == True:
-            npdata_dict_org['has_altitude'] = True
-            npdata_dict_org['time_altitude'] = npdata_dict_new['time_altitude']
-            npdata_dict_org['altitude_m'] = npdata_dict_new['altitude_m']
-        if npdata_dict_new['has_depth'] == True:
-            npdata_dict_org['has_depth'] = True
-            npdata_dict_org['time_depth'] = npdata_dict_new['time_depth']
-            npdata_dict_org['depth_m'] = npdata_dict_new['depth_m']
-        if npdata_dict_new['has_pan_tilt'] == True:
-            npdata_dict_org['has_pan_tilt'] = True
-            npdata_dict_org['time_pan_tilt'] = npdata_dict_new['time_pan_tilt']
-            npdata_dict_org['pan_deg'] = npdata_dict_new['pan_deg']
-            npdata_dict_org['tilt_deg'] = npdata_dict_new['tilt_deg']
-            npdata_dict_org['pan_tilt_heading_deg'] = npdata_dict_new['pan_tilt_heading_deg']
-            npdata_dict_org['pan_tilt_x_m'] = npdata_dict_new['pan_tilt_x_m']
-            npdata_dict_org['pan_tilt_y_m'] = npdata_dict_new['pan_tilt_y_m']
-            npdata_dict_org['pan_tilt_z_m'] = npdata_dict_new['pan_tilt_z_m']
-            npdata_dict_org['pan_tilt_roll_deg'] = npdata_dict_new['pan_tilt_roll_deg']
-            npdata_dict_org['pan_tilt_pitch_deg'] = npdata_dict_new['pan_tilt_pitch_deg']
-            npdata_dict_org['pan_tilt_yaw_deg'] = npdata_dict_new['pan_tilt_yaw_deg']
-        np_dict = npdata_dict_org
-      except:
-        pass
-    return np_dict
 
 
 def convert_navpose_amsl2wgs84(npdata_dict):
@@ -1541,7 +1529,7 @@ def rotate_enu_point(xyz_vector, angle_deg, axis='z'):
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
     else:
         raise ValueError("Axis must be 'x', 'y', or 'z'")
-    new_vector = np.dot(R, xyz_vector)
+    new_vector = np.dot(R, xyz_vector).tolist()
     return new_vector
 
 
@@ -1557,7 +1545,8 @@ def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
         R = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
     else:
         raise ValueError("Axis must be 'x', 'y', or 'z'")
-    new_vector = np.dot(R, rpy_vector)
+    new_vector = np.dot(R, rpy_vector).tolist()
+
     return new_vector
 
 

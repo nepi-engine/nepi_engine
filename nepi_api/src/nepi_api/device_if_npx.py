@@ -351,78 +351,14 @@ class NPXDeviceIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'set_update_rate': {
+            'set_max_update_rate': {
                 'namespace': self.namespace,
-                'topic': 'set_update_rate',
+                'topic': 'set_max_update_rate',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self._setUpdateRateCb, 
+                'callback': self._setUpdateMaxRateCb, 
                 'callback_args': ()
             },
-            'set_as_heading_source': {
-                'namespace': self.namespace,
-                'topic': 'set_as_heading_source',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._setHeadSourceCb, 
-                'callback_args': ()
-            },
-            'set_as_location_source': {
-                'namespace': self.namespace,
-                'topic': 'set_as_location_source',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._setLocSourceCb, 
-                'callback_args': ()
-            },
-            'set_as_position_source': {
-                'namespace': self.namespace,
-                'topic': 'set_as_position_source',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._setPosSourceCb, 
-                'callback_args': ()
-            },
-            'set_as_altitude_source': {
-                'namespace': self.namespace,
-                'topic': 'set_as_altitude_source',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._setAltSourceCb, 
-                'callback_args': ()
-            },            
-            'set_as_orientation_source': {
-                'namespace': self.namespace,
-                'topic': 'set_as_orientation_source',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._setOrienSourceCb, 
-                'callback_args': ()
-            },
-            'set_as_depth_source': {
-                'namespace': self.namespace,
-                'topic': 'set_as_depth_source',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self._setDepthSourceCb, 
-                'callback_args': ()
-            },
-            'set_navpose_frame': {
-                'namespace': self.namespace,
-                'topic': 'set_navpose_frame',
-                'msg': String,
-                'qsize': 1,
-                'callback': self.setMountDescCb, 
-                'callback_args': ()
-            },
-            'reset_navpose_frame': {
-                'namespace': self.namespace,
-                'topic': 'reset_navpose_frame',
-                'msg': Empty,
-                'qsize': 1,
-                'callback': self.resetMountDescCb, 
-                'callback_args': ()
-            }
         }
         # Create Node Class ####################
         self.node_if = NodeClassIF(
@@ -505,7 +441,7 @@ class NPXDeviceIF:
                             pub_altitude = self.has_altitude,
                             pub_depth = self.has_depth,
                             pub_pan_tilt = self.has_pan_tilt,
-                            save_data_enabled = False,
+                            save_data_if = self.save_data_if,
                             log_name = 'navpose',
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
@@ -592,7 +528,7 @@ class NPXDeviceIF:
 
 
 
-  def _setUpdateRateCb(self,msg):
+  def _setUpdateMaxRateCb(self,msg):
     rate = msg.data
     min = self.NAVPOSE_UPDATE_RATE_OPTIONS[0]
     max = self.NAVPOSE_UPDATE_RATE_OPTIONS[1]
@@ -601,82 +537,10 @@ class NPXDeviceIF:
     if rate > max:
       rate = max
     self.update_rate = rate
-    self.node_if.set_param('update_rate',rate)
-
-  def _set3dFrameCb(self,msg):
-    frame = msg.data
-    if frame in self.NAVPOSE_FRAME_3D_OPTIONS:
-      self.frame_nav = frame
-      self.node_if.set_param('frame_nav',frame)
-
-  def _setIdFrameCb(self,msg):
-    frame = msg.data
-    if frame in self.NAVPOSE_FRAME_ID_OPTIONS:
-      self.navpose_frame = frame
-      self.node_if.set_param('navpose_frame',frame)
-
-  def _setAltFrameCb(self,msg):
-    frame = msg.data
-    if frame in self.NAVPOSE_FRAME_ALT_OPTIONS:
-      self.frame_altitude = frame
-      self.node_if.set_param('frame_altitude',frame)
-
-
-  def setMountDescCb(self,msg):
-      self.msg_if.pub_info("Recived set navpose_frame message: " + str(msg))
-      self.navpose_frame = msg.data
-      self.publish_status(do_updates=False) # Updated inline here 
-      self.node_if.set_param('navpose_frame', self.navpose_frame)
-
-  def resetMountDescCb(self,msg):
-      self.msg_if.pub_info("Recived reset navpose_frame message: " + str(msg))
-      self.navpose_frame = 'None'
-      self.publish_status(do_updates=False) # Updated inline here 
-      self.node_if.set_param('navpose_frame', self.navpose_frame)
-
-
-  def _setLocSourceCb(self, msg):
-      self.msg_if.pub_info("Recived set location source update message: " + str(msg))
-      self.setLocSource()
-
-  def setLocSource(self):
-      self._setNavPoseSource('location')
-
-  def _setHeadSourceCb(self, msg):
-      self.msg_if.pub_info("Recived set heading source update message: " + str(msg))
-      self.setHeadSource()
-
-  def setHeadSource(self):
-      self._setNavPoseSource('heading')
-
-  def _setOrienSourceCb(self, msg):
-      self.msg_if.pub_info("Recived set orientation source update message: " + str(msg))
-      self.setOrienSource()
-
-  def setOrienSource(self):
-      self._setNavPoseSource('orientation')
-
-  def _setPosSourceCb(self, msg):
-      self.msg_if.pub_info("Recived set position source update message: " + str(msg))
-      self.setPosSource()
-
-  def setPosSource(self):
-       self._setNavPoseSource('position')
-
-
-  def _setAltSourceCb(self, msg):
-      self.msg_if.pub_info("Recived set altitude source update message: " + str(msg))
-      self.setAltSource()
-
-  def setAltSource(self):
-      self._setNavPoseSource('altitude')
-
-  def _setDepthSourceCb(self, msg):
-      self.msg_if.pub_info("Recived set depth source update message: " + str(msg))
-      self.setDepthSource()
-
-  def setDepthSource(self):
-      self._setNavPoseSource('depth')
+    self.publish_status()
+    if self.node_if is not None:
+        self.node_if.set_param('update_rate',rate)
+    
 
   def publishStatus(self, do_updates=True):
       self._publishStatusCb(None)
@@ -756,9 +620,9 @@ class NPXDeviceIF:
     if self.navpose_if is not None:
         self.navpose_dict = self.navpose_if.publish_navpose(navpose_dict)
 
-    # save data if needed
-    timestamp = nepi_utils.get_time()
-    self.save_data_if.save('navpose',self.navpose_dict,timestamp)
+    # # save data if needed
+    # timestamp = nepi_utils.get_time()
+    # self.save_data_if.save('navpose',self.navpose_dict,timestamp)
 
     # set up next loop
     delay = float(1) / self.update_rate

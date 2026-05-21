@@ -70,11 +70,12 @@ from nepi_api.system_if import SaveDataIF
 class NavPoseMgr(object):
     MGR_NODE_NAME = 'navpose_mgr'
 
+    NAVPOSES_MAX_PUB_RATE = 20
     
     NAVPOSE_BASE_FRAME = 'base_frame'
     NAVPOSE_BASE_FRAME_DESC = 'NEPI base navpose frame'
 
-    NAVPOSE_PUB_RATE_OPTIONS = [1.0,20.0] 
+    NAVPOSE_PUB_RATE_OPTIONS = [1.0,NAVPOSES_MAX_PUB_RATE] 
     NAVPOSE_NAV_FRAME_OPTIONS = nepi_nav.NAVPOSE_NAV_FRAME_OPTIONS 
     NAVPOSE_ALT_FRAME_OPTIONS = nepi_nav.NAVPOSE_ALT_FRAME_OPTIONS
     NAVPOSE_DEPTH_FRAME_OPTIONS = nepi_nav.NAVPOSE_DEPTH_FRAME_OPTIONS
@@ -238,7 +239,7 @@ class NavPoseMgr(object):
     navposes_pubs_dict = dict()
     navposes_pubs_dict_lock = threading.Lock()
 
-    navposes_max_pub_rate = 1
+    navposes_max_pub_rate = NAVPOSES_MAX_PUB_RATE
     last_navposes_pub_time = nepi_utils.get_time()
 
     navposes_solution_dict = dict()
@@ -331,10 +332,6 @@ class NavPoseMgr(object):
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'navposes_max_pub_rate': {
-                'namespace': self.node_namespace,
-                'factory_val': self.navposes_max_pub_rate
-            },
             'navposes_settings_dict': {
                 'namespace': self.node_namespace,
                 'factory_val': self.navposes_settings_dict
@@ -399,14 +396,6 @@ class NavPoseMgr(object):
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'set_navposes_max_pub_rate': {
-                'namespace': self.node_namespace,
-                'topic': 'set_navposes_max_pub_rate',
-                'msg': Float32,
-                'qsize': 1,
-                'callback': self._setNavPosesPubRateCb, 
-                'callback_args': ()
-            },
             'set_frame_nav': {
                 'namespace': self.node_namespace,
                 'topic': 'set_frame_nav',
@@ -487,9 +476,9 @@ class NavPoseMgr(object):
                 'callback': self._setFrameDescriptionCb, 
                 'callback_args': ()
             },
-            'set_frame_pub_rate': {
+            'set_frame_max_rate': {
                 'namespace': self.node_namespace,
-                'topic': 'set_frame_pub_rate',
+                'topic': 'set_frame_max_rate',
                 'msg': UpdateFloat,
                 'qsize': 1,
                 'callback': self._setFramePublishRateCb, 
@@ -640,8 +629,6 @@ class NavPoseMgr(object):
 
     def initCb(self,do_updates = False):
         if self.node_if is not None:
-
-            self.navposes_max_pub_rate = self.node_if.get_param('navposes_max_pub_rate')
             navposes_settings_dict = self.node_if.get_param('navposes_settings_dict')
             #self.msg_if.pub_warn("Init got NavPoses Dict with navposes_settings_dict: " + str(navposes_settings_dict))
             if navposes_settings_dict is not None:
@@ -1494,20 +1481,6 @@ class NavPoseMgr(object):
             self.publish_status()
 
 
-    def setNavPosesPubRate(self, rate):
-        min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
-        max = self.NAVPOSE_PUB_RATE_OPTIONS[1]
-        if rate < min:
-            rate = min
-        if rate > max:
-            rate = max
-        self.navposes_max_pub_rate = rate
-        self.publish_status()
-        self.updateNavposesData()
-        if self.node_if is not None:
-            self.node_if.set_param('navposes_max_pub_rate',self.navposes_max_pub_rate)
-            self.node_if.save_config()
-
 
     def setFramePublishRate(self, frame_name, rate):
         min = self.NAVPOSE_PUB_RATE_OPTIONS[0]
@@ -2215,12 +2188,16 @@ class NavPoseMgr(object):
 
     ### Setup a regular background navpose get and publish timer callback
     def _getPublishSaveDataCb(self,timer):
+        start_time = nepi_utils.get_time()
         try:
             self._getPublishSaveDataWork()
         except Exception as e:
             self.msg_if.pub_warn("_getPublishSaveDataCb error: " + str(e))
-        rate = self.MAX_PUB_RATE
-        delay = float(1) / rate
+        end_time = nepi_utils.get_time()
+        rate = self.navposes_max_pub_rate
+        delay = float(1) / rate - (end_time - start_time)
+        if delay < 0.01:
+            delay = 0.01
         nepi_sdk.start_timer_process(delay, self._getPublishSaveDataCb, oneshot = True)
 
     def _getPublishSaveDataWork(self):
@@ -2375,27 +2352,30 @@ class NavPoseMgr(object):
                 self.navposes_pub_times_dict[frame_name]['times'] = times  # Assign back to dict
                 self.navposes_pub_times_dict[frame_name]['last_time'] = cur_time  # Assign back to dict
 
-            last_navposes_save_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-            if frame_name in self.navposes_save_dict.keys():
-                last_navposes_save_dict = copy.deepcopy(self.navposes_save_dict[frame_name])
-            if last_navposes_save_dict != navpose_solution:
+                last_navposes_save_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+                if frame_name in self.navposes_save_dict.keys():
+                    last_navposes_save_dict = copy.deepcopy(self.navposes_save_dict[frame_name])
+                # self.msg_if.pub_warn("Navpose Solution Save Dict: " + str(navpose_solution))
+                # self.msg_if.pub_warn("Navpose Last Save Dict: " + str(last_navposes_save_dict))
+                if last_navposes_save_dict != navpose_solution:
 
-                save_enabled = self.save_data_if.data_product_save_enabled(frame_name) == True
-                should_save = self.save_data_if.data_product_should_save(frame_name) == True
-                snapshot_enabled = self.save_data_if.data_product_snapshot_enabled(frame_name) == True
-                save_navpose = should_save or snapshot_enabled
-                time_ns = nepi_utils.get_time()
-                self.navposes_save_dict['timestamp'] = time_ns
-                key_name = int(math.floor(time_ns * 1000))
-                filename = None
-                if frame_name in self.navposes_filenames_dict.keys():
-                    filename = self.navposes_filenames_dict[frame_name]
-                if self.save_data_if is not None and save_navpose == True:
-                    filename = self.save_data_if.save(frame_name,navpose_solution, timestamp = time_ns, filename = filename, key_name = key_name)
-                    if save_enabled == False:
-                        filename = None
-                    self.navposes_filenames_dict[frame_name] = filename
-                    self.navposes_save_dict[frame_name] = copy.deepcopy(navpose_solution)
+                    save_enabled = self.save_data_if.data_product_save_enabled(frame_name) == True
+                    should_save = self.save_data_if.data_product_should_save(frame_name) == True
+                    snapshot_enabled = self.save_data_if.data_product_snapshot_enabled(frame_name) == True
+                    save_navpose = should_save or snapshot_enabled
+                    time_ns = nepi_utils.get_time()
+                    key_name = int(math.floor(time_ns * 1000))
+                    filename = None
+                    if frame_name in self.navposes_filenames_dict.keys():
+                        filename = self.navposes_filenames_dict[frame_name]
+                    if self.save_data_if is not None and save_navpose == True:
+                        # if snapshot_enabled == True:
+                        #     self.msg_if.pub_warn("Navpose Solution Save Dict: " + str(navpose_solution))
+                        filename = self.save_data_if.save(frame_name,navpose_solution, timestamp = time_ns, filename = filename, key_name = key_name)
+                        if save_enabled == False:
+                            filename = None
+                        self.navposes_filenames_dict[frame_name] = filename
+                        self.navposes_save_dict[frame_name] = copy.deepcopy(navpose_solution)
         
 
     def _publishStatusCb(self,timer):
@@ -2418,7 +2398,6 @@ class NavPoseMgr(object):
                 # self.msg_if.pub_warn("Publishing NavPoses status msg: " + str(self.navposes_status_msg))
                 pass
             #self.msg_if.pub_warn("Publishing status message: " + str(self.status_msg))
-            self.status_msg.navposes_max_pub_rate = self.navposes_max_pub_rate
             self.node_if.publish_pub('status_pub',self.status_msg)
             self.status_published = True
             self.node_if.publish_pub('navposes_status_pub',self.navposes_status_msg)

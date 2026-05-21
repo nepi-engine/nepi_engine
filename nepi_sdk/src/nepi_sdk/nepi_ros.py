@@ -1018,8 +1018,8 @@ def msg_stamp_from_sec(time_sec = None):
 
 def sec_from_msg_stamp(msg_stamp):
   time_sec = 0.0
-  if hasattr(msg_stamp,'sec'):
-    sec_str = str(stamp.sec) + '.' + str(stamp.nsecs)
+  if hasattr(msg_stamp,'secs'):
+    sec_str = str(msg_stamp.secs) + '.' + str(msg_stamp.nsecs)
     time_sec = float(sec_str)
   elif isinstance(msg_stamp,int) == True:
     msg_stamp_str = str(msg_stamp)
