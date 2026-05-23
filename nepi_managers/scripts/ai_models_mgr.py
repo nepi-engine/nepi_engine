@@ -444,6 +444,7 @@ class AIDetectorManager:
                     try:
                         aif_models_dict = aif_if_class_instance.getModelsDict()
                     except Exception as e:
+                        aif_models_dict = dict()
                         self.msg_if.pub_warn("Failed to Get Model Info for ai framework: " + aif_name + " " + str(e))
                     if (len(aif_models_dict.keys()) < 1):
                         self.msg_if.pub_warn("No models found for this ai framework: " + aif_name)
