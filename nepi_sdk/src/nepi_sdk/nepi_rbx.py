@@ -37,7 +37,7 @@ from geographic_msgs.msg import GeoPoint, GeoPose, GeoPoseStamped
 from mavros_msgs.msg import State, AttitudeTarget
 from mavros_msgs.srv import CommandBool, CommandBoolRequest, SetMode, SetModeRequest, CommandTOL, CommandHome
 from nepi_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, \
-    RBXGotoPose, RBXGotoPosition, RBXGotoLocation, Setting, Settings, SettingCap, SettingCaps
+    RBXGotoPose, RBXGotoPosition, RBXGotoLocation, Setting, Settings
 from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryRequest, RBXCapabilitiesQueryResponse
 from nepi_interfaces.srv import NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 

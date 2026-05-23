@@ -21,7 +21,7 @@
 import os
 import copy
 
-from nepi_interfaces.msg import Setting, Settings, SettingCap, SettingCaps, SettingsStatus
+from nepi_interfaces.msg import Setting, SettingCap, SettingsStatus
 from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_sdk import nepi_sdk
@@ -45,25 +45,6 @@ def get_settings_publisher_namespaces():
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))
     return namespaces_list
-
-
-def TEST_UPDATE_FUNCTION_SUCCESS(setting):
-  s_str = get_setting_as_str(setting)
-  logger.log_info("Setting update success: " + s_str)
-  return True, "Success"
-
-def TEST_UPDATE_FUNCTION_FAIL(setting):
-  s_str = get_setting_as_str(setting)
-  logger.log_info("Setting update failed: " + s_str)
-  str(2+['value'])
-  return False, "Failed just because"
-
-def TEST_UPDATE_FUNCTION_EXCEPTION(setting):
-  s_str = get_setting_as_str(setting)
-  logger.log_info("Setting update will cauase exception: " + s_str)
-  str(2+['value'])
-  return True, "Failed with exception"
-
 
 def UPDATE_NONE_SETTINGS_FUNCTION():
   return False, "No settings update function available"

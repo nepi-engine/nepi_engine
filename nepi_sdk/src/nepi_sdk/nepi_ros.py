@@ -1167,6 +1167,14 @@ def convert_msg2dict(msg):
     msg_dict = message_converter.convert_ros_message_to_dictionary(msg)
   return msg_dict
 
+def convert_dict2msg(msg_type_str, data_dict):
+  msg = None
+  try:
+    msg = message_converter.convert_dictionary_to_ros_message(msg_type_str,data_dict)
+  except Exception as e:
+    pass
+  return msg
+
 def parse_string_list_msg_data(msg_data):
   str_list = []
   if msg_data[0] == "[" and msg_data[-1] == "]" :

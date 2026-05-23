@@ -2315,16 +2315,13 @@ EXAMPLE_FACTORY_SETTINGS = {"setting_name":EXAMPLE_SETTING}
 EXAMPLE_SETTINGS = {"setting_name":EXAMPLE_SETTING}
 
 def EXAMPLE_SET_SETTING_FUNCTION(setting):
-    success = False
-    msg = 'Failed'
-    if setting_name in EXAMPLE_SETTINGS.keys():
-        EXAMPLE_SETTINGS[setting_name]= setting
-        success = True
-        msg = 'Success'
+    success = True
+    msg = 'Success'
     return success, msg
 
 def EXAMPLE_GET_SETTINGS_FUNCTION():
     return EXAMPLE_SETTINGS
+
 '''
 EXAMPLE_SETTINGS_DICT = {
                     'capSettings': EXAMPLE_CAP_SETTINGS, 
