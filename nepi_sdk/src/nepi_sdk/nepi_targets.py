@@ -118,7 +118,7 @@ Target[] targets
 }
 
 
-BLANK_TARGET_SETTINGS_DICT = {
+BLANK_SETTINGS_DICT = {
 '''
 string name
 string namespace
