@@ -43,9 +43,9 @@ log_name = "nepi_stab"
 logger = Logger(log_name = log_name)
 
 
-PAN_TILT_SOURCE_MESSAGE_DICT = {'NavPose' : NavPose, 'NavPoseOrientation': NavPoseOrientation}
+SOURCE_MESSAGE_DICT = {'NavPose' : NavPose, 'NavPoseOrientation': NavPoseOrientation}
 
-PAN_TILT_STAB_DATA_DICT = {
+DATA_DICT = {
     # Required Fields
     'data_time': 0.0,
     'process_time': 0.0,
@@ -105,9 +105,9 @@ PAN_TILT_STAB_DATA_DICT = {
 }
 
 
-PAN_TILT_STAB_PROCESSES_DICT = dict()
+PROCESSES_DICT = dict()
 
-DEFAULT_PAN_TILT_STAB_PROCESS = 'pt_stab_1'
+DEFAULT_PROCESS = 'pt_stab_1'
 
 #########################
 # Stab Process Functions
@@ -228,7 +228,7 @@ def pt_stab_1(pt_connect_if,
 
 
 
-PAN_TILT_STAB_PROCESSES_DICT['pt_stab_1'] = {'process_function': pt_stab_1, 
+PROCESSES_DICT['pt_stab_1'] = {'process_function': pt_stab_1, 
                                              'default_settings_dict': pt_stab_1_settings}
 
 
@@ -346,7 +346,7 @@ def pt_stab_2(pt_connect_if,
     return stab_data_dict, stab_settings_dict
 
 
-PAN_TILT_STAB_PROCESSES_DICT['pt_stab_2'] = {'process_function': pt_stab_2, 
+PROCESSES_DICT['pt_stab_2'] = {'process_function': pt_stab_2, 
                                              'default_settings_dict': pt_stab_2_settings}
 
 
@@ -355,14 +355,14 @@ PAN_TILT_STAB_PROCESSES_DICT['pt_stab_2'] = {'process_function': pt_stab_2,
 # Stab Utility Functions
 #########################
 
-def create_pan_tilt_processes_dict():
+def create_processes_dict():
     processes_dict = dict()
-    for process_name in PAN_TILT_STAB_PROCESSES_DICT.keys():
-        processes_dict[process_name] = PAN_TILT_STAB_PROCESSES_DICT[process_name]['default_settings_dict']
+    for process_name in PROCESSES_DICT.keys():
+        processes_dict[process_name] = PROCESSES_DICT[process_name]['default_settings_dict']
     return processes_dict
 
-def update_pan_tilt_processes_dict(stab_processes_dict):
-    clean_stab_dict = create_pan_tilt_processes_dict()
+def update_processes_dict(stab_processes_dict):
+    clean_stab_dict = create_processes_dict()
     for stab_process in clean_stab_dict.keys():
         if stab_process in stab_processes_dict.keys():
             for key in clean_stab_dict[stab_process].keys():
@@ -373,5 +373,5 @@ def update_pan_tilt_processes_dict(stab_processes_dict):
                     clean_stab_dict[stab_process]['stab_controls_dict'][key] = stab_processes_dict[stab_process]['stab_controls_dict'][key]
     return clean_stab_dict
 
-def get_blank_pan_tilt_data_dict():
-    return copy.deepcopy(PAN_TILT_STAB_DATA_DICT)
+def get_blank_data_dict():
+    return copy.deepcopy(DATA_DICT)
