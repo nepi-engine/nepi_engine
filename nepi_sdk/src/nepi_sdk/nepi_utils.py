@@ -37,6 +37,7 @@ import math
 import pwd
 import grp
 import glob
+import importlib.util
 
 import pytz
 import datetime
@@ -1010,6 +1011,9 @@ def check_ratio(ratio):
        ratio = 1
     return ratio
 
+def check_module_available(name):
+    """Checks if a module exists without importing/executing it."""
+    return importlib.util.find_spec(name) is not None
 
 ####################
 ## Class Util Funtions

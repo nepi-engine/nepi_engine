@@ -396,6 +396,7 @@ class AIDetectorManager:
             models_dict = dict()
 
             # Refresh Frameworks if Needed
+            purge_list = []
             for aif_name in aifs_dict.keys():
                 aif_dict = aifs_dict[aif_name]
 
@@ -418,22 +419,30 @@ class AIDetectorManager:
                             self.msg_if.pub_warn("Instantiating IF class for framework: " + str(aif_name))
                             launch_namespace = self.base_namespace #os.path.join(self.base_namespace, "ai")
                             aif_if_class_instance = aif_class(aif_dict, launch_namespace, self.ai_models_folder)
-                            self.aifs_classes_dict[aif_name] = aif_if_class_instance
                             self.msg_if.pub_warn("Created aif instantiated if class: " + aif_name )
-                            success = True
-                            time.sleep(1) # Give some time for publishers to set in class init
+                            supported = aif_if_class_instance.checkFrameworkSupport()
+                            if supported == False:
+                                self.msg_if.pub_warn("Framework not supported: " + aif_name )
+                                if aif_name not in purge_list:
+                                        purge_list.append(aif_name)
+                                success = False
+                            else:
+                                self.aifs_classes_dict[aif_name] = aif_if_class_instance
+                                success = True
+                                time.sleep(1) # Give some time for publishers to set in class init
                         except Exception as e:
                             self.msg_if.pub_warn("Failed to instantiate ai framework if class " + class_name + " " + str(e))
+                            if aif_name not in purge_list:
+                                purge_list.append(aif_name)
                     else:
                         self.msg_if.pub_warn("Failed to Import ai framework if class " + class_name + " " + str(e))
+                        if aif_name not in purge_list:
+                                purge_list.append(aif_name)
 
                 else:
                     aif_if_class_instance = self.aifs_classes_dict[aif_name]
                     self.msg_if.pub_warn("Got aif instantiated class: " + aif_name)
                     success = True
-
-
-
 
                 # Refresh Models Dict
                 if success == True:
@@ -466,8 +475,9 @@ class AIDetectorManager:
                             continue
                         
                         
-
-                   
+            # Purge unsupported frameworks
+            for aif_name in purge_list:
+                del aifs_dict[aif_name]
     
            
             self.aifs_dict = aifs_dict
