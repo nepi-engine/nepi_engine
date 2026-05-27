@@ -58,7 +58,7 @@ BLANK_DATA_DICT = {
 }
 
 
-def get_track_source_namespaces( topics_list = None, types_list = None):
+def get_source_namespaces( topics_list = None, types_list = None):
     namespace = []
     msg_type = 'nepi_interfaces/TargetingStatus'
     namespaces = nepi_sdk.find_topics_by_msg(msg_type, topics_list = topics_list, types_list = types_list)
