@@ -1052,3 +1052,49 @@ def unimportClass(module_name):
         if module_name in sys.modules:
           success = False
     return success
+
+
+####################
+## Bash Utils
+
+
+def bash_nepi_cmd(bash_cmd_str, arg_str_list = []):
+    return_str = ''
+    exit_code = 1
+    nepi_script = "/home/nepi/.nepi_bash_utils"
+    nepihost_script = "/home/nepihost/.nepi_bash_utils"
+    scipt_path = None
+    if os.path.exists(nepi_script) == True:
+        script_path = nepi_script
+    elif os.path.exists(nepihost_script) == True:
+        script_path = nepihost_script
+    else:
+        print("Script file not found")
+        
+    if script_path is not None:
+        cmd_str = f"source {script_path} && {bash_cmd_str}"
+        for arg_str in arg_str_list:
+            cmd_str = cmd_str + " " + f"'{arg_str}'"
+        #print(cmd_str)
+        
+        try:
+            result = subprocess.run(cmd_str, shell=True,
+                                    executable='/bin/bash',
+                                    capture_output=True,
+                                    text=True)
+            return_str = result.stdout
+            exit_code = result.returncode
+        except Exception as e:
+           print(e)
+    return return_str,exit_code
+
+def bash_nepi_check(bash_cmd_str, arg_str_list = []):
+    return_str,exit_code = bash_nepi_cmd(bash_cmd_str, arg_str_list)
+    check=False
+    if exit_code == 0:
+        check=True
+    return check
+
+def bash_nepi_get(bash_cmd_str, arg_str_list = []):
+    return_str,exit_code = bash_nepi_cmd(bash_cmd_str, arg_str_list)
+    return return_str.replace('\n', ' ')
