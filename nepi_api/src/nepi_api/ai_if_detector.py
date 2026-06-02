@@ -1131,7 +1131,7 @@ class AiDetectorIF:
 
     def addImageTopicsCb(self,msg):
         self.msg_if.pub_info("Received Add Image Topics: " + str(msg))
-        img_topic_list = msg.entries
+        img_topic_list = msg.array
         for img_topic in img_topic_list:
             self.addImageTopic(img_topic)
 
@@ -1158,7 +1158,7 @@ class AiDetectorIF:
 
     def removeImageTopicsCb(self,msg):
         self.msg_if.pub_info("Received Remove Image Topic: " + str(msg))
-        img_topic_list = msg.entries
+        img_topic_list = msg.array
         for img_topic in img_topic_list:
             self.removeImageTopic(img_topic)
 
