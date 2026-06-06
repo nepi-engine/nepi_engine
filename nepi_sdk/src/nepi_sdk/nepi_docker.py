@@ -137,16 +137,15 @@ def identifyRootfsABScheme():
 
 # Get how much availible space
 def getPartitionByteCount(partition_device):
+    running_size = 20
     config_dict=nepi_system.load_nepi_docker_config()
-    # print(config_dict)
-    # if config_dict['NEPI_ACTIVE_FS'] == 'nepi_fs_a':
-    #     print('Active FS: ' + config_dict['NEPI_ACTIVE_FS'])
-    #     print('Active FS size: ' + config_dict['NEPI_FSA_SIZE_MB'] )
-    #     return config_dict['NEPI_FSA_SIZE_MB']
-    # elif config_dict['NEPI_ACTIVE_FS'] == 'nepi_fs_b':
-    #     return config_dict['NEPI_FSB_SIZE_MB']
-    print('Active FS size: ' + str(config_dict['NEPI_FSA_SIZE_MB']))
-    return config_dict['NEPI_RUNNING_SIZE_GB'] 
+    if config_dict is None:
+        return running_size
+    try:
+        running_size = config_dict['NEPI_RUNNING_SIZE_GB'] 
+    except:
+        pass
+    return running_size
 
 # How much pace is free
 def getPartitionFreeByteCount(partition_device):
@@ -173,15 +172,20 @@ def switchActiveAndInactiveContainers():
 # Export
 def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None , info_dict = BLANK_IMAGE_DICT):
     config_dict=nepi_system.load_nepi_docker_config()
+    if config_dict is None:
+        return False, "Failed to read config"
     # Check if there is availible space to export
-    print(config_dict["NEPI_EXPORT_FILE"])
-    if config_dict['NEPI_RUNNING_SIZE_GB'] > config_dict['NEPI_EXPORT_AVAIL_GB']:
-        print("Not enough availible space. Running Container Size: " + str(config_dict['NEPI_RUNNING_SIZE_GB']) + " Availible Space: " + str(config_dict['NEPI_EXPORT_AVAIL_GB']))
-        return False, "Fail"
-    nepi_system.update_nepi_docker_config("NEPI_FS_EXPORT", 1)
-    # Monitor export process
-    interval=1
-    target_size=config_dict['NEPI_RUNNING_SIZE_GB']
+    try:
+        print(config_dict["NEPI_EXPORT_FILE"])
+        if config_dict['NEPI_RUNNING_SIZE_GB'] > config_dict['NEPI_EXPORT_AVAIL_GB']:
+            print("Not enough availible space. Running Container Size: " + str(config_dict['NEPI_RUNNING_SIZE_GB']) + " Availible Space: " + str(config_dict['NEPI_EXPORT_AVAIL_GB']))
+            return False, "Fail"
+        nepi_system.update_nepi_docker_config("NEPI_FS_EXPORT", 1)
+        # Monitor export process
+        interval=1
+        target_size=config_dict['NEPI_RUNNING_SIZE_GB']
+    except:
+        return False, "Failed to read NEPI_RUNNING_SIZE_GB"
     while True:
         try:
             config_dict=nepi_system.load_nepi_docker_config() # Update config dict

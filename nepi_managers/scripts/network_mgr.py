@@ -840,8 +840,8 @@ class NetworkMgr:
            for line in connection_status.splitlines():
                if line.strip().startswith('SSID'):
                    connected_ssid = line.strip().split()[1]
-                   if connected_ssid != self.wifi_client_ssid:
-                       self.wifi_client_ssid = connected_ssid
+                   #if connected_ssid != self.wifi_client_ssid:
+                   #    self.wifi_client_ssid = connected_ssid
                    return connected_ssid
         
         return 'NONE'

@@ -340,7 +340,7 @@ def update_nepi_system_config(config_key, config_value, config_dict = None):
     success=False
     if config_dict is None:
         config_dict=load_nepi_system_config()
-    if len(config_dict.keys()) > 0:
+    if config_dict is not None:
         config_dict[config_key] = config_value
         success=save_nepi_system_config(config_dict)
     return config_dict
@@ -348,7 +348,7 @@ def update_nepi_system_config(config_key, config_value, config_dict = None):
 
 ########################
 def load_nepi_docker_config():
-    config_dict=dict()
+    config_dict = None
 
     target_file=DOCKER_CONFIG_FILE
     backup_file=NEPI_DOCKER_CONFIG_FILE
@@ -363,14 +363,12 @@ def load_nepi_docker_config():
             shutil.copyfile(backup_file, target_file)
         except Exception as e:
             print("Unable to copy file: " + str(e))
-
-
-    config_dict = nepi_utils.read_dict_from_file(target_file)
-    if config_dict is None:
-        config_dict = dict()
-    for key in config_dict.keys(): # Fixe empty arrays
-        if config_dict[key] is None:
-            config_dict[key]=[]
+    if os.path.exists(target_file) == True:
+        config_dict = nepi_utils.read_dict_from_file(target_file)
+        if config_dict is not None:
+            for key in config_dict.keys(): # Fixe empty arrays
+                if config_dict[key] is None:
+                    config_dict[key]=[]
     return config_dict
 
 def save_nepi_docker_config(config_dict):
@@ -395,7 +393,7 @@ def save_nepi_docker_config(config_dict):
 def update_nepi_docker_config(config_key, config_value):
     success=False
     config_dict=load_nepi_docker_config()
-    if len(config_dict.keys()) > 0:
+    if config_dict is not None:
         config_dict[config_key] = config_value
         success=save_nepi_docker_config(config_dict)
     return success

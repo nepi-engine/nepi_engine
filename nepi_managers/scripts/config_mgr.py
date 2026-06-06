@@ -358,9 +358,8 @@ class config_mgr(object):
         if os.path.exists(cfg_path) and self.save_disabled == False:
             config_pathname = self.get_config_pathname(cfg_path, namespace, all_config = save_all)
             if save_all == True:
-                clear_pathname = config_pathname.replace('ALL.yaml','')
-                clear_path = os.path.dirname(clear_pathname)
-                clear_string = os.path.basename(clear_pathname)
+                clear_path = os.path.dirname(config_pathname)
+                clear_string = os.path.basename(config_pathname).split('_ALL')[0]
                 success = nepi_utils.delete_files_wildcard(clear_path,clear_string)
             #self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + config_pathname )
             # First, write to the user file

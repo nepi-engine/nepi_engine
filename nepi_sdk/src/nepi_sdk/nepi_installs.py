@@ -107,18 +107,23 @@ def checkForNewImagesAvailable(image_install_path, install_device_is_removable):
 def getRootfsABStatus():
     rootfs_ab_status_dict = {}
     config_dict=nepi_system.load_nepi_docker_config()
-    rootfs_ab_status_dict["active_part_device"] = "nepi_fs_a"
-    has_ab_fs=config_dict['NEPI_AB_FS'] == 1
-    inactive_fs='None'
-    inactive_fw='None'
-    if has_ab_fs:
-        inactive_fs='nepi_fs_b'
-        inactive_fw=config_dict['NEPI_FSB_VERSION']
-    rootfs_ab_status_dict["inactive_part_device"] = inactive_fs
-    rootfs_ab_status_dict["max_boot_fail_count"] = 1
-    rootfs_ab_status_dict["running_boot_fail_count"] = 0
-    rootfs_ab_status_dict["inactive_part_fw_version"] = inactive_fw
-    return True, "Success", rootfs_ab_status_dict
+    if config_dict is None:
+        return False, "Failed to read config", 'unknown'
+    try:
+        rootfs_ab_status_dict["active_part_device"] = "nepi_fs_a"
+        has_ab_fs=config_dict['NEPI_AB_FS'] == 1
+        inactive_fs='None'
+        inactive_fw='None'
+        if has_ab_fs:
+            inactive_fs='nepi_fs_b'
+            inactive_fw=config_dict['NEPI_FSB_VERSION']
+        rootfs_ab_status_dict["inactive_part_device"] = inactive_fs
+        rootfs_ab_status_dict["max_boot_fail_count"] = 1
+        rootfs_ab_status_dict["running_boot_fail_count"] = 0
+        rootfs_ab_status_dict["inactive_part_fw_version"] = inactive_fw
+        return True, "Success", rootfs_ab_status_dict
+    except Exception as e:
+        return False, "Failed " + str(e), 'unknown'
 
 def identifyRootfsABScheme():
     return 'container'
@@ -152,33 +157,39 @@ def switchActiveAndInactiveContainers():
 # Export
 def saveImage(inactive_partition_device, staging_device, archive_file_basename, do_slow_transfer, progress_cb=None , info_dict = BLANK_IMAGE_DICT):
     config_dict=nepi_system.load_nepi_docker_config()
+    if config_dict is None:
+        return False, "Failed to read config"
     # Check if there is availible space to export
     if config_dict['NEPI_RUNNING_SIZE_GB'] > config_dict['NEPI_EXPORT_AVAIL_GB']:
         print("Not enough availible space. Running Container Size: " + str(config_dict['NEPI_RUNNING_SIZE_GB']) + " Availible Space: " + str(config_dict['NEPI_EXPORT_AVAIL_GB']))
         return False, "Fail"
     nepi_system.update_nepi_docker_config("NEPI_FS_EXPORT", 1)
-    # Monitor export process
-    interval=1
-    target_size=config_dict['NEPI_RUNNING_SIZE_GB']
-    while True:
-        try:
-            config_dict=nepi_system.load_nepi_docker_config() # Update config dict
-            file_path=config_dict["NEPI_EXPORT_FILE"]
-            current_size = os.stat(file_path).st_size / (1024 ** 3)
-        except FileNotFoundError:
-            print(f"Waiting for file '{file_path}' to appear...")
-            time.sleep(interval)
-            continue
-        except NameError:
-            print("...")
 
-        if current_size == target_size:
-            print(f"\nFile export complete. Final size: {current_size} GB.")
-            break
-        else:
-            print(f"Current file size: {current_size} GB", end='\r')
-            time.sleep(interval)
-    return True, "Success"
+    try:
+        # Monitor export process
+        interval=1
+        target_size=config_dict['NEPI_RUNNING_SIZE_GB']
+        while True:
+            try:
+                config_dict=nepi_system.load_nepi_docker_config() # Update config dict
+                file_path=config_dict["NEPI_EXPORT_FILE"]
+                current_size = os.stat(file_path).st_size / (1024 ** 3)
+            except FileNotFoundError:
+                print(f"Waiting for file '{file_path}' to appear...")
+                time.sleep(interval)
+                continue
+            except NameError:
+                print("...")
+
+            if current_size == target_size:
+                print(f"\nFile export complete. Final size: {current_size} GB.")
+                break
+            else:
+                print(f"Current file size: {current_size} GB", end='\r')
+                time.sleep(interval)
+        return True, "Success"
+    except Exception as e:
+        return False, "Failed " + str(e)
 
 
 def restart():
