@@ -176,7 +176,13 @@ class NetworkMgr:
 
         self.start_dhcp_on_startup=self.nepi_config['NEPI_WIRED_DHCP_ENABLED']
         self.start_wifi_client_on_startup=self.nepi_config['NEPI_WIFI_CLIENT_ENABLED']
-        self.start_wifi_ap_on_startup=self.nepi_config['NEPI_WIFI_ACCESS_POINT_ENABLED']
+
+        self.start_wifi_ap_on_startup = False
+        try:
+            self.start_wifi_ap_on_startup=self.nepi_config['NEPI_HOTSPOT_ENABLED'] == 1
+        except:
+            pass          
+        s
 
 
         self.nepi_config_path = self.nepi_config['NEPI_CONFIG']
@@ -582,7 +588,11 @@ class NetworkMgr:
                            
                     self.nepi_config = self.get_nepi_system_config()
                     nwifi_ap_ssid = self.node_if.get_param('wifi_ap_ssid')
-                    cwifi_ap_ssid = self.nepi_config['NEPI_WIFI_ACCESS_POINT_ID']
+                    cwifi_ap_ssid = 'NONE'
+                    try:
+                        cwifi_ap_ssid = self.nepi_config['NEPI_HOTSPOT_ID']
+                    except:
+                        pass
                     if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '' or nwifi_ap_ssid is None:
                         nwifi_ap_ssid=cwifi_ap_ssid
                     if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '' or nwifi_ap_ssid is None:
@@ -590,7 +600,11 @@ class NetworkMgr:
                     self.wifi_ap_ssid = nwifi_ap_ssid
                     
                     nwifi_ap_passphrase = self.node_if.get_param('wifi_ap_passphrase')
-                    cwifi_ap_passphrase = self.nepi_config['NEPI_WIFI_ACCESS_POINT_PW']
+                    cwifi_ap_passphrase = 'NONE'
+                    try:
+                        cwifi_ap_passphrase = self.nepi_config['NEPI_HOTSPOT_PW']
+                    except:
+                        pass                    
                     if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
                         nwifi_ap_passphrase=cwifi_ap_passphrase
                     if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
@@ -1411,9 +1425,9 @@ class NetworkMgr:
         if self.wifi_ap_enabled is True and self.wifi_iface is not None:
             if self.wifi_ap_ssid != "":
                 ### Update ETC Files
-                nepi_system.update_nepi_system_config("NEPI_WIFI_ACCESS_POINT_ENABLED",1)
-                nepi_system.update_nepi_system_config("NEPI_WIFI_ACCESS_POINT_ID",self.wifi_ap_ssid)
-                nepi_system.update_nepi_system_config("NEPI_WIFI_ACCESS_POINT_PW",self.wifi_ap_passphrase)
+                nepi_system.update_nepi_system_config("NEPI_HOTSPOT_ENABLED",1)
+                nepi_system.update_nepi_system_config("NEPI_HOTSPOT_ID",self.wifi_ap_ssid)
+                nepi_system.update_nepi_system_config("NEPI_HOTSPOT_PW",self.wifi_ap_passphrase)
                 etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wifi_access_point.sh"
                 subprocess.call([etc_update_script])
                 nepi_sdk.sleep(1)
