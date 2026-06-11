@@ -1015,7 +1015,7 @@ class NavPoseMgr(object):
                 solution_msg.max_pub_rate = navposes_settings_dict[frame_name]['max_pub_rate']
 
                 if frame_name in self.navposes_pub_times_dict.keys():
-                    times_dict = navposes_init_times_dict[frame_name][comp_name]
+                    times_dict = self.navposes_pub_times_dict[frame_name]
                     times = times_dict['times']
                     avg_times = sum(times)/len(times)
                     if avg_times > .01:

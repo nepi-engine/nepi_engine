@@ -1091,7 +1091,7 @@ class NepiDriversMgr(object):
           if self.node_if is not None:
               self.node_if.set_param('devices_alias_dict',self.devices_alias_dict)
               self.node_if.save_config()
-              nepi_system.set_devices_alias_dict(self.devices_alias_dict)
+              #nepi_system.set_devices_alias_dict(self.devices_alias_dict)
           if self.node_if is not None:
               msg = UpdateString()
               msg.name = os.path.join(self.base_namespace,device_name)
