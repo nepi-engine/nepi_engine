@@ -105,15 +105,24 @@ source $NEPI_UTILS
 	sudo python3 $script_path
 
 	script_file=nepi_system_sync.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	echo "Running script ${script_path}"
-	run_script $script_path
+	script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
+	if [[ -f script_path ]]; then
+		echo "Running script ${script_path}"
+		run_script $script_path
+	else
+		script_path=${NEPI_ETC_SCRIPTS}/${script_file}
+		echo "Running script ${script_path}"
+		run_script $script_path
+	fi
 
 
 	LOAD_CONFIG=0
 	script_file=update_sys_config.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path $LOAD_CONFIG
+	script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
+	if [[ -f script_path ]]; then
+		echo "Running script ${script_path}"
+		run_script $script_path
+	fi
 
 	echo ""
 	echo "Loading Updated NEPI System Config"
@@ -126,21 +135,31 @@ source $NEPI_UTILS
 
 	LOAD_CONFIG=0
 	script_file=update_sys_bash.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path $LOAD_CONFIG
+	script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
+	if [[ -f script_path ]]; then
+		echo "Running script ${script_path}"
+		run_script $script_path
+	fi
 
 	LOAD_CONFIG=1
 	script_file=update_etc_users.sh
-	ETC_USER_CONFIG_FILE=${ETC_FOLDER}/user/user_config.yaml
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path $LOAD_CONFIG $ETC_USER_CONFIG_FILE
+	script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
+	if [[ -f script_path ]]; then
+		echo "Running script ${script_path}"
+		run_script $script_path $LOAD_CONFIG $ETC_USER_CONFIG_FILE
+	fi
+
 
 	LOAD_CONFIG=0
 	script_file=update_etc_ssh_keys.sh
-	script_path=${NEPI_ETC_SCRIPTS}/${script_file}
-	run_script $script_path $LOAD_CONFIG
-	echo "Authorizing NEPI SSH KEY ${NEPI_SSH_KEY}"
-	nepiauthadd $NEPI_SSH_KEY
+	script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
+	if [[ -f script_path ]]; then
+		echo "Running script ${script_path}"
+		run_script $script_path $LOAD_CONFIG
+		echo "Authorizing NEPI SSH KEY ${NEPI_SSH_KEY}"
+		nepiauthadd $NEPI_SSH_KEY
+	fi
+
 	#########################################
 
 
