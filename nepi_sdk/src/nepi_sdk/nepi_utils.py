@@ -39,8 +39,10 @@ import grp
 import glob
 import importlib.util
 
+
 import pytz
 import datetime
+import ipaddress
 
 from pathlib import Path
 
@@ -194,6 +196,15 @@ standard_timezones_dict = {'UTC': 0, 'America/New_York': -5, 'America/Chicago': 
      'Africa/Lagos': 1, 'Europe/Warsaw': 1, 'America/Puerto Rico': -4, 'Europe/Moscow': 4, 'Asia/Manila': 8, 'Atlantic/Reykjavik': 0, 'Asia/Jerusalem': 2}
 #########################
 ### Network Helper Functions
+
+def is_valid_ip(ip_str):
+    """Returns True if the string is a valid IPv4 or IPv6 address, otherwise False."""
+    try:
+        ip_clean=ip_str.split('/')[0]
+        ipaddress.ip_address(ip_clean)
+        return True
+    except ValueError:
+        return False
 
 def ping_ip(ip_address):
       """
@@ -1015,6 +1026,15 @@ def check_module_available(name):
     """Checks if a module exists without importing/executing it."""
     return importlib.util.find_spec(name) is not None
 
+
+def is_valid_serial_number(sn_str):
+    """Checks if a string is a valid 6-digit integer."""
+    valid = len(s) == 6 and sn_str.isdigit()
+    if valid == True:
+        if sn_str[0] == '0':
+            valid = False
+    return valid
+
 ####################
 ## Class Util Funtions
 
@@ -1098,3 +1118,7 @@ def bash_nepi_check(bash_cmd_str, arg_str_list = []):
 def bash_nepi_get(bash_cmd_str, arg_str_list = []):
     return_str,exit_code = bash_nepi_cmd(bash_cmd_str, arg_str_list)
     return return_str.replace('\n', ' ')
+
+def bash_nepi_get_ml(bash_cmd_str, arg_str_list = []):
+    return_str,exit_code = bash_nepi_cmd(bash_cmd_str, arg_str_list)
+    return return_str

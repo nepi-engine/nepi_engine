@@ -167,22 +167,22 @@ class NetworkMgr:
         self.msg_if.pub_info("Waiting for nepi config info")
         self.nepi_config = self.get_nepi_system_config()
             
-
-        self.in_container = self.nepi_config['NEPI_IN_CONTAINER']
-        self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
-
-        self.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
-        self.msg_if.pub_warn("Got NEPI Manages Network: " + str(self.manages_network))
-
-        self.start_dhcp_on_startup=self.nepi_config['NEPI_WIRED_DHCP_ENABLED']
-        self.start_wifi_client_on_startup=self.nepi_config['NEPI_WIFI_CLIENT_ENABLED']
-
-        self.start_wifi_ap_on_startup = False
         try:
+            self.in_container = self.nepi_config['NEPI_IN_CONTAINER']
+            self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
+
+            self.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
+            self.msg_if.pub_warn("Got NEPI Manages Network: " + str(self.manages_network))
+
+            self.start_dhcp_on_startup=self.nepi_config['NEPI_WIRED_DHCP_ENABLED']
+            self.start_wifi_client_on_startup=self.nepi_config['NEPI_WIFI_CLIENT_ENABLED']
+
+            self.start_wifi_ap_on_startup = False
+
             self.start_wifi_ap_on_startup=self.nepi_config['NEPI_HOTSPOT_ENABLED'] == 1
-        except:
-            pass          
-        s
+        except Exception as e:
+             self.msg_if.pub_warn("Failed to Get System Config Info " + str(e))     
+        
 
 
         self.nepi_config_path = self.nepi_config['NEPI_CONFIG']
@@ -571,6 +571,9 @@ class NetworkMgr:
                     if nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
                         nwifi_client_passphrase='NONE'
                     self.wifi_client_passphrase = nwifi_client_passphrase
+                    
+
+
 
                     self.msg_if.pub_warn("Starting Init with Wifi Client Enabled: " + str(self.wifi_client_enabled))
                     self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))

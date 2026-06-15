@@ -130,7 +130,9 @@ class SystemMgrNode():
     system_capSettings = None
     system_factorySettings = None
     system_update_time = 0
-    system_update_delay = 60
+    system_update_delay = 10
+    nepi_service_running = False
+    nepi_updating_config = False
                   
 
 
@@ -990,8 +992,22 @@ class SystemMgrNode():
       if data is not None:
         setting_name = setting['name']
         setting_data = data
+        if 'IP' in setting_name:
+            if nepi_utils.is_valid_ip(setting_data) == False:
+                msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
+                return success, msg
+        if 'IP' in setting_name:
+            if nepi_utils.is_valid_ip(setting_data) == False:
+                msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
+                return success, msg
+        if 'NEPI_DEVICE_SN' == setting_name:
+            if nepi_utils.is_valid_serial_number(setting_data) == False:
+                msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
+                return success, msg
         self.system_config[setting_name] = setting_data
-        nepi_system.update_nepi_system_config(setting_name,setting_data)            
+        nepi_system.update_nepi_system_config(setting_name,setting_data)         
+        success = True
+        msg = ( self.node_name  + " UPDATED SETTINGS " + setting_str)   
       else:
         msg = (self.node_name  + " Setting data" + setting_str + " is None")
       return success, msg
@@ -999,7 +1015,7 @@ class SystemMgrNode():
     def updateNepiConfigCb(self):
         last_time = self.system_update_time
         timer = nepi_utils.get_time() - last_time
-        if timer >= self.system_update_delay:
+        if timer >= self.system_update_delay and self.nepi_updating_config == False:
             self.msg_if.pub_warn("Starting System Update Process")
             update_config = 1
             nepi_system.update_nepi_docker_config('NEPI_UPDATE_CONFIG',update_config)
@@ -1105,6 +1121,40 @@ class SystemMgrNode():
 
     def updateDockerCb(self, event):
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
+
+        netlist_text = ''
+        netlist_file = '/mnt/nepi_config/system_cfg/etc/netlist.txt'
+        if os.path.exists(netlist_file):
+            try:
+                with open(netlist_file, "r", encoding="utf-8") as file:
+                    netlist_text = file.read()
+            except:
+                pass
+        self.status_msg.netlist_str = str(netlist_text)
+
+        nepi_service_running = False
+        nepi_updating_config = False
+        nepi_docker_config = nepi_system.load_nepi_docker_config()
+        if nepi_docker_config is not None:
+            if 'NEPI_UPDATING_CONFIG' in nepi_docker_config.keys():
+                nepi_updating_config = nepi_docker_config['NEPI_UPDATING_CONFIG'] == 1
+            if 'NEPI_SERVICE_RUNNING' in nepi_docker_config.keys():
+                nepi_service_running = nepi_docker_config['NEPI_SERVICE_RUNNING'] == 1
+                # Reset for next check
+                nepi_docker_config = nepi_system.update_nepi_docker_config('NEPI_SERVICE_RUNNING', 0)
+
+        self.nepi_service_running = nepi_service_running
+        self.status_msg.nepi_service_running = nepi_service_running
+        
+        self.nepi_updating_config = nepi_updating_config
+        self.status_msg.nepi_updating_config = nepi_updating_config
+
+        
+        
+
+        
+
+
 
     def updateTopicsServicesCb(self, event):
         active_nodes = []
