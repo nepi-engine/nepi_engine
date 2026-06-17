@@ -45,7 +45,7 @@ from nepi_sdk import nepi_triggers
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
-                                DictString, DictStringEntry, UpdateBool, UpdateString, UpdateOrder
+                                DictString, DictStringEntry, UpdateBool, UpdateString, UpdateStringDict, UpdateOrder
                       
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
@@ -704,6 +704,14 @@ class SystemMgrNode():
                 'callback': self.systemTriggersCb, 
                 'callback_args': ()
             },
+            'set_system_configs': {
+                'namespace': self.base_namespace,
+                'topic': 'set_system_configs',
+                'msg': UpdateStringDict,
+                'qsize': None,
+                'callback': self.setNepiConfigsCb, 
+                'callback_args': ()
+            },
             'update_system_config': {
                 'namespace': self.base_namespace,
                 'topic': 'update_system_config',
@@ -1012,7 +1020,18 @@ class SystemMgrNode():
         msg = (self.node_name  + " Setting data" + setting_str + " is None")
       return success, msg
 
-    def updateNepiConfigCb(self):
+    def setNepiConfigsCb(self, msg):
+        self.msg_if.pub_info("Got Set Configs msg: " + str(msg))
+        if self.system_settings_if is not None:
+            key_strs = msg.key_strs
+            value_strs = msg.value_strs
+            if len(key_strs) == len(value_strs):
+                for i, key_str in enumerate(key_strs):
+                    self.system_settings_if.update_setting_value(key_str, value_strs[i])
+                    nepi_sdk.sleep(0.2)
+
+    def updateNepiConfigCb(self, msg):
+        self.msg_if.pub_info("Got Update Config msg: " + str(msg))
         last_time = self.system_update_time
         timer = nepi_utils.get_time() - last_time
         if timer >= self.system_update_delay and self.nepi_updating_config == False:
