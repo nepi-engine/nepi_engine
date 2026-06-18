@@ -106,7 +106,7 @@ source $NEPI_UTILS
 
 	script_file=nepi_system_sync.sh
 	script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
-	if [[ -f script_path ]]; then
+	if [[ -f $script_path ]]; then
 		echo "Running script ${script_path}"
 		run_script $script_path
 	else
@@ -119,7 +119,7 @@ source $NEPI_UTILS
 	LOAD_CONFIG=0
 	script_file=update_sys_config.sh
 	script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
-	if [[ -f script_path ]]; then
+	if [[ -f $script_path ]]; then
 		echo "Running script ${script_path}"
 		run_script $script_path 
 	else
