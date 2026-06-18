@@ -386,7 +386,7 @@ class config_mgr(object):
         success = False
         namespaces = [namespace]
         if namespace != alt_namespace:
-            namespaces.append(namespace)
+            namespaces.append(alt_namespace)
 
 
         if folder in self.config_folders.keys():
@@ -414,7 +414,25 @@ class config_mgr(object):
                                 success = True
                             except Exception as e:
                                 print(f"An error occurred: {e}")
-              
+
+                # Delete all sub-node config files for this device (e.g. USB_CAM-idx.yaml, USB_CAM-save_data.yaml)
+                # Only applies at the device level (no sub-path after device name)
+                base_ns = nepi_sdk.get_base_namespace()
+                rel_namespace = source_namespace.replace(base_ns + '/', '').strip('/')
+                if '/' not in rel_namespace and rel_namespace:
+                    device_prefix = rel_namespace + '-'
+                    try:
+                        for fname in os.listdir(source_path):
+                            if fname.startswith(device_prefix) and fname.endswith(CFG_SUFFIX):
+                                fpath = os.path.join(source_path, fname)
+                                try:
+                                    os.remove(fpath)
+                                    success = True
+                                except Exception as e:
+                                    print(f"An error occurred deleting {fname}: {e}")
+                    except Exception as e:
+                        print(f"An error occurred scanning {source_path}: {e}")
+
         return success
 
 

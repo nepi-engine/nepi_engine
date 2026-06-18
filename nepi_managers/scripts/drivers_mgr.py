@@ -25,6 +25,7 @@ import subprocess
 import time
 import warnings
 import copy
+import shutil
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -1086,11 +1087,13 @@ class NepiDriversMgr(object):
               self.msg_if.pub_info("Updating Device " + device_name + " with alias: " + str(device_alias))
               self.devices_alias_dict[device_name] = device_alias
               self.devices_alias_dict_session[device_name] = device_alias
-
+              self.clear_config(device_alias)
+              self.copy_config(device_name, device_alias)
           self.publish_status()
           if self.node_if is not None:
               self.node_if.set_param('devices_alias_dict',self.devices_alias_dict)
               self.node_if.save_config()
+
               #nepi_system.set_devices_alias_dict(self.devices_alias_dict)
           if self.node_if is not None:
               msg = UpdateString()
@@ -1127,15 +1130,50 @@ class NepiDriversMgr(object):
                   msg.value = os.path.join(self.base_namespace,purge_device)
                   self.node_if.publish_pub('copy_configs', msg)
                   nepi_sdk.sleep(1)
-                  self.node_if.publish_pub('delete_configs', msg.name)
-
+                  delete_msg = UpdateString()
+                  delete_msg.name = msg.name
+                  self.node_if.publish_pub('delete_configs', delete_msg)
+                  
           self.publish_status()
           if self.node_if is not None:
+
               self.node_if.set_param('devices_alias_dict',self.devices_alias_dict)
               self.node_if.save_config()
-              nepi_system.set_devices_alias_dict(self.devices_alias_dict)
+              #nepi_system.set_devices_alias_dict(self.devices_alias_dict)
 
 
+
+  def clear_config(self, name):
+      user_cfg = self.user_cfg_folder
+      prefix = name + '-'
+      try:
+          for fname in os.listdir(user_cfg):
+              if fname.endswith('.yaml') and (fname.startswith(prefix) or fname == name + '.yaml'):
+                  fpath = os.path.join(user_cfg, fname)
+                  try:
+                      os.remove(fpath)
+                      self.msg_if.pub_info("clear_config: deleted " + fname)
+                  except Exception as e:
+                      self.msg_if.pub_warn("clear_config: failed to delete " + fname + ": " + str(e))
+      except Exception as e:
+          self.msg_if.pub_warn("clear_config: failed scanning " + user_cfg + ": " + str(e))
+
+  def copy_config(self, name, new_name):
+      user_cfg = self.user_cfg_folder
+      prefix = name + '-'
+      try:
+          for fname in os.listdir(user_cfg):
+              if fname.endswith('.yaml') and (fname.startswith(prefix) or fname == name + '.yaml'):
+                  src = os.path.join(user_cfg, fname)
+                  new_fname = new_name + fname[len(name):]
+                  dst = os.path.join(user_cfg, new_fname)
+                  try:
+                      shutil.copy2(src, dst)
+                      self.msg_if.pub_info("copy_config: " + fname + " -> " + new_fname)
+                  except Exception as e:
+                      self.msg_if.pub_warn("copy_config: failed to copy " + fname + ": " + str(e))
+      except Exception as e:
+          self.msg_if.pub_warn("copy_config: failed scanning " + user_cfg + ": " + str(e))
 
   ########################
 
