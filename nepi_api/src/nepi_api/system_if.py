@@ -50,7 +50,7 @@ from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQ
 
 from nepi_interfaces.msg import Transform, TransformStatus
 
-from nepi_interfaces.msg import Setting, SettingsStatus, SettingCap
+from nepi_interfaces.msg import Setting, Settings, SettingsStatus, SettingCap
 from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
@@ -2490,6 +2490,14 @@ class SettingsIF:
                 'callback': self._updateSettingCb,
                 'callback_args': None
             },
+            'update_settings': {
+                'msg': Settings,
+                'namespace': self.namespace,
+                'topic': 'update_settings',
+                'qsize': 5,
+                'callback': self._updateSettingsCb,
+                'callback_args': None
+            },
             'reset_settings': {
                 'msg': Empty,
                 'namespace': self.namespace,
@@ -2629,6 +2637,14 @@ class SettingsIF:
         self.msg_if.pub_warn("Updated Cap Setting: " + str(cap_setting), log_name_list = self.log_name_list)
         return success
 
+
+    def update_setting_value(self, key_str, value_str):
+        current_settings = self.getSettingsFunction()
+        if key_str in current_settings.keys():
+            setting = current_settings[key_str]
+            setting['value'] = str(value_str)
+            self.update_setting(setting)    
+
     def update_setting(self,setting,do_updates = True, update_param = True):
         """Apply a single setting update using the registered setSettingFunction.
 
@@ -2759,6 +2775,13 @@ class SettingsIF:
         self.msg_if.pub_info("Received setting update msg: " + str(msg), log_name_list = self.log_name_list)
         setting_dict = nepi_settings.parse_setting_msg(msg)
         self.update_setting(setting_dict, do_updates = True, update_param = True)
+
+    def _updateSettingsCb(self,msg):
+        self.msg_if.pub_info("Received settings update msg: " + str(msg), log_name_list = self.log_name_list)
+        for settings_msg in msg:
+            setting_dict = nepi_settings.parse_setting_msg(settings_msg)
+            self.update_setting(setting_dict, do_updates = True, update_param = True)
+            nepi_sdk.sleep(0.2)
 
     def _updateCapSettingCb(self,msg):
         self.msg_if.pub_info("Received cap setting update msg: " + str(msg), log_name_list = self.log_name_list)

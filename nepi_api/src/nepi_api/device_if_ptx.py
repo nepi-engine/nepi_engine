@@ -859,8 +859,8 @@ class PTXActuatorIF:
                                         self.max_pan_softstop_deg,
                                         self.min_tilt_softstop_deg,
                                         self.max_tilt_softstop_deg)
-
-            self.speed_max_dps = self.node_if.get_param('speed_max_dps')
+            if self.getSpeedMaxCb is None:
+                self.speed_max_dps = self.node_if.get_param('speed_max_dps')
             if self.setSpeedMaxCb is not None:
                 self.setSpeedMaxCb(self.speed_max_dps) 
 
@@ -1232,9 +1232,10 @@ class PTXActuatorIF:
     def _setMaxSpeedCb(self, msg):
             max_speed = msg.data
             if (max_speed > 0.0):
-                self.speed_max_dps = max_speed
+                
                 if self.setSpeedMaxCb is not None:
-                    self.setSpeedMaxCb(self.speed_max_dps) 
+                    self.setSpeedMaxCb(max_speed) 
+                    self.speed_max_dps = max_speed
                 self.publish_status()
                 self.node_if.set_param('speed_max_dps',max_speed)
                 self.msg_if.pub_warn("Updated max speed to " + str(max_speed))

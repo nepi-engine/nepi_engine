@@ -34,6 +34,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
 from nepi_sdk import nepi_mgrs
 from nepi_sdk import nepi_keys
+from nepi_sdk import nepi_settings
 
                  
 #####################
@@ -44,7 +45,7 @@ from nepi_sdk import nepi_triggers
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
-                                DictString, DictStringEntry, UpdateBool, UpdateString, UpdateOrder
+                                DictString, DictStringEntry, UpdateBool, UpdateString, UpdateStringDict, UpdateOrder
                       
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
@@ -58,7 +59,7 @@ from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, Sys
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import StatesIF, TriggersIF, SaveDataIF
+from nepi_api.system_if import SettingsIF, StatesIF, TriggersIF, SaveDataIF
 
 
 BYTES_PER_MEGABYTE = 2**20
@@ -124,6 +125,15 @@ class SystemMgrNode():
         ['DATA-NAVPOSE'] + \
         ['DEVICE-IDX','DEVICE-PTX','DEVICE-LSX','DEVICE-NPX','DEVICE-RBX']
 
+    SYSTEM_SETTINGS_KEYS = []
+    SYSTEM_SETTINGS_DICT = dict()
+    system_capSettings = None
+    system_factorySettings = None
+    system_update_time = 0
+    system_update_delay = 10
+    nepi_service_running = False
+    nepi_updating_config = False
+                  
 
 
     node_if = None
@@ -227,70 +237,80 @@ class SystemMgrNode():
 
         ###############################
         # Initialize Class Variables
-
-        self.nepi_config = nepi_system.load_nepi_system_config()
-        self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
-        if self.nepi_config is None:
-            self.nepi_config = dict()
-        if len(self.nepi_config.keys()) == 0:
+        
+        self.system_config = nepi_system.load_nepi_system_config()
+        self.msg_if.pub_warn("Got System Config: " + str(self.system_config))
+        if self.system_config is None:
+            self.system_config = dict()
+        if len(self.system_config.keys()) == 0:
             self.msg_if.pub_warn("Failed to Read NEPI config file")
             nepi_sdk.signal_shutdown("Shutting Down: Failed to Read NEPI config file")
             return
-        for key in self.nepi_config.keys(): # Fix empty arrays
-            if self.nepi_config[key] is None:
-                self.nepi_config[key]=[]
+        self.system_capSettings = self.getCapSettings(self.system_config)
+  
+        self.factory_config = nepi_system.load_nepi_factory_config()
+        #self.msg_if.pub_warn("Got System Config: " + str(self.factory_config))
+        if self.factory_config is None:
+            self.factory_config = dict()
+        if len(self.factory_config.keys()) == 0:
+            self.factory_config = self.system_config
+        else:
+            for key in self.system_config.keys():
+                if key not in self.factory_config.keys():
+                    self.factory_config[key] = self.system_config[key]
+        self.system_factorySettings = self.getSettings(self.factory_config)
 
         # Gather owner and group details for storage mountpoint
         # stat_info = os.stat(self.storage_folder)
         # self.nepi_uid = stat_info.st_uid
         # self.nepi_gid = stat_info.st_gid
 
-        self.nepi_uid = self.nepi_config['NEPI_USER']
+        self.nepi_uid = self.system_config['NEPI_USER']
         self.nepi_gid = self.nepi_uid
 
 
-        self.nepiadmin_uid = self.nepi_config['NEPI_ADMIN_USER']
-        self.nepiadmin_gid = self.nepi_config['NEPI_ADMIN_USER']
+        self.nepiadmin_uid = self.system_config['NEPI_ADMIN_USER']
+        self.nepiadmin_gid = self.system_config['NEPI_ADMIN_USER']
 
-        self.nepihost_uid = self.nepi_config['NEPI_HOST_USER']
-        self.nepihost_gid = self.nepi_config['NEPI_HOST_USER']
+        self.nepihost_uid = self.system_config['NEPI_HOST_USER']
+        self.nepihost_gid = self.system_config['NEPI_HOST_USER']
 
-        check_path=self.nepi_config['NEPI_STORAGE']
+        check_path=self.system_config['NEPI_STORAGE']
         if os.path.exists(check_path)==False:
             os.mkdir(check_path)
-        check_path=self.nepi_config['NEPI_CONFIG']
+        check_path=self.system_config['NEPI_CONFIG']
         if os.path.exists(check_path)==False:
             os.mkdir(check_path)
-            os.mkdir(self.nepi_config['FACTORY_CONFIG'])
-            os.mkdir(self.nepi_config['SYSTEM_CONFIG'])
-            os.mkdir(self.nepi_config['DOCKER_CONFIG'])
+            os.mkdir(self.system_config['FACTORY_CONFIG'])
+            os.mkdir(self.system_config['SYSTEM_CONFIG'])
+            os.mkdir(self.system_config['DOCKER_CONFIG'])
 
-        check_path=self.nepi_config['NEPI_IMPORT_PATH']
+        check_path=self.system_config['NEPI_IMPORT_PATH']
         if check_path not in self.REQD_STORAGE_SUBDIRS:
             self.REQD_STORAGE_SUBDIRS.append(check_path)
-        check_path=self.nepi_config['NEPI_EXPORT_PATH']
+        check_path=self.system_config['NEPI_EXPORT_PATH']
         if check_path not in self.REQD_STORAGE_SUBDIRS:
             self.REQD_STORAGE_SUBDIRS.append(check_path)
 
-        nepi_system.set_nepi_config(self.nepi_config)
+        nepi_system.set_nepi_config(self.system_config)
 
-        self.status_msg.serial_number = str(self.nepi_config['NEPI_DEVICE_SN'])
-        hw_type = self.nepi_config['NEPI_HW_TYPE']
+        self.status_msg.serial_number = str(self.system_config['NEPI_DEVICE_SN'])
+        hw_type = self.system_config['NEPI_HW_TYPE']
         if hw_type != 'unknown':
             self.status_msg.hw_type = hw_type
-        hw_model = self.nepi_config['NEPI_HW_MODEL']
+        hw_model = self.system_config['NEPI_HW_MODEL']
         if hw_model != 'unknown':
             self.status_msg.hw_model = hw_model
-        self.status_msg.sw_desc = self.nepi_config['NEPI_SW_DESC']
-        self.status_msg.has_cuda = self.nepi_config['NEPI_HAS_CUDA'] == 1
-        self.status_msg.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
-        self.status_msg.manages_network = self.nepi_config['NEPI_MANAGES_NETWORK'] == 1
+        self.status_msg.sw_desc = self.system_config['NEPI_SW_DESC']
+        self.status_msg.has_cuda = self.system_config['NEPI_HAS_CUDA'] == 1
+        self.status_msg.manages_time = self.system_config['NEPI_MANAGES_TIME'] == 1
+        self.status_msg.manages_network = self.system_config['NEPI_MANAGES_NETWORK'] == 1
 
-        self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
+        self.in_container = self.system_config['NEPI_IN_CONTAINER'] == 1
         self.status_msg.in_container = self.in_container
 
-        self.config_folder = self.nepi_config['NEPI_CONFIG']
-        self.storage_folder = self.nepi_config['NEPI_STORAGE']
+        self.config_folder = self.system_config['NEPI_CONFIG']
+        self.storage_folder = self.system_config['NEPI_STORAGE']
         self.data_folder = self.storage_folder + "/data"
 
         
@@ -684,6 +704,22 @@ class SystemMgrNode():
                 'callback': self.systemTriggersCb, 
                 'callback_args': ()
             },
+            'set_system_configs': {
+                'namespace': self.base_namespace,
+                'topic': 'set_system_configs',
+                'msg': UpdateStringDict,
+                'qsize': None,
+                'callback': self.setNepiConfigsCb, 
+                'callback_args': ()
+            },
+            'update_system_config': {
+                'namespace': self.base_namespace,
+                'topic': 'update_system_config',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.updateNepiConfigCb, 
+                'callback_args': ()
+            },
             'restart_nepi': {
                 'namespace': self.base_namespace,
                 'topic': 'restart_nepi',
@@ -691,7 +727,8 @@ class SystemMgrNode():
                 'qsize': None,
                 'callback': self.restartNepiCb, 
                 'callback_args': ()
-            },
+            },            
+
 
         }
 
@@ -713,6 +750,26 @@ class SystemMgrNode():
 
 
         self.initCb(do_updates = True)
+
+
+        ###############################
+        # Setup System Settings IF Class ####################
+        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = [self.node_name])
+        system_settings_ns = self.base_namespace
+
+        self.SYSTEM_SETTINGS_DICT = {
+                    'capSettings': self.system_capSettings, 
+                    'factorySettings': self.system_factorySettings,
+                    'setSettingFunction': self.systemSettingUpdateFunction, 
+                    'getSettingsFunction': self.systemGetSettingsFunction
+                    
+        }
+
+        self.system_settings_if = SettingsIF(namespace = system_settings_ns,
+                        settings_dict = self.SYSTEM_SETTINGS_DICT,
+                        log_name_list = [self.node_name],
+                            msg_if = self.msg_if
+                        )
 
         #######################
         # Setup NEPI Managers Updater Process
@@ -828,7 +885,7 @@ class SystemMgrNode():
             
 
             fw_str = self.get_fw_rev()
-            self.nepi_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
+            self.system_config = nepi_system.update_nepi_system_config('NEPI_VERSION',fw_str)
             self.status_msg.firmware_version = fw_str
 
 
@@ -892,83 +949,106 @@ class SystemMgrNode():
         self.initCb(do_updates = do_updates)
 
 
+    ###################################
+    # System Settings Functions
 
-    def getStatesDictCb(self):
-        return self.STATES_DICT
+    def getCapSettings(self, config_dict):
+        cap_settings = dict()
+        if config_dict is None:
+            cap_settings = copy.deepcopy(nepi_settings.NONE_CAP_SETTINGS)
+        else:
+            for key in config_dict.keys():
+                cap_setting = None
+                val = str(config_dict[key])
+                try:
+                    val_int = int(val)
+                    cap_setting = {"name":key,"type":"Int","optons":[]}
+                except:
+                    cap_setting = {"name":key,"type":"String","optons":[]}
+                if cap_setting is not None:
+                    cap_settings[key] = cap_setting
+        return cap_settings
+    
+    def getSettings(self, config_dict):
+        settings = dict()
+        if config_dict is None:
+            settings = copy.deepcopy(nepi_settings.NONE_SETTINGS)
+        else:
+            for key in config_dict.keys():
+                setting = None
+                val = str(config_dict[key])
+                try:
+                    val_int = int(val)
+                    setting = {"name":key,"type":"Int","value":val}
+                except:
+                    val_str = val
+                    setting = {"name":key,"type":"String","value":val}
+                if setting is not None:
+                    settings[key] = setting
+        return settings
+                
+        
+    def systemGetSettingsFunction(self):
+        settings = self.getSettings(self.system_config)
+        return settings
 
-    def systemTriggersCb(self,msg):
-        trigger_name = msg.name
-        if trigger_name not in self.triggers_list:
-            self.triggers_list.append(trigger_name)
+    def systemSettingUpdateFunction(self, setting):
+      success = False
+      msg = ""
+      setting_str = str(setting)
+      [s_name, s_type, data] = nepi_settings.get_data_from_setting(setting)
+      if data is not None:
+        setting_name = setting['name']
+        setting_data = data
+        if 'IP' in setting_name:
+            if nepi_utils.is_valid_ip(setting_data) == False:
+                msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
+                return success, msg
+        if 'IP' in setting_name:
+            if nepi_utils.is_valid_ip(setting_data) == False:
+                msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
+                return success, msg
+        if 'NEPI_DEVICE_SN' == setting_name:
+            if nepi_utils.is_valid_serial_number(setting_data) == False:
+                msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
+                return success, msg
+        self.system_config[setting_name] = setting_data
+        nepi_system.update_nepi_system_config(setting_name,setting_data)         
+        success = True
+        msg = ( self.node_name  + " UPDATED SETTINGS " + setting_str)   
+      else:
+        msg = (self.node_name  + " Setting data" + setting_str + " is None")
+      return success, msg
 
-    def triggersStatusPubCb(self,timer):
-        triggers_name_list = []
-        has_triggered_list = []
-        msg = SystemTriggersStatus()
-        namespaces = nepi_triggers.get_triggers_publisher_namespaces()
-        if namespaces is not None:
-            for namespace in namespaces:
-                topic = os.path.join(namespace,'system_triggers_query')
-                if topic not in self.service_dict.keys():
-                    service = nepi_sdk.create_service(topic,SystemTrigger)
-                    if service is not None:
-                        self.service_dict[topic] = service
-                        time.sleep(1)
-                if topic in self.service_dict.keys():
-                    service = self.service_dict[topic]
-                    req = SystemTriggersQueryRequest()
-                    try:
-                        resp = nepi_sdk.call_service(service, req)
-                        triggers_list = resp.triggers_list
-                        for trigger in triggers_list:
-                            trigger_name = trigger.name
-                            if trigger_name not in triggers_name_list:
-                                triggers_name_list.append(trigger_name) 
-                    except:
-                        self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+    def setNepiConfigsCb(self, msg):
+        self.msg_if.pub_info("Got Set Configs msg: " + str(msg))
+        if self.system_settings_if is not None:
+            key_strs = msg.key_strs
+            value_strs = msg.value_strs
+            if len(key_strs) == len(value_strs):
+                for i, key_str in enumerate(key_strs):
+                    self.system_settings_if.update_setting_value(key_str, value_strs[i])
+                    nepi_sdk.sleep(0.2)
 
-            for trigger_name in triggers_name_list:
-                has_triggered = trigger_name in self.triggers_list
-                has_triggered_list.append(has_triggered)
-            self.triggers_list = [] # Clear List
-            msg = nepi_triggers.create_triggers_status_msg(triggers_name_list,has_triggered_list)
-            if self.node_if is not None:
-                self.node_if.publish_pub('triggers_status_pub', msg)
-        nepi_sdk.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
+    def updateNepiConfigCb(self, msg):
+        self.msg_if.pub_info("Got Update Config msg: " + str(msg))
+        last_time = self.system_update_time
+        timer = nepi_utils.get_time() - last_time
+        if timer >= self.system_update_delay and self.nepi_updating_config == False:
+            self.msg_if.pub_warn("Starting System Update Process")
+            update_config = 1
+            nepi_system.update_nepi_docker_config('NEPI_UPDATE_CONFIG',update_config)
+        else:
+            self.msg_if.pub_warn("System Update Process Allready in Progress")
+        
+        
 
+    def restartNepiCb(self, msg):
+        if self.in_container == True:
+            self.nepi_image.restart()
 
-
-    def statesStatusPubCb(self,timer):
-        states_list = []
-        msg = SystemStatesStatus()
-        namespaces = nepi_states.get_states_publisher_namespaces()
-        if namespaces is not None:
-            for namespace in namespaces:
-                topic = os.path.join(namespace,'system_states_query')
-                if topic not in self.service_dict.keys():
-                    service = nepi_sdk.create_service(topic,SystemState)
-                    if service is not None:
-                        self.service_dict[topic] = service
-                        time.sleep(1)
-                if topic in self.service_dict.keys():
-                    service = self.service_dict[topic]
-                    req = SystemStatesQueryRequest()
-                    try:
-                        resp = nepi_sdk.call_service(service, req)
-                        for state in resp.states_list:
-                            states_list.append(state)
-                    except:
-                        self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
-
-            try:
-                msg = nepi_states.create_states_status_msg(states_list)
-            except Exception as e:
-                self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
-            if self.node_if is not None:
-                self.node_if.publish_pub('states_status_pub', msg)
-        nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
-
-
+    #######################
+    # System Info Functions
     def add_info_string(self, string, level):
         self.status_msg.info_strings.append(StampedString(
             timestamp=nepi_sdk.get_msg_stamp(), payload=string, priority=level))
@@ -1061,6 +1141,40 @@ class SystemMgrNode():
     def updateDockerCb(self, event):
         nepi_system.update_nepi_docker_config("NEPI_FAIL_COUNT" , 0)
 
+        netlist_text = ''
+        netlist_file = '/mnt/nepi_config/system_cfg/etc/netlist.txt'
+        if os.path.exists(netlist_file):
+            try:
+                with open(netlist_file, "r", encoding="utf-8") as file:
+                    netlist_text = file.read()
+            except:
+                pass
+        self.status_msg.netlist_str = str(netlist_text)
+
+        nepi_service_running = False
+        nepi_updating_config = False
+        nepi_docker_config = nepi_system.load_nepi_docker_config()
+        if nepi_docker_config is not None:
+            if 'NEPI_UPDATING_CONFIG' in nepi_docker_config.keys():
+                nepi_updating_config = nepi_docker_config['NEPI_UPDATING_CONFIG'] == 1
+            if 'NEPI_SERVICE_RUNNING' in nepi_docker_config.keys():
+                nepi_service_running = nepi_docker_config['NEPI_SERVICE_RUNNING'] == 1
+                # Reset for next check
+                nepi_docker_config = nepi_system.update_nepi_docker_config('NEPI_SERVICE_RUNNING', 0)
+
+        self.nepi_service_running = nepi_service_running
+        self.status_msg.nepi_service_running = nepi_service_running
+        
+        self.nepi_updating_config = nepi_updating_config
+        self.status_msg.nepi_updating_config = nepi_updating_config
+
+        
+        
+
+        
+
+
+
     def updateTopicsServicesCb(self, event):
         active_nodes = []
         nodes_list = nepi_sdk.get_node_list()
@@ -1090,6 +1204,87 @@ class SystemMgrNode():
 
     def setSaveStatusCb(self, save_msg):
         self.status_msg.save_all_enabled = save_msg.data
+
+
+
+    ##################################
+    # System State and Trigger
+
+    def getStatesDictCb(self):
+        return self.STATES_DICT
+
+    def systemTriggersCb(self,msg):
+        trigger_name = msg.name
+        if trigger_name not in self.triggers_list:
+            self.triggers_list.append(trigger_name)
+
+    def triggersStatusPubCb(self,timer):
+        triggers_name_list = []
+        has_triggered_list = []
+        msg = SystemTriggersStatus()
+        namespaces = nepi_triggers.get_triggers_publisher_namespaces()
+        if namespaces is not None:
+            for namespace in namespaces:
+                topic = os.path.join(namespace,'system_triggers_query')
+                if topic not in self.service_dict.keys():
+                    service = nepi_sdk.create_service(topic,SystemTrigger)
+                    if service is not None:
+                        self.service_dict[topic] = service
+                        time.sleep(1)
+                if topic in self.service_dict.keys():
+                    service = self.service_dict[topic]
+                    req = SystemTriggersQueryRequest()
+                    try:
+                        resp = nepi_sdk.call_service(service, req)
+                        triggers_list = resp.triggers_list
+                        for trigger in triggers_list:
+                            trigger_name = trigger.name
+                            if trigger_name not in triggers_name_list:
+                                triggers_name_list.append(trigger_name) 
+                    except:
+                        self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+
+            for trigger_name in triggers_name_list:
+                has_triggered = trigger_name in self.triggers_list
+                has_triggered_list.append(has_triggered)
+            self.triggers_list = [] # Clear List
+            msg = nepi_triggers.create_triggers_status_msg(triggers_name_list,has_triggered_list)
+            if self.node_if is not None:
+                self.node_if.publish_pub('triggers_status_pub', msg)
+        nepi_sdk.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
+
+
+
+    def statesStatusPubCb(self,timer):
+        states_list = []
+        msg = SystemStatesStatus()
+        namespaces = nepi_states.get_states_publisher_namespaces()
+        if namespaces is not None:
+            for namespace in namespaces:
+                topic = os.path.join(namespace,'system_states_query')
+                if topic not in self.service_dict.keys():
+                    service = nepi_sdk.create_service(topic,SystemState)
+                    if service is not None:
+                        self.service_dict[topic] = service
+                        time.sleep(1)
+                if topic in self.service_dict.keys():
+                    service = self.service_dict[topic]
+                    req = SystemStatesQueryRequest()
+                    try:
+                        resp = nepi_sdk.call_service(service, req)
+                        for state in resp.states_list:
+                            states_list.append(state)
+                    except:
+                        self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
+
+            try:
+                msg = nepi_states.create_states_status_msg(states_list)
+            except Exception as e:
+                self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
+            if self.node_if is not None:
+                self.node_if.publish_pub('states_status_pub', msg)
+        nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
+
 
     #######################
 
@@ -1382,11 +1577,7 @@ class SystemMgrNode():
         return managers_dict
 
 
-    ###################
-    def restartNepiCb(self, msg):
-        if self.in_container == True:
-            self.nepi_image.restart()
-
+ 
 
 
 
@@ -1492,13 +1683,13 @@ class SystemMgrNode():
         etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_hostname.sh"
         subprocess.call([etc_update_script])
         nepi_utils.sleep(1)
-        self.nepi_config = self.get_nepi_system_config()
+        self.system_config = self.get_nepi_system_config()
         
-        if 'NEPI_HW_TPE' not in self.nepi_config.keys():
-            self.nepi_config = nepi_system.update_nepi_system_config('NEPI_HW_TYPE','unknown')
+        if 'NEPI_HW_TPE' not in self.system_config.keys():
+            self.system_config = nepi_system.update_nepi_system_config('NEPI_HW_TYPE','unknown')
         
-        if 'NEPI_SW_DESC' not in self.nepi_config.keys():
-             self.nepi_config = nepi_system.update_nepi_system_config('NEPI_SW_DESC','unknown')
+        if 'NEPI_SW_DESC' not in self.system_config.keys():
+             self.system_config = nepi_system.update_nepi_system_config('NEPI_SW_DESC','unknown')
 
 
         self.msg_if.pub_warn("Device ID Updated - Requires device reboot")

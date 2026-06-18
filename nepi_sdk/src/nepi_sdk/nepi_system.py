@@ -31,6 +31,7 @@ logger = Logger(log_name = log_name)
 
 NEPI_SYSTEM_CONFIG_FILE = '/opt/nepi/etc/nepi_system_config.yaml'
 SYSTEM_CONFIG_FILE = '/mnt/nepi_config/system_cfg/etc/nepi_system_config.yaml'
+FACTORY_CONFIG_FILE= '/mnt/nepi_config/system_cfg/etc/nepi_system_config.factory'
 
 
 NEPI_DOCKER_CONFIG_FILE = '/opt/nepi/docker_cfg/nepi_docker_config.yaml'
@@ -293,6 +294,7 @@ def set_ai_models_dict(ai_models_dict, log_name_list = []):
 
 
 ########################
+
 def load_nepi_system_config():
     config_dict=dict()
 
@@ -310,7 +312,33 @@ def load_nepi_system_config():
         except Exception as e:
             print("Unable to copy file: " + str(e))
 
-    config_dict = nepi_utils.read_dict_from_file(SYSTEM_CONFIG_FILE)
+    config_dict = nepi_utils.read_dict_from_file(target_file)
+    if config_dict is None:
+        config_dict = dict()
+    for key in config_dict.keys(): # Fixe empty arrays
+        if config_dict[key] is None:
+            config_dict[key]=[]
+    # print("Printing System Config Dict " + str(config_dict))
+    return config_dict
+
+def load_nepi_factory_config():
+    config_dict=dict()
+
+    target_file=FACTORY_CONFIG_FILE
+    backup_file=SYSTEM_CONFIG_FILE
+    if os.path.exists(target_file) == False:
+        folder=os.path.dirname(target_file)
+        if os.path.exists(folder) == False:       
+            try:
+                os.makedirs(folder)
+            except Exception as e:
+                print("Unable to create folder: " + str(e))
+        try:
+            shutil.copyfile(backup_file, target_file)
+        except Exception as e:
+            print("Unable to copy file: " + str(e))
+
+    config_dict = nepi_utils.read_dict_from_file(target_file)
     if config_dict is None:
         config_dict = dict()
     for key in config_dict.keys(): # Fixe empty arrays
@@ -333,7 +361,7 @@ def save_nepi_system_config(config_dict):
             shutil.copyfile(backup_file, target_file)
         except Exception as e:
             print("Unable to copy file: " + str(e))
-    success = nepi_utils.write_dict_to_file(config_dict, SYSTEM_CONFIG_FILE)
+    success = nepi_utils.write_dict_to_file(config_dict, target_file)
     return success
 
 def update_nepi_system_config(config_key, config_value, config_dict = None):
@@ -344,6 +372,7 @@ def update_nepi_system_config(config_key, config_value, config_dict = None):
         config_dict[config_key] = config_value
         success=save_nepi_system_config(config_dict)
     return config_dict
+
 
 
 ########################
