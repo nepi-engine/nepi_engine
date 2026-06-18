@@ -1029,7 +1029,7 @@ def check_module_available(name):
 
 def is_valid_serial_number(sn_str):
     """Checks if a string is a valid 6-digit integer."""
-    valid = len(s) == 6 and sn_str.isdigit()
+    valid = len(sn_str) == 6 and sn_str.isdigit()
     if valid == True:
         if sn_str[0] == '0':
             valid = False
