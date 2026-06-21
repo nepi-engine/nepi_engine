@@ -35,7 +35,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
 
-from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
+from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove, SingleAxisTimedSpeedMove
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 from nepi_interfaces.msg import NavPosePanTilt
 
@@ -180,8 +180,10 @@ class PTXActuatorIF:
                  data_source_description = 'pan_tilt',
                  data_ref_description = 'tilt_axis_center',
                  stopMovingCb = None, # Required; no args
-                 movePanCb = None, # Required; direction and time args
-                 moveTiltCb = None, # Required; direction and time args
+                 movePanCb = None, # Required; direction and optional time args
+                 moveTiltCb = None, # Required; direction and optional time args
+                 movePanSpeedRatioCb = None, # Required; direction, speed ratio, and optional time args
+                 moveTiltSpeedRatioCb = None, # Required; direction, speed ratio, and optional time args
                  setSoftLimitsCb=None,
                  getSoftLimitsCb=None,
                  getSpeedMaxCb = None,
@@ -315,8 +317,14 @@ class PTXActuatorIF:
         # JOG MOVE ############
         self.movePanCb = movePanCb
         self.moveTiltCb = moveTiltCb
-        if self.movePanCb is not None and self.moveTiltCb is not None:
+        if self.movePanCb is not None or self.moveTiltCb is not None:
             self.has_timed_positioning = True
+
+        # JOG MOVE at Speed Ratio ############
+        self.movePanSpeedRatioCb = movePanSpeedRatioCb
+        self.moveTiltSpeedRatioCb = moveTiltSpeedRatioCb
+        if self.movePanSpeedRatioCb is not None or self.moveTiltSpeedRatioCb is not None:
+            self.has_timed_speed_positioning = True
 
         # SPEED SETTINGS  #############
         self.setSpeedMaxCb = setSpeedMaxCb
@@ -676,6 +684,22 @@ class PTXActuatorIF:
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
                 'callback': self._jogTimedTiltCb, 
+                'callback_args': ()
+            },
+            'jog_timed_pan_speed_ratio': {
+                'namespace': self.namespace,
+                'topic': 'jog_timed_pan_speed_ratio',
+                'msg': SingleAxisTimedSpeedMove,
+                'qsize': 1,
+                'callback': self._jogTimedPanSpeedRatioCb, 
+                'callback_args': ()
+            },
+            'jog_timed_tilt_speed_ratio': {
+                'namespace': self.namespace,
+                'topic': 'jog_timed_tilt_speed_ratio',
+                'msg': SingleAxisTimedSpeedMove,
+                'qsize': 1,
+                'callback': self._jogTimedTiltSpeedRatioCb, 
                 'callback_args': ()
             },
             'reverse_pan_enabled': {
@@ -1412,26 +1436,51 @@ class PTXActuatorIF:
         
 
     def _jogTimedPanCb(self, msg):
-        self.stopPanCb()
+        #self.stopPanCb()
         #self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
             self.pan_goal_deg = -999
             direction = msg.direction * self.rpi
             time_s = msg.duration_s
             self.movePanCb(direction,  time_s)
-            self.msg_if.pub_info("Jogging pan", log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Jogging pan", log_name_list = self.log_name_list)
         self.publish_status()
         
 
     def _jogTimedTiltCb(self, msg):
-        self.stopTiltCb()
+        #self.stopTiltCb()
         #self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
             self.tilt_goal_deg = -999
             direction = msg.direction * self.rti
             time_s = msg.duration_s
             self.moveTiltCb(direction, time_s)
-            self.msg_if.pub_info("Jogging tilt", log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Jogging tilt", log_name_list = self.log_name_list)
+        self.publish_status()
+
+    def _jogTimedPanSpeedRatioCb(self, msg):
+        #self.stopPanCb()
+        #self.msg_if.pub_warn("Got job pan msg: " + str(msg))
+        if self.movePanSpeedRatioCb is not None:
+            self.pan_goal_deg = -999
+            direction = msg.direction * self.rpi
+            speed_ratio = nepi_utils.check_ratio(msg.speed_ratio)
+            time_s = msg.duration_s
+            self.movePanCb(direction, speed_ratio, time_s)
+            #self.msg_if.pub_info("Jogging pan", log_name_list = self.log_name_list)
+        self.publish_status()
+        
+
+    def _jogTimedTiltSpeedRatioCb(self, msg):
+        #self.stopTiltCb()
+        #self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
+        if self.moveTiltSpeedRatioCb is not None:
+            self.tilt_goal_deg = -999
+            direction = msg.direction * self.rti
+            speed_ratio = nepi_utils.check_ratio(msg.speed_ratio)
+            time_s = msg.duration_s
+            self.moveTiltSpeedRatioCb(direction, speed_ratio, time_s)
+            #self.msg_if.pub_info("Jogging tilt at ratio ", log_name_list = self.log_name_list)
         self.publish_status()
         
 

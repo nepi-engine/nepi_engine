@@ -31,7 +31,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from sensor_msgs.msg import JointState
 from nav_msgs.msg import Odometry
 from nepi_interfaces.msg import RangeWindow, NavPose, NavPosePanTilt, SaveDataRate
-from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove
+from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove, SingleAxisTimedSpeedMove
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 
 from tf.transformations import quaternion_from_euler
@@ -72,6 +72,8 @@ class ConnectPTXDeviceIF:
     
     stopPanCb = None
     stopTiltCb = None
+
+    speed_max_dps = 10
     #######################
     ### IF Initialization
     def __init__(self, 
@@ -194,6 +196,18 @@ class ConnectPTXDeviceIF:
                 'namespace': self.namespace,
                 'topic': 'jog_timed_tilt',
                 'msg': SingleAxisTimedMove,
+                'qsize': 1,
+            },
+            'jog_timed_pan_speed_ratio': {
+                'namespace': self.namespace,
+                'topic': 'jog_timed_pan_speed_ratio',
+                'msg': SingleAxisTimedSpeedMove,
+                'qsize': 1,
+            },
+            'jog_timed_tilt_speed_ratio': {
+                'namespace': self.namespace,
+                'topic': 'jog_timed_tilt_speed_ratio',
+                'msg': SingleAxisTimedSpeedMove,
                 'qsize': 1,
             },
             'reverse_pan_enabled': {
@@ -454,6 +468,9 @@ class ConnectPTXDeviceIF:
         if self.status_msg is not None:
             return [self.status_msg.pan_min_softstop_deg, self.status_msg.pan_max_softstop_deg, self.status_msg.tilt_min_softstop_deg, self.status_msg.tilt_max_softstop_deg]
 
+    def get_pan_tilt_max_speed_dps(self):
+        return self.speed_max_dps
+    
 
     def get_pan_tilt_position(self):
         """Return the most recently reported pan and tilt position.
@@ -584,7 +601,7 @@ class ConnectPTXDeviceIF:
         msg = tilt_ratio
         self.con_node_if.publish_pub(pub_name,msg)
 
-    def jog_timed_pan(self, direction, duration_s):
+    def jog_timed_pan(self, direction, duration_s = -1):
         """Command the PTX device to jog the pan axis in a direction for a set duration.
 
         Args:
@@ -599,7 +616,7 @@ class ConnectPTXDeviceIF:
         msg.duration_s = duration_s
         self.con_node_if.publish_pub(pub_name,msg)
         
-    def jog_timed_tilt(self, direction, duration_s):
+    def jog_timed_tilt(self, direction, duration_s = -1):
         """Command the PTX device to jog the tilt axis in a direction for a set duration.
 
         Args:
@@ -613,6 +630,81 @@ class ConnectPTXDeviceIF:
         # Duration, -1.0 for infinite duration
         msg.duration_s = duration_s
         self.con_node_if.publish_pub(pub_name,msg) 
+
+    def jog_timed_speed_ratio_pan(self, direction, speed_ratio = 1, duration_s = -1):
+        """Command the PTX device to jog the pan axis in a direction at speed_ratio for a set duration.
+
+        Args:
+            direction (int): Direction indicator for the pan jog (positive or negative).
+            duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
+        """
+        pub_name = 'jog_timed_pan'
+        msg = SingleAxisTimedSpeedMove()
+        # Direction indicator
+        msg.direction = direction
+        msg.speed_ratio = speed_ratio
+        # Duration, -1.0 for infinite duration
+        msg.duration_s = duration_s
+        self.con_node_if.publish_pub(pub_name,msg)
+        
+    def jog_timed_speed_ratio_tilt(self, direction, speed_ratio = 1, duration_s = -1):
+        """Command the PTX device to jog the tilt axis in a direction speed_ratio for a set duration.
+
+        Args:
+            direction (int): Direction indicator for the tilt jog (positive or negative).
+            duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
+        """
+        pub_name = 'jog_timed_tilt'
+        msg = SingleAxisTimedSpeedMove()
+        # Direction indicator
+        msg.direction = direction
+        msg.speed_ratio = speed_ratio
+        # Duration, -1.0 for infinite duration
+        msg.duration_s = duration_s
+        self.con_node_if.publish_pub(pub_name,msg) 
+
+
+    def jog_timed_speed_dps_pan(self, direction, speed_dps = 1, duration_s = -1):
+        """Command the PTX device to jog the pan axis in a direction at speed_dps for a set duration.
+
+        Args:
+            direction (int): Direction indicator for the pan jog (positive or negative).
+            duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
+        """
+        pub_name = 'jog_timed_pan'
+        msg = SingleAxisTimedSpeedMove()
+        # Direction indicator
+        msg.direction = direction
+
+        if speed_dps < 0:
+            speed_dps = 0
+        if speed_dps > self.speed_max_dps:
+            speed_dps = self.speed_max_dps
+        msg.speed_ratio = speed_dps / self.speed_max_dps
+        # Duration, -1.0 for infinite duration
+        msg.duration_s = duration_s
+        self.con_node_if.publish_pub(pub_name,msg)
+        
+    def jog_timed_speed_dps_tilt(self, direction, speed_dps = 1, duration_s = -1):
+        """Command the PTX device to jog the tilt axis in a direction speed_dps for a set duration.
+
+        Args:
+            direction (int): Direction indicator for the tilt jog (positive or negative).
+            duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
+        """
+        pub_name = 'jog_timed_tilt'
+        msg = SingleAxisTimedSpeedMove()
+        # Direction indicator
+        msg.direction = direction
+        if speed_dps < 0:
+            speed_dps = 0
+        if speed_dps > self.speed_max_dps:
+            speed_dps = self.speed_max_dps
+        msg.speed_ratio = speed_dps / self.speed_max_dps
+        # Duration, -1.0 for infinite duration
+        msg.duration_s = duration_s
+        self.con_node_if.publish_pub(pub_name,msg) 
+
 
     def reverse_pan_enabled(self, reverse_pan):
         """Enable or disable pan direction reversal on the PTX device.
@@ -788,6 +880,7 @@ class ConnectPTXDeviceIF:
             self.msg_if.pub_warn("Connected to PT Status:  " + str(self.namespace))
         self.connected = True
         self.status_msg = status_msg
+        self.speed_max_dps = status_msg.speed_max_dps
         if self.statusCb is not None:
             status_dict = self.get_status_dict()
             self.statusCb(status_dict)
