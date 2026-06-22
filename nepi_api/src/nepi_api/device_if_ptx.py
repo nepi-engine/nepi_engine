@@ -374,6 +374,7 @@ class PTXActuatorIF:
         self.caps_report = PTXCapabilitiesQueryResponse()
         self.caps_report.has_absolute_positioning = self.has_absolute_positioning
         self.caps_report.has_timed_positioning = self.has_timed_positioning
+        self.caps_report.has_timed_speed_positioning = self.has_timed_speed_positioning
         self.caps_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
         self.caps_report.has_position_feedback = self.has_position_feedback
         self.caps_report.has_adjustable_speed = self.has_adjustable_speed
@@ -423,6 +424,7 @@ class PTXActuatorIF:
 
         self.status_msg.has_absolute_positioning = self.has_absolute_positioning
         self.status_msg.has_timed_positioning = self.has_timed_positioning
+        self.status_msg.has_timed_speed_positioning = self.has_timed_speed_positioning
         self.status_msg.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
         self.status_msg.has_position_feedback = self.has_position_feedback
         self.status_msg.has_adjustable_speed = self.has_adjustable_speed
