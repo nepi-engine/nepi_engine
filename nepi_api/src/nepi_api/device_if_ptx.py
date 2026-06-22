@@ -1466,7 +1466,7 @@ class PTXActuatorIF:
             direction = msg.direction * self.rpi
             speed_ratio = nepi_utils.check_ratio(msg.speed_ratio)
             time_s = msg.duration_s
-            self.movePanCb(direction, speed_ratio, time_s)
+            self.movePanSpeedRatioCb(direction, speed_ratio, time_s)
             #self.msg_if.pub_info("Jogging pan", log_name_list = self.log_name_list)
         self.publish_status()
         
