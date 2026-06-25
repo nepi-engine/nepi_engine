@@ -186,7 +186,7 @@ source $NEPI_UTILS
 	# 	return 1
 	# fi
 
-	ROS1_PACKAGE=nepi_env
-	echo "Running roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}"
-	roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}
+	# ROS1_PACKAGE=nepi_env
+	# echo "Running roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}"
+	# roslaunch ${ROS1_PACKAGE} ${ROS1_LAUNCH_FILE}
 # fi

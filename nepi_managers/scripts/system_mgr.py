@@ -1685,11 +1685,11 @@ class SystemMgrNode():
         nepi_utils.sleep(1)
         self.system_config = self.get_nepi_system_config()
         
-        if 'NEPI_HW_TPE' not in self.system_config.keys():
-            self.system_config = nepi_system.update_nepi_system_config('NEPI_HW_TYPE','unknown')
+        # if 'NEPI_HW_TPE' not in self.system_config.keys():
+        #     self.system_config = nepi_system.update_nepi_system_config('NEPI_HW_TYPE','unknown')
         
-        if 'NEPI_SW_DESC' not in self.system_config.keys():
-             self.system_config = nepi_system.update_nepi_system_config('NEPI_SW_DESC','unknown')
+        # if 'NEPI_SW_DESC' not in self.system_config.keys():
+        #      self.system_config = nepi_system.update_nepi_system_config('NEPI_SW_DESC','unknown')
 
 
         self.msg_if.pub_warn("Device ID Updated - Requires device reboot")
