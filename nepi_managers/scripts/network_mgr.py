@@ -964,8 +964,8 @@ class NetworkMgr:
                             available_networks.append(network)
                 self.wifi_available_networks = list(available_networks)
                 #self.msg_if.pub_warn("Got WiFi networks list: " + str(available_networks))
-                if last_networks != self.wifi_available_networks:
-                    self.msg_if.pub_warn("Got Updated WiFi networks list: " + str(available_networks))
+                # if last_networks != self.wifi_available_networks:
+                #     self.msg_if.pub_warn("Got Updated WiFi networks list: " + str(available_networks))
             #self.msg_if.pub_warn("Exiting wifi scan process: " + str(available_networks))
             self.wifi_scanning = False
 
