@@ -39,7 +39,8 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SettingsIF
 
-from nepi_api.connect_data_if import ConnectNavPosesIF
+# NavPose ConnectNavPosesIF retired (class removed from connect_data_if); LSX has no navpose source.
+#from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
 class LSXDeviceIF:
@@ -83,6 +84,7 @@ class LSXDeviceIF:
     node_if = None
     settings_if = None
     save_data_if = None
+    navpose_if = None
     
     rbx_status_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
 
@@ -458,12 +460,14 @@ class LSXDeviceIF:
         
     ####################
         # Setup NavPose IF Class
-        self.msg_if.pub_info("Starting NavPose IF Initialization")
-        np_namespace = self.namespace
-        self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
-                                    save_data_if = self.save_data_if,
-                                log_name_list = self.log_name_list,
-                                msg_if = self.msg_if)
+        # NavPose ConnectNavPosesIF retired (class removed from connect_data_if).
+        # LSX has no navpose source, so no navpose IF is created (navpose_if stays None).
+        # self.msg_if.pub_info("Starting NavPose IF Initialization")
+        # np_namespace = self.namespace
+        # self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,
+        #                             save_data_if = self.save_data_if,
+        #                         log_name_list = self.log_name_list,
+        #                         msg_if = self.msg_if)
         
 
         #####################

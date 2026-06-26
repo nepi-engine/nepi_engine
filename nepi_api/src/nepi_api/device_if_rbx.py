@@ -64,7 +64,10 @@ from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 
 from nepi_api.data_if import ImageIF
 from nepi_api.device_if_npx import NPXDeviceIF
-from nepi_api.connect_data_if import ConnectNavPosesIF
+# NavPose is published by the NPXDeviceIF below (driver-supplied getNavPoseCb),
+# matching device_if_npx/device_if_idx. The legacy ConnectNavPosesIF was removed
+# from connect_data_if, so it is no longer imported here.
+#from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
 
@@ -148,6 +151,7 @@ class RBXRobotIF:
     settings_if = None
     save_data_if = None
     transform_if = None
+    navpose_if = None
     npx_if = None
 
     status_msg_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
@@ -817,14 +821,17 @@ class RBXRobotIF:
                         )
 
         ####################
-        # Setup NavPose IF Class
-        self.msg_if.pub_info("Starting NavPose IF Initialization")
-        np_namespace = self.namespace
-        self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
-                                    save_data_if = self.save_data_if,
-                                log_name_list = self.log_name_list,
-                                msg_if = self.msg_if)
-        
+        # # Setup NavPose IF Class
+        # # NavPose for RBX is published by the NPXDeviceIF created below using the
+        # # driver-supplied getNavPoseCb (matching device_if_npx / device_if_idx).
+        # # The legacy ConnectNavPosesIF setup is retired (class removed from connect_data_if).
+        # self.msg_if.pub_info("Starting NavPose IF Initialization")
+        # np_namespace = self.namespace
+        # self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,
+        #                             save_data_if = self.save_data_if,
+        #                         log_name_list = self.log_name_list,
+        #                         msg_if = self.msg_if)
+
 
         #####################
         # Update Status Message
@@ -835,22 +842,7 @@ class RBXRobotIF:
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-        if self.navpose_if is not None:            
-            self.status_msg.navpose_topic = self.navpose_if.get_namespace()
-            self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
-
-
-        
-        #####################
-        # Update Status Message
-        nepi_sdk.sleep(1)
-        if self.settings_if is not None:
-            self.status_msg.settings_topic = self.settings_if.get_namespace()
-            self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
-        if self.save_data_if is not None:
-            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-        if self.navpose_if is not None:            
+        if self.navpose_if is not None:
             self.status_msg.navpose_topic = self.navpose_if.get_namespace()
             self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
 
@@ -861,13 +853,16 @@ class RBXRobotIF:
         ##################################
         # Start Node Processes
         #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
-        nepi_sdk.start_timer_process(1, self.navPoseUpdaterCb, oneshot = True) 
+        # NavPose publishing is handled by the NPXDeviceIF below (driver-supplied
+        # getNavPoseCb). The legacy navPoseUpdaterCb timer is retired - it drove
+        # home-grown navpose methods that referenced undefined attributes.
         
 
         ##################################
         if self.getNavPoseCb is not None:
             self.msg_if.pub_warn("Starting NPX Device IF Initialization", log_name_list = self.log_name_list)
-            npx_if = NPXDeviceIF(device_info, 
+            self.npx_if = NPXDeviceIF(device_info,
+                node_namespace = self.node_namespace,
                 data_source_description = self.data_source_description,
                 data_ref_description = self.data_ref_description,
                 getNavPoseCb = self.getNavPoseCb,
@@ -920,85 +915,63 @@ class RBXRobotIF:
 
 
     def navposesSysCb(self,msg):
-        navposes_dict = nepi_nav.convert_convert_navposes_msg2dict(msg,self.log_name_list)
+        # Build a per-frame navpose dict from the system NavPoses message and
+        # cache the entry matching this device's configured navpose frame.
+        # (Parse per-element with the working convert_navpose_msg2dict; the
+        # aggregate convert_navposes_msg2dict helper is not used here.)
+        navposes_dict = {}
+        try:
+            for np_msg in msg.navposes:
+                np_dict = nepi_nav.convert_navpose_msg2dict(np_msg, self.log_name_list)
+                if np_dict is not None:
+                    navposes_dict[np_dict['navpose_frame']] = np_dict
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to convert navposes message: " + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)
         navpose_frames = list(navposes_dict.keys())
-        if self.sys_navpose_frame in navpose_frames:
-            self.sys_navpose_dict = navposes_dict[self.sys_navpose_frame]
+        if self.navpose_frame in navpose_frames:
+            self.sys_navpose_dict = navposes_dict[self.navpose_frame]
         elif len(navpose_frames) > 0:
             self.sys_navpose_dict = navposes_dict[navpose_frames[0]]
         else:
            self.sys_navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        # Bridge the latest navpose to the current_* attributes consumed by the
+        # goto/setpoint accuracy calculations.
+        self._updateCurrentNavpose()
+
+
+    def _updateCurrentNavpose(self):
+        # Prefer the device's own navpose (populated directly from the driver via
+        # getNavPoseCb) for control accuracy, falling back to the system navpose
+        # cached for this device's frame.
+        navpose_dict = None
+        if self.getNavPoseCb is not None:
+            try:
+                navpose_dict = self.getNavPoseCb()
+            except Exception as e:
+                self.msg_if.pub_warn("getNavPoseCb failed: " + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)
+        if navpose_dict is None:
+            navpose_dict = self.sys_navpose_dict
+        if navpose_dict is None:
+            return
+        try:
+            self.navpose_dict = navpose_dict
+            self.current_heading_deg = navpose_dict['heading_deg']
+            self.current_geoid_height_m = navpose_dict['geoid_height_meters']
+            # Orientation: native ENU vector, plus NED conversion
+            self.current_orientation_enu_degs = [navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg']]
+            ned_dict = nepi_nav.convert_navpose_enu2ned(copy.deepcopy(navpose_dict))
+            self.current_orientation_ned_degs = [ned_dict['roll_deg'], ned_dict['pitch_deg'], ned_dict['yaw_deg']]
+            # Position: native ENU vector, plus NED conversion
+            self.current_position_enu_m = [navpose_dict['x_m'], navpose_dict['y_m'], navpose_dict['z_m']]
+            self.current_position_ned_m = [ned_dict['x_m'], ned_dict['y_m'], ned_dict['z_m']]
+            # Location: WGS84 geopoint, plus AMSL conversion
+            self.current_location_wgs84_geo = [navpose_dict['latitude'], navpose_dict['longitude'], navpose_dict['altitude_m']]
+            amsl_dict = nepi_nav.convert_navpose_wgs842amsl(copy.deepcopy(navpose_dict))
+            self.current_location_amsl_geo = [amsl_dict['latitude'], amsl_dict['longitude'], amsl_dict['altitude_m']]
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to update current navpose: " + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)
             
 
-    def get_navpose_dict(self):
-        """Returns a deep copy of the current navigation pose dictionary.
-
-        Returns:
-            dict: A deep copy of the internal navpose dictionary.
-        """
-        np_dict = copy.deepcopy(self.navpose_dict)
-        return np_dict
-
-    def publish_navpose(self):
-        """Publishes the current navpose and saves it to the data store.
-
-        Converts the internal navpose dictionary to a ROS NavPose message,
-        publishes it on the navpose topic, and saves it via the save data
-        interface.
-        """
-        np_dict = self.get_navpose_dict()
-        timestamp = nepi_utils.get_time()
-        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-        if self.node_if is not None and navpose_msg is not None:
-            self.node_if.publish_pub('navpose_pub', navpose_msg)
-        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
-
-    def navPoseUpdaterCb(self,timer):
-        navpose_dict = None
-        start_time = nepi_utils.get_time()
-        navpose_dict = copy.deepcopy(self.sys_navpose_dict)
-        # if navpose_dict is not None:
-        #     navpose_frame = 'nepi_frame'
-        #     self.transform_if.set_end_description('nepi_frame')
-                
-        # if navpose_dict is None:
-        #     navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        #     navpose_frame = 'sensor_frame'
-        #     self.transform_if.set_end_description('sensor_frame')
-
-        # self.end_ref_description = self.transform_if.get_end_description()
-
-   
-        ### Setup a regular background navpose get and update navpose data
-        # Get current heading in degrees
-        self.current_heading_deg = navpose_dict['heading_deg']
-        # Get current orientation vector (roll, pitch, yaw) in degrees enu frame
-        self.current_orientation_enu_degs = [navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg']]
-        # Get current orientation vector (roll, pitch, yaw) in degrees ned frame +-180
-        self.current_orientation_ned_degs = nepi_nav.get_navpose_orientation_ned_degs(nav_pose_response)
-        # Get current position vector (x, y, z) in meters enu frame
-        self.current_position_enu_m = [navpose_dict['x_m'], navpose_dict['y_m'], navpose_dict['z_m']]
-        # Get current position vector (x, y, z) in meters ned frame
-        self.current_position_ned_m = nepi_nav.get_navpose_position_ned_m(nav_pose_response)
-        # Get current geoid hieght
-        self.current_geoid_height_m =  navpose_dict['geiod_height_m']
-        # Get current location vector (lat, long, alt) in geopoint data with WGS84 height
-        self.current_location_wgs84_geo =  nepi_nav.get_navpose_location_wgs84_geo(nav_pose_response) 
-        # Get current location vector (lat, long, alt) in geopoint data with AMSL height
-        self.current_location_amsl_geo =  nepi_nav.get_navpose_location_amsl_geo(nav_pose_response)
-
-        # Set global navpose and publish
-        self.navpose_dict = navpose_dict
-        # Publish the navpose solution
-        self.publish_navpose()
-
-        # Repeat
-        process_time = nepi_utils.get_time() - start_time
-        rate = 1
-        if self.nav_mgr_if is not None:
-            rate = self.navpose_update_rate
-        delay = float(1.0) / rate - process_time
-        nepi_sdk.start_timer_process(delay, self.navPoseUpdaterCb, oneshot = True)
 
 
     
@@ -1156,7 +1129,7 @@ class RBXRobotIF:
         self.msg_if.pub_info("Received set motor control ratio message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(motor_msg)
         if self.setMotorControl is not None:
-          new_motor_ctrl = mode_msg.data
+          new_motor_ctrl = motor_msg.data
           self.setMotorControl(new_motor_ctrl)
 
     ### Function to set motor control
@@ -1518,7 +1491,8 @@ class RBXRobotIF:
       while setpoint_attitude_reached is False and not nepi_sdk.is_shutdown():  # Wait for setpoint goal to be set
         if self.checkStopFunction() is True:
             self.msg_if.pub_info("Setpoint Attitude received Stop Command", log_name_list = self.log_name_list)
-            new_attitude_ned_degs = copy.deepcopy(cur_attitude_ned_degs)
+            # Hold the current attitude on stop (same source used below for error calc).
+            new_attitude_ned_degs = list(self.current_orientation_ned_degs)
         if timeout_timer > timeout_sec:
           self.update_error_msg("Setpoint cmd timed out")
           cmd_success = False
@@ -1554,47 +1528,6 @@ class RBXRobotIF:
       return cmd_success
       
 
-    def get_navpose_dict(self):
-        """Returns the current navigation pose dictionary from the best available source.
-
-        Checks in order: a direct navpose callback, the nav manager interface,
-        then falls back to a blank navpose dictionary.
-
-        Returns:
-            dict: The current navigation pose dictionary.
-        """
-        navpose_dict = None
-        if self.get_navpose_function is not None:
-            navpose_dict = self.get_navpose_function()
-        elif self.nav_mgr_if is not None:
-            navpose_dict = self.nav_mgr_if.get_navpose_dict()
-        else:
-            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        return navpose_dict
-
-
-    def publish_navpose(self):
-        """Publishes the current navpose and saves it to the data store.
-
-        Converts the internal navpose dictionary to a ROS NavPose message,
-        publishes it on the navpose_pub topic, and saves it via the save data
-        interface.
-        """
-        np_dict = copy.deepcopy(self.navpose_dict)
-        timestamp = nepi_utils.get_time()
-        navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-        if self.node_if is not None and navpose_msg is not None:
-            self.node_if.publish_pub('navpose_pub', navpose_msg)
-        self.save_data_if.save('navpose',np_dict,timestamp = timestamp,save_check=True)
-
-
-    def _publishNavPoseCb(self,timer):
-        self.publish_navpose()
-        rate = 1
-        if self.nav_mgr_if is not None:
-            rate = self.nav_mgr_if.get_pub_rate()
-        delay = float(1.0) / rate
-        nepi_sdk.start_timer_process(delay, self._publishNavPoseCb, oneshot = True)
 
 
     ### Function to set and check setpoint position local body command
@@ -2050,6 +1983,12 @@ class RBXRobotIF:
         if the overlay flag is set, publishes the image, and saves it via
         the save data interface.
         """
+        # Do not publish until all IFs (node_if, image_if, save_data_if) are up.
+        # publish_status is invoked during NodeClassIF construction (config reset
+        # callback) and again before the data IFs are created; self.ready is only
+        # set True at the end of __init__, so this guard makes those calls no-op.
+        if self.ready == False:
+            return
         self.status_msg.device_name = self.device_name
         if self.getBatteryPercentFunction is not None:
           self.rbx_battery = self.getBatteryPercentFunction()
