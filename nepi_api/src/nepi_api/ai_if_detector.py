@@ -1951,7 +1951,7 @@ class AiDetectorIF:
         msg_header = Header()
         # cv2_img = cv2.imread(img_file)
 
-        while self.got_img_topic is not None:
+        while self.is_processing == True: #self.got_img_topic is not None:
             nepi_sdk.sleep(0.01)
         self.got_img_topic = img_topic
 
@@ -2253,6 +2253,8 @@ class AiDetectorIF:
                 # Targeting
                 try:
                     target_msg = Target()
+
+                    target_msg.timestamp = float(img_dict['timestamp'])
 
                     target_msg.target_name = detect_dict['name']
                     target_msg.target_uid = detect_dict['uid']

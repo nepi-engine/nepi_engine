@@ -638,7 +638,7 @@ class ConnectPTXDeviceIF:
             direction (int): Direction indicator for the pan jog (positive or negative).
             duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
         """
-        pub_name = 'jog_timed_pan'
+        pub_name = 'jog_timed_pan_speed_ratio'
         msg = SingleAxisTimedSpeedMove()
         # Direction indicator
         msg.direction = direction
@@ -654,7 +654,7 @@ class ConnectPTXDeviceIF:
             direction (int): Direction indicator for the tilt jog (positive or negative).
             duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
         """
-        pub_name = 'jog_timed_tilt'
+        pub_name = 'jog_timed_tilt_speed_ratio'
         msg = SingleAxisTimedSpeedMove()
         # Direction indicator
         msg.direction = direction

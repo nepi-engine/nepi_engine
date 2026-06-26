@@ -248,17 +248,18 @@ class SystemMgrNode():
             return
         self.system_capSettings = self.getCapSettings(self.system_config)
   
-        self.factory_config = nepi_system.load_nepi_factory_config()
-        #self.msg_if.pub_warn("Got System Config: " + str(self.factory_config))
-        if self.factory_config is None:
-            self.factory_config = dict()
-        if len(self.factory_config.keys()) == 0:
-            self.factory_config = self.system_config
-        else:
-            for key in self.system_config.keys():
-                if key not in self.factory_config.keys():
-                    self.factory_config[key] = self.system_config[key]
-        self.system_factorySettings = self.getSettings(self.factory_config)
+        # self.factory_config = nepi_system.load_nepi_factory_config()
+        # self.msg_if.pub_warn("Got System Config: " + str(self.factory_config))
+        # if self.factory_config is None:
+        #     self.factory_config = dict()
+        # if len(self.factory_config.keys()) == 0:
+        #     self.factory_config = self.system_config
+        # else:
+        #     for key in self.system_config.keys():
+        #         if key not in self.factory_config.keys():
+        #             self.factory_config[key] = self.system_config[key]
+        # self.system_factorySettings = self.getSettings(self.factory_config)
+        self.system_factorySettings = self.getSettings(self.system_config)
 
         # Gather owner and group details for storage mountpoint
         # stat_info = os.stat(self.storage_folder)
@@ -1685,11 +1686,11 @@ class SystemMgrNode():
         nepi_utils.sleep(1)
         self.system_config = self.get_nepi_system_config()
         
-        if 'NEPI_HW_TPE' not in self.system_config.keys():
-            self.system_config = nepi_system.update_nepi_system_config('NEPI_HW_TYPE','unknown')
+        # if 'NEPI_HW_TPE' not in self.system_config.keys():
+        #     self.system_config = nepi_system.update_nepi_system_config('NEPI_HW_TYPE','unknown')
         
-        if 'NEPI_SW_DESC' not in self.system_config.keys():
-             self.system_config = nepi_system.update_nepi_system_config('NEPI_SW_DESC','unknown')
+        # if 'NEPI_SW_DESC' not in self.system_config.keys():
+        #      self.system_config = nepi_system.update_nepi_system_config('NEPI_SW_DESC','unknown')
 
 
         self.msg_if.pub_warn("Device ID Updated - Requires device reboot")
