@@ -2254,6 +2254,8 @@ class AiDetectorIF:
                 try:
                     target_msg = Target()
 
+                    target_msg.timestamp = float(img_dict['timestamp'])
+
                     target_msg.target_name = detect_dict['name']
                     target_msg.target_uid = detect_dict['uid']
                     target_msg.target_confidence = detect_dict['prob']

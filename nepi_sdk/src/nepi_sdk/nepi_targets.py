@@ -203,6 +203,9 @@ def convert_target_dict2msg(target_data_dict, log_name_list = []):
   else:
     try:
         target_msg = Target()
+
+        target_msg.timestamp = target_data_dict['timestamp']
+
         target_msg.target_name = target_data_dict['target_name']
         target_msg.target_uid = target_data_dict['target_uid']
         target_msg.target_confidence = target_data_dict['target_confidence']
