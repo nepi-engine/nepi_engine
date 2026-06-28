@@ -83,11 +83,14 @@ class NavPoseMgr(object):
     FACTORY_NAV_FRAME = 'ENU'
     FACTORY_ALT_FRAME = 'WGS84'
 
-    ZERO_TRANSFORM_DICT = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
+
 
     NAVPOSE_COMPONENT_NAMES = ['navpose_init','navpose_update','navpose_offset','navpose_reset']
+    NAVPOSE_COMPONENT_TOPICS = ['init_topic','update_topic','offset_topic','reset_topic']
+    
+    ZERO_TRANSFORM_DICT = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
 
-    BLANK_COMP_DICT = {
+    BLANK_NAVPOSE_COMP_DICT = {
             'init_topic': "",
             'init_transform': copy.deepcopy(ZERO_TRANSFORM_DICT),
             'init_options': ['ONCE','TIMED','ALLWAYS'],
@@ -123,13 +126,13 @@ class NavPoseMgr(object):
         }
     
     BLANK_CONNECT_DICT = {
-        'location': copy.deepcopy(BLANK_COMP_DICT),
-        'heading': copy.deepcopy(BLANK_COMP_DICT),
-        'orientation': copy.deepcopy(BLANK_COMP_DICT),
-        'position': copy.deepcopy(BLANK_COMP_DICT),
-        'altitude': copy.deepcopy(BLANK_COMP_DICT),
-        'depth': copy.deepcopy(BLANK_COMP_DICT),
-        'pan_tilt': copy.deepcopy(BLANK_COMP_DICT)
+        'location': copy.deepcopy(BLANK_NAVPOSE_COMP_DICT),
+        'heading': copy.deepcopy(BLANK_NAVPOSE_COMP_DICT),
+        'orientation': copy.deepcopy(BLANK_NAVPOSE_COMP_DICT),
+        'position': copy.deepcopy(BLANK_NAVPOSE_COMP_DICT),
+        'altitude': copy.deepcopy(BLANK_NAVPOSE_COMP_DICT),
+        'depth': copy.deepcopy(BLANK_NAVPOSE_COMP_DICT),
+        'pan_tilt': copy.deepcopy(BLANK_NAVPOSE_COMP_DICT)
     }
 
     BLANK_STATES_DICT = {
@@ -274,6 +277,9 @@ class NavPoseMgr(object):
 
     navposes_filenames_dict = dict()
 
+    sync_transforms = False
+    apply_transforms = True
+
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "navpose_mgr" # Can be overwitten by luanch command
@@ -343,6 +349,15 @@ class NavPoseMgr(object):
                 'namespace': self.node_namespace,
                 'factory_val': self.frame_depth
             },
+            'sync_transforms': {
+                'namespace': self.node_namespace,
+                'factory_val': self.sync_transforms
+            },
+            'apply_transforms': {
+                'namespace': self.node_namespace,
+                'factory_val': self.apply_transforms
+            },
+
             
         }
 
@@ -387,6 +402,22 @@ class NavPoseMgr(object):
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'set_sync_tranforms': {
+                'namespace': self.node_namespace,
+                'topic': 'set_sync_tranforms',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setSyncTranformsCb, 
+                'callback_args': ()
+            },
+            'set_apply_tranforms': {
+                'namespace': self.node_namespace,
+                'topic': 'set_apply_tranforms',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setApplyTranformsCb, 
+                'callback_args': ()
+            },
             'set_frame_nav': {
                 'namespace': self.node_namespace,
                 'topic': 'set_frame_nav',
@@ -628,11 +659,11 @@ class NavPoseMgr(object):
                         navposes_settings_dict[frame]['connect_dict'] = self.BLANK_CONNECT_DICT
                     for comp_name in self.BLANK_CONNECT_DICT:
                         if comp_name not in navposes_settings_dict[frame]['connect_dict'].keys():
-                            navposes_settings_dict[frame]['connect_dict'][comp_name] = copy.deepcopy(self.BLANK_COMP_DICT)
+                            navposes_settings_dict[frame]['connect_dict'][comp_name] = copy.deepcopy(self.BLANK_NAVPOSE_COMP_DICT)
                         comp_dict = navposes_settings_dict[frame]['connect_dict'][comp_name]
-                        for key in self.BLANK_COMP_DICT.keys():
+                        for key in self.BLANK_NAVPOSE_COMP_DICT.keys():
                             if key not in comp_dict.keys():
-                                navposes_settings_dict[frame]['connect_dict'][comp_name][key] = self.BLANK_COMP_DICT[key]
+                                navposes_settings_dict[frame]['connect_dict'][comp_name][key] = self.BLANK_NAVPOSE_COMP_DICT[key]
             else:
                 navposes_settings_dict = dict()
 
@@ -645,6 +676,9 @@ class NavPoseMgr(object):
             self.frame_nav = self.node_if.get_param('frame_nav')
             self.frame_alt = self.node_if.get_param('frame_alt')
             self.frame_depth = self.node_if.get_param('frame_depth')
+
+            self.sync_transforms = self.node_if.get_param('sync_transforms')
+            self.apply_transforms = self.node_if.get_param('apply_transforms')
 
  
             if do_updates == True:
@@ -1031,7 +1065,10 @@ class NavPoseMgr(object):
                 solution_msg.components_info = comp_infos_msg
 
                 navpose_solution_msg_list.append(solution_msg)
-
+                self.navposes_pubs_dict_lock.acquire()
+                if frame_name in self.navposes_pubs_dict.keys():
+                    self.navposes_pubs_dict[frame_name].publish_pub('config',solution_msg)
+                self.navposes_pubs_dict_lock.release()
 
         self.status_msg.navpose_frames = navpose_frames
         self.status_msg.navpose_frames_topics = navpose_topics
@@ -1197,7 +1234,7 @@ class NavPoseMgr(object):
                 info_dict_entry['data_product'] = data_product
                 info_dict_entry['description'] = frame_name
                 connects_dict = copy.deepcopy(self.BLANK_CONNECT_DICT)
-                connect_dict = copy.deepcopy(self.BLANK_COMP_DICT)
+                connect_dict = copy.deepcopy(self.BLANK_NAVPOSE_COMP_DICT)
                 for comp_name in connects_dict.keys():
                     if comp_name not in info_dict_entry['connect_dict'].keys():
                         info_dict_entry['connect_dict'][comp_name] = connects_dict[comp_name]
@@ -1255,6 +1292,12 @@ class NavPoseMgr(object):
                     'namespace': namespace,
                     'topic': 'navpose',
                     'msg': NavPose,
+                    'qsize': 1,
+                }
+                PUBS_DICT['config'] = {
+                    'namespace': namespace,
+                    'topic': 'config',
+                    'msg': NavPoseSolution,
                     'qsize': 1,
                 }
                 PUBS_DICT['navpose_fixed'] = {
@@ -1601,23 +1644,54 @@ class NavPoseMgr(object):
 
 
     def setFrameCompTransform(self, frame_name, comp_name, type_name, transform_dict):
-        if frame_name in self.navposes_settings_dict.keys():
-            if comp_name in self.navposes_settings_dict[frame_name]['connect_dict'].keys():
-                if type_name == 'init':
-                    self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['init_transform'] = transform_dict
-                elif type_name == 'update':
-                    self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['update_transform'] = transform_dict
-                elif type_name == 'offset':
-                    self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['offset_transform'] = transform_dict
-                elif type_name == 'reset':
-                    self.navposes_settings_dict[frame_name]['connect_dict'][comp_name]['reset_transform'] = transform_dict
-                self.publish_status()
-                self.updateNavposesData()
-                if self.node_if is not None:
-                    self.node_if.set_param('navposes_settings_dict',self.navposes_settings_dict)
-                    self.node_if.save_config()
+        frame_names = []
+        comp_names = []
+        type_names = []
+        if self.sync_transforms == False:
+            frame_names = [frame_name]
+            comp_names = [comp_name]
+            type_names = [type_name]
         else:
-            self.publish_status()
+            source_topic = ''
+            if frame_name in self.navposes_settings_dict.keys():
+                if comp_name in self.navposes_settings_dict[fname]['connect_dict'].keys():
+                    if type_name == 'init':
+                        source_topic = self.navposes_settings_dict[fname]['connect_dict'][cname]['init_topic']
+                    elif type_name == 'update':
+                        source_topic = self.navposes_settings_dict[fname]['connect_dict'][cname]['update_topic']
+                    elif type_name == 'offset':
+                        source_topic = self.navposes_settings_dict[fname]['connect_dict'][cname]['offset_topic']
+                    elif type_name == 'reset':
+                        source_topic = self.navposes_settings_dict[fname]['connect_dict'][cname]['reset_topic']
+            if source_topic != '':
+                for fname in self.navposes_settings_dict.keys():
+                    for cname in self.navposes_settings_dict[fname]['connect_dict'].keys():
+                        for topic_name in self.NAVPOSE_COMPONENT_TOPICS:
+                            if topic_name in self.navposes_settings_dict[fname]['connect_dict'][cname].keys():
+                                ctopic = self.navposes_settings_dict[fname]['connect_dict'][cname][topic_name]
+                                if ctopic == source_topic:
+                                    tname = topic_name.replace('_topic','')
+                                    frame_names.append(fname)
+                                    comp_names.append(cname)
+                                    type_names.append(tname)
+
+        for i, fname in enumerate(frame_names):
+            if fname in self.navposes_settings_dict.keys():
+                cname = comp_names[i]
+                tname = type_names[i]
+                if tname == 'init':
+                    self.navposes_settings_dict[fname]['connect_dict'][cname]['init_transform'] = transform_dict
+                elif tname == 'update':
+                    self.navposes_settings_dict[fname]['connect_dict'][cname]['update_transform'] = transform_dict
+                elif tname == 'offset':
+                    self.navposes_settings_dict[fname]['connect_dict'][cname]['offset_transform'] = transform_dict
+                elif tname == 'reset':
+                    self.navposes_settings_dict[fname]['connect_dict'][cname]['reset_transform'] = transform_dict
+        self.updateNavposesData()
+        if self.node_if is not None:
+            self.node_if.set_param('navposes_settings_dict',self.navposes_settings_dict)
+            self.node_if.save_config()
+
 
     def clearFrameCompTransform(self,frame_name, comp_name, type_name):
         transform_dict = copy.deepcopy(self.ZERO_TRANSFORM_DICT)
@@ -1820,13 +1894,26 @@ class NavPoseMgr(object):
             self.publish_status()
         nepi_sdk.start_timer_process(5.0, self._updateAvailTopicsCb, oneshot = True)
 
+    def _setSyncTranformsCb(self,msg):
+        enabled = msg.data
+        self.sync_transforms = enabled
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('sync_transforms',self.sync_transforms)
+            self.node_if.save_config()
 
-
+    def _setApplyTranformsCb(self,msg):
+        enabled = msg.data
+        self.apply_transforms = enabled
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('apply_transforms',self.apply_transforms)
+            self.node_if.save_config()
 
     def _setNavPosesPubRateCb(self,msg):
         rate = msg.data
         self.setNavPosesPubRate(rate)
-  
+
 
     def _setFrameNavCb(self,msg):
         self.setFrameNav(msg.data) 
@@ -2036,7 +2123,9 @@ class NavPoseMgr(object):
                             should_init = (init_option == 'ALLWAYS') or (init_option == 'ONCE' and init_state != True) or (init_option == 'TIMED' and timer > delay)
 
                             if should_init == True:
-                                transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                                transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
+                                if self.apply_transforms == True:
+                                    transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
 
                                 navpose_init_dict = nepi_nav.update_navpose_dict_from_msg(comp_name, navpose_init_dict, msg, transform_dict=transform_dict)
@@ -2061,8 +2150,9 @@ class NavPoseMgr(object):
                         if cur_update_topic == topic:
 
                             type_name = 'update'
-
-                            transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
+                            if self.apply_transforms == True:
+                                transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
 
                             navpose_update_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
@@ -2091,8 +2181,9 @@ class NavPoseMgr(object):
                         if cur_offset_topic == topic:
 
                             type_name = 'offset'
-
-                            transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
+                            if self.apply_transforms == True:
+                                transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
                             navpose_offset_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_offset_dict.keys():
@@ -2124,7 +2215,9 @@ class NavPoseMgr(object):
 
                             type_name = 'reset'
 
-                            transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
+                            if self.apply_transforms == True:
+                                transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
 
                             # self.msg_if.pub_warn("Got reset source dict now last: " + str([navpose_source_dict['has_orientation'],navpose_source_dict['pitch_deg'],
                             #                                                         last_navpose_source_dict['has_orientation'],last_navpose_source_dict['pitch_deg']]))
@@ -2382,7 +2475,8 @@ class NavPoseMgr(object):
         self.status_msg.frame_alt = self.frame_alt
         self.status_msg.frame_depth_options = self.NAVPOSE_DEPTH_FRAME_OPTIONS
         self.status_msg.frame_depth = self.frame_depth
-
+        self.status_msg.sync_transforms = self.sync_transforms
+        self.status_msg.apply_transforms = self.apply_transforms
         if self.node_if is not None:
             if self.status_published == False:
                 # self.msg_if.pub_warn("Publishing first status msg: " + str(self.status_msg))
