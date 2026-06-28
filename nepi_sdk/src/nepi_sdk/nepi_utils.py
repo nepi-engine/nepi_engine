@@ -55,9 +55,29 @@ logger = nepi_sdk.logger(log_name = log_name)
 
 #########################
 ### Time Helper Functions
+standard_timezones_dict = {'UTC': 0, 'America/New_York': -5, 'America/Chicago': -6, 'America/Denver': -7, 'America/Phoenix': -7, 'America/Los_Angeles': -8,
+ 'America/Anchorage': -9, 'Pacific/Honolulu': -10, 'Africa/Johannesburg': 2, 'America/Mexico City': -6, 'Africa/Monrousing': 0, 'Asia/Tokyo': 9,
+  'America/Jamaica': -5, 'Europe/Rome': 1, 'Asia/Hong Kong': 8, 'Pacific/Guam': 10, 'Europe/Athens': 2, 'Europe/London': 0, 'Europe/Paris': 1,
+   'Europe/Madrid': 1, 'Africa/Cairo': 2, 'Europe/Copenhagen': 1, 'Europe/Berlin': 1, 'Europe/Prague': 1, 'America/Vancouver': -8, 'America/Edmonton': -7,
+    'America/Toronto': -5, 'America/Montreal': -5, 'America/Sao Paulo': -3, 'Europe/Brussels': 1, 'Australia/Perth': 8, 'Australia/Sydney': 10, 'Asia/Seoul': 9,
+     'Africa/Lagos': 1, 'Europe/Warsaw': 1, 'America/Puerto Rico': -4, 'Europe/Moscow': 4, 'Asia/Manila': 8, 'Atlantic/Reykjavik': 0, 'Asia/Jerusalem': 2}
+
 
 def get_time():
   return time.time()
+
+
+def get_timezone_description(abbreviation):
+    """
+    Returns a standard time zone description for a given abbreviation.
+    """
+    timezone = ""
+    for zone in pytz.all_timezones:
+        if datetime.datetime.now(pytz.timezone(zone)).strftime("%Z") == abbreviation:
+            if zone in standard_timezones_dict.keys():
+              timezone = zone
+              break
+    return timezone
 
 def get_datetime_str_now(add_ms = True, add_us = False, timezone = None):
   time_ns = get_time()
@@ -98,10 +118,16 @@ def get_datetime_str_from_timestamp(timestamp = None, add_ms = True, add_us = Fa
 def convert_time_to_datetime(time_sec, timezone = None):
     tzo = pytz.timezone('UTC')
     if timezone is not None:
-      try:
-        tzo = pytz.timezone(timezone)
-      except Exception as e:
-        logger.log_warn("Timezone not valid timezone: " + str(e))
+      if len(timezone) < 3:
+        try:
+            tzo = pytz.timezone(timezone)
+        except Exception as e:
+            logger.log_warn("Timezone not valid timezone: " + str(e))
+      else:
+        try:
+             tzo = pytz.timezone(timezone)
+        except Exception as e:
+            logger.log_warn("Timezone not valid timezone: " + str(e))
 
     try:
         dt =  datetime.datetime.fromtimestamp(time_sec,tzo)
@@ -175,25 +201,6 @@ def convert_date_to_time(year, month, day, timezone = None):
   dto = datetime.datetime(year, month, day, tzo)
   timestamp = time.mktime(dto.timetuple())
   return int(timestamp)
-
-def get_timezone_description(abbreviation):
-    """
-    Returns a standard time zone description for a given abbreviation.
-    """
-    timezone = ""
-    for zone in pytz.all_timezones:
-        if datetime.datetime.now(pytz.timezone(zone)).strftime("%Z") == abbreviation:
-            if zone in standard_timezones_dict.keys():
-              timezone = zone
-              break
-    return timezone
-
-standard_timezones_dict = {'UTC': 0, 'America/New_York': -5, 'America/Chicago': -6, 'America/Denver': -7, 'America/Phoenix': -7, 'America/Los_Angeles': -8,
- 'America/Anchorage': -9, 'Pacific/Honolulu': -10, 'Africa/Johannesburg': 2, 'America/Mexico City': -6, 'Africa/Monrousing': 0, 'Asia/Tokyo': 9,
-  'America/Jamaica': -5, 'Europe/Rome': 1, 'Asia/Hong Kong': 8, 'Pacific/Guam': 10, 'Europe/Athens': 2, 'Europe/London': 0, 'Europe/Paris': 1,
-   'Europe/Madrid': 1, 'Africa/Cairo': 2, 'Europe/Copenhagen': 1, 'Europe/Berlin': 1, 'Europe/Prague': 1, 'America/Vancouver': -8, 'America/Edmonton': -7,
-    'America/Toronto': -5, 'America/Montreal': -5, 'America/Sao Paulo': -3, 'Europe/Brussels': 1, 'Australia/Perth': 8, 'Australia/Sydney': 10, 'Asia/Seoul': 9,
-     'Africa/Lagos': 1, 'Europe/Warsaw': 1, 'America/Puerto Rico': -4, 'Europe/Moscow': 4, 'Asia/Manila': 8, 'Atlantic/Reykjavik': 0, 'Asia/Jerusalem': 2}
 #########################
 ### Network Helper Functions
 

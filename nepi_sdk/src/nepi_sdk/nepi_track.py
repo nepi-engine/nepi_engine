@@ -43,12 +43,12 @@ logger = Logger(log_name = log_name)
 ## Misc Tracking Helper Functions
 SOURCE_MESSAGE_DICT = {'Targets' : Targets}
 
-BEST_FILTER_OPTIONS = nepi_targets.BEST_FILTER_OPTIONS
+BEST_FILTER_OPTIONS = ['SMALLEST','LARGEST','PROBABILITY']
 
-BLANK_DATA_DICT = {
+BLANK_SETTINGS_DICT = {
     'targets_topic': 'None',
     'source_topic': 'None',
-    'class_filter': 'None',
+    'class_filters': [],
     'size_min_filter': 0.01,
     'size_max_filter': 0.99,
     'range_min_filter': 0.01,
@@ -137,27 +137,169 @@ def convert_track_msg2dict(track_msg, log_name_list = []):
   return track_data_dict
 
 
+def filter_by_classes(targets_dict_list, class_filter_list):
+    #print(targets_dict_list)
 
-def get_best_from_targets(targets_dict_list,tracking_dict = BLANK_DATA_DICT):
+    if len(class_filter_list) == 0:
+      filtered_targets = targets_dict_list
+    else:
+      filtered_targets = []
+      for name in class_filter_list:
+          for target_dict in targets_dict_list:
+              if target_dict['target_name'] == name:
+                  filtered_targets.append(target_dict)
+                  #logger.log_info("Added target with name: " + str(name))
+
+    # for target_dict in filtered_targets:   
+    #     logger.log_info("Returning target with name: " + str(name))
+    return filtered_targets
+    
+
+
+def filter_by_area(targets_dict_list, size_min_filter = .01, size_max_filter = .99):
+    #print(targets_dict_list)
+
+    filtered_targets = []
+
+    for target_dict in targets_dict_list:
+        target_area = target_dict['area_ratio']
+        if target_area >= size_min_filter and target_area <= size_max_filter:
+            filtered_targets.append(target_dict)
+    #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
+    return filtered_targets
+
+
+
+# def filter_by_range(self,targets_dict_list, size_min_filter = .01, size_max_filter = .99):
+#     ################
+#     # Filter by min max range and angles
+#     filtered_dict_list = []
+#     cur_position = copy.deepcopy(self.current_position)
+#     if cur_position is not None:
+#       [cur_pan,cur_tilt] = [cur_position[0],cur_position[1]]
+#       range_min = self.track_range_min_m
+#       range_max = self.track_range_max_m
+#       pan_min = self.track_pan_min_deg
+#       pan_max = self.track_pan_max_deg
+#       tilt_min = self.track_tilt_min_deg
+#       tilt_max = self.track_tilt_max_deg
+
+#       for target_dict in targets_dict_list:
+#           target_valid = True
+#           range_m = target_dict['range_m']
+#           if (range_m < range_min or range_m > range_max) and range_m != -999:
+#             target_valid = False
+#           target_pan_angle = target_dict['azimuth_deg']
+#           pan_angle =  cur_pan + target_pan_angle
+#           if (pan_angle < pan_min or pan_angle > pan_max) and target_pan_angle != -999:
+#             target_valid = False
+#           target_tilt_angle = cur_pan + target_dict['elevation_deg']
+#           tilt_angle =  cur_tilt + target_tilt_angle
+#           if (tilt_angle < tilt_min or tilt_angle > tilt_max) and target_tilt_angle != -999:
+#             target_valid = False
+#           if target_valid == True:
+#             filtered_dict_list.append(target_dict)
+#           #self.msg_if.pub_warn("Range Angle Filter returned: " + str(target_dict['target_name']) + " : " + str(target_valid) )
+#           #self.msg_if.pub_warn(str([range_m,cur_pan,cur_tilt]))
+#           #self.msg_if.pub_warn(str([range_m,target_pan_angle,target_tilt_angle]))
+#           #self.msg_if.pub_warn(str([range_m,pan_angle,tilt_angle]))
+#     return filtered_dict_list
+
+# def filter_by_bearings(self,targets_dict_list):
+#     ################
+#     # Filter by min max range and angles
+#     filtered_dict_list = []
+#     cur_position = copy.deepcopy(self.current_position)
+#     if cur_position is not None:
+#       [cur_pan,cur_tilt] = [cur_position[0],cur_position[1]]
+#       range_min = self.track_range_min_m
+#       range_max = self.track_range_max_m
+#       pan_min = self.track_pan_min_deg
+#       pan_max = self.track_pan_max_deg
+#       tilt_min = self.track_tilt_min_deg
+#       tilt_max = self.track_tilt_max_deg
+
+#       for target_dict in targets_dict_list:
+#           target_valid = True
+#           range_m = target_dict['range_m']
+#           if (range_m < range_min or range_m > range_max) and range_m != -999:
+#             target_valid = False
+#           target_pan_angle = target_dict['azimuth_deg']
+#           pan_angle =  cur_pan + target_pan_angle
+#           if (pan_angle < pan_min or pan_angle > pan_max) and target_pan_angle != -999:
+#             target_valid = False
+#           target_tilt_angle = cur_pan + target_dict['elevation_deg']
+#           tilt_angle =  cur_tilt + target_tilt_angle
+#           if (tilt_angle < tilt_min or tilt_angle > tilt_max) and target_tilt_angle != -999:
+#             target_valid = False
+#           if target_valid == True:
+#             filtered_dict_list.append(target_dict)
+#           #self.msg_if.pub_warn("Range Angle Filter returned: " + str(target_dict['target_name']) + " : " + str(target_valid) )
+#           #self.msg_if.pub_warn(str([range_m,cur_pan,cur_tilt]))
+#           #self.msg_if.pub_warn(str([range_m,target_pan_angle,target_tilt_angle]))
+#           #self.msg_if.pub_warn(str([range_m,pan_angle,tilt_angle]))
+#     return filtered_dict_list
+
+
+def filter_by_threshold(targets_dict_list, threshold_filter):
+    #print(targets_dict_list)
+
+    filtered_targets = []
+
+    for target_dict in targets_dict_list:
+        prob = target_dict['target_confidence']
+        if prob >= threshold_filter:
+            filtered_targets.append(target_dict)
+    #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
+    return filtered_targets
+
+def find_best(targets_dict_list, best_filter = 'LARGEST'):
+    #print(tracks_dict_list)
+    best_target = None
+    for target_dict in targets_dict_list:
+        
+        best = True
+
+        if best_target is not None:
+            bsize = best_target['area_ratio']
+            tsize = target_dict['area_ratio']
+            bprob = best_target['target_confidence']
+            tprob = target_dict['target_confidence']
+            if best_filter == 'LARGEST' and tsize < bsize:
+                best = False
+            elif best_filter == 'SMALLEST' and tsize > bsize:
+                best = False
+            elif best_filter == 'PROPABILITY' and tprob < bprob:
+                best = False
+
+        if best == True:
+            best_target = target_dict
+    #logger.log_info("Got filtered_dict " + str(filtered_track))
+
+            
+    return best_target
+            
+
+def get_best_from_targets(targets_dict_list,tracking_dict = BLANK_SETTINGS_DICT):
    filtered_targets = targets_dict_list
    best_target = None
-   for entry in BLANK_DATA_DICT.keys():
+   for entry in BLANK_SETTINGS_DICT.keys():
     if entry not in tracking_dict.keys():
-       tracking_dict[entry] = BLANK_DATA_DICT[entry]
+       tracking_dict[entry] = BLANK_SETTINGS_DICT[entry]
     
-    class_filters = tracking_dict['class_filter']
-    filtered_targets = nepi_targets.filter_by_classes(filtered_targets, [class_filters])
+    class_filters = tracking_dict['class_filters']
+    filtered_targets = filter_by_classes(filtered_targets, class_filters)
 
     size_max_filter = tracking_dict['size_max_filter']
     size_min_filter = tracking_dict['size_min_filter']
-    filtered_targets = nepi_targets.filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
+    filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
 
     threshold_filter = tracking_dict['threshold_filter']
-    filtered_targets = nepi_targets.filter_by_threshold(filtered_targets, threshold_filter)
+    filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
     
     if len(filtered_targets) > 0:
       best_filter = tracking_dict['best_filter']
-      best_target = nepi_targets.find_best(filtered_targets, best_filter = best_filter)
+      best_target = find_best(filtered_targets, best_filter = best_filter)
 
             
     return best_target,tracking_dict    

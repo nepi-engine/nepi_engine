@@ -2330,7 +2330,7 @@ class AiDetectorIF:
             targets_msg = Targets()
 
             
-            targets_msg.targeting_timestamp = float(detect_timestamp)
+            targets_msg.timestamp = float(detect_timestamp)
 
             targets_msg.process_name = self.node_name
             targets_msg.process_namespace = self.node_namespace
