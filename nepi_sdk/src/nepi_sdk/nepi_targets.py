@@ -237,10 +237,10 @@ def convert_target_dict2msg(target_data_dict, log_name_list = []):
         target_msg.range_m = target_data_dict['range_m']
         target_msg.azimuth_deg = target_data_dict['azimuth_deg']
         target_msg.elevation_deg = target_data_dict['elevation_deg']
-        navpose_dict = target_data_dict['navpose_dict']
-        if len(navpose_dict.keys()) == 0:
-            navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
-            target_msg.source_nav_pose = navpose_msg       
+        # navpose_dict = target_data_dict['navpose_dict']
+        # if len(navpose_dict.keys()) == 0:
+        #     navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        #     target_msg.source_nav_pose = navpose_msg       
     except Exception as e:
       target_msg = None
       logger.log_warn("Failed to convert Target Data dict: " + str(e), throttle_s = 5.0)
