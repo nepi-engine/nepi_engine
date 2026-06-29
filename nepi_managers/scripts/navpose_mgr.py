@@ -1032,9 +1032,11 @@ class NavPoseMgr(object):
 
                 solution_msg.pan_tilt_adjusted = navposes_settings_dict[frame_name]['pan_tilt_adjusted']
                 solution_msg.max_pub_rate = navposes_settings_dict[frame_name]['max_pub_rate']
-                if 'apply_transfroms' not in navposes_settings_dict[frame_name].keys():
-                    navposes_settings_dict[frame_name]['apply_transforms'] = True
-                solution_msg.apply_transforms = navposes_settings_dict[frame_name]['apply_transforms']
+                if 'apply_transforms' not in navposes_settings_dict[frame_name].keys():
+                    apply_transforms = True
+                else:
+                    apply_transforms = navposes_settings_dict[frame_name]['apply_transforms']
+                solution_msg.apply_transforms = apply_transforms
 
                 if frame_name in self.navposes_pub_times_dict.keys():
                     times_dict = self.navposes_pub_times_dict[frame_name]
@@ -1501,9 +1503,15 @@ class NavPoseMgr(object):
 
     def setFrameApplyTransforms(self,frame_name, enabled):
         if frame_name in self.navposes_settings_dict.keys():
+            self.msg_if.pub_info("Setting apply transforms for: " + str(frame_name) + ' : ' + str(enabled))
             self.navposes_settings_dict[frame_name]['apply_transforms'] = enabled
             self.publish_status()
+            enabled = self.navposes_settings_dict[frame_name]['apply_transforms']
+            self.msg_if.pub_info("Updated apply transforms for: " + str(frame_name) + ' : ' + str(enabled))
+            
             self.updateNavposesData()
+            enabled = self.navposes_settings_dict[frame_name]['apply_transforms']
+            self.msg_if.pub_info("Saving apply transforms for: " + str(frame_name) + ' : ' + str(enabled))
             if self.node_if is not None:
                 self.node_if.set_param('navposes_settings_dict',self.navposes_settings_dict)
                 self.node_if.save_config()
@@ -1966,6 +1974,7 @@ class NavPoseMgr(object):
         self.setFramePublishRate(frame_name, value)
        
     def _setFrameApplyTransformsCb(self,msg):
+        self.msg_if.pub_info("Got apply transforms msg: " + str(msg))
         frame_name = msg.name
         enabled = msg.value
         self.setFrameApplyTransforms(frame_name, enabled)
@@ -2102,8 +2111,9 @@ class NavPoseMgr(object):
                         self.navposes_reset_dict_lock.release()    
 
                         if 'apply_transforms' not in navposes_settings_dict[frame_name].keys():
-                            navposes_settings_dict[frame_name]['apply_transforms'] = True
-                        apply_transforms = navposes_settings_dict[frame_name]['apply_transforms']
+                            apply_transforms = True
+                        else:
+                            apply_transforms = navposes_settings_dict[frame_name]['apply_transforms']
                         ####################
                         if cur_init_topic == topic:
                             type_name = 'init'
