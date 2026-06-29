@@ -2102,8 +2102,8 @@ class NavPoseMgr(object):
                         self.navposes_reset_dict_lock.release()    
 
                         if 'apply_transforms' not in navposes_settings_dict[frame_name].keys():
-                            navposes_settings_dict[frame_name]['apply_settings'] = True
-                        apply_transforms = navposes_settings_dict[frame_name]['apply_settings']
+                            navposes_settings_dict[frame_name]['apply_transforms'] = True
+                        apply_transforms = navposes_settings_dict[frame_name]['apply_transforms']
                         ####################
                         if cur_init_topic == topic:
                             type_name = 'init'
