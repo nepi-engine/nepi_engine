@@ -960,6 +960,8 @@ class PTXActuatorIF:
     # Class Methods
 
     def getPanAdj(self,pan_deg):
+        if pan_deg is None:
+            pan_deg = 0.0
         return pan_deg * self.rpi
 
     def getPanRatioAdj(self,ratio):
@@ -968,6 +970,8 @@ class PTXActuatorIF:
         return ratio
 
     def getTiltAdj(self,tilt_deg):
+        if tilt_deg is None:
+            tilt_deg = 0.0
         return tilt_deg * self.rti
 
     def getPanTiltAdj(self,pan_deg,tilt_deg):

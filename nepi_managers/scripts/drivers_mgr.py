@@ -106,6 +106,8 @@ class NepiDriversMgr(object):
   active_topic_types = []
   active_services = []
 
+  nepi_config = dict()
+
   #######################
   ### Node Initialization
   DEFAULT_NODE_NAME = "drivers_mgr" # Can be overwitten by luanch command
@@ -141,6 +143,12 @@ class NepiDriversMgr(object):
         self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()    
         
+        ##############################
+        # Wait for System Info
+        self.msg_if.pub_info("Waiting for nepi config info")
+        self.nepi_config = nepi_system.get_nepi_config(log_name_list = [self.node_name])
+        #self.msg_if.pub_warn("Got NEPI config: " + str(self.nepi_config))
+
         ##############################
         # Initialize Class Variables
         
@@ -481,6 +489,10 @@ class NepiDriversMgr(object):
 
 
   def updaterDriversCb(self,_):
+    self.nepi_config = nepi_system.get_nepi_config(log_name_list = [self.node_name])
+    #self.msg_if.pub_warn("Got NEPI config: " + str(self.nepi_config))
+
+
     drivers_active_list = self.getActiveDrivers()
     #self.msg_if.pub_warn("Starting Update with active drivers: " + str(drivers_active_list))
 
@@ -863,6 +875,16 @@ class NepiDriversMgr(object):
         setting_caps[setting_name]['type'] = settings[setting_name]['type']
         setting_caps[setting_name]['options'] = settings[setting_name]['options']
         self.msg_if.pub_warn("Updating setting " + str(setting) + " with caps " + str(setting_caps) )
+        if 'value' in setting.keys():
+          value_key = str(setting['value'])
+          if value_key in self.nepi_config:
+              if str(self.nepi_config[value_key]) == 'NONE' and 'default' in setting.keys():
+                setting['value'] = setting['default']
+              else:
+                setting['value'] = str(self.nepi_config[value_key])
+        valid = nepi_settings.check_valid_setting(setting,setting_caps)
+        if valid == False and 'default' in setting.keys():
+          setting['value'] = setting['default']
         valid = nepi_settings.check_valid_setting(setting,setting_caps)
         if valid == True:
           #self.msg_if.pub_warn("Updating setting " + str(setting))
@@ -902,6 +924,13 @@ class NepiDriversMgr(object):
           setting_msg = Setting()
           setting_msg.name_str = setting_name
           setting_msg.type_str = setting['type']
+          if 'value' in setting.keys():
+            value_key = str(setting['value'])
+            if value_key in self.nepi_config:
+              if str(self.nepi_config[value_key]) == 'NONE' and 'default' in setting.keys():
+                setting['value'] = setting['default']
+              else:
+                setting['value'] = str(self.nepi_config[value_key])
           setting_msg.value_str = str(setting['value'])
           setting_msgs_list.append(setting_msg)
         
