@@ -1968,7 +1968,7 @@ class NavPoseMgr(object):
     def _setFrameApplyTransformsCb(self,msg):
         frame_name = msg.name
         enabled = msg.value
-        self.setFrameApplyTransform(frame_name, enabled)
+        self.setFrameApplyTransforms(frame_name, enabled)
 
 
     def _setFrameDescriptionCb(self,msg):
