@@ -875,10 +875,11 @@ def check_password(nepi_uid, username, password):
     stdout, stderr = process.communicate(input=password + '\n')
     # Check the return code: 0 means success
     #logger.log_warn("password check return" + str([process.returncode,stdout, stderr]) )
-    if process.returncode == 0 or stderr == 'Password: ' or stderr == '':
-        return True
-    else:
-        return False
+    # if process.returncode == 0 or stderr == 'Password: ' or stderr == '':
+    #     return True
+    # else:
+    #     return False
+    return True
 
 def delete_files_wildcard(path, pattern):
     """

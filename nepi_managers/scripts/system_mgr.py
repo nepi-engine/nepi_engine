@@ -246,25 +246,21 @@ class SystemMgrNode():
             self.msg_if.pub_warn("Failed to Read NEPI config file")
             nepi_sdk.signal_shutdown("Shutting Down: Failed to Read NEPI config file")
             return
-        # self.system_capSettings = self.getCapSettings(self.system_config)
+        self.system_capSettings = self.getCapSettings(self.system_config)
   
-        # self.factory_config = nepi_system.load_nepi_factory_config()
-        # self.msg_if.pub_warn("Got System Config: " + str(self.factory_config))
-        # if self.factory_config is None:
-        #     self.factory_config = dict()
-        # if len(self.factory_config.keys()) == 0:
-        #     self.factory_config = self.system_config
-        # else:
-        #     for key in self.system_config.keys():
-        #         if key not in self.factory_config.keys():
-        #             self.factory_config[key] = self.system_config[key]
-        # self.system_factorySettings = self.getSettings(self.factory_config)
-        # self.system_factorySettings = self.getSettings(self.system_config)
-
-        # Gather owner and group details for storage mountpoint
-        # stat_info = os.stat(self.storage_folder)
-        # self.nepi_uid = stat_info.st_uid
-        # self.nepi_gid = stat_info.st_gid
+        self.factory_config = nepi_system.load_nepi_factory_config()
+        self.msg_if.pub_warn("Got System Config: " + str(self.factory_config))
+        if self.factory_config is None:
+            self.factory_config = dict()
+        if len(self.factory_config.keys()) == 0:
+            self.factory_config = self.system_config
+        else:
+            for key in self.system_config.keys():
+                if key not in self.factory_config.keys():
+                    self.factory_config[key] = self.system_config[key]
+        self.system_factorySettings = self.getSettings(self.factory_config)
+        self.system_factorySettings = self.getSettings(self.system_config)
+        
 
         self.nepi_uid = self.system_config['NEPI_USER']
         self.nepi_gid = self.nepi_uid
@@ -753,24 +749,24 @@ class SystemMgrNode():
         self.initCb(do_updates = True)
 
 
-        # ###############################
-        # # Setup System Settings IF Class ####################
-        # self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = [self.node_name])
-        # system_settings_ns = self.base_namespace
+        ###############################
+        # Setup System Settings IF Class ####################
+        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = [self.node_name])
+        system_settings_ns = self.base_namespace
 
-        # self.SYSTEM_SETTINGS_DICT = {
-        #             'capSettings': self.system_capSettings, 
-        #             'factorySettings': self.system_factorySettings,
-        #             'setSettingFunction': self.systemSettingUpdateFunction, 
-        #             'getSettingsFunction': self.systemGetSettingsFunction
+        self.SYSTEM_SETTINGS_DICT = {
+                    'capSettings': self.system_capSettings, 
+                    'factorySettings': self.system_factorySettings,
+                    'setSettingFunction': self.systemSettingUpdateFunction, 
+                    'getSettingsFunction': self.systemGetSettingsFunction
                     
-        # }
+        }
 
-        # self.system_settings_if = SettingsIF(namespace = system_settings_ns,
-        #                 settings_dict = self.SYSTEM_SETTINGS_DICT,
-        #                 log_name_list = [self.node_name],
-        #                     msg_if = self.msg_if
-        #                 )
+        self.system_settings_if = SettingsIF(namespace = system_settings_ns,
+                        settings_dict = self.SYSTEM_SETTINGS_DICT,
+                        log_name_list = [self.node_name],
+                            msg_if = self.msg_if
+                        )
 
         #######################
         # Setup NEPI Managers Updater Process
@@ -1023,13 +1019,13 @@ class SystemMgrNode():
 
     def setNepiConfigsCb(self, msg):
         self.msg_if.pub_info("Got Set Configs msg: " + str(msg))
-        # if self.system_settings_if is not None:
-        #     key_strs = msg.key_strs
-        #     value_strs = msg.value_strs
-        #     if len(key_strs) == len(value_strs):
-        #         for i, key_str in enumerate(key_strs):
-        #             self.system_settings_if.update_setting_value(key_str, value_strs[i])
-        #             nepi_sdk.sleep(0.2)
+        if self.system_settings_if is not None:
+            key_strs = msg.key_strs
+            value_strs = msg.value_strs
+            if len(key_strs) == len(value_strs):
+                for i, key_str in enumerate(key_strs):
+                    self.system_settings_if.update_setting_value(key_str, value_strs[i])
+                    nepi_sdk.sleep(0.2)
 
     def updateNepiConfigCb(self, msg):
         self.msg_if.pub_info("Got Update Config msg: " + str(msg))
