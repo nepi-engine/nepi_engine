@@ -98,6 +98,7 @@ class NepiDriversMgr(object):
 
   devices_alias_dict = dict()
   devices_alias_dict_session = dict()
+  devices_cleared_alias_dict = dict()  # maps recently-cleared alias name -> original device name
   devices_running_name_list = []
   devices_running_type_list = []
 
@@ -1149,6 +1150,11 @@ class NepiDriversMgr(object):
                 del self.devices_alias_dict[purge_device]
                 ### ONLY DELETE FROM BASE DICT, NOT SESSION DICTIONARY.
                 self.devices_alias_dict_session[purge_device] = purge_device
+                # The live node keeps running under the old alias name until its next
+                # startup. Remember the mapping so publish_status folds that running node
+                # back into this device's row instead of showing a duplicate.
+                if purge_alias is not None and purge_alias != purge_device:
+                    self.devices_cleared_alias_dict[purge_alias] = purge_device
                 self.publish_status()
                 success = True
               except Exception as e:
@@ -1397,7 +1403,19 @@ class NepiDriversMgr(object):
       devices_name_list.append(device_name)
       devices_alias_list.append(devices_alias_dict[device_name])
 
-    devices_running_name_list = copy.deepcopy(self.devices_running_name_list)
+    # Reconcile recently-cleared aliases. A device aliased to e.g. "USB_CAM" keeps
+    # running under that node name until its next startup, so after its alias is cleared
+    # the live node would otherwise show up as a brand-new duplicate device. Map the
+    # running node name back to the original device name so it folds into that row.
+    raw_running_name_list = copy.deepcopy(self.devices_running_name_list)
+    # Drop stale mappings whose aliased node is no longer running (restarted/removed).
+    for alias_name in list(self.devices_cleared_alias_dict.keys()):
+      if alias_name not in raw_running_name_list:
+        del self.devices_cleared_alias_dict[alias_name]
+    devices_running_name_list = []
+    for running_name in raw_running_name_list:
+      devices_running_name_list.append(self.devices_cleared_alias_dict.get(running_name, running_name))
+
     for device_name in devices_running_name_list:
       if device_name not in devices_name_list and device_name not in devices_alias_list:
         devices_name_list.append(device_name)
@@ -1406,7 +1424,7 @@ class NepiDriversMgr(object):
 
     status_msg.devices_name_list = devices_name_list
     status_msg.devices_alias_list = devices_alias_list
-    status_msg.devices_running_name_list = self.devices_running_name_list
+    status_msg.devices_running_name_list = devices_running_name_list
     status_msg.devices_running_type_list = self.devices_running_type_list
 
 

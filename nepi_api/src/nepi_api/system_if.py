@@ -2778,7 +2778,7 @@ class SettingsIF:
 
     def _updateSettingsCb(self,msg):
         self.msg_if.pub_info("Received settings update msg: " + str(msg), log_name_list = self.log_name_list)
-        for settings_msg in msg:
+        for settings_msg in msg.settings:
             setting_dict = nepi_settings.parse_setting_msg(settings_msg)
             self.update_setting(setting_dict, do_updates = True, update_param = True)
             nepi_sdk.sleep(0.2)
