@@ -247,19 +247,20 @@ class SystemMgrNode():
             nepi_sdk.signal_shutdown("Shutting Down: Failed to Read NEPI config file")
             return
         self.system_capSettings = self.getCapSettings(self.system_config)
-  
-        self.factory_config = nepi_system.load_nepi_factory_config()
-        self.msg_if.pub_warn("Got System Config: " + str(self.factory_config))
-        if self.factory_config is None:
-            self.factory_config = dict()
-        if len(self.factory_config.keys()) == 0:
-            self.factory_config = self.system_config
-        else:
-            for key in self.system_config.keys():
-                if key not in self.factory_config.keys():
-                    self.factory_config[key] = self.system_config[key]
-        self.system_factorySettings = self.getSettings(self.factory_config)
         self.system_factorySettings = self.getSettings(self.system_config)
+        
+        # self.factory_config = nepi_system.load_nepi_factory_config()
+        # self.msg_if.pub_warn("Got System Config: " + str(self.factory_config))
+        # if self.factory_config is None:
+        #     self.factory_config = dict()
+        # if len(self.factory_config.keys()) == 0:
+        #     self.factory_config = self.system_config
+        # else:
+        #     for key in self.system_config.keys():
+        #         if key not in self.factory_config.keys():
+        #             self.factory_config[key] = self.system_config[key]
+        # self.system_factorySettings = self.getSettings(self.factory_config)
+       
         
 
         self.nepi_uid = self.system_config['NEPI_USER']

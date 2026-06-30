@@ -145,15 +145,15 @@ source $NEPI_UTILS
 		echo "Script not found ${script_path}"
 	fi
 
-	# LOAD_CONFIG=1
-	# script_file=update_etc_users.sh
-	# script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
-	# if [[ -f $script_path ]]; then
-	# 	echo "Running script ${script_path}"
-	# 	run_script $script_path $LOAD_CONFIG $ETC_USER_CONFIG_FILE
-	# else
-	# 	echo "Script not found ${script_path}"
-	# fi
+	LOAD_CONFIG=0
+	script_file=update_etc_users.sh
+	script_path=/mnt/nepi_config/system_cfg/etc/scripts/${script_file}
+	if [[ -f $script_path ]]; then
+		echo "Running script ${script_path}"
+		run_script $script_path $LOAD_CONFIG $ETC_USER_CONFIG_FILE
+	else
+		echo "Script not found ${script_path}"
+	fi
 
 
 	LOAD_CONFIG=0
