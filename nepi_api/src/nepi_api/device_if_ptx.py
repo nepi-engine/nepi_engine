@@ -80,6 +80,7 @@ class PTXActuatorIF:
     has_position_feedback = False
     has_absolute_positioning = False
     has_timed_positioning = False
+    has_timed_speed_positioning =False
     has_seperate_pan_tilt_control = False
     has_adjustable_limits = False
     has_adjustable_speed = False

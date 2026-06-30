@@ -228,6 +228,12 @@ class ScriptsManager(object):
 
         self.setupScriptConfigs()
 
+        # Overlay the persisted configs (auto_start, cmd_line_args) saved to disk / param server
+        # onto the freshly-built defaults. The config init callback runs while node_if is still
+        # None during NodeClassIF construction, so this must be done explicitly here -- otherwise
+        # script_configs only ever holds the defaults and auto_start is never honored on restart.
+        self.update_script_configs()
+
         self.monitor_thread = threading.Thread(target=self.monitor_scripts)
         self.monitor_thread.daemon = True
         self.monitor_thread.start()
@@ -320,10 +326,12 @@ class ScriptsManager(object):
         
         self.script_configs[msg.script]['auto_start'] = msg.enabled
 
-        # This is an unusual parameter in that it triggers an automatic save of the config file
-        # so update the param server, then tell it to save the file via saveParamsCb
-        # saveConfig() will trigger the initCb callback, so param server will
-        # be up-to-date before the file gets saved
+        # This is an unusual parameter in that it triggers an automatic save of the config file.
+        # save_config() persists the param server's values to disk, so we must push the updated
+        # script_configs to the param server FIRST -- otherwise the stale/empty value on the
+        # param server is what gets written, and the auto_start setting is lost across restarts.
+        if self.node_if is not None:
+            self.node_if.set_param('script_configs', self.script_configs)
         self.node_if.save_config()
 
     def initCb(self, do_updates = False):
