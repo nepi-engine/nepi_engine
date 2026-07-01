@@ -147,6 +147,8 @@ BLANK_HEADING_DATA_DICT = {
     'time_heading': 0.0,
     # Heading should be provided in Degrees True North
     'heading_deg': 0.0,
+    # Ground speed in the heading direction, meters per second
+    'heading_m_per_sec': 0.0,
 }
 
 BLANK_POSITION_DATA_DICT = {
@@ -155,6 +157,10 @@ BLANK_POSITION_DATA_DICT = {
     'x_m': 0.0,
     'y_m': 0.0,
     'z_m': 0.0,
+    # Linear velocity in Meters per second ENU
+    'x_m_per_sec': 0.0,
+    'y_m_per_sec': 0.0,
+    'z_m_per_sec': 0.0,
 }
 
 BLANK_ORIENTATION_DATA_DICT = {
@@ -163,25 +169,35 @@ BLANK_ORIENTATION_DATA_DICT = {
     'roll_deg': 0.0,
     'pitch_deg': 0.0,
     'yaw_deg': 0.0,
+    # Angular rates in Degrees per second ENU
+    'roll_deg_per_sec': 0.0,
+    'pitch_deg_per_sec': 0.0,
+    'yaw_deg_per_sec': 0.0,
 }
 
 BLANK_LOCATION_DATA_DICT = {
     'time_location': 0.0,
     # Location Lat,Long
     'latitude': 0.0,
-    'longitude': 0.0
+    'longitude': 0.0,
+    # Speed over ground, meters per second
+    'location_m_per_sec': 0.0,
 }
 
 BLANK_ALTITUDE_DATA_DICT = {
     'time_altitude': 0.0,
     # Altitude should be provided in postivie meters WGS84
     'altitude_m': 0.0,
+    # Vertical rate (altitude change), meters per second
+    'altitude_m_per_sec': 0.0,
 }
 
 BLANK_DEPTH_DATA_DICT = {
     'time_depth': 0.0,
     # Depth should be provided in positive distance from surface in meters
-    'depth_m': 0.0
+    'depth_m': 0.0,
+    # Depth rate (depth change), meters per second
+    'depth_m_per_sec': 0.0,
 }
 
 BLANK_PAN_TILT_DATA_DICT = {
@@ -207,11 +223,15 @@ BLANK_NAVPOSE_DICT = {
     # Location Lat,Long
     'latitude': 0.0,
     'longitude': 0.0,
+    # Speed over ground, meters per second
+    'location_m_per_sec': 0.0,
 
     'has_heading': False,
     'time_heading': 0.0,
     # Heading should be provided in Degrees True North
     'heading_deg': 0.0,
+    # Ground speed in the heading direction, meters per second
+    'heading_m_per_sec': 0.0,
 
     'has_position': False,
     'time_position': 0.0,
@@ -219,6 +239,10 @@ BLANK_NAVPOSE_DICT = {
     'x_m': 0.0,
     'y_m': 0.0,
     'z_m': 0.0,
+    # Linear velocity in Meters per second in specified 3d frame
+    'x_m_per_sec': 0.0,
+    'y_m_per_sec': 0.0,
+    'z_m_per_sec': 0.0,
 
     'has_orientation': False,
     'time_orientation': 0.0,
@@ -226,16 +250,24 @@ BLANK_NAVPOSE_DICT = {
     'roll_deg': 0.0,
     'pitch_deg': 0.0,
     'yaw_deg': 0.0,
+    # Angular rates in Degrees per second in specified 3d frame
+    'roll_deg_per_sec': 0.0,
+    'pitch_deg_per_sec': 0.0,
+    'yaw_deg_per_sec': 0.0,
 
     'has_altitude': False,
     'time_altitude': 0.0,
     # Altitude should be provided in postivie meters in specified alt frame
     'altitude_m': 0.0,
+    # Vertical rate (altitude change), meters per second
+    'altitude_m_per_sec': 0.0,
 
     'has_depth': False,
     'time_depth': 0.0,
     # Depth should be provided in positive meters
     'depth_m': 0.0,
+    # Depth rate (depth change), meters per second
+    'depth_m_per_sec': 0.0,
 
     'has_pan_tilt': False,
     'time_pan_tilt': 0.0,
@@ -306,30 +338,40 @@ def clear_navpose_dict_comp(comp_name,npdata_dict):
           npdata_dict['time_location'] = 0.0
           npdata_dict['latitude'] = 0.0
           npdata_dict['longitude'] = 0.0
+          npdata_dict['location_m_per_sec'] = 0.0
       if  comp_name == 'heading':
           npdata_dict['has_heading'] = False
           npdata_dict['time_heading'] = 0.0
           npdata_dict['heading_deg'] = 0.0
+          npdata_dict['heading_m_per_sec'] = 0.0
       if  comp_name == 'orientation':
           npdata_dict['has_orientation'] = False
           npdata_dict['time_orientation']  = 0.0
           npdata_dict['roll_deg']  = 0.0
           npdata_dict['pitch_deg']  = 0.0
           npdata_dict['yaw_deg']  = 0.0
+          npdata_dict['roll_deg_per_sec']  = 0.0
+          npdata_dict['pitch_deg_per_sec']  = 0.0
+          npdata_dict['yaw_deg_per_sec']  = 0.0
       if  comp_name == 'position':
           npdata_dict['has_position'] = False
           npdata_dict['time_position'] = 0.0
           npdata_dict['x_m']  = 0.0
           npdata_dict['y_m']  = 0.0
           npdata_dict['z_m']  = 0.0
+          npdata_dict['x_m_per_sec']  = 0.0
+          npdata_dict['y_m_per_sec']  = 0.0
+          npdata_dict['z_m_per_sec']  = 0.0
       if  comp_name == 'altitude':
           npdata_dict['has_altitude'] = False
           npdata_dict['time_altitude']  = 0.0
           npdata_dict['altitude_m']  = 0.0
+          npdata_dict['altitude_m_per_sec']  = 0.0
       if  comp_name == 'depth':
           npdata_dict['has_depth'] = False
           npdata_dict['time_depth']  = 0.0
           npdata_dict['depth_m']  = 0.0
+          npdata_dict['depth_m_per_sec']  = 0.0
       if  comp_name == 'pan_tilt':
           npdata_dict['has_pan_tilt'] = False
           npdata_dict['time_pan_tilt']  = 0.0
@@ -357,30 +399,40 @@ def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
             npdata_dict_org['time_location'] = npdata_dict_new['time_location']
             npdata_dict_org['latitude'] = npdata_dict_new['latitude']
             npdata_dict_org['longitude'] = npdata_dict_new['longitude']
+            npdata_dict_org['location_m_per_sec'] = npdata_dict_new['location_m_per_sec']
         if npdata_dict_new['has_heading'] == True:
             npdata_dict_org['has_heading'] = True
             npdata_dict_org['time_heading'] = npdata_dict_new['time_heading']
             npdata_dict_org['heading_deg'] = npdata_dict_new['heading_deg']
+            npdata_dict_org['heading_m_per_sec'] = npdata_dict_new['heading_m_per_sec']
         if npdata_dict_new['has_orientation'] == True:
             npdata_dict_org['has_orientation'] = True
             npdata_dict_org['time_orientation'] = npdata_dict_new['time_orientation']
             npdata_dict_org['roll_deg'] = npdata_dict_new['roll_deg']
             npdata_dict_org['pitch_deg'] = npdata_dict_new['pitch_deg']
             npdata_dict_org['yaw_deg'] = npdata_dict_new['yaw_deg']
+            npdata_dict_org['roll_deg_per_sec'] = npdata_dict_new['roll_deg_per_sec']
+            npdata_dict_org['pitch_deg_per_sec'] = npdata_dict_new['pitch_deg_per_sec']
+            npdata_dict_org['yaw_deg_per_sec'] = npdata_dict_new['yaw_deg_per_sec']
         if npdata_dict_new['has_position'] == True:
             npdata_dict_org['has_position'] = True
             npdata_dict_org['time_position'] = npdata_dict_new['time_position']
             npdata_dict_org['x_m'] = npdata_dict_new['x_m']
             npdata_dict_org['y_m'] = npdata_dict_new['y_m']
             npdata_dict_org['z_m'] = npdata_dict_new['z_m']
+            npdata_dict_org['x_m_per_sec'] = npdata_dict_new['x_m_per_sec']
+            npdata_dict_org['y_m_per_sec'] = npdata_dict_new['y_m_per_sec']
+            npdata_dict_org['z_m_per_sec'] = npdata_dict_new['z_m_per_sec']
         if npdata_dict_new['has_altitude'] == True:
             npdata_dict_org['has_altitude'] = True
             npdata_dict_org['time_altitude'] = npdata_dict_new['time_altitude']
             npdata_dict_org['altitude_m'] = npdata_dict_new['altitude_m']
+            npdata_dict_org['altitude_m_per_sec'] = npdata_dict_new['altitude_m_per_sec']
         if npdata_dict_new['has_depth'] == True:
             npdata_dict_org['has_depth'] = True
             npdata_dict_org['time_depth'] = npdata_dict_new['time_depth']
             npdata_dict_org['depth_m'] = npdata_dict_new['depth_m']
+            npdata_dict_org['depth_m_per_sec'] = npdata_dict_new['depth_m_per_sec']
         if npdata_dict_new['has_pan_tilt'] == True:
             npdata_dict_org['has_pan_tilt'] = True
             npdata_dict_org['time_pan_tilt'] = npdata_dict_new['time_pan_tilt']
@@ -542,6 +594,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['time_location'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
           navpose_dict['latitude'] = msg.latitude
           navpose_dict['longitude'] = msg.longitude
+          navpose_dict['location_m_per_sec'] = msg.location_m_per_sec
         except:
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
@@ -567,6 +620,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['has_heading'] = True
           navpose_dict['time_heading'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
           navpose_dict['heading_deg'] = msg.heading_deg
+          navpose_dict['heading_m_per_sec'] = msg.heading_m_per_sec
         except:
           pass
      
@@ -579,6 +633,9 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['roll_deg'] = msg.roll_deg
           navpose_dict['pitch_deg'] = msg.pitch_deg
           navpose_dict['yaw_deg'] = msg.yaw_deg
+          navpose_dict['roll_deg_per_sec'] = msg.roll_deg_per_sec
+          navpose_dict['pitch_deg_per_sec'] = msg.pitch_deg_per_sec
+          navpose_dict['yaw_deg_per_sec'] = msg.yaw_deg_per_sec
         except:
           pass
       elif msg_type == 'nav_msgs/Odometry':
@@ -626,6 +683,9 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['x_m'] = msg.x_m
           navpose_dict['y_m'] = msg.y_m
           navpose_dict['z_m'] = msg.y_m
+          navpose_dict['x_m_per_sec'] = msg.x_m_per_sec
+          navpose_dict['y_m_per_sec'] = msg.y_m_per_sec
+          navpose_dict['z_m_per_sec'] = msg.z_m_per_sec
         except:
           pass
       elif msg_type == 'nav_msgs/Odometry':
@@ -676,6 +736,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['has_altitude'] = True
           navpose_dict['time_altitude'] = msg.timestamp
           navpose_dict['altitude_m'] = msg.altitude_m
+          navpose_dict['altitude_m_per_sec'] = msg.altitude_m_per_sec
         except:
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
@@ -706,6 +767,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['has_depth'] = True
           navpose_dict['time_depth'] = msg.timestamp
           navpose_dict['depth_m'] = 0 - msg.altitude_m
+          navpose_dict['depth_m_per_sec'] = 0 - msg.altitude_m_per_sec
         except:
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
@@ -889,6 +951,8 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
           
           [ navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg'] ]=  [npr,npp,npy]
+          # Angular rate transform not yet implemented; zero out until derived
+          [ navpose_dict['roll_deg_per_sec'], navpose_dict['pitch_deg_per_sec'], navpose_dict['yaw_deg_per_sec'] ]=  [0,0,0]
 
 
         if npdata_dict['has_position'] == True:
@@ -1046,31 +1110,41 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg.has_heading = npdata_dict['has_heading']
       np_msg.time_heading = npdata_dict['time_heading'] if np_msg.has_heading else 0.0
       np_msg.heading_deg = npdata_dict['heading_deg'] if np_msg.has_heading else -999
+      np_msg.heading_m_per_sec = npdata_dict['heading_m_per_sec'] if np_msg.has_heading else -999
 
       np_msg.has_orientation = npdata_dict['has_orientation']
       np_msg.time_orientation = npdata_dict['time_orientation'] if np_msg.has_orientation else 0.0
       np_msg.roll_deg = npdata_dict['roll_deg'] if np_msg.has_orientation else -999
       np_msg.pitch_deg = npdata_dict['pitch_deg'] if np_msg.has_orientation else -999
       np_msg.yaw_deg = npdata_dict['yaw_deg'] if np_msg.has_orientation else -999
+      np_msg.roll_deg_per_sec = npdata_dict['roll_deg_per_sec'] if np_msg.has_orientation else -999
+      np_msg.pitch_deg_per_sec = npdata_dict['pitch_deg_per_sec'] if np_msg.has_orientation else -999
+      np_msg.yaw_deg_per_sec = npdata_dict['yaw_deg_per_sec'] if np_msg.has_orientation else -999
 
       np_msg.has_position = npdata_dict['has_position']
       np_msg.time_position = npdata_dict['time_position'] if np_msg.has_position else 0.0
       np_msg.x_m = npdata_dict['x_m'] if np_msg.has_position else -999
       np_msg.y_m = npdata_dict['y_m'] if np_msg.has_position else -999
       np_msg.z_m = npdata_dict['z_m'] if np_msg.has_position else -999
+      np_msg.x_m_per_sec = npdata_dict['x_m_per_sec'] if np_msg.has_position else -999
+      np_msg.y_m_per_sec = npdata_dict['y_m_per_sec'] if np_msg.has_position else -999
+      np_msg.z_m_per_sec = npdata_dict['z_m_per_sec'] if np_msg.has_position else -999
 
       np_msg.has_location = npdata_dict['has_location']
       np_msg.time_location = npdata_dict['time_location'] if np_msg.has_location else 0.0
       np_msg.latitude = npdata_dict['latitude'] if np_msg.has_location else -999
       np_msg.longitude = npdata_dict['longitude'] if np_msg.has_location else -999
+      np_msg.location_m_per_sec = npdata_dict['location_m_per_sec'] if np_msg.has_location else -999
 
       np_msg.has_altitude = npdata_dict['has_altitude']
       np_msg.time_altitude = npdata_dict['time_altitude'] if np_msg.has_altitude else 0.0
       np_msg.altitude_m = npdata_dict['altitude_m'] if np_msg.has_altitude else -999
+      np_msg.altitude_m_per_sec = npdata_dict['altitude_m_per_sec'] if np_msg.has_altitude else -999
 
       np_msg.has_depth = npdata_dict['has_depth']
       np_msg.time_depth = npdata_dict['time_depth'] if np_msg.has_depth else 0.0
       np_msg.depth_m = npdata_dict['depth_m'] if np_msg.has_depth else -999
+      np_msg.depth_m_per_sec = npdata_dict['depth_m_per_sec'] if np_msg.has_depth else -999
 
       np_msg.has_pan_tilt = npdata_dict['has_pan_tilt']
       np_msg.time_pan_tilt = npdata_dict['time_pan_tilt'] if np_msg.has_pan_tilt else 0.0
@@ -1103,20 +1177,30 @@ def convert_navpose_msg2dict(np_msg, log_name_list = []):
     npdata_dict['has_location'] = np_msg.has_location
     npdata_dict['latitude'] = np_msg.latitude
     npdata_dict['longitude'] = np_msg.longitude
+    npdata_dict['location_m_per_sec'] = np_msg.location_m_per_sec
     npdata_dict['has_heading'] = np_msg.has_heading
     npdata_dict['heading_deg'] = np_msg.heading_deg
+    npdata_dict['heading_m_per_sec'] = np_msg.heading_m_per_sec
     npdata_dict['has_orientation'] = np_msg.has_orientation
     npdata_dict['roll_deg'] = np_msg.roll_deg
     npdata_dict['pitch_deg'] = np_msg.pitch_deg
     npdata_dict['yaw_deg'] = np_msg.yaw_deg
+    npdata_dict['roll_deg_per_sec'] = np_msg.roll_deg_per_sec
+    npdata_dict['pitch_deg_per_sec'] = np_msg.pitch_deg_per_sec
+    npdata_dict['yaw_deg_per_sec'] = np_msg.yaw_deg_per_sec
     npdata_dict['has_position'] = np_msg.has_position
     npdata_dict['x_m'] = np_msg.x_m
     npdata_dict['y_m'] = np_msg.y_m
     npdata_dict['z_m'] = np_msg.z_m
+    npdata_dict['x_m_per_sec'] = np_msg.x_m_per_sec
+    npdata_dict['y_m_per_sec'] = np_msg.y_m_per_sec
+    npdata_dict['z_m_per_sec'] = np_msg.z_m_per_sec
     npdata_dict['has_altitude'] = np_msg.has_altitude
     npdata_dict['altitude_m'] = np_msg.altitude_m
+    npdata_dict['altitude_m_per_sec'] = np_msg.altitude_m_per_sec
     npdata_dict['has_depth'] = np_msg.has_depth
     npdata_dict['depth_m'] = np_msg.depth_m
+    npdata_dict['depth_m_per_sec'] = np_msg.depth_m_per_sec
     npdata_dict['has_pan_tilt'] = np_msg.has_pan_tilt
     npdata_dict['pan_deg'] = np_msg.pan_deg
     npdata_dict['tilt_deg'] = np_msg.tilt_deg

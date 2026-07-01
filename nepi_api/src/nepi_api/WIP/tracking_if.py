@@ -2740,10 +2740,10 @@ class TrackingIF(object):
     self.status_msg.pt_status_msg = pt_status_msg
     self.pan_tilt_max_speed_dps = pt_status_msg.speed_max_dps
     self.status_msg.pan_tilt_max_speed_dps = pt_status_msg.speed_max_dps
-    self.pan_speed_dps = pt_status_msg.speed_pan_dps
-    self.status_msg.pan_speed_dps = pt_status_msg.speed_pan_dps
-    self.tilt_speed_dps = pt_status_msg.speed_tilt_dps
-    self.status_msg.tilt_speed_dps = pt_status_msg.speed_tilt_dps
+    self.pan_deg_per_sec = pt_status_msg.speed_pan_dps
+    self.status_msg.pan_deg_per_sec = pt_status_msg.speed_pan_dps
+    self.tilt_deg_per_sec = pt_status_msg.speed_tilt_dps
+    self.status_msg.tilt_deg_per_sec = pt_status_msg.speed_tilt_dps
     
     self.status_msg.pan_tilt_avg_move_delay = self.pan_tilt_avg_move_delay
 
@@ -3220,7 +3220,7 @@ class TrackingIF(object):
 
             # self.status_msg.stab_pan_dps = self.stab_data_dict['pan_dps']
 
-            # self.status_msg.tilt_speed_dps = self.stab_data_dict['tilt_speed_dps']
+            # self.status_msg.tilt_deg_per_sec = self.stab_data_dict['tilt_deg_per_sec']
             # self.status_msg.stab_tilt_deg = self.stab_data_dict['tilt_deg']
             # self.status_msg.stab_tilt_adj = self.stab_data_dict['tilt_adj']
             # self.status_msg.stab_tilt_goal = self.stab_data_dict['tilt_goal']
@@ -3378,7 +3378,7 @@ class TrackingIF(object):
 
     #   pan_tilt_dps = self.pt_connect_if.get_pan_speed_dps()
     #   stab_data_dict['pan_tilt_dps'] = pan_tilt_dps
-    #   stab_data_dict['tilt_speed_dps'] = tilt_speed_dps
+    #   stab_data_dict['tilt_deg_per_sec'] = tilt_deg_per_sec
 
     #   #pan_tilt_avg_move_delay = self.pt_connect_if.get_pan_tilt_move_delay()
     #   stab_settings_dict['pan_tilt_avg_move_delay'] =  pan_tilt_avg_move_delay
@@ -3399,8 +3399,8 @@ class TrackingIF(object):
     pan_speed_max = stab_settings_dict['stab_pt_max_speed_dps']
     tilt_speed_max = stab_settings_dict['stab_pt_max_speed_dps']
 
-    pan_speed_dps = self.pan_speed_dps
-    tilt_speed_dps = self.tilt_speed_dps
+    pan_deg_per_sec = self.pan_deg_per_sec
+    tilt_deg_per_sec = self.tilt_deg_per_sec
 
     pan_tilt_avg_move_delay = self.pan_tilt_avg_move_delay
 

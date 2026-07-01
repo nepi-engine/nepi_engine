@@ -115,11 +115,15 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
     # Location Lat,Long
     'latitude': 47.080909,
     'longitude': -120.8787889,
+    # Speed over ground, meters per second
+    'location_m_per_sec': 0.0,
 
     'has_heading': True,
     'time_heading': nepi_utils.get_time(),
     # Heading should be provided in Degrees True North
     'heading_deg': 120.50,
+    # Ground speed in the heading direction, meters per second
+    'heading_m_per_sec': 0.0,
 
     'has_position': True,
     'time_position': nepi_utils.get_time(),
@@ -127,6 +131,10 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
     'x_m': 1.234,
     'y_m': 1.234,
     'z_m': 1.234,
+    # Linear velocity in Meters per second in specified 3d frame
+    'x_m_per_sec': 0.0,
+    'y_m_per_sec': 0.0,
+    'z_m_per_sec': 0.0,
 
     'has_orientation': True,
     'time_orientation': nepi_utils.get_time(),
@@ -134,16 +142,24 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
     'roll_deg': 30.51,
     'pitch_deg': 30.51,
     'yaw_deg': 30.51,
+    # Angular rates in Degrees per second in specified 3d frame
+    'roll_deg_per_sec': 0.0,
+    'pitch_deg_per_sec': 0.0,
+    'yaw_deg_per_sec': 0.0,
 
     'has_altitude': True,
     'time_altitude': nepi_utils.get_time(),
     # Altitude should be provided in postivie meters in specified altitude_m frame
     'altitude_m': 12.321,
+    # Vertical rate (altitude change), meters per second
+    'altitude_m_per_sec': 0.0,
 
     'has_depth': False,
     'time_depth': nepi_utils.get_time(),
     # Depth should be provided in positive meters
     'depth_m': 0.0,
+    # Depth rate (depth change), meters per second
+    'depth_m_per_sec': 0.0,
 
     'has_pan_tilt': False,
     'time_pan_tilt': nepi_utils.get_time(),
@@ -674,6 +690,7 @@ class NavPoseIF:
                 msg.timestamp = np_dict['time_location']
                 msg.latitude = np_dict['latitude']
                 msg.longitude = np_dict['longitude']
+                msg.location_m_per_sec = np_dict['location_m_per_sec']
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_heading == True:
@@ -682,6 +699,7 @@ class NavPoseIF:
                 # gps_fix pub
                 msg.timestamp = np_dict['time_heading']
                 msg.heading_deg = np_dict['heading_deg']
+                msg.heading_m_per_sec = np_dict['heading_m_per_sec']
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_orientation == True:
@@ -692,6 +710,9 @@ class NavPoseIF:
                 msg.roll_deg = np_dict['roll_deg']
                 msg.pitch_deg = np_dict['pitch_deg']
                 msg.yaw_deg = np_dict['yaw_deg']
+                msg.roll_deg_per_sec = np_dict['roll_deg_per_sec']
+                msg.pitch_deg_per_sec = np_dict['pitch_deg_per_sec']
+                msg.yaw_deg_per_sec = np_dict['yaw_deg_per_sec']
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_position == True:
@@ -702,6 +723,9 @@ class NavPoseIF:
                 msg.x_m = np_dict['x_m']
                 msg.y_m = np_dict['y_m']
                 msg.z_m = np_dict['z_m']
+                msg.x_m_per_sec = np_dict['x_m_per_sec']
+                msg.y_m_per_sec = np_dict['y_m_per_sec']
+                msg.z_m_per_sec = np_dict['z_m_per_sec']
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_altitude == True:
@@ -710,6 +734,7 @@ class NavPoseIF:
                 # gps_fix pub
                 msg.timestamp = np_dict['time_altitude']
                 msg.altitude_m = np_dict['altitude_m']
+                msg.altitude_m_per_sec = np_dict['altitude_m_per_sec']
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_depth == True:
@@ -718,6 +743,7 @@ class NavPoseIF:
                 # gps_fix pub
                 msg.timestamp = np_dict['time_depth']
                 msg.depth_m = np_dict['depth_m']
+                msg.depth_m_per_sec = np_dict['depth_m_per_sec']
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_pan_tilt == True:
