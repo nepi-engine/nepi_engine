@@ -686,10 +686,11 @@ class AIDetectorManager:
         if model_name != "None": 
             models_dict = self.copyModelsDict()
             self.msg_if.pub_warn("Kill Model Requested with model keys: " + str(models_dict.keys()))
-            self.msg_if.pub_warn("Kill Model Requested with model dict: " + str(models_dict))
+            #self.msg_if.pub_warn("Kill Model Requested with model dict: " + str(models_dict))
             if model_name not in models_dict.keys():
                 self.msg_if.pub_warn("Unknown model model requested: " + model_name)
             else:
+                node_name = models_dict[model_name]['node_name']
                 aif_name=self.models_dict[model_name]['framework']
                 if aif_name not in self.aifs_classes_dict.keys():
                     self.msg_if.pub_warn("Model Framework Class not instantiated")
@@ -701,9 +702,9 @@ class AIDetectorManager:
                     if model_name in self.models_namespace_dict.keys():
                         #node_name = os.path.basename(self.models_namespace_dict[model_name])
                         del self.models_namespace_dict[model_name]
-                    aif_class.killModel(model_name)
+                    aif_class.killModel(node_name)
                     # Kill Img Pub Node if running
-                    nepi_sdk.kill_node(model_name + '_img_pub')
+                    nepi_sdk.kill_node(node_name + '_img_pub')
                     self.models_dict_lock.acquire()
                     self.models_dict[model_name]['msg'] = "Model killed"
                     self.models_dict_lock.release()
