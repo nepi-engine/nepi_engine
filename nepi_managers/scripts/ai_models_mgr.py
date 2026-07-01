@@ -367,7 +367,9 @@ class AIDetectorManager:
         for model_name in models_dict.keys():
                 if models_dict[model_name]['active'] == True:
                   node_name = models_dict[model_name]['node_name']
-                  self.killModel(node_name)
+                  success = self.killModel(model_name)
+                  if success == False:
+                    self.killModel(node_name)
         time.sleep(1)
         aif_classes = list(self.aifs_classes_dict.keys())
         for aif_class in aif_classes:
@@ -567,7 +569,10 @@ class AIDetectorManager:
                 models_dict[model_name]['active'] = False
                 del self.models_namespace_dict[model_name]
                 node_name = models_dict[model_name]['node_name']
-                self.killModel(node_name)
+                success = self.killModel(model_name)
+                if success == False:
+                    self.killModel(node_name)
+                
 
                 nepi_sdk.wait()
             except Exception as e:
@@ -677,8 +682,11 @@ class AIDetectorManager:
         return node_namespace
         
     def killModel(self, model_name):
+        success = False
         if model_name != "None": 
             models_dict = self.copyModelsDict()
+            self.msg_if.pub_warn("Kill Model Requested with model keys: " + str(models_dict.keys()))
+            self.msg_if.pub_warn("Kill Model Requested with model dict: " + str(models_dict))
             if model_name not in models_dict.keys():
                 self.msg_if.pub_warn("Unknown model model requested: " + model_name)
             else:
@@ -699,6 +707,8 @@ class AIDetectorManager:
                     self.models_dict_lock.acquire()
                     self.models_dict[model_name]['msg'] = "Model killed"
                     self.models_dict_lock.release()
+                    success = True
+        return success
   
     def save_config(self):
         # Save framework and model dictionaries

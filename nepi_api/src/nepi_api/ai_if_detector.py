@@ -2047,8 +2047,9 @@ class AiDetectorIF:
                 success = True
                 self.first_detect_complete = True
             except Exception as e:
+                nepi_sdk.sleep(1)
                 self.msg_if.pub_warn("Failed to process detection img with exception: " + str(e))
-
+            self.is_processing = False
             #self.msg_if.pub_warn("Processed Image Topic " + img_topic) 
 
             self.last_detect_time = nepi_sdk.get_time()
@@ -2093,7 +2094,7 @@ class AiDetectorIF:
             #####################################
             
             self.got_img_topic = None
-            self.is_processing = False
+            
 
 
     def cleanBoxes(self,detect_dict_list):
