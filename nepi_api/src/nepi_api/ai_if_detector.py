@@ -1423,7 +1423,8 @@ class AiDetectorIF:
     def updateTargeting(self,config_dict):
         self.setEnable(config_dict['enabled'], save_config = False)
         self.setImageTopics(config_dict['selected_sources'], save_config = False)
-        self.setClasses(config_dict['selected_classes'], save_config = False)
+        if len(config_dict['selected_classes']) > 0:
+            self.setClasses(config_dict['selected_classes'], save_config = False)
         self.setThreshold(config_dict['threshold_filter'], save_config = False)
         if self.node_if is not None:
             self.node_if.set_param('pub_image_enabled',self.pub_image_enabled)
