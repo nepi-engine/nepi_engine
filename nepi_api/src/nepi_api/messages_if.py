@@ -37,6 +37,10 @@ class MsgIF:
 
     debug_mode = False
 
+    # ANSI color codes used to make console debug output stand out from info
+    DEBUG_COLOR = "\033[32m"   # green (ROS convention for debug)
+    COLOR_RESET = "\033[0m"
+
     throttle_dict = dict()
 
     #######################
@@ -109,11 +113,21 @@ class MsgIF:
         if msg is None:
             msg = "MSGIF got None msg"
         msg_str = self._createMsgString(msg, log_name_list = log_name_list)
-        nepi_sdk.log_msg(msg_str, level = level)
         if level != 'debug':
+            nepi_sdk.log_msg(msg_str, level = level)
             self.msg_pub.publish(msg_str)
             self.msg_pub_sys.publish(msg_str)
         elif self.debug_mode == True:
+            # rospy.logdebug output is dropped unless the ROS console log level is
+            # raised to DEBUG (nothing does that), so debug messages never reached
+            # the console. When Debug Mode is on, log at info level so they are
+            # actually visible, and publish to the message topics. When Debug Mode
+            # is off, debug messages are dropped entirely.
+            # Wrap the console copy in a green ANSI color so debug lines stand out
+            # from normal (white) info output. The topic copy is left uncolored so
+            # the RUI message viewer does not show escape codes.
+            console_str = self.DEBUG_COLOR + msg_str + self.COLOR_RESET
+            nepi_sdk.log_msg(console_str, level = 'info')
             self.msg_pub.publish(msg_str)
             self.msg_pub_sys.publish(msg_str)
     
