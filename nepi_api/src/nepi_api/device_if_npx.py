@@ -47,7 +47,7 @@ from nepi_sdk import nepi_settings
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, SettingsIF
+from nepi_api.system_if import SaveDataIF, SettingsIF, Transform3DIF
 
 from nepi_api.data_if import NavPoseIF
 
@@ -126,6 +126,9 @@ class NPXDeviceIF:
   pub_subs = False
 
   navpose_mgr_if = None
+
+  # User-settable per-device 3D mount transform applied to each published navpose
+  transform_if = None
 
   data_source_description = 'navpose_sensor'
   data_ref_description = 'data_reference'
@@ -312,7 +315,7 @@ class NPXDeviceIF:
             },
             'navpose_frame': {
                 'namespace': self.namespace,
-                'factory_val': 'None'
+                'factory_val': self.navpose_frame
             }
 
         }
@@ -356,7 +359,15 @@ class NPXDeviceIF:
                 'topic': 'set_max_update_rate',
                 'msg': Float32,
                 'qsize': 1,
-                'callback': self._setUpdateMaxRateCb, 
+                'callback': self._setUpdateMaxRateCb,
+                'callback_args': ()
+            },
+            'set_navpose_frame': {
+                'namespace': self.namespace,
+                'topic': 'set_navpose_frame',
+                'msg': String,
+                'qsize': 1,
+                'callback': self._setNavPoseFrameCb,
                 'callback_args': ()
             },
         }
@@ -428,6 +439,16 @@ class NPXDeviceIF:
                             )
 
 
+        # Create the per-device 3D mount transform (where the camera is located/oriented).
+        # User-settable and persisted; applied to each published navpose below.
+        self.transform_if = Transform3DIF(namespace = self.namespace,
+                            source_ref_description = '',
+                            end_ref_description = self.node_name,
+                            get_3d_transform_function = None,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                            )
+
         # Create a NavPose IF
         np_namespace = self.namespace
         self.navpose_if = NavPoseIF(namespace = np_namespace,
@@ -442,6 +463,7 @@ class NPXDeviceIF:
                             pub_depth = self.has_depth,
                             pub_pan_tilt = self.has_pan_tilt,
                             save_data_if = self.save_data_if,
+                            transform_namespace = self.transform_if.get_namespace(),
                             log_name = 'navpose',
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
@@ -540,7 +562,18 @@ class NPXDeviceIF:
     self.publish_status()
     if self.node_if is not None:
         self.node_if.set_param('update_rate',rate)
-    
+
+
+  def _setNavPoseFrameCb(self,msg):
+    frame = msg.data
+    if frame in nepi_nav.NAVPOSE_3D_FRAME_OPTIONS:
+      self.navpose_frame = frame
+      if self.node_if is not None:
+        self.node_if.set_param('navpose_frame',frame)
+      self.publish_status()
+    else:
+      self.msg_if.pub_warn("Ignoring invalid navpose_frame: " + str(frame) + " not in " + str(nepi_nav.NAVPOSE_3D_FRAME_OPTIONS), log_name_list = self.log_name_list)
+
 
   def publishStatus(self, do_updates=True):
       self._publishStatusCb(None)
@@ -618,7 +651,12 @@ class NPXDeviceIF:
     # publish navpose data
 
     if self.navpose_if is not None:
-        self.navpose_dict = self.navpose_if.publish_navpose(navpose_dict)
+        # Stamp the operator-selected 3D frame, then apply the per-device mount transform
+        navpose_dict['navpose_frame'] = self.navpose_frame
+        transform_dict = None
+        if self.transform_if is not None:
+            transform_dict = self.transform_if.get_3d_transform_dict()
+        self.navpose_dict = self.navpose_if.publish_navpose(navpose_dict, transform = transform_dict)
 
     # # save data if needed
     # timestamp = nepi_utils.get_time()

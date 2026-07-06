@@ -31,7 +31,7 @@ from nepi_sdk import nepi_utils
 # from nepi_sdk import nepi_system
 # from nepi_sdk import nepi_pc
 # from nepi_sdk import nepi_img
-# from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_nav
 # from nepi_sdk import nepi_devices
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
@@ -42,15 +42,15 @@ from nepi_interfaces.msg import DeviceIDXStatus, RangeWindow
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
 
 from nepi_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
-from nepi_interfaces.msg import ImageStatus, PointcloudStatus
+from nepi_interfaces.msg import ImageStatus, PointcloudStatus, NavPose
 
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SettingsIF, SaveDataIF
+from nepi_api.system_if import SettingsIF, SaveDataIF, Transform3DIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
-from nepi_api.data_if import ColorImageIF, DepthMapIF, PointcloudIF
+from nepi_api.data_if import ColorImageIF, DepthMapIF, PointcloudIF, NavPoseIF
 #from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
@@ -105,6 +105,16 @@ class IDXDeviceIF:
     settings_if = None
     navpose_if = None
     save_data_if = None
+
+    # Per-camera 3D mount transform (metadata: where the camera is located/oriented)
+    transform_if = None
+    transform_topic = ''
+    npx_navpose_topic = ''
+
+    # Transformed-navpose publisher (reference frame navpose + mount transform applied)
+    idx_navpose_if = None
+    ref_navpose_sub = None
+    ref_navpose_frame = None
 
     namespace_npx = ''
     npx_if = None
@@ -680,9 +690,54 @@ class IDXDeviceIF:
             ready = self.save_data_if.wait_for_ready()
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-        if self.navpose_if is not None:            
+        if self.navpose_if is not None:
             self.status_msg.navpose_topic = self.navpose_if.get_namespace()
             self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
+
+        # The camera's navpose is published by the NPX device at <node>/npx/navpose.
+        # Compute it deterministically so the image data products can advertise it in
+        # ImageStatus.navpose_topic (the NPX device is created after the data threads start).
+        self.npx_navpose_topic = ''
+        if self.getNavPoseCb is not None:
+            self.npx_navpose_topic = nepi_sdk.create_namespace(
+                nepi_sdk.create_namespace(self.node_namespace, 'npx'), 'navpose')
+
+        # Per-camera 3D mount transform: where this camera is located/oriented, as
+        # metadata for downstream consumers. Stored, published and persisted here; it is
+        # not applied to any navpose stream. The reference frame the transform is defined
+        # relative to is carried as its source_ref_description. Created before the data
+        # threads so the image data products can advertise its namespace in ImageStatus.
+        self.transform_if = Transform3DIF(namespace = self.namespace,
+                                source_ref_description = 'base_frame',
+                                end_ref_description = self.node_name,
+                                get_3d_transform_function = None,
+                                log_name_list = self.log_name_list,
+                                msg_if = self.msg_if)
+        self.transform_topic = self.transform_if.get_namespace()
+        self.msg_if.pub_info("Using transform namespace: " + str(self.transform_topic))
+
+        # Transformed-navpose publisher: subscribes to the selected reference frame's
+        # navpose, applies this camera's mount transform, and republishes the result at
+        # <node>/idx/navpose so the UI can show the camera's pose with the transform applied.
+        self.idx_navpose_if = NavPoseIF(namespace = self.namespace,
+                                data_source_description = self.data_source_description,
+                                data_ref_description = self.data_ref_description,
+                                pub_navpose = True,
+                                pub_location = True,
+                                pub_heading = True,
+                                pub_orientation = True,
+                                pub_position = True,
+                                pub_altitude = True,
+                                pub_depth = True,
+                                pub_pan_tilt = True,
+                                save_data_if = None,
+                                save_data_enabled = False,
+                                transform_namespace = self.transform_topic,
+                                log_name = 'navpose',
+                                log_name_list = self.log_name_list,
+                                msg_if = self.msg_if)
+        # Manages the reference-frame subscription and republishes on each navpose
+        nepi_sdk.start_timer_process(2.0, self._updateTransformedNavPoseCb, oneshot = True)
 
         ##################################
         # Start Node Processes
@@ -719,7 +774,7 @@ class IDXDeviceIF:
 
             if self.getNavPoseCb is not None:
                 self.msg_if.pub_warn("Starting NPX Device IF Initialization")
-                self.npx_if = NPXDeviceIF(device_info = self.device_info_dict, 
+                self.npx_if = NPXDeviceIF(device_info = self.device_info_dict,
                     node_namespace = self.node_namespace,
                     data_source_description = self.data_source_description,
                     data_ref_description = self.data_ref_description,
@@ -1158,11 +1213,13 @@ class IDXDeviceIF:
             if data_product == 'color_image':
                 self.msg_if.pub_warn("Creating ColorImageIF for data product: " + data_product)
                 dp_namespace = self.namespace
-                dp_if = ColorImageIF(namespace = dp_namespace, 
+                dp_if = ColorImageIF(namespace = dp_namespace,
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
                             perspective = self.perspective,
                             navpose_if = self.navpose_if,
+                            navpose_namespace = self.npx_navpose_topic,
+                            transform_namespace = self.transform_topic,
                             save_data_if = self.save_data_if,
                             log_name = data_product,
                             log_name_list = self.log_name_list,
@@ -1479,6 +1536,60 @@ class IDXDeviceIF:
     # Function to update and publish status message
     def publishStatusCb(self,timer):
         self.publish_status()
+
+
+    def _updateTransformedNavPoseCb(self, timer):
+        # Keep the reference-frame navpose subscription in sync with the selected frame
+        # (the transform's source_ref_description), re-subscribing when it changes.
+        frame = ''
+        if self.transform_if is not None:
+            frame = self.transform_if.get_source_description()
+        if frame != self.ref_navpose_frame:
+            if self.ref_navpose_sub is not None:
+                try:
+                    self.ref_navpose_sub.unregister()
+                except Exception:
+                    pass
+                self.ref_navpose_sub = None
+            self.ref_navpose_frame = frame
+            if frame is not None and frame != '' and frame != 'None':
+                ref_topic = nepi_sdk.create_namespace(
+                    nepi_sdk.create_namespace(
+                        nepi_sdk.create_namespace(self.base_namespace, 'navposes'), frame), 'navpose')
+                self.ref_navpose_sub = nepi_sdk.create_subscriber(ref_topic, NavPose, self._refNavPoseCb)
+                self.msg_if.pub_info("Transformed navpose using reference frame topic: " + str(ref_topic), log_name_list = self.log_name_list)
+        nepi_sdk.start_timer_process(1.0, self._updateTransformedNavPoseCb, oneshot = True)
+
+
+    def _refNavPoseCb(self, msg):
+        if self.idx_navpose_if is None:
+            return
+        try:
+            np_dict = nepi_nav.convert_navpose_msg2dict(msg)
+            if self.transform_if is not None:
+                tf_dict = self.transform_if.get_3d_transform_dict()
+                # nepi_nav.transform_navpose_dict's position/altitude branches reference keys
+                # that don't exist (x_deg / altitude_m) and raise; skip them (we set the
+                # camera's local position ourselves) so only location/orientation/heading
+                # get transformed here.
+                base_altitude_m = np_dict.get('altitude_m', 0.0)
+                base_has_altitude = np_dict.get('has_altitude', False)
+                np_dict['has_position'] = False
+                np_dict['has_altitude'] = False
+                np_dict = nepi_nav.transform_navpose_dict(np_dict, tf_dict)
+                # The camera's LOCAL POSITION is its offset from the reference frame origin,
+                # i.e. the mount translation. Expose it in the navpose X/Y/Z position fields.
+                np_dict['has_position'] = True
+                np_dict['time_position'] = nepi_utils.get_time()
+                np_dict['x_m'] = tf_dict['x_m']
+                np_dict['y_m'] = tf_dict['y_m']
+                np_dict['z_m'] = tf_dict['z_m']
+                # Restore altitude passthrough (branch skipped above)
+                np_dict['has_altitude'] = base_has_altitude
+                np_dict['altitude_m'] = base_altitude_m
+            self.idx_navpose_if.publish_navpose(np_dict, transform = None)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to publish transformed navpose: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
 
 
     def publish_status(self, do_updates=True):

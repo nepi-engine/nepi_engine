@@ -2000,7 +2000,15 @@ class Transform3DIF:
                     'topic': 'set_3d_transform',
                     'msg': Transform,
                     'qsize': 5,
-                    'callback': self._setFrame3dTransformCb, 
+                    'callback': self._setFrame3dTransformCb,
+                    'callback_args': ()
+                },
+                'set_source_ref_description': {
+                    'namespace': self.namespace,
+                    'topic': 'set_source_ref',
+                    'msg': String,
+                    'qsize': 5,
+                    'callback': self._setSourceRefCb,
                     'callback_args': ()
                 }
         }
@@ -2115,6 +2123,17 @@ class Transform3DIF:
                 end_ref_description = self.end)
         return tr_msg
 
+    def get_3d_transform_dict(self):
+        """Return the current 3D transform as a nepi_nav transform dict.
+
+        Suitable for passing to nepi_nav.transform_navpose_dict() to apply the
+        transform to a navpose dict.
+
+        Returns:
+            dict: BLANK_TRANSFORM_DICT-shaped dict populated from the current transform.
+        """
+        return nepi_nav.convert_transform_list2dict(self.get_3d_transform())
+
     def set_3d_transform(self,transform_list):
         """Set the 3D transform from a seven-element list and publish the update.
 
@@ -2142,7 +2161,7 @@ class Transform3DIF:
             self.transform = ZERO_TRANSFORM
             self.publish_transform()
             if self.node_if is not None:
-                self.node_if.set_param('transform',transform_list)
+                self.node_if.set_param('transform',ZERO_TRANSFORM)
 
     def set_has_transform(self,has_transform):
         """Set whether this interface reports having a valid transform.
@@ -2278,22 +2297,27 @@ class Transform3DIF:
 
 
     def _setFrame3dTransformCb(self, msg):
-        self.msg_if.pub_info("Recived Frame Transform update message: " + str(msg))
+        self.msg_if.pub_info("Received Frame Transform update message: " + str(msg))
         transform_msg = msg
-        x = transform_msg.translate_vector.x
-        y = transform_msg.translate_vector.y
-        z = transform_msg.translate_vector.z
-        roll = transform_msg.rotate_vector.x
-        pitch = transform_msg.rotate_vector.y
-        yaw = transform_msg.rotate_vector.z
-        heading = transform_msg.heading_offset
-        transform = [x,y,z,roll,pitch,yaw,heading]
+        # The stored transform is a 7-element signed list; fold the per-axis
+        # invert flags into the sign so the stored/republished value is unambiguous.
+        x = -transform_msg.x_m if transform_msg.x_invert else transform_msg.x_m
+        y = -transform_msg.y_m if transform_msg.y_invert else transform_msg.y_m
+        z = -transform_msg.z_m if transform_msg.z_invert else transform_msg.z_m
+        roll = -transform_msg.roll_deg if transform_msg.roll_invert else transform_msg.roll_deg
+        pitch = -transform_msg.pitch_deg if transform_msg.pitch_invert else transform_msg.pitch_deg
+        yaw = -transform_msg.yaw_deg if transform_msg.yaw_invert else transform_msg.yaw_deg
+        heading = -transform_msg.heading_deg if transform_msg.heading_invert else transform_msg.heading_deg
+        transform = [x, y, z, roll, pitch, yaw, heading]
         self.set_3d_transform(transform)
 
 
     def _clearFrame3dTransformCb(self, msg):
         self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
         self.clear_3d_transform()
+
+    def _setSourceRefCb(self, msg):
+        self.set_source_description(msg.data)
 
     def _publishTransformCb(self, timer):
         self.publish_transform()

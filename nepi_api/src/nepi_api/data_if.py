@@ -226,6 +226,7 @@ class NavPoseIF:
                 pub_pan_tilt = False,
                 save_data_if = None,
                 save_data_enabled = True,
+                transform_namespace = '',
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -299,7 +300,8 @@ class NavPoseIF:
         #########################
         # Initialize status message
         self.status_msg.node_name = self.node_name
-        self.status_msg.navpose_topic = self.namespace       
+        self.status_msg.navpose_topic = self.namespace
+        self.status_msg.transform_topic = transform_namespace if transform_namespace is not None else ''
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
@@ -777,8 +779,9 @@ class NavPoseIF:
                     nepi_nav.convert_navpose_wgs842amsl(np_dict)
             #if np_dict['frame_depth'] != 'MSL':
             #    if np_dict['frame_depth'] == 'DEPTH':
-            #        pass # need to add conversions                 
+            #        pass # need to add conversions
 
+            self.status_msg.frame_name = np_dict['navpose_frame']
             self.status_msg.frame_nav = np_dict['frame_nav']
             self.status_msg.frame_altitude = np_dict['frame_altitude']
             self.status_msg.frame_depth = np_dict['frame_depth']
@@ -1161,7 +1164,8 @@ class BaseImageIF:
                 init_overlay_list,
                 log_name,
                 log_name_list,
-                msg_if
+                msg_if,
+                transform_namespace = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -1266,6 +1270,8 @@ class BaseImageIF:
         self.data_ref_description = data_ref_description
 
         self.status_msg.node_name = self.node_name
+        self.status_msg.navpose_topic = navpose_namespace if navpose_namespace is not None else ''
+        self.status_msg.transform_topic = transform_namespace if transform_namespace is not None else ''
 
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
@@ -3660,7 +3666,7 @@ class ColorImageIF(BaseImageIF):
 
 
     
-    def __init__(self, namespace = None , 
+    def __init__(self, namespace = None ,
                 data_product = None,
                 data_source_description = 'imaging_sensor',
                 data_ref_description = 'sensor',
@@ -3668,6 +3674,7 @@ class ColorImageIF(BaseImageIF):
                 init_overlay_list = [],
                 navpose_if = None,
                 navpose_namespace = None,
+                transform_namespace = None,
                 save_data_if = None,
                 log_name = None,
                 log_name_list = [],
@@ -3681,14 +3688,14 @@ class ColorImageIF(BaseImageIF):
         self.save_data_if = save_data_if
         self.navpose_if = navpose_if
         # Call the parent class constructor
-        super().__init__(namespace , 
+        super().__init__(namespace ,
                 self.data_product,
                 data_source_description,
                 data_ref_description,
                 perspective,
                 self.DEFAULT_CAPS_DICT,
                 self.DEFAULT_CONTROLS_DICT,
-                self.DEFAULT_FILTERS_DICT, 
+                self.DEFAULT_FILTERS_DICT,
                 self.params_dict,
                 self.services_dict,
                 self.pubs_dict,
@@ -3699,7 +3706,8 @@ class ColorImageIF(BaseImageIF):
                 init_overlay_list,
                 log_name,
                 log_name_list,
-                msg_if
+                msg_if,
+                transform_namespace = transform_namespace
                 )
 
         ###############################

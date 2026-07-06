@@ -855,6 +855,47 @@ def convert_transform_dict2msg(transform_dict, log_name_list = []):
       logger.log_warn("Failed to convert Transform Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
   return transform_msg
 
+
+def convert_transform_list2msg(transform_list, source_ref_description = '', end_ref_description = '', log_name_list = []):
+  # transform_list = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
+  transform_msg = Transform()
+  try:
+    transform_msg.source_ref_description = source_ref_description
+    transform_msg.end_ref_description = end_ref_description
+
+    transform_msg.x_m = float(transform_list[0])
+    transform_msg.y_m = float(transform_list[1])
+    transform_msg.z_m = float(transform_list[2])
+
+    transform_msg.roll_deg = float(transform_list[3])
+    transform_msg.pitch_deg = float(transform_list[4])
+    transform_msg.yaw_deg = float(transform_list[5])
+
+    transform_msg.heading_deg = float(transform_list[6])
+  except Exception as e:
+    logger.log_warn("Failed to convert Transform Data list: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+  return transform_msg
+
+
+def convert_transform_list2dict(transform_list, log_name_list = []):
+  # transform_list = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
+  # Descriptions are left blank so an all-zero list stays == BLANK_TRANSFORM_DICT (identity no-op)
+  transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
+  try:
+    transform_dict['x_m'] = float(transform_list[0])
+    transform_dict['y_m'] = float(transform_list[1])
+    transform_dict['z_m'] = float(transform_list[2])
+
+    transform_dict['roll_deg'] = float(transform_list[3])
+    transform_dict['pitch_deg'] = float(transform_list[4])
+    transform_dict['yaw_deg'] = float(transform_list[5])
+
+    transform_dict['heading_deg'] = float(transform_list[6])
+  except Exception as e:
+    logger.log_warn("Failed to convert Transform Data list to dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+  return transform_dict
+
+
 def convert_transform_msg2dict(transform_msg):
   transform_dict = None
   try:
