@@ -719,17 +719,21 @@ class IDXDeviceIF:
         # Transformed-navpose publisher: subscribes to the selected reference frame's
         # navpose, applies this camera's mount transform, and republishes the result at
         # <node>/idx/navpose so the UI can show the camera's pose with the transform applied.
+        # Only the aggregate <node>/idx/navpose topic is published; the per-component
+        # sub-topics (location/heading/orientation/position/altitude/depth/pan_tilt) are
+        # disabled so the navpose_mgr does not discover this camera as a selectable navpose
+        # source (it scans the ROS graph for those component message types).
         self.idx_navpose_if = NavPoseIF(namespace = self.namespace,
                                 data_source_description = self.data_source_description,
                                 data_ref_description = self.data_ref_description,
                                 pub_navpose = True,
-                                pub_location = True,
-                                pub_heading = True,
-                                pub_orientation = True,
-                                pub_position = True,
-                                pub_altitude = True,
-                                pub_depth = True,
-                                pub_pan_tilt = True,
+                                pub_location = False,
+                                pub_heading = False,
+                                pub_orientation = False,
+                                pub_position = False,
+                                pub_altitude = False,
+                                pub_depth = False,
+                                pub_pan_tilt = False,
                                 save_data_if = None,
                                 save_data_enabled = False,
                                 transform_namespace = self.transform_topic,
@@ -1217,7 +1221,11 @@ class IDXDeviceIF:
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
                             perspective = self.perspective,
-                            navpose_if = self.navpose_if,
+                            # Use the transformed-navpose IF so image overlays show this
+                            # camera's pose (with its mount transform applied), the same
+                            # data published at <node>/idx/navpose. self.navpose_if is None
+                            # in this node, which would leave the overlay showing all zeros.
+                            navpose_if = self.idx_navpose_if,
                             navpose_namespace = self.npx_navpose_topic,
                             transform_namespace = self.transform_topic,
                             save_data_if = self.save_data_if,
@@ -1317,12 +1325,14 @@ class IDXDeviceIF:
 
 
             dp_namespace = self.namespace
-            dp_if = DepthMapIF(namespace = dp_namespace, 
+            dp_if = DepthMapIF(namespace = dp_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         pub_image = True,
                         init_overlay_list = [],
-                        navpose_if = self.navpose_if,
+                        # Transformed-navpose IF (see ColorImageIF above): drives image
+                        # overlays with this camera's pose; self.navpose_if is None here.
+                        navpose_if = self.idx_navpose_if,
                         save_data_if = self.save_data_if,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
@@ -1431,12 +1441,14 @@ class IDXDeviceIF:
 
             #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             dp_namespace = self.namespace
-            dp_if = PointcloudIF(namespace = dp_namespace, 
+            dp_if = PointcloudIF(namespace = dp_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         pub_image = True,
                         init_overlay_list = [],
-                        navpose_if = self.navpose_if,
+                        # Transformed-navpose IF (see ColorImageIF above): drives image
+                        # overlays with this camera's pose; self.navpose_if is None here.
+                        navpose_if = self.idx_navpose_if,
                         save_data_if = self.save_data_if,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
