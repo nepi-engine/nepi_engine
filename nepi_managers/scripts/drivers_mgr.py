@@ -853,10 +853,11 @@ class NepiDriversMgr(object):
           ######################################
           options = setting['options']
           setting_options_dict = copy.deepcopy(self.setting_options_dict)
-          options_key = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['default']
-          if options_key in setting_options_dict.keys():
-            options = setting_options_dict[options_key]
-          self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = options
+          setting_options = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options']
+          if len(setting_options) == 1:
+            options_key = setting_options[0]
+            if options_key in setting_options_dict.keys():
+              options = setting_options_dict[options_key]
           setting_cap.options_list = options
           #####################################
           cap_list.append(setting_cap)
@@ -972,10 +973,11 @@ class NepiDriversMgr(object):
           ######################################
           options = cap_setting['options']
           setting_options_dict = copy.deepcopy(self.setting_options_dict)
-          options_key = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['default']
-          if options_key in setting_options_dict.keys():
-            options = setting_options_dict[options_key]
-          self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = options
+          setting_options = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options']
+          if len(setting_options) == 1:
+            options_key = setting_options[0]
+            if options_key in setting_options_dict.keys():
+              options = setting_options_dict[options_key]
           cap_msg.options_list = options
           #####################################
           #self.msg_if.pub_info("Updated Caps Msg: " + str(cap_msg))
