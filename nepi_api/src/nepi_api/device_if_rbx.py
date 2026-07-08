@@ -571,9 +571,9 @@ class RBXRobotIF:
             'setup_action': {
                 'namespace': self.namespace,
                 'topic': 'setup_action',
-                'msg': MotorControl,
+                'msg': Int32,
                 'qsize': None,
-                'callback': self.setupActionCb, 
+                'callback': self.setupActionCb,
                 'callback_args': ()
             },
 
@@ -589,9 +589,9 @@ class RBXRobotIF:
             'go_action': {
                 'namespace': self.namespace,
                 'topic': 'go_action',
-                'msg': UInt32,
+                'msg': Int32,
                 'qsize': None,
-                'callback': self.setCmdTimeoutCb, 
+                'callback': self.goActionCb,
                 'callback_args': ()
             },
 
@@ -600,7 +600,7 @@ class RBXRobotIF:
                 'topic': 'set_goto_timeout',
                 'msg': UInt32,
                 'qsize': None,
-                'callback': self.goHomeCb, 
+                'callback': self.setCmdTimeoutCb,
                 'callback_args': ()
             },
 
@@ -609,7 +609,7 @@ class RBXRobotIF:
                 'topic': 'go_home',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.setHomeCb, 
+                'callback': self.goHomeCb,
                 'callback_args': ()
             },
 
@@ -872,6 +872,18 @@ class RBXRobotIF:
                 )
 
         ####################################
+        # The aggregated system 'navposes' (NavPoses) topic that navposesSysCb
+        # consumes is not published in this build (the navpose mgr publishes
+        # per-frame '.../navposes/<frame>/navpose' instead), so the current_*
+        # control navpose was never refreshed and stayed at its [0,0,0] default.
+        # That drove goto/takeoff/land/rtl to lat/lon 0. Bridge the device's own
+        # navpose (getNavPoseCb, already the preferred source in
+        # _updateCurrentNavpose) to the current_* attributes on a timer so the
+        # control math uses the same live pose that the NPX navpose publishes.
+        if self.getNavPoseCb is not None:
+            nepi_sdk.start_timer_process(0.1, self._updateNavposeTimerCb)
+
+        ####################################
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ####################################
@@ -938,6 +950,12 @@ class RBXRobotIF:
         # goto/setpoint accuracy calculations.
         self._updateCurrentNavpose()
 
+
+    def _updateNavposeTimerCb(self, timer):
+        # Periodic bridge from the device's own navpose to the current_* control
+        # attributes (see setup note). The now-dead navposesSysCb used to be the
+        # only caller of _updateCurrentNavpose.
+        self._updateCurrentNavpose()
 
     def _updateCurrentNavpose(self):
         # Prefer the device's own navpose (populated directly from the driver via
@@ -1566,7 +1584,6 @@ class RBXRobotIF:
       timeout_sec = self.rbx_info.cmd_timeout
       self.update_prev_errors()
       self.update_current_errors( [0,0,0,0,0,0,0] )
-      self.msg_if.pub_info(":" + self.log_name + ': ')
       self.msg_if.pub_info("************************", log_name_list = self.log_name_list)
       self.msg_if.pub_info("Starting Setpoint Position Local Process", log_name_list = self.log_name_list)
       ##############################################
@@ -1746,7 +1763,6 @@ class RBXRobotIF:
       timeout_sec = self.rbx_info.cmd_timeout
       self.update_prev_errors()
       self.update_current_errors( [0,0,0,0,0,0,0] )
-      self.msg_if.pub_info(":" + self.log_name + ': ')
       self.msg_if.pub_info("************************", log_name_list = self.log_name_list)
       self.msg_if.pub_info("Starting Setpoint Location Global Process", log_name_list = self.log_name_list)
       ##############################################
