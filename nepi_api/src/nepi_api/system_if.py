@@ -2469,14 +2469,17 @@ class SettingsIF:
         ##############################  
         # Create NodeClassIF Class  
         # Configs Config Dict ####################
-        self.CONFIGS_DICT = {
-            'init_callback': self._initCb,
-            'reset_callback': self._resetCb,
-            'factory_reset_callback': self._factoryResetCb,
-            'init_configs': True,
-            'namespace': self.namespace
-        }
-        
+
+        if self.save_params == True:
+            self.CONFIGS_DICT = {
+                'init_callback': self._initCb,
+                'reset_callback': self._resetCb,
+                'factory_reset_callback': self._factoryResetCb,
+                'init_configs': True,
+                'namespace': self.namespace
+            }
+        else:
+            self.PARAMS_DICT = None        
 
         # Params Config Dict ####################
         if self.save_params == True:
@@ -2487,7 +2490,7 @@ class SettingsIF:
                 }
             }
         else:
-            self.PARAMS_DICT = None
+            self.CONFIGS_DICT = None
 
         # Services Config Dict ####################
         self.SRVS_DICT = {

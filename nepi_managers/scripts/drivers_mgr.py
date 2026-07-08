@@ -107,12 +107,13 @@ class NepiDriversMgr(object):
   active_topic_types = []
   active_services = []
 
-  active_devices_dict = dict()
-  active_devices_dict['idx_device'] = []
-  active_devices_dict['ptx_device'] = []
-  active_devices_dict['npx_device'] = []
-  active_devices_dict['lsx_device'] = []
-  active_devices_dict['rbx_device'] = []
+  setting_options_dict = dict()
+  setting_options_dict['SERIAL_DEVICES'] = []
+  setting_options_dict['IDX_DEVICES'] = []
+  setting_options_dict['PTX_DEVICES'] = []
+  setting_options_dict['NPX_DEVICES'] = []
+  setting_options_dict['LSX_DEVICES'] = []
+  setting_options_dict['RBX_DEVICES'] = []
 
   nepi_config = dict()
 
@@ -463,24 +464,32 @@ class NepiDriversMgr(object):
     self.active_topic_types = msg.active_topic_types
     self.active_services = msg.active_services
 
-    active_devices_dict = dict()
-    active_devices_dict['idx_device'] = []
-    active_devices_dict['ptx_device'] = []
-    active_devices_dict['npx_device'] = []
-    active_devices_dict['lsx_device'] = []
-    active_devices_dict['rbx_device'] = []  
+    serial_ports = nepi_serial.get_serial_ports_list()
+    avail_serial_ports = []
+    for port in serial_ports:
+                  if port is not None and self.active_paths_list is not None:
+                    if port not in self.active_paths_list:
+                      port_name = os.path.basename(port)
+                      avail_serial_ports.append(port_name)
+    setting_options_dict = dict()
+    setting_options_dict['SERIAL_DEVICES'] = avail_serial_ports
+    setting_options_dict['IDX_DEVICES'] = []
+    setting_options_dict['PTX_DEVICES'] = []
+    setting_options_dict['NPX_DEVICES'] = []
+    setting_options_dict['LSX_DEVICES'] = []
+    setting_options_dict['RBX_DEVICES'] = []  
     for topic in msg.active_topics:
-      if 'idx/status' in topic:
-        active_devices_dict['idx_device'].append(topic.replace('/status',''))
-      if 'ptx/status' in topic:
-        active_devices_dict['ptx_device'].append(topic.replace('/status',''))
-      if 'npx/status' in topic:
-        active_devices_dict['npx_device'].append(topic.replace('/status',''))
-      if 'lsx/status' in topic:
-        active_devices_dict['lsx_device'].append(topic.replace('/status',''))
-      if 'rbx/status' in topic:
-        active_devices_dict['rbx_device'].append(topic.replace('/status',''))
-    self.active_devices_dict = active_devices_dict
+      if 'IDX/status' in topic:
+        setting_options_dict['IDX_DEVICES'].append(topic.replace('/status',''))
+      if 'PTX/status' in topic:
+        setting_options_dict['PTX_DEVICES'].append(topic.replace('/status',''))
+      if 'NPX/status' in topic:
+        setting_options_dict['NPX_DEVICES'].append(topic.replace('/status',''))
+      if 'LSX/status' in topic:
+        setting_options_dict['LSX_DEVICES'].append(topic.replace('/status',''))
+      if 'RBX/status' in topic:
+        setting_options_dict['RBX_DEVICES'].append(topic.replace('/status',''))
+    self.setting_options_dict = setting_options_dict
 
 
   def configStatusCb(self,msg):
@@ -842,32 +851,13 @@ class NepiDriversMgr(object):
           setting_cap.name_str = setting_name
           setting_cap.type_str = setting['type']
           ######################################
-          active_devices_dict = copy.deepcopy(self.active_devices_dict)
-          if setting_name == 'serial_port':
-            serial_ports = nepi_serial.get_serial_ports_list()
-            #self.msg_if.pub_info("Got available Serial ports list: " + str(serial_ports))
-            #self.msg_if.pub_info("Checking against active ports list: " + str(self.active_paths_list))
-            avail_ports = []
-            for port in serial_ports:
-              if port is not None and self.active_paths_list is not None:
-                if port not in self.active_paths_list:
-                  port_name = os.path.basename(port)
-                  avail_ports.append(port_name)
-            default_option = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['default']
-            set_value = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['value']
-            if default_option in avail_ports and set_value not in avail_ports:
-              self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['value'] = default_option
-            self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = avail_ports
-            setting_cap.options_list = avail_ports
-          if setting_name in active_devices_dict.keys():
-            avail_devices = active_devices_dict[setting_name]
-            #default_option = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['default']
-            #avail_devices = [default_option] + avail_devices
-            self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = avail_devices
-            setting_cap.options_list = avail_devices
-          else:
-            setting_cap.options_list = setting['options']
-         
+          options = setting['options']
+          setting_options_dict = copy.deepcopy(self.setting_options_dict)
+          options_key = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['default']
+          if options_key in setting_options_dict.keys():
+            options = setting_options_dict[options_key]
+          self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = options
+          setting_cap.options_list = options
           #####################################
           cap_list.append(setting_cap)
         #self.msg_if.pub_info("Updated Caps List: " + str(cap_list))
@@ -980,31 +970,13 @@ class NepiDriversMgr(object):
           cap_msg.name_str = setting_name
           cap_msg.type_str = cap_setting['type']
           ######################################
-          active_devices_dict = copy.deepcopy(self.active_devices_dict)
-          if setting_name == 'serial_port':
-            serial_ports = nepi_serial.get_serial_ports_list()
-            #self.msg_if.pub_info("Got available Serial ports list: " + str(serial_ports))
-            #self.msg_if.pub_info("Checking against active ports list: " + str(self.active_paths_list))
-            avail_ports = []
-            for port in serial_ports:
-              if port is not None and self.active_paths_list is not None:
-                if port not in self.active_paths_list:
-                  port_name = os.path.basename(port)
-                  avail_ports.append(port_name)
-            default_option = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['default']
-            set_value = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['value']
-            if default_option in avail_ports and set_value not in avail_ports:
-              self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['value'] = default_option
-            self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = avail_ports
-            cap_msg.options_list = avail_ports
-          if setting_name in active_devices_dict.keys():
-            avail_devices = active_devices_dict[setting_name]
-            #default_option = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['default']
-            #avail_devices = [default_option] + avail_devices
-            self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = avail_devices
-            cap_msg.options_list = avail_devices
-          else:
-            cap_msg.options_list = cap_setting['options']
+          options = cap_setting['options']
+          setting_options_dict = copy.deepcopy(self.setting_options_dict)
+          options_key = self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['default']
+          if options_key in setting_options_dict.keys():
+            options = setting_options_dict[options_key]
+          self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = options
+          cap_msg.options_list = options
           #####################################
           #self.msg_if.pub_info("Updated Caps Msg: " + str(cap_msg))
           caps_msgs_list.append(cap_msg)
