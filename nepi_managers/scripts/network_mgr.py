@@ -493,7 +493,7 @@ class NetworkMgr:
 
 
             # Update DHCP settings
-            ndhcp_enabled = self.node_if.get_param('dhcp_enabled')
+            ndhcp_enabled = False #self.node_if.get_param('dhcp_enabled')
             self.nepi_config = self.get_nepi_system_config()
             cdhcp_enabled = self.nepi_config['NEPI_WIRED_DHCP_ENABLED'] == 1
             self.dhcp_enabled = ndhcp_enabled or cdhcp_enabled
@@ -1198,7 +1198,7 @@ class NetworkMgr:
         update_val=0
         if enabled == True:
             update_val=1
-        nepi_system.update_nepi_system_config("NEPI_WIRED_DHCP_ENABLED",update_val)
+        #nepi_system.update_nepi_system_config("NEPI_WIRED_DHCP_ENABLED",update_val)
         etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_wired_dhcp.sh"
         subprocess.call([etc_update_script])
         nepi_sdk.sleep(1)

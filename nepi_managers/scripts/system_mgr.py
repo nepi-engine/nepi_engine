@@ -763,6 +763,7 @@ class SystemMgrNode():
                     
         }
 
+    
         self.system_settings_if = SettingsIF(namespace = system_settings_ns,
                         settings_dict = self.SYSTEM_SETTINGS_DICT,
                         log_name_list = [self.node_name],
