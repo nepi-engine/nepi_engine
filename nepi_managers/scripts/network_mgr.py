@@ -215,52 +215,53 @@ class NetworkMgr:
         }
 
         # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'managed_ip_addrs': {
-                'namespace': self.node_namespace,
-                'factory_val': []
-            },
-            'tx_bw_limit_mbps': {
-                'namespace': self.node_namespace,
-                'factory_val': -1.0
-            },
-            'dhcp_enabled': {
-                'namespace': self.node_namespace,
-                'factory_val': self.dhcp_enabled
-            },
-            'wifi_enabled': {
-                'namespace': self.node_namespace,
-                'factory_val': self.wifi_enabled
-            },
-            'wifi_low_power_enabled': {
-                'namespace': self.node_namespace,
-                'factory_val': self.wifi_low_power_enabled
-            },
-            'wifi_client_enabled': {
-                'namespace': self.node_namespace,
-                'factory_val': self.wifi_client_enabled
-            },
-            'wifi_client_ssid': {
-                'namespace': self.node_namespace,
-                'factory_val': self.wifi_client_ssid
-            },
-            'wifi_client_passphrase': {
-                'namespace': self.node_namespace,
-                'factory_val': self.wifi_client_passphrase
-            },
-           'wifi_wifi_ap_enabled': {
-                'namespace': self.node_namespace,
-                'factory_val': self.wifi_ap_enabled
-            },
-            'wifi_ap_ssid': {
-                'namespace': self.node_namespace,
-                'factory_val': self.wifi_ap_ssid
-            },
-            'wifi_ap_passphrase': {
-                'namespace': self.node_namespace,
-                'factory_val': self.wifi_ap_passphrase
-            }
-        }
+        self.PARAMS_DICT = None
+        # self.PARAMS_DICT = {
+        #     'managed_ip_addrs': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': []
+        #     },
+        #     'tx_bw_limit_mbps': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': -1.0
+        #     },
+        #     'dhcp_enabled': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.dhcp_enabled
+        #     },
+        #     'wifi_enabled': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.wifi_enabled
+        #     },
+        #     'wifi_low_power_enabled': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.wifi_low_power_enabled
+        #     },
+        #     'wifi_client_enabled': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.wifi_client_enabled
+        #     },
+        #     'wifi_client_ssid': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.wifi_client_ssid
+        #     },
+        #     'wifi_client_passphrase': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.wifi_client_passphrase
+        #     },
+        #    'wifi_wifi_ap_enabled': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.wifi_ap_enabled
+        #     },
+        #     'wifi_ap_ssid': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.wifi_ap_ssid
+        #     },
+        #     'wifi_ap_passphrase': {
+        #         'namespace': self.node_namespace,
+        #         'factory_val': self.wifi_ap_passphrase
+        #     }
+        # }
 
 
         # Services Config Dict ####################
@@ -460,7 +461,8 @@ class NetworkMgr:
     def initCb(self, do_updates = False):
         self.primary_ip_addr = self.get_primary_ip_addr()
         if self.node_if is not None and self.manages_network == True:
-            
+            self.nepi_config = self.get_nepi_system_config()
+
             # Run Some Checks
             self.msg_if.pub_warn("Init Updating IP List")
             ip_addrs = self.update_ip_addr_lists()
@@ -474,35 +476,32 @@ class NetworkMgr:
 
 
             # Upated Managed Alias IP Addresses
-            nmanaged_ip_addrs = self.node_if.get_param('managed_ip_addrs')
-            managed_ip_addrs = copy.deepcopy(nmanaged_ip_addrs)
-            cmanaged_ip_addrs=[]
-            self.nepi_config = self.get_nepi_system_config()
-            aliases = self.nepi_config['NEPI_ALIAS_IP_1']
-            if aliases != "NONE" and aliases != "None" and aliases not in nmanaged_ip_addrs:
-                managed_ip_addrs.append(aliases)
+            managed_ip_addrs=[]
+            aliases = []
+            if self.nepi_config is not None:
+                for i in range(10):
+                    akey = 'NEPI_ALIAS_IP_' + str(i)
+                    if akey in self.nepi_config.keys():
+                        aliases = self.nepi_config['NEPI_ALIAS_IP_1']
+            for aliase in aliases:
+                if aliases != "NONE" and aliases != "None":
+                    managed_ip_addrs.append(aliases)
             self.managed_ip_addrs = managed_ip_addrs
-            if self.managed_ip_addrs != nmanaged_ip_addrs:
-                self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
             self.msg_if.pub_warn("Starting Init with Managed addrs: " + str(self.managed_ip_addrs))
             
 
              # Update TX Bandwidth Limit setting
-            self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
-            self.set_upload_bw_limit(self.tx_bw_limit_mbps)
+            # self.tx_bw_limit_mbps = self.node_if.get_param('tx_bw_limit_mbps')
+            # self.set_upload_bw_limit(self.tx_bw_limit_mbps)
 
 
             # Update DHCP settings
-            ndhcp_enabled = False #self.node_if.get_param('dhcp_enabled')
-            self.nepi_config = self.get_nepi_system_config()
             cdhcp_enabled = self.nepi_config['NEPI_WIRED_DHCP_ENABLED'] == 1
-            self.dhcp_enabled = ndhcp_enabled or cdhcp_enabled
-            if self.dhcp_enabled != ndhcp_enabled:
-                self.node_if.set_param('dhcp_enabled',self.dhcp_enabled)      
+            self.dhcp_enabled = cdhcp_enabled      
             self.msg_if.pub_warn("Starting Init with DHCP Enabled: " + str(self.dhcp_enabled)) 
-            if self.dhcp_enabled == True and internet_connected == False:
-                self.msg_if.pub_warn("Calling Enable DHCP process")
-                success = self.enable_dhcp(self.dhcp_enabled)
+            # if self.dhcp_enabled == True and internet_connected == False:
+            #     self.msg_if.pub_warn("Calling Enable DHCP process")
+            #     success = self.enable_dhcp(self.dhcp_enabled)
             
 
             # Update WiFi System
@@ -515,48 +514,44 @@ class NetworkMgr:
                     nepi_system.update_nepi_system_config("NEPI_WIFI_INTERFACE",self.wifi_iface)      
 
                 # Update WiFi Enabled settings
-                nwifi_enabled = self.node_if.get_param('wifi_enabled')
+                nwifi_enabled = False #self.node_if.get_param('wifi_enabled')
                 wifi_enabled = copy.deepcopy(nwifi_enabled)
-                self.nepi_config = self.get_nepi_system_config()
                 cwifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED'] == 1
                 self.wifi_enabled = nwifi_enabled or cwifi_enabled
-                self.node_if.set_param('wifi_enabled',self.wifi_enabled)    
-                self.msg_if.pub_warn("Enabling WiFi Adapter")
-                self.enable_wifi(self.wifi_enabled)
-                nepi_sdk.sleep(1) 
+                #self.node_if.set_param('wifi_enabled',self.wifi_enabled)    
+                # self.msg_if.pub_warn("Enabling WiFi Adapter")
+                # self.enable_wifi(self.wifi_enabled)
+                # nepi_sdk.sleep(1) 
 
                 # Stop WiFi updates if not enabled
                 if self.wifi_enabled == False:
                     self.msg_if.pub_warn("WiFi Not Enabled")
                 else:
                     # Update WiFi Low Power settings
-                    nlow_power_enabled = self.node_if.get_param('wifi_low_power_enabled')
+                    nlow_power_enabled = False #self.node_if.get_param('wifi_low_power_enabled')
                     low_power_enabled = copy.deepcopy(nlow_power_enabled)
-                    self.nepi_config = self.get_nepi_system_config()
                     clow_power_enabled = self.nepi_config['NEPI_WIFI_LOW_POWER_ENABLED'] == 1
                     self.low_power_enabled = nlow_power_enabled or clow_power_enabled
-                    if self.low_power_enabled != nlow_power_enabled:
-                        self.enable_wifi_low_power(self.low_power_enabled)
-                        self.node_if.set_param('low_power_enabled',self.low_power_enabled)    
+                    # if self.low_power_enabled != nlow_power_enabled:
+                    #     self.enable_wifi_low_power(self.low_power_enabled)
+                    #     self.node_if.set_param('low_power_enabled',self.low_power_enabled)    
 
                     # Update WiFi Client settings
-                    nclient_enabled = self.node_if.get_param('wifi_client_enabled')
+                    nclient_enabled = False #self.node_if.get_param('wifi_client_enabled')
                     client_enabled = copy.deepcopy(nclient_enabled)
-                    self.nepi_config = self.get_nepi_system_config()
                     cclient_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
                     self.wifi_client_enabled = nclient_enabled or cclient_enabled
 
 
-                    if self.wifi_client_enabled != nclient_enabled:
-                        self.node_if.set_param('wifi_client_enabled',self.wifi_client_enabled)    
-                    if self.wifi_client_enabled == True: 
-                        self.msg_if.pub_warn("Initializing WiFi Client with NONE")
-                        self.wifi_client_passphrase = 'NONE'
-                        self.wifi_client_ssid = 'NONE'
-                        self.enable_wifi_client(self.wifi_client_enabled)
+                    # if self.wifi_client_enabled != nclient_enabled:
+                    #     self.node_if.set_param('wifi_client_enabled',self.wifi_client_enabled)    
+                    # if self.wifi_client_enabled == True: 
+                    #     self.msg_if.pub_warn("Initializing WiFi Client with NONE")
+                    #     self.wifi_client_passphrase = 'NONE'
+                    #     self.wifi_client_ssid = 'NONE'
+                    #     self.enable_wifi_client(self.wifi_client_enabled)
                     
-                    self.nepi_config = self.get_nepi_system_config()
-                    nwifi_client_ssid = self.node_if.get_param('wifi_client_ssid')
+                    nwifi_client_ssid = 'NONE' #self.node_if.get_param('wifi_client_ssid')
                     cwifi_client_ssid = self.nepi_config['NEPI_WIFI_CLIENT_ID']
                     if nwifi_client_ssid == 'NONE' or nwifi_client_ssid == '' or nwifi_client_ssid is None:
                         nwifi_client_ssid=cwifi_client_ssid
@@ -564,7 +559,7 @@ class NetworkMgr:
                         nwifi_client_ssid='NONE'
                     self.wifi_client_ssid = nwifi_client_ssid
                     
-                    nwifi_client_passphrase = self.node_if.get_param('wifi_client_passphrase')
+                    nwifi_client_passphrase = 'NONE' #self.node_if.get_param('wifi_client_passphrase')
                     cwifi_client_passphrase = self.nepi_config['NEPI_WIFI_CLIENT_PW']
                     if nwifi_client_passphrase == 'NONE' or nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
                         nwifi_client_passphrase=cwifi_client_passphrase
@@ -583,14 +578,12 @@ class NetworkMgr:
 
                     
                     # Update WiFi Access Point settings
-                    nap_enabled = self.node_if.get_param('wifi_ap_enabled')
-                    self.nepi_config = self.get_nepi_system_config()
+                    nap_enabled = False #self.node_if.get_param('wifi_ap_enabled')
                     cap_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
                     self.ap_enabled = nap_enabled or cap_enabled
 
                            
-                    self.nepi_config = self.get_nepi_system_config()
-                    nwifi_ap_ssid = self.node_if.get_param('wifi_ap_ssid')
+                    nwifi_ap_ssid = 'NONE' #self.node_if.get_param('wifi_ap_ssid')
                     cwifi_ap_ssid = 'NONE'
                     try:
                         cwifi_ap_ssid = self.nepi_config['NEPI_HOTSPOT_ID']
@@ -602,7 +595,7 @@ class NetworkMgr:
                         nwifi_ap_ssid='nepi_device_ap'
                     self.wifi_ap_ssid = nwifi_ap_ssid
                     
-                    nwifi_ap_passphrase = self.node_if.get_param('wifi_ap_passphrase')
+                    nwifi_ap_passphrase = 'NONE' # self.node_if.get_param('wifi_ap_passphrase')
                     cwifi_ap_passphrase = 'NONE'
                     try:
                         cwifi_ap_passphrase = self.nepi_config['NEPI_HOTSPOT_PW']
@@ -614,10 +607,10 @@ class NetworkMgr:
                         nwifi_ap_passphrase='nepi_device_ap'
                     self.wifi_ap_passphrase = nwifi_ap_passphrase
 
-                    if self.ap_enabled != nap_enabled:
-                        self.node_if.set_param('wifi_ap_enabled',self.wifi_ap_enabled)       
-                    if self.wifi_ap_enabled == True: 
-                        self.enable_wifi_access_point(self.wifi_ap_enabled)
+                    # if self.ap_enabled != nap_enabled:
+                    #     self.node_if.set_param('wifi_ap_enabled',self.wifi_ap_enabled)       
+                    # if self.wifi_ap_enabled == True: 
+                    #     self.enable_wifi_access_point(self.wifi_ap_enabled)
 
                     self.msg_if.pub_warn("Starting Init with Wifi AP Enabled: " + str(self.wifi_ap_enabled))
                     self.msg_if.pub_warn("Starting Init with Wifi AP ssid: " + str(self.wifi_ap_ssid))
@@ -1073,9 +1066,9 @@ class NetworkMgr:
                     if addr not in self.managed_ip_addrs:
                         self.managed_ip_addrs = [addr]
                         self.publish_status()
-                        if self.node_if is not None:
-                            self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
-                        self.save_config()
+                        # if self.node_if is not None:
+                        #     self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
+                        # self.save_config()
                     self.found_ip_addrs.append(addr)
                     success = self.publish_status()
                     ### Update ETC Files
@@ -1122,9 +1115,9 @@ class NetworkMgr:
                         self.nepi_config = self.get_nepi_system_config()
                         ####################
                         self.msg_if.pub_warn("Removed IP address: " + str(addr))
-                        if self.node_if is not None:
-                            self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
-                        self.save_config()
+                        # if self.node_if is not None:
+                        #     self.node_if.set_param('managed_ip_addrs',self.managed_ip_addrs)
+                        # self.save_config()
                         success = True
             else:
                 self.msg_if.pub_warn("Unable to remove invalid/ineligible IP address: " + str(addr))
@@ -1174,9 +1167,9 @@ class NetworkMgr:
                     #self.tx_byte_cnt_deque.clear()
                 except Exception as e:
                     self.msg_if.pub_warn("Unable to set upload bandwidth limit: " + str(e))
-            if self.node_if is not None:
-                self.node_if.set_param('tx_bw_limit_mbps', msg.data)
-                success = self.save_config()
+            # if self.node_if is not None:
+            #     self.node_if.set_param('tx_bw_limit_mbps', msg.data)
+            #     success = self.save_config()
 
 
 
@@ -1204,9 +1197,9 @@ class NetworkMgr:
         nepi_sdk.sleep(1)
         self.nepi_config = self.get_nepi_system_config()
         ####################
-        if self.node_if is not None:
-            self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
-            success = self.save_config()
+        # if self.node_if is not None:
+        #     self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
+        #     success = self.save_config()
         self.dhcp_connecting = False
         return success
        
@@ -1235,8 +1228,8 @@ class NetworkMgr:
             nepi_sdk.sleep(1)
             self.nepi_config = self.get_nepi_system_config()
             ####################
-            if self.node_if is not None:
-                self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
+            # if self.node_if is not None:
+            #     self.node_if.set_param('dhcp_enabled', self.dhcp_enabled)
         return success
 
     def setWifiLowPowerCb(self, msg):
@@ -1257,8 +1250,8 @@ class NetworkMgr:
             subprocess.call([etc_update_script])
             nepi_sdk.sleep(1)
             ####################
-            if self.node_if is not None:
-                self.node_if.set_param('wifi_low_power_enabled', enabled)
+            # if self.node_if is not None:
+            #     self.node_if.set_param('wifi_low_power_enabled', enabled)
         return success
 
 
@@ -1287,7 +1280,7 @@ class NetworkMgr:
             self.publish_status()
             #Update credentials file
             success = self.set_wifi_client(self.wifi_client_ssid, self.wifi_client_passphrase)
-            self.node_if.set_param('wifi_client_enabled', enabled)
+            # self.node_if.set_param('wifi_client_enabled', enabled)
         return success
 
 
@@ -1357,10 +1350,10 @@ class NetworkMgr:
                 success = False
                      
 
-        if success == True and self.node_if is not None:
-            self.node_if.set_param("wifi_client_ssid", ssid)
-            self.node_if.set_param("wifi_client_passphrase", passphrase)
-            success = self.save_config()
+        # if success == True and self.node_if is not None:
+        #     self.node_if.set_param("wifi_client_ssid", ssid)
+        #     self.node_if.set_param("wifi_client_passphrase", passphrase)
+        #     success = self.save_config()
         self.publish_status()
 
         #### Clear the connecting flag
@@ -1390,9 +1383,9 @@ class NetworkMgr:
         self.wifi_ap_enabled = enabled
         success = self.publish_status()
         self.set_wifi_ap()
-        if self.node_if is not None:
-            self.node_if.set_param("wifi_wifi_ap_enabled", enabled)
-            success = self.save_config()
+        # if self.node_if is not None:
+        #     self.node_if.set_param("wifi_wifi_ap_enabled", enabled)
+        #     success = self.save_config()
         return True
 
 
@@ -1414,10 +1407,10 @@ class NetworkMgr:
             self.wifi_ap_passphrase = msg.passphrase
             success = self.publish_status()
             self.set_wifi_ap()
-            if self.node_if is not None:
-                self.node_if.set_param("wifi_ap_ssid", msg.ssid)
-                self.node_if.set_param("wifi_ap_passphrase", msg.passphrase)
-                success = self.save_config()
+            # if self.node_if is not None:
+            #     self.node_if.set_param("wifi_ap_ssid", msg.ssid)
+            #     self.node_if.set_param("wifi_ap_passphrase", msg.passphrase)
+            #     success = self.save_config()
         return success
 
 

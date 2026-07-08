@@ -2374,12 +2374,15 @@ class SettingsIF:
     caps_response = SettingsCapabilitiesQueryResponse()
 
     init_settings = dict()
+
+    save_params = True
     #######################
     ### IF Initialization
     def __init__(self, 
                 namespace = None,
                 settings_dict = None,
                 allow_cap_updates = False,
+                save_params = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -2414,6 +2417,7 @@ class SettingsIF:
         self.allow_cap_updates = allow_cap_updates
         self.msg_if.pub_warn("Initialize Class Variables: " + str(settings_dict))
 
+        self.save_params = save_params
         if settings_dict is None:
             self.msg_if.pub_warn("Exiting, No Settings_Dict provided", log_name_list = self.log_name_list)
             return
@@ -2473,13 +2477,17 @@ class SettingsIF:
             'namespace': self.namespace
         }
         
+
         # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'settings': {
-                'namespace': self.namespace,
-                'factory_val': self.init_settings
+        if self.save_params == True:
+            self.PARAMS_DICT = {
+                'settings': {
+                    'namespace': self.namespace,
+                    'factory_val': self.init_settings
+                }
             }
-        }
+        else:
+            self.PARAMS_DICT = None
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
@@ -2709,7 +2717,7 @@ class SettingsIF:
                 if success:
                     if update_param:
                         updated_settings[s_name] = setting
-                        if self.node_if is not None:
+                        if self.node_if is not None and self.save_params == True:
                             self.node_if.set_param('settings', updated_settings)
                             #self.msg_if.pub_warn("Updated settings dict: " + str(updated_settings), log_name_list = self.log_name_list)
                     if do_updates:
@@ -2732,10 +2740,13 @@ class SettingsIF:
                 hardware after loading. Defaults to True.
         """
         if self.node_if is not None:
-            init_settings = self.node_if.get_param('settings')
+            init_settings = None
+            if self.save_params == True:
+                init_settings = self.node_if.get_param('settings')
             if type(init_settings) != dict:
                 init_settings = self.getSettingsFunction()
-                self.node_if.set_param('settings', init_settings)
+                if self.save_params == True:
+                    self.node_if.set_param('settings', init_settings)
             self.init_settings = init_settings
 
         #self.msg_if.pub_warn("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
@@ -2756,7 +2767,7 @@ class SettingsIF:
         Calls node_if.reset_params() to reload the user configuration tier, then
         reinitializes and reapplies settings from the param server.
         """
-        if self.node_if is not None:
+        if self.node_if is not None and self.save_params == True:
             self.node_if.reset_params()
         self.init(do_updates = True)
 
