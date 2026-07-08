@@ -477,15 +477,12 @@ class NetworkMgr:
 
             # Upated Managed Alias IP Addresses
             managed_ip_addrs=[]
-            aliases = []
             if self.nepi_config is not None:
                 for i in range(10):
                     akey = 'NEPI_ALIAS_IP_' + str(i)
                     if akey in self.nepi_config.keys():
-                        aliases = self.nepi_config['NEPI_ALIAS_IP_1']
-            for aliase in aliases:
-                if aliases != "NONE" and aliases != "None":
-                    managed_ip_addrs.append(aliases)
+                        if self.is_valid_ip(self.nepi_config[akey]):
+                            managed_ip_addrs.append(self.nepi_config[akey])
             self.managed_ip_addrs = managed_ip_addrs
             self.msg_if.pub_warn("Starting Init with Managed addrs: " + str(self.managed_ip_addrs))
             
@@ -510,8 +507,8 @@ class NetworkMgr:
                 self.msg_if.pub_warn("No Wifi Device Detected")
             else:
                 cwifi_iface = self.nepi_config['NEPI_WIFI_INTERFACE']
-                if self.wifi_iface != cwifi_iface: 
-                    nepi_system.update_nepi_system_config("NEPI_WIFI_INTERFACE",self.wifi_iface)      
+                # if self.wifi_iface != cwifi_iface: 
+                #     nepi_system.update_nepi_system_config("NEPI_WIFI_INTERFACE",self.wifi_iface)      
 
                 # Update WiFi Enabled settings
                 nwifi_enabled = False #self.node_if.get_param('wifi_enabled')
@@ -615,8 +612,7 @@ class NetworkMgr:
                     self.msg_if.pub_warn("Starting Init with Wifi AP Enabled: " + str(self.wifi_ap_enabled))
                     self.msg_if.pub_warn("Starting Init with Wifi AP ssid: " + str(self.wifi_ap_ssid))
                     self.msg_if.pub_warn("Starting Init with Wifi AP password: " + str(self.wifi_ap_passphrase))
-                    
-            success = self.save_config()
+                
 
             
 
@@ -788,9 +784,9 @@ class NetworkMgr:
                 found_ip_addrs = rep_ips[:-1]
             
 
-            for ip in self.managed_ip_addrs:
-                if ip not in found_ip_addrs:
-                    self.add_ip(ip)
+            # for ip in self.managed_ip_addrs:
+            #     if ip not in found_ip_addrs:
+            #         self.add_ip(ip)
 
         self.network_checked = True
 
@@ -830,10 +826,10 @@ class NetworkMgr:
     def check_wifi_client_connected(self):
 
         if self.wifi_enabled == False:
-            self.msg_if.pub_warn("Cannot enable WiFi access point - system has no WiFi adapter")
+            #self.msg_if.pub_warn("Cannot enable WiFi access point - system has no WiFi adapter")
             return 'NONE'
         if self.wifi_enabled == False:
-            self.msg_if.pub_warn("Cannot enable WiFi access point - WiFi adapter not enabled")
+            #self.msg_if.pub_warn("Cannot enable WiFi access point - WiFi adapter not enabled")
             return 'NONE'       
 
         #self.msg_if.pub_warn("Starting Check wifi connection process with wifi iface: " + str(self.wifi_iface))
