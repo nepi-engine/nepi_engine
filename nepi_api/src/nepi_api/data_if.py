@@ -2213,11 +2213,11 @@ class BaseImageIF:
                         if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
                             if navpose_dict is not None:
                                 if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                                    overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],2))
+                                    overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],0))
                                     overlay_list.append(overlay)
 
                                 if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                                    overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],2)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],2)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],2))
+                                    overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],0)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],0)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],0))
                                     overlay_list.append(overlay)
 
                         overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list

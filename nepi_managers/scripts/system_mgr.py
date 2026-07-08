@@ -121,7 +121,7 @@ class SystemMgrNode():
         ['MANAGER-DEVICE','MANAGER-ADMIN','MANAGER-NETWORK','MANAGER-TIME','MANAGER-DATA','MANAGER-SOFTWARE','NEPI_LICENSE', \
         'MANAGER-NAVPOSE','MANAGER-DRIVERS','MANAGER-APPS','MANAGER-AI-MODELS','MANAGER-AI-DETECTORS','MANAGER-SCRIPTS'] + \
         ['SYSTEM-ADMIN','SYSTEM-MESSAGES','SYSTEM-SAVE','SYSTEM-CONFIG','SYSTEM-SETTINGS','SYSTEM-TRIGGERS','SYSTEM-STATES','SYSTEM-TRANSFORMS',] + \
-        ['DATA-IMAGE','DATA-IMAGE-RENDER','DATA-IMAGE-INFO','DATA-IMAGE-NAVPOSE','DATA-IMAGE-CONFIG'] + \
+        ['DATA-IMAGE-ALL','DATA-IMAGE-OVERLAY','DATA-IMAGE-RENDER','DATA-IMAGE-INFO','DATA-IMAGE-NAVPOSE','DATA-IMAGE-CONFIG'] + \
         ['DATA-NAVPOSE'] + \
         ['DEVICE-IDX','DEVICE-PTX','DEVICE-LSX','DEVICE-NPX','DEVICE-RBX']
 
@@ -763,6 +763,7 @@ class SystemMgrNode():
                     
         }
 
+    
         self.system_settings_if = SettingsIF(namespace = system_settings_ns,
                         settings_dict = self.SYSTEM_SETTINGS_DICT,
                         log_name_list = [self.node_name],
