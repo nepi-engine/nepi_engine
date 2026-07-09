@@ -835,7 +835,7 @@ class SystemMgrNode():
         nepi_sdk.start_timer_process(self.STATUS_PERIOD, self.publishStatusCb)
         nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
         nepi_sdk.start_timer_process(60000, self.ClearLogsCb, oneshot = True)
-        nepi_sdk.start_timer_process(5, self.updateDockerCb)
+        nepi_sdk.start_timer_process(1, self.updateDockerCb)
         self.msg_if.pub_warn("System status ready")
 
         ##################################
@@ -1162,8 +1162,8 @@ class SystemMgrNode():
                 nepi_updating_config = nepi_docker_config['NEPI_UPDATING_CONFIG'] == 1
             if 'NEPI_SERVICE_RUNNING' in nepi_docker_config.keys():
                 nepi_service_running = nepi_docker_config['NEPI_SERVICE_RUNNING'] == 1
-                # Reset for next check
-                nepi_docker_config = nepi_system.update_nepi_docker_config('NEPI_SERVICE_RUNNING', 0)
+                #Reset for next check
+                # nepi_docker_config = nepi_system.update_nepi_docker_config('NEPI_SERVICE_RUNNING', 0)
 
         self.nepi_service_running = nepi_service_running
         self.status_msg.nepi_service_running = nepi_service_running
