@@ -118,7 +118,7 @@ class SystemMgrNode():
     
 
     USER_RESTRICTION_OPTIONS =  \
-        ['MANAGER-DEVICE','MANAGER-ADMIN','MANAGER-NETWORK','MANAGER-TIME','MANAGER-DATA','MANAGER-SOFTWARE','NEPI_LICENSE', \
+        ['MANAGER-DEVICE','MANAGER-ADMIN','MANAGER-SETUP','MANAGER-NETWORK','MANAGER-TIME','MANAGER-DATA','MANAGER-SOFTWARE','NEPI_LICENSE', \
         'MANAGER-NAVPOSE','MANAGER-DRIVERS','MANAGER-APPS','MANAGER-AI-MODELS','MANAGER-AI-DETECTORS','MANAGER-SCRIPTS'] + \
         ['SYSTEM-ADMIN','SYSTEM-MESSAGES','SYSTEM-SAVE','SYSTEM-CONFIG','SYSTEM-SETTINGS','SYSTEM-TRIGGERS','SYSTEM-STATES','SYSTEM-TRANSFORMS',] + \
         ['DATA-IMAGE-ALL','DATA-IMAGE-OVERLAY','DATA-IMAGE-RENDER','DATA-IMAGE-INFO','DATA-IMAGE-NAVPOSE','DATA-IMAGE-CONFIG'] + \
@@ -1013,7 +1013,7 @@ class SystemMgrNode():
                 msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
                 return success, msg
         self.system_config[setting_name] = setting_data
-        nepi_system.update_nepi_system_config(setting_name,setting_data)         
+        # nepi_system.update_nepi_system_config(setting_name,setting_data)         
         success = True
         msg = ( self.node_name  + " UPDATED SETTINGS " + setting_str)   
       else:
@@ -1036,6 +1036,9 @@ class SystemMgrNode():
         timer = nepi_utils.get_time() - last_time
         if timer >= self.system_update_delay and self.nepi_updating_config == False:
             self.msg_if.pub_warn("Starting System Update Process")
+            system_config = copy.deepcopy(self.system_config)
+            nepi_system.update_nepi_system_configs(system_config) 
+            nepi_sdk.sleep(1)
             update_config = 1
             nepi_system.update_nepi_docker_config('NEPI_UPDATE_CONFIG',update_config)
         else:

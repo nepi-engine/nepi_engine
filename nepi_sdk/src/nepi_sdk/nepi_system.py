@@ -364,6 +364,16 @@ def save_nepi_system_config(config_dict):
     success = nepi_utils.write_dict_to_file(config_dict, target_file)
     return success
 
+def update_nepi_system_configs(config_dict):
+    success=False
+    cur_config_dict=load_nepi_system_config()
+    if cur_config_dict is not None:
+        for key in cur_config_dict.keys():
+            if key not in config_dict.keys():
+                config_dict[key] = cur_config_dict[key]
+    success=save_nepi_system_config(config_dict)
+    return config_dict
+
 def update_nepi_system_config(config_key, config_value, config_dict = None):
     success=False
     if config_dict is None:
