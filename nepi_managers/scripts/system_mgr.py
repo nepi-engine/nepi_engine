@@ -117,21 +117,29 @@ class SystemMgrNode():
                             "system_cfg"]
     
 
+
+    SUPPORTED_DEVICE_TYPES = [ 'IDX', 'PTX', 'LSX', 'NPX', 'RBX', 'SVX']
+    SUPPORTED_DEVICE_DESCRIPTIONS = [ 'Imaging', 'PanTilt', 'Lights', 'NavPose', 'Robot', 'Servo']
+
     USER_RESTRICTION_OPTIONS =  \
-        ['MANAGER-DEVICE','MANAGER-ADMIN','MANAGER-SETUP','MANAGER-NETWORK','MANAGER-TIME','MANAGER-DATA','MANAGER-SOFTWARE','NEPI_LICENSE', \
+        ['MANAGER-DEVICE','MANAGER-NEPI','MANAGER-SYSTEM','MANAGER-NETWORK','MANAGER-TIME','MANAGER-DATA','MANAGER-SOFTWARE','NEPI_LICENSE', \
         'MANAGER-NAVPOSE','MANAGER-DRIVERS','MANAGER-APPS','MANAGER-AI-MODELS','MANAGER-AI-DETECTORS','MANAGER-SCRIPTS'] + \
         ['SYSTEM-ADMIN','SYSTEM-MESSAGES','SYSTEM-SAVE','SYSTEM-CONFIG','SYSTEM-SETTINGS','SYSTEM-TRIGGERS','SYSTEM-STATES','SYSTEM-TRANSFORMS',] + \
         ['DATA-IMAGE-ALL','DATA-IMAGE-OVERLAY','DATA-IMAGE-RENDER','DATA-IMAGE-INFO','DATA-IMAGE-NAVPOSE','DATA-IMAGE-CONFIG'] + \
         ['DATA-NAVPOSE'] + \
-        ['DEVICE-IDX','DEVICE-PTX','DEVICE-LSX','DEVICE-NPX','DEVICE-RBX']
+        ['DEVICE-IDX','DEVICE-PTX','DEVICE-LSX','DEVICE-NPX','DEVICE-RBX', 'DEVICE_SVX']
+    
+
+
 
     SYSTEM_SETTINGS_KEYS = []
     SYSTEM_SETTINGS_DICT = dict()
     system_capSettings = None
     system_factorySettings = None
     system_update_time = 0
-    system_update_delay = 10
+    system_update_delay = 60
     nepi_service_running = False
+    nepi_update_requested = False
     nepi_updating_config = False
                   
 
@@ -189,6 +197,9 @@ class SystemMgrNode():
 
     user_restriction_options = USER_RESTRICTION_OPTIONS
     user_restrictions = []
+
+    supported_device_types = SUPPORTED_DEVICE_TYPES
+    supported_device_descriptions = SUPPORTED_DEVICE_DESCRIPTIONS
 
     user_login_enabled = False
     user_login_password_valid = False
@@ -876,6 +887,28 @@ class SystemMgrNode():
     def initConfig(self):
         if self.node_if is not None:
 
+            user_restriction_options = self.node_if.get_param("user_restriction_options")
+            if user_restriction_options is not None:
+                for option in user_restriction_options:
+                    if option not in self.user_restriction_options:
+                        self.user_restriction_options.append(option)
+    
+    
+            supported_device_types = self.node_if.get_param("supported_device_types")
+            if supported_device_types is not None:
+                for option in supported_device_types:
+                    if option not in self.supported_device_types:
+                        self.supported_device_types.append(option)
+            self.status_msg.supported_device_types = self.supported_device_types
+
+            supported_device_descriptions = self.node_if.get_param("supported_device_descriptions")
+            if supported_device_descriptions is not None:
+                for option in supported_device_descriptions:
+                    if option not in self.supported_device_descriptions:
+                        self.supported_device_descriptions.append(option)
+            self.status_msg.supported_device_descriptions = self.supported_device_descriptions
+
+
             # Now gather all the params and set members appropriately
             self.storage_folder = self.node_if.get_param("storage_folder")
 
@@ -903,7 +936,6 @@ class SystemMgrNode():
             for i in self.status_msg.temperature_sensor_names:
                 self.status_msg.temperatures.append(0.0)
 
-            # TODO: Should this be queried somehow e.g., from the param server
             self.status_msg.save_all_enabled = False
 
     
@@ -1032,15 +1064,59 @@ class SystemMgrNode():
 
     def updateNepiConfigCb(self, msg):
         self.msg_if.pub_info("Got Update Config msg: " + str(msg))
-        last_time = self.system_update_time
-        timer = nepi_utils.get_time() - last_time
-        if timer >= self.system_update_delay and self.nepi_updating_config == False:
+        start_config = nepi_system.load_nepi_system_config()
+        if self.nepi_update_requested == False and self.nepi_updating_config == False:
             self.msg_if.pub_warn("Starting System Update Process")
+            umsg = "Sending NEPI Update Request"
+            self.msg_if.pub_info(str(umsg))
+            self.status_msg.nepi_update_msg = umsg
+            self.nepi_update_requested = True
             system_config = copy.deepcopy(self.system_config)
             nepi_system.update_nepi_system_configs(system_config) 
             nepi_sdk.sleep(1)
             update_config = 1
             nepi_system.update_nepi_docker_config('NEPI_UPDATE_CONFIG',update_config)
+            # Wait for updates
+            success = False
+            umsg = 'NEPI Config Failed to Update'
+            last_time = nepi_utils.get_time()
+            timer = 0
+            while (timer < 10):
+                    timer = nepi_utils.get_time() - last_time
+                    if self.nepi_updating_config == True:
+                        success = True
+                        umsg = 'NEPI Config Updating'
+                        self.status_msg.nepi_update_msg = umsg
+                    nepi_sdk.sleep(0.5)
+            
+            if success == False:
+                self.msg_if.pub_info(str(umsg))
+                self.status_msg.nepi_update_msg = umsg
+            else:
+                success = False
+                umsg = 'NEPI Config Failed to Update, Reseting Config'
+                last_time = nepi_utils.get_time()
+                timer = 0
+                while (self.nepi_updating_config == True):
+                        timer = nepi_utils.get_time() - last_time
+                        nepi_sdk.sleep(0.5)
+                if self.nepi_updating_config == False:
+                    success = True
+                    umsg = 'NEPI Config Updated'
+            self.msg_if.pub_info(str(umsg))
+            self.status_msg.nepi_update_msg = umsg
+            self.nepi_update_requested = False
+            self.system_update_time = nepi_utils.get_time()
+            if success == False:
+                nepi_system.save_nepi_system_config(start_config)
+                nepi_sdk.sleep(1)
+            updated_config = nepi_system.load_nepi_system_config()
+            self.msg_if.pub_warn("Got Updted System Config: " + str(updated_config))
+            if updated_config is None:
+                self.system_config = dict()
+            for key in updated_config.keys():
+                self.system_settings_if.update_setting_value(key,updated_config[key])
+            
         else:
             self.msg_if.pub_warn("System Update Process Allready in Progress")
         
@@ -1160,6 +1236,7 @@ class SystemMgrNode():
         if nepi_docker_config is not None:
             if 'NEPI_UPDATING_CONFIG' in nepi_docker_config.keys():
                 nepi_updating_config = nepi_docker_config['NEPI_UPDATING_CONFIG'] == 1
+
             if 'NEPI_SERVICE_RUNNING' in nepi_docker_config.keys():
                 nepi_service_running = nepi_docker_config['NEPI_SERVICE_RUNNING'] == 1
                 #Reset for next check
@@ -1170,6 +1247,10 @@ class SystemMgrNode():
         
         self.nepi_updating_config = nepi_updating_config
         self.status_msg.nepi_updating_config = nepi_updating_config
+
+        if self.nepi_updating_config == True:
+            self.nepi_update_requested = False
+        self.status_msg.nepi_update_requested = self.nepi_update_requested
 
         
         

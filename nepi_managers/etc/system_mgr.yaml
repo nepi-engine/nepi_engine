@@ -106,9 +106,24 @@ run_mode: develop
 storage_folder: /mnt/nepi_storage
 storage_mountpoint: /mnt/nepi_storage
 user_login_enabled: false
+supported_device_types:
+- IDX
+- PTX
+- LSX
+- NPX
+- RBX
+- SVX
+supported_device_descriptions:
+- Imaging
+- PanTilt
+- Lights
+- NavPose
+- Robot
+- Servo
 user_restriction_options:
 - MANAGER-DEVICE
-- MANAGER-ADMIN
+- MANAGER-NEPI
+- MANAGER-SYSTEM
 - MANAGER-NETWORK
 - MANAGER-TIME
 - MANAGER-DATA
@@ -140,4 +155,5 @@ user_restriction_options:
 - DEVICE-LSX
 - DEVICE-NPX
 - DEVICE-RBX
+- DEVICE-SVX
 user_restrictions: []
