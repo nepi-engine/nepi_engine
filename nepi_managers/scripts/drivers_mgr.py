@@ -612,9 +612,10 @@ class NepiDriversMgr(object):
             if driver_name in self.failed_class_import_list:
               self.msg_if.pub_warn("Removing driver from failed imported list: " + str(driver_name))
               self.failed_class_import_list.remove(driver_name) 
+              nepi_sdk.sleep(1)
           except Exception as e:
             self.msg_if.pub_warn("Failed remove driver module: " + str(driver_name) + " : " + str(e))
-          nepi_sdk.sleep(1)
+          
           self.drvs_dict[driver_name]['running'] = False
           self.drvs_dict[driver_name]['msg'] = "Discovery process stopped"
 

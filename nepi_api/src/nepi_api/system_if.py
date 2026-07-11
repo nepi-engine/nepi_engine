@@ -856,7 +856,7 @@ class SaveDataIF:
     save_data = False
     use_utc_tz = False
 
-    saving_disabled = False
+    disabled = False
     save_all_enabled = False
     save_all_rate = 0.0
 
@@ -995,10 +995,10 @@ class SaveDataIF:
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'saving_disabled': {
-                'namespace': self.namespace,
-                'factory_val': self.saving_disabled
-            },
+            # 'disabled': {
+            #     'namespace': self.namespace,
+            #     'factory_val': self.disabled
+            # },
             'save_rate_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.save_rate_dict
@@ -1042,12 +1042,12 @@ class SaveDataIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'saving_disable': {
+            'disable': {
                 'namespace': self.namespace,
                 'msg': Bool,
-                'topic': 'saving_disable',
+                'topic': 'disable',
                 'qsize': 5,
-                'callback': self._savingDisableCb, 
+                'callback': self._disableCb, 
                 'callback_args': ()
             }, 
             'save': {
@@ -1119,12 +1119,12 @@ class SaveDataIF:
 
         if self.all_save_namespace is not None:
             ALL_SUBS_DICT =  {
-                'saving_disable_all': {
+                'disable_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'saving_disable',
                     'qsize': 5,
-                    'callback': self._savingDisableCb, 
+                    'callback': self._disableCb, 
                     'callback_args': ()
                 },
                 'save_all': {
@@ -1414,7 +1414,7 @@ class SaveDataIF:
             self.node_if.set_param('save_rate_dict',save_rate_dict)
             self.node_if.save_config()
         
-    def saving_disable(self, enabled):
+    def disable(self, enabled):
         """Enable or disable data saving for all registered data products.
 
         When enabling after a disabled period, all last-save timestamps are reset
@@ -1424,7 +1424,7 @@ class SaveDataIF:
             enabled (bool): True to enable saving, False to disable.
         """
         #self.msg_if.pub_warn("Setting Saving Disabled to: " + str(enabled))  
-        self.saving_disabled = enabled
+        self.disabled = enabled
         self.publish_status()    
 
     def save_data_enable(self, enabled):
@@ -1453,7 +1453,7 @@ class SaveDataIF:
         Returns:
             bool: True if saving is enabled, False if disabled.
         """
-        return self.save_data and self.saving_disabled == False
+        return self.save_data and self.disabled == False
 
     def data_product_save_enabled(self, data_product):
         """Return whether a specific data product is currently configured to save.
@@ -1479,7 +1479,7 @@ class SaveDataIF:
                 return False
 
             save_rate = save_rate_dict[data_product][0]
-            return (save_rate > 0.0) and self.saving_disabled == False
+            return (save_rate > 0.0) and self.disabled == False
         except:
             return False
         
@@ -1530,7 +1530,7 @@ class SaveDataIF:
         save_rate_dict = self.save_rate_dict
         #self.msg_if.pub_debug("Checking should save for save rate dict: " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
         
-        if self.save_data == False or  self.saving_disabled == True:
+        if self.save_data == False or  self.disabled == True:
             return False
 
         if data_product not in save_rate_dict.keys():
@@ -1565,7 +1565,7 @@ class SaveDataIF:
                 is unrecognized.
         """
         try:
-            enabled = self.snapshot_dict[data_product]  and self.saving_disabled == False
+            enabled = self.snapshot_dict[data_product]  and self.disabled == False
             return enabled
         except:
             self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
@@ -1603,7 +1603,7 @@ class SaveDataIF:
         for dp in dps_dict.keys():
             ss =  dps_dict[dp]
             sr = self.save_rate_dict[dp][0] > 0
-            dps_dict[dp] = (ss or (self.save_data and sr)) and self.saving_disabled == False
+            dps_dict[dp] = (ss or (self.save_data and sr)) and self.disabled == False
         return dps_dict
 
 
@@ -1650,7 +1650,7 @@ class SaveDataIF:
             self.data_product_snapshot_reset(data_product)
             return ''
         else:
-            if self.saving_disabled == True:
+            if self.disabled == True:
                 should_save = self.data_product_should_save(data_product)
                 snapshot_enabled = self.data_product_snapshot_enabled(data_product)
                 # Save data if enabled
@@ -1708,7 +1708,7 @@ class SaveDataIF:
                 save_rate_msg = SaveDataRate()
                 save_rate_msg.data_product = name
                 save_rate_msg.save_rate_hz = 0
-                if self.saving_disabled == False:
+                if self.disabled == False:
                     save_rate_msg.save_rate_hz = save_rate_dict[name][0]
                 save_rates_msg.append(save_rate_msg)
                 self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg), log_name_list = self.log_name_list, throttle_s = 5)
@@ -1724,7 +1724,7 @@ class SaveDataIF:
             status_msg.data_products = list(save_rate_dict.keys())
             status_msg.save_data_rates = save_rates_msg
             status_msg.save_data_enabled = self.save_data
-            status_msg.saving_disabled = self.saving_disabled
+            status_msg.disabled = self.disabled
 
             if self.all_save_namespace is None:
                 status_msg.save_all_enabled = self.save_data
@@ -1768,7 +1768,7 @@ class SaveDataIF:
                     self.save_rate_dict[data_product][1] = 0.0 # Reset timer
             self.node_if.set_param('save_rate_dict',self.save_rate_dict)
             self.filename_dict =  self.node_if.get_param('filename_dict')
-            self.saving_disabled = self.node_if.get_param('saving_disabled')
+            self.disabled = self.node_if.get_param('disabled')
         self.publish_status()
 
 
@@ -1842,10 +1842,10 @@ class SaveDataIF:
             index = data_product_list.index('All')
             self.save_all_rate = msg.save_data_rates[index].save_rate_hz
 
-    def _savingDisableCb(self, msg):
+    def _disableCb(self, msg):
         #self.msg_if.pub_info("Recieved Disable Update: " + str(msg), log_name_list = self.log_name_list)
         enabled = msg.data
-        self.saving_disable(enabled)
+        self.disable(enabled)
 
     def _saveEnableCb(self, msg):
         self.msg_if.pub_info("Recieved Enable Update: " + str(msg), log_name_list = self.log_name_list)
@@ -1890,7 +1890,7 @@ class SaveDataIF:
     def _snapshotCb(self,msg):
         self.msg_if.pub_info("Recieved Snapshot Trigger", log_name_list = self.log_name_list)
         save_rate_dict = self.save_rate_dict
-        if self.saving_disabled == False:
+        if self.disabled == False:
             for data_product in save_rate_dict.keys():
                 save_rate = save_rate_dict[data_product][0]
                 enabled = (save_rate > 0.0)

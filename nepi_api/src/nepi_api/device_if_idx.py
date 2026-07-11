@@ -176,6 +176,7 @@ class IDXDeviceIF:
     data_source_description = 'imaging_sensor'
     data_ref_description = 'sensor'
 
+    disabled = False
 
     #######################
     ### IF Initialization
@@ -457,6 +458,14 @@ class IDXDeviceIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'disable': {
+                'namespace': self.namespace,
+                'msg': Bool,
+                'topic': 'disable',
+                'qsize': 5,
+                'callback': self._disableCb, 
+                'callback_args': ()
+            }, 
             'set_width_deg': {
                 'namespace': self.namespace,
                 'topic': 'set_width_deg',
@@ -961,9 +970,20 @@ class IDXDeviceIF:
         success = True
         return success
 
+    def _disableCb(self, msg):
+        #self.msg_if.pub_info("Recieved Disable Update: " + str(msg), log_name_list = self.log_name_list)
+        enabled = msg.data
+        self.disable(enabled)
 
+    def disable(self, enabled):
+        """Enable or disable data for all registered data products.
 
-
+        Args:
+            enabled (bool): True to enable data, False to disable.
+        """
+        #self.msg_if.pub_warn("Setting Saving Disabled to: " + str(enabled))  
+        self.disabled = enabled
+        self.publish_status()   
 
 
 
@@ -1246,7 +1266,7 @@ class IDXDeviceIF:
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = dp_if.needs_data_check()
-                if get_data == True:
+                if get_data == True and self.disabled == False:
                     acquiring = True
                     status, msg, cv2_img, timestamp, encoding = dp_get_data()
 
@@ -1351,7 +1371,7 @@ class IDXDeviceIF:
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = dp_if.needs_data_check()
-                if get_data == True:
+                if get_data == True and self.disabled == False:
                     #self.msg_if.pub_warn("Got Depth Map Needs Data", log_name_list = self.log_name_list)
 
                     acquiring = True
@@ -1467,7 +1487,7 @@ class IDXDeviceIF:
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = dp_if.needs_data_check()
-                if get_data == True:
+                if get_data == True and self.disabled == False:
                     acquiring = True
                     status, msg, o3d_pc, timestamp, pc_frame = dp_get_data()
                     if (status is False or o3d_pc is None):
@@ -1621,6 +1641,7 @@ class IDXDeviceIF:
         """
         self.status_msg.device_name = self.device_name
 
+        self.status_msg.disabled = self.disabled
         self.status_msg.width_deg = self.width_deg
         self.status_msg.height_deg = self.height_deg
         self.status_msg.perspective = self.perspective
