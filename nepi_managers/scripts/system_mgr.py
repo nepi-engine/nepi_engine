@@ -141,6 +141,8 @@ class SystemMgrNode():
     nepi_service_running = False
     nepi_update_requested = False
     nepi_updating_config = False
+    nepi_expand_requested = False
+    nepi_expanding_fs = False
                   
 
 
@@ -734,9 +736,17 @@ class SystemMgrNode():
                 'topic': 'restart_nepi',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.restartNepiCb, 
+                'callback': self.restartNepiCb,
                 'callback_args': ()
-            },            
+            },
+            'expand_storage_drive': {
+                'namespace': self.base_namespace,
+                'topic': 'expand_storage_drive',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.expandStorageDriveCb,
+                'callback_args': ()
+            },
 
 
         }
@@ -1126,6 +1136,22 @@ class SystemMgrNode():
         if self.in_container == True:
             self.nepi_image.restart()
 
+    def expandStorageDriveCb(self, msg):
+        self.msg_if.pub_info("Got Expand Storage Drive msg: " + str(msg))
+        if self.nepi_update_requested == True or self.nepi_updating_config == True:
+            self.msg_if.pub_warn("System Config Update in Progress, Ignoring Expand Storage Request")
+            self.status_msg.nepi_update_msg = 'CONFIG UPDATE IN PROGRESS - EXPAND REQUEST IGNORED'
+        elif self.nepi_expand_requested == True or self.nepi_expanding_fs == True:
+            self.msg_if.pub_warn("Storage Expansion Allready in Progress")
+            self.status_msg.nepi_update_msg = 'STORAGE EXPANSION ALLREADY IN PROGRESS'
+        else:
+            self.msg_if.pub_warn("Starting Storage Drive Expansion Process")
+            self.nepi_expand_requested = True
+            umsg = 'STORAGE EXPANSION REQUESTED'
+            self.msg_if.pub_info(str(umsg))
+            self.status_msg.nepi_update_msg = umsg
+            nepi_system.update_nepi_docker_config('NEPI_EXPAND_FS', 1)
+
     #######################
     # System Info Functions
     def add_info_string(self, string, level):
@@ -1232,10 +1258,14 @@ class SystemMgrNode():
 
         nepi_service_running = False
         nepi_updating_config = False
+        nepi_expanding_fs = False
         nepi_docker_config = nepi_system.load_nepi_docker_config()
         if nepi_docker_config is not None:
             if 'NEPI_UPDATING_CONFIG' in nepi_docker_config.keys():
                 nepi_updating_config = nepi_docker_config['NEPI_UPDATING_CONFIG'] == 1
+
+            if 'NEPI_EXPANDING_FS' in nepi_docker_config.keys():
+                nepi_expanding_fs = nepi_docker_config['NEPI_EXPANDING_FS'] == 1
 
             if 'NEPI_SERVICE_RUNNING' in nepi_docker_config.keys():
                 nepi_service_running = nepi_docker_config['NEPI_SERVICE_RUNNING'] == 1
@@ -1244,13 +1274,21 @@ class SystemMgrNode():
 
         self.nepi_service_running = nepi_service_running
         self.status_msg.nepi_service_running = nepi_service_running
-        
+
         self.nepi_updating_config = nepi_updating_config
         self.status_msg.nepi_updating_config = nepi_updating_config
 
         if self.nepi_updating_config == True:
             self.nepi_update_requested = False
         self.status_msg.nepi_update_requested = self.nepi_update_requested
+
+        if nepi_expanding_fs == True:
+            self.nepi_expand_requested = False
+            self.status_msg.nepi_update_msg = 'EXPANDING STORAGE PARTITION - DO NOT POWER OFF SYSTEM'
+        elif self.nepi_expanding_fs == True:
+            # Expansion just finished, clear the in-progress warning
+            self.status_msg.nepi_update_msg = 'STORAGE EXPANSION FINISHED'
+        self.nepi_expanding_fs = nepi_expanding_fs
 
         
         
