@@ -955,6 +955,12 @@ class SystemMgrNode():
             managers_active_list = self.node_if.get_param('managers_active_list')
             if managers_active_list is None:
                 managers_active_list = []
+            if 'MANAGER-NETWORK' in managers_active_list and self.system_config['NEPI_MANAGES_NETWORK'] == 0:
+                managers_active_list.remove('MANAGER-NETWORK')
+            if 'MANAGER-TIME' in managers_active_list and self.system_config['NEPI_MANAGES_TIME'] == 0:
+                managers_active_list.remove('MANAGER-TIME')
+            if 'MANAGER-SOFTWARE' in managers_active_list and self.system_config['NEPI_MANAGES_SOFTWARE'] == 0:
+                managers_active_list.remove('MANAGER-SOFTWARE')
             self.managers_active_list = managers_active_list
             #self.run_mode = self.node_if.get_param('run_mode')
             self.user_restriction_options = self.node_if.get_param('user_restriction_options')
@@ -962,8 +968,17 @@ class SystemMgrNode():
             self.user_login_enabled = self.node_if.get_param('user_login_enabled')
 
             if do_updates == True:
-                self.managers_dict = nepi_mgrs.refreshManagersDict(self.managers_param_folder,self.managers_dict)
-
+                managers_dict = nepi_mgrs.refreshManagersDict(self.managers_param_folder,self.managers_dict)
+                purge_list = []
+                if 'MANAGER-NETWORK' in managers_dict.keys() and self.system_config['NEPI_MANAGES_NETWORK'] == 0:
+                    purge_list.append('MANAGER-NETWORK')
+                if 'MANAGER-TIME' in managers_dict.keys() and self.system_config['NEPI_MANAGES_TIME'] == 0:
+                    purge_list.append('MANAGER-TIME')
+                if 'MANAGER-SOFTWARE' in managers_dict.keys() and self.system_config['NEPI_MANAGES_SOFTWARE'] == 0:
+                    purge_list.append('MANAGER-SOFTWARE')
+                for manager in purge_list:
+                    del managers_dict[manager]
+                self.managers_dict = managers_dict
 
                 for manager_name in self.managers_dict:
                     self.managers_dict[manager_name]['active'] = manager_name in self.managers_active_list
