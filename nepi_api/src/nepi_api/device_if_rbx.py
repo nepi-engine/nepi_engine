@@ -282,6 +282,7 @@ class RBXRobotIF:
         self.setSetupActionIndFunction = setSetupActionIndFunction
 
         self.getMotorControlRatios = getMotorControlRatios
+        self.setMotorControlRatio = setMotorControlRatio
 
         self.getNavPoseCb = getNavPoseCb
         if navpose_update_rate < 1:
@@ -361,12 +362,9 @@ class RBXRobotIF:
           self.status_msg.manual_control_mode_ready = self.manualControlsReadyFunction()
           manual_controls_ready = self.manualControlsReadyFunction()
           if manual_controls_ready:
-            if self.setMotorControlRatio is not None:
-              mc = MotorControl()
-              mc.speed_ratio = 0.0
+            if self.setMotorControlRatio is not None and self.getMotorControlRatios is not None:
               for i in range(len(self.getMotorControlRatios())):
-                mc.motor_ind = i
-                self.setMotorControlRatio(mc)
+                self.setMotorControlRatio(i, 0.0)
         else:
           self.status_msg.manual_control_mode_ready = False
 
@@ -1147,7 +1145,7 @@ class RBXRobotIF:
         self.msg_if.pub_info("Received set motor control ratio message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(motor_msg)
         if self.setMotorControl is not None:
-          new_motor_ctrl = motor_msg.data
+          new_motor_ctrl = motor_msg
           self.setMotorControl(new_motor_ctrl)
 
     ### Function to set motor control
@@ -1158,7 +1156,7 @@ class RBXRobotIF:
             m_len = len(self.getMotorControlRatios())
             if m_ind > (m_len -1):
                 self.update_error_msg("New Motor Control Ind " + str(m_ind) + " is out of range")
-            elif new_motor_ctrl < 0 or new_motor_ctrl > 1:
+            elif m_sr < 0 or m_sr > 1:
                 self.update_error_msg("New Motor Control Speed Ratio " + str(m_sr) + " is out of range")
             elif self.setMotorControlRatio is not None:
                 self.setMotorControlRatio(m_ind,m_sr)

@@ -611,8 +611,7 @@ class IDXDeviceIF:
             self.caps_report.has_depth_map = True
         else:
             self.caps_report.has_depth_map = False
-          
-        '''
+
         if (getPointcloud is not None and 'pointcloud' in self.data_products_list):
             self.getPointcloud = getPointcloud
             self.stopPointcloudAcquisition = stopPointcloudAcquisition
@@ -631,7 +630,6 @@ class IDXDeviceIF:
             self.caps_report.has_pointcloud = True
         else:
             self.caps_report.has_pointcloud = False
-        '''
 
 
         ###############################

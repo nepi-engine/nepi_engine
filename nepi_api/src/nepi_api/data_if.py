@@ -62,6 +62,7 @@ from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindo
 from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import RangeWindow
+from nepi_interfaces.msg import ImageSize
 
 from sensor_msgs.msg import PointCloud2
 
@@ -4913,8 +4914,8 @@ class PointcloudIF:
     Factory_Cam_Pos = [-5, 0, 0]
     Factory_Cam_Rot = [0, 0, 1]
 
-    #Default Control Values 
-    DEFAULT_CONTROLS_DICT = dict( 
+    #Default Control Values (single merged dict holding all process + render controls)
+    DEFAULT_CONTROLS_DICT = dict(
         resolution_ratio = 1.0,
         auto_adjust_enabled = False,
         auto_adjust_ratio = 0.3,
@@ -4925,7 +4926,20 @@ class PointcloudIF:
         stop_range_ratio = 1.0,
         window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
-        tilt_3d_ratio = 0.5
+        tilt_3d_ratio = 0.5,
+        image_width = 955,
+        image_height = 600,
+        cam_fov = 60,
+        cam_view = [3, 0, 0],
+        cam_pos = [-5, 0, 0],
+        cam_rot = [0, 0, 1],
+        clip_enabled = True,
+        clip_selection = 'Range',
+        clip_min_range_m = -20,
+        clip_max_range_m = 20,
+        voxel_downsample_size = 0.0, # Zero value skips process
+        uniform_downsample_k_points = 0, # Zero value skips process
+        outlier_removal_num_neighbors = 0 # Zero value skips process
         )
 
     DEFAULT_CALLBACK_DICT = dict(
@@ -4945,6 +4959,15 @@ class PointcloudIF:
     namespace = '~'
 
     node_if = None
+
+    api_lib_folder = '/opt/nepi/nepi_engine/lib/nepi_api'
+
+    bounding_box3d_topic = "NONE"
+    bounding_box3d_sub = None
+
+    launch_node_process = None
+    pub_img_node_name = ""
+    pub_img_namepace = ""
 
     status_msg =  PointcloudStatus()
 
@@ -5016,7 +5039,22 @@ class PointcloudIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
-        ##############################    
+
+        ##############################
+        # Wait for System Folders
+        self.msg_if.pub_warn("Waiting for system folders")
+        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        while system_folders is None and nepi_sdk.is_shutdown() == False:
+            system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+            nepi_sdk.sleep(1)
+
+        self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+
+        if system_folders is not None:
+            self.api_lib_folder = system_folders['api_lib']
+        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
+
+        ##############################
         # Initialize Class Variables
         if data_product is not None:
             data_product = nepi_utils.get_clean_name(data_product)
@@ -5028,7 +5066,7 @@ class PointcloudIF:
         if os.path.basename(namespace) != self.data_product:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
- 
+
         self.init_overlay_list = init_overlay_list
 
 
@@ -5053,15 +5091,14 @@ class PointcloudIF:
         self.status_msg.publishing = False
         self.status_msg.has_rgb = False
         self.status_msg.has_intensity = False
-        self.status_msg.width = 0
-        self.status_msg.height = 0
-        self.status_msg.depth = 0
-        self.status_msg.point_count = 0,
-        self.status_msg.get_latency_time
-        self.status_msg.pub_latency_time
-        self.status_msg.process_time
-        self.status_msg.data_pub_enabled = pub_image
-        self.status_msg.standard_image_sizes = nepi_img.STANDARD_IMAGE_SIZES
+        self.status_msg.point_count = 0
+        self.status_msg.get_latency_time = 0.0
+        self.status_msg.pub_latency_time = 0.0
+        self.status_msg.process_time = 0.0
+        self.status_msg.img_pub_enabled = pub_image
+
+        self.clip_options = ['Range', 'BoundingBox']
+        self.frame3d_list = nepi_nav.NAVPOSE_3D_FRAME_OPTIONS
 
 
         ##############################   
@@ -5077,7 +5114,92 @@ class PointcloudIF:
         }
 
         # Params Config Dict ####################
-        self.PARAMS_DICT = None
+        self.PARAMS_DICT = {
+            'start_range_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['start_range_ratio']
+            },
+            'stop_range_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['stop_range_ratio']
+            },
+            'image_width': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['image_width']
+            },
+            'image_height': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['image_height']
+            },
+            'zoom_ratio': {
+                'namespace': self.namespace,
+                'factory_val': 0.5
+            },
+            'rotate_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['rotate_3d_ratio']
+            },
+            'tilt_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['tilt_3d_ratio']
+            },
+            'cam_fov': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['cam_fov']
+            },
+            'cam_view': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['cam_view']
+            },
+            'cam_pos': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['cam_pos']
+            },
+            'cam_rot': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['cam_rot']
+            },
+            'render_enable': {
+                'namespace': self.namespace,
+                'factory_val': True
+            },
+            'use_wbg': {
+                'namespace': self.namespace,
+                'factory_val': False
+            },
+            'frame_3d': {
+                'namespace': self.namespace,
+                'factory_val': self.frame3d_list[0]
+            },
+            'process/clip_enabled': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['clip_enabled']
+            },
+            'process/clip_selection': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['clip_selection']
+            },
+            'process/range_min_m': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['clip_min_range_m']
+            },
+            'process/range_max_m': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['clip_max_range_m']
+            },
+            'process/voxel_downsample_size': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['voxel_downsample_size']
+            },
+            'process/uniform_downsample_k_points': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['uniform_downsample_k_points']
+            },
+            'process/outlier_removal_num_neighbors': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['outlier_removal_num_neighbors']
+            }
+        }
 
 
 
@@ -5102,6 +5224,166 @@ class PointcloudIF:
 
         # Subs Config Dict ###########
         self.SUBS_DICT = {
+            'reset_controls': {
+                'namespace': self.node_namespace,
+                'topic': 'process/reset_controls',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.resetProcessControlsCb,
+                'callback_args': ()
+            },
+            'set_clip_enable': {
+                'namespace': self.node_namespace,
+                'topic': 'process/set_clip_enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.clipEnableCb,
+                'callback_args': ()
+            },
+            'clip_selection': {
+                'namespace': self.node_namespace,
+                'topic': 'process/set_clip_selection',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setClipSelectionCb,
+                'callback_args': ()
+            },
+            'range_clip_m': {
+                'namespace': self.node_namespace,
+                'topic': 'process/set_range_clip_m',
+                'msg': RangeWindow,
+                'qsize': 10,
+                'callback': self.setRangeMetersCb,
+                'callback_args': ()
+            },
+            'clip_bounding_box3d_topic': {
+                'namespace': self.node_namespace,
+                'topic': 'process/set_clip_bounding_box3d_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setClipBoxTopicCb,
+                'callback_args': ()
+            },
+            'voxel_downsample_size': {
+                'namespace': self.node_namespace,
+                'topic': 'process/set_voxel_downsample_size',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setVoxelSizeCb,
+                'callback_args': ()
+            },
+            'downsample_k_points': {
+                'namespace': self.node_namespace,
+                'topic': 'process/uniform_downsample_k_points',
+                'msg': Int32,
+                'qsize': 10,
+                'callback': self.setUniformPointsCb,
+                'callback_args': ()
+            },
+            'outlier_removal': {
+                'namespace': self.node_namespace,
+                'topic': 'process/outlier_removal_num_neighbors',
+                'msg': Int32,
+                'qsize': 10,
+                'callback': self.setOutlierNumCb,
+                'callback_args': ()
+            },
+            'render_reset_controls': {
+                'namespace': self.node_namespace,
+                'topic': 'reset_controls',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.resetRenderControlsCb,
+                'callback_args': ()
+            },
+            'set_image_size': {
+                'namespace': self.node_namespace,
+                'topic': 'set_image_size',
+                'msg': ImageSize,
+                'qsize': 10,
+                'callback': self.setImageSizeCb,
+                'callback_args': ()
+            },
+            'set_range_ratios': {
+                'namespace': self.node_namespace,
+                'topic': 'set_range_ratios',
+                'msg': RangeWindow,
+                'qsize': 10,
+                'callback': self.setRangeRatiosCb,
+                'callback_args': ()
+            },
+            'set_zoom_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'set_zoom_ratio',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setZoomRatioCb,
+                'callback_args': ()
+            },
+            'set_rotate_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'set_rotate_ratio',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setRotateRatioCb,
+                'callback_args': ()
+            },
+            'set_tilt_ratio': {
+                'namespace': self.node_namespace,
+                'topic': 'set_tilt_ratio',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setTiltRatioCb,
+                'callback_args': ()
+            },
+            'set_camera_fov': {
+                'namespace': self.node_namespace,
+                'topic': 'set_camera_fov',
+                'msg': Int32,
+                'qsize': 10,
+                'callback': self.setCamFovCb,
+                'callback_args': ()
+            },
+            'set_camera_view': {
+                'namespace': self.node_namespace,
+                'topic': 'set_camera_view',
+                'msg': Vector3,
+                'qsize': 10,
+                'callback': self.setCamViewCb,
+                'callback_args': ()
+            },
+            'set_camera_position': {
+                'namespace': self.node_namespace,
+                'topic': 'set_camera_position',
+                'msg': Vector3,
+                'qsize': 10,
+                'callback': self.setCamPositionCb,
+                'callback_args': ()
+            },
+            'set_camera_rotation': {
+                'namespace': self.node_namespace,
+                'topic': 'set_camera_rotation',
+                'msg': Vector3,
+                'qsize': 10,
+                'callback': self.setCamRotationCb,
+                'callback_args': ()
+            },
+            'set_white_bg_enable': {
+                'namespace': self.node_namespace,
+                'topic': 'set_white_bg_enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setWhiteBgCb,
+                'callback_args': ()
+            },
+            'set_render_enable': {
+                'namespace': self.node_namespace,
+                'topic': 'set_render_enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setRenderEnableCb,
+                'callback_args': ()
+            },
             'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
@@ -5196,19 +5478,10 @@ class PointcloudIF:
         #     self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
 
         ####################
+        self.pub_image = pub_image
         if pub_image == True:
-
-            self.image_if = PointcloudImageIF(namespace = self.namespace, 
-                        data_source_description = self.data_source_description,
-                        data_ref_description = self.data_ref_description,
-                        perspective = self.perspective,
-                        init_overlay_list = init_overlay_list,
-                        navpose_if = self.navpose_if,
-                        navpose_namespace = navpose_namespace,
-                        save_data_if = self.save_data_if,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                        )
+            self.msg_if.pub_warn("Launching Image Pub Node")
+            self.launch_image_pub_node()
 
         ####################
         self.msg_if.pub_warn("Staring updater process", log_name_list = self.log_name_list)
@@ -5219,6 +5492,67 @@ class PointcloudIF:
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
         ###############################
+
+
+    def launch_image_pub_node(self):
+        """Launch the pointcloud image publisher node as a subprocess.
+
+        Resolves the image publisher node file path and starts the node with
+        the correct namespace and parameters if the file exists and image
+        publishing is enabled. Does nothing if the node is already running or
+        the node file cannot be found.
+        """
+        node_name = self.node_name + "_img_pub"
+        launch_namespace = os.path.dirname(self.node_namespace)
+        node_namespace = self.node_namespace + "_img_pub"
+        pkg_name = 'nepi_api'
+        node_file_folder = self.api_lib_folder
+        node_file_name = 'nepi_pointcloud_img_pub_node.py'
+
+        ###############################
+        # Launch Node
+        node_file_path = os.path.join(node_file_folder, node_file_name)
+        if self.launch_node_process is not None:
+            self.msg_if.pub_warn("Node Already Launched: " + node_name)
+        elif os.path.exists(node_file_path) == False or self.pub_image == False:
+            self.msg_if.pub_warn("Could not find Node File at: " + node_file_path)
+        else:
+            #Try and launch node
+            self.msg_if.pub_warn("Launching Pointcloud Img Node with settings " + str([pkg_name, node_file_name, node_name]))
+            self.msg_if.pub_warn("Launching Node: " + node_name)
+
+            param_ns = nepi_sdk.create_namespace(node_namespace, 'data_products')
+            nepi_sdk.set_param(param_ns, [self.data_product])
+
+            param_ns = nepi_sdk.create_namespace(node_namespace, 'pointcloud_namespace')
+            nepi_sdk.set_param(param_ns, self.namespace)
+
+            [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name, namespace=launch_namespace)
+            if success == True:
+                self.launch_node_process = sub_process
+                self.pub_img_node_name = node_name
+                self.pub_img_namepace = node_namespace
+            self.msg_if.pub_warn("Node launch return msg: " + str(msg))
+
+    def kill_image_pub_node(self):
+        """Terminate the running pointcloud image publisher node.
+
+        Sends a kill signal to the subprocess started by
+        ``launch_image_pub_node`` and clears the process handle and node name
+        on success. Logs a warning if the node is not currently running.
+        """
+        if self.launch_node_process is None:
+            self.msg_if.pub_warn("Node Not Running")
+        else:
+            self.msg_if.pub_warn("Killing Node")
+            success = nepi_sdk.kill_node_process(self.pub_img_node_name, self.launch_node_process)
+            if success == True:
+                self.launch_node_process = None
+                self.pub_img_node_name = ""
+                self.pub_img_namepace = ""
+                self.msg_if.pub_warn("Node Killed")
+            else:
+                self.msg_if.pub_warn("Failed to Kill Node")
 
 
     ###############################
@@ -5464,11 +5798,11 @@ class PointcloudIF:
 
             if (min_range_m is not None and max_range_m is not None):
                 self._updateRangesM(min_range_m,max_range_m)
-                self.status_msg.min_range_m = self.min_range_m
-                self.status_msg.max_range_m = self.max_range_m
+                self.status_msg.render_status.range_min_max_m.start_range = self.min_range_m
+                self.status_msg.render_status.range_min_max_m.stop_range = self.max_range_m
             else:
-                self.status_msg.min_range_m = 0
-                self.status_msg.max_range_m = 1
+                self.status_msg.render_status.range_min_max_m.start_range = 0
+                self.status_msg.render_status.range_min_max_m.stop_range = 1
 
             current_time = nepi_utils.get_time()
             latency = (current_time - timestamp)
@@ -5486,23 +5820,8 @@ class PointcloudIF:
                 ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc,navpose_frame = 'None')
                 sec = nepi_sdk.sec_from_timestamp(timestamp)
                 ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'sensor')
-                #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-                self.node_if.publish_pub('data_pub', os_pc)
-
-            process_time = round( (nepi_utils.get_time() - start_time) , 3)
-            self.status_msg.process_time = process_time
-            latency = (current_time - timestamp)
-            self.status_msg.pub_latency_time = latency
-
-            if self.image_if is not None:
-                needs_img = self.image_if.needs_data_check()
-                if needs_img == True:
-                    self.image_if.publish_pointcloud_img(o3d_pc,
-                                    width_deg = width_deg,
-                                    height_deg = height_deg,
-                                    timestamp = timestamp,
-                                    pub_twice = pub_twice
-                                )
+                #self.msg_if.pub_debug("Publishing Pointcloud with header: " + str(ros_pc.header), log_name_list = self.log_name_list, throttle_s = 5.0)
+                self.node_if.publish_pub('data_pub', ros_pc)
 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
@@ -5559,44 +5878,43 @@ class PointcloudIF:
         if self.node_if is not None:
 
             if do_updates == True:
-                self.status_msg.image_width = self.node_if.get_param('image_width')
-                self.status_msg.image_height = self.node_if.get_param('image_height')
+                self.status_msg.render_status.image_width = self.node_if.get_param('image_width')
+                self.status_msg.render_status.image_height = self.node_if.get_param('image_height')
 
                 range_ratios = RangeWindow()
                 range_ratios.start_range =   float(self.node_if.get_param('start_range_ratio'))
                 range_ratios.stop_range =   float(self.node_if.get_param('stop_range_ratio'))
-                self.status_msg.range_ratios = range_ratios
+                self.status_msg.render_status.range_clip_ratios = range_ratios
 
-                self.status_msg.zoom_ratio = self.node_if.get_param('zoom_ratio')
-                self.status_msg.rotate_3d_ratio = self.node_if.get_param('rotate_3d_ratio')
-                self.status_msg.tilt_3d_ratio = self.node_if.get_param('tilt_3d_ratio')
+                self.status_msg.render_status.zoom_ratio = self.node_if.get_param('zoom_ratio')
+                self.status_msg.render_status.rotate_ratio = self.node_if.get_param('rotate_ratio')
+                self.status_msg.render_status.tilt_ratio = self.node_if.get_param('tilt_ratio')
 
                 fov = self.node_if.get_param('cam_fov')
-                self.status_msg.camera_fov = fov
+                self.status_msg.render_status.camera_fov = fov
 
                 view = self.node_if.get_param('cam_view')
                 cam_view = Vector3()
                 cam_view.x = view[0]
                 cam_view.y = view[1]
                 cam_view.z = view[2]
-                self.status_msg.camera_view = cam_view
+                self.status_msg.render_status.camera_view = cam_view
 
                 pos = self.node_if.get_param('cam_pos')
                 cam_pos = Vector3()
                 cam_pos.x = pos[0]
                 cam_pos.y = pos[1]
                 cam_pos.z = pos[2]
-                self.status_msg.camera_position = cam_pos
+                self.status_msg.render_status.camera_position = cam_pos
 
                 rot = self.node_if.get_param('cam_rot')
                 cam_rot = Vector3()
                 cam_rot.x = rot[0]
                 cam_rot.y = rot[1]
                 cam_rot.z = rot[2]
-                self.status_msg.camera_rotation = cam_rot
-                
-                use_wbg = self.node_if.get_param('use_wbg')
-                self.status_msg.white_background = use_wbg
+                self.status_msg.render_status.camera_rotation = cam_rot
+
+                self.status_msg.render_status.render_enable = self.node_if.get_param('render_enable')
 
             avg_rate = 0
             if len(self.time_list) > 0:
@@ -5711,6 +6029,201 @@ class PointcloudIF:
         self.active_topic_types = msg.active_topic_types
         self.active_services = msg.active_services
 
+    ###################
+    ## Process Callbacks
+    def resetProcessControlsCb(self,msg):
+        self.resetProcessControls()
+
+    def resetProcessControls(self,do_updates = True):
+        self.node_if.reset_param('process/clip_enabled')
+        self.node_if.reset_param('process/clip_selection')
+        self.node_if.reset_param('process/range_min_m')
+        self.node_if.reset_param('process/range_max_m')
+        self.bounding_box3d_topic = "NONE"
+        self.node_if.reset_param('process/voxel_downsample_size')
+        self.node_if.reset_param('process/uniform_downsample_k_points')
+        self.node_if.reset_param('process/outlier_removal_num_neighbors')
+        if do_updates:
+            self.publish_status()
+
+    def clipEnableCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_enable = msg.data
+        self.node_if.set_param('process/clip_enabled', new_enable)
+        self.publish_status()
+
+    def setClipSelectionCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        sel = msg.data
+        if sel in self.clip_options:
+            self.node_if.set_param('process/clip_selection', sel )
+        self.publish_status()
+
+    def setClipBoxTopicCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        self.bounding_box3d_topic = msg.data
+        self.publish_status()
+
+    def setRangeMetersCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        range_min_m = msg.start_range
+        range_max_m = msg.stop_range
+        if range_min_m < range_max_m:
+            self.node_if.set_param('process/range_min_m', range_min_m)
+            self.node_if.set_param('process/range_max_m', range_max_m)
+        self.publish_status()
+
+    def setVoxelSizeCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        val = msg.data
+        if val >= 0:
+            self.node_if.set_param('process/voxel_downsample_size',val)
+        self.publish_status()
+
+    def setUniformPointsCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        val = msg.data
+        if val >= 0:
+            self.node_if.set_param('process/uniform_downsample_k_points',val)
+        self.publish_status()
+
+    def setOutlierNumCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        val = msg.data
+        if val >= 0:
+            self.node_if.set_param('process/outlier_removal_num_neighbors',val)
+        self.publish_status()
+
+    def setFrame3dCb(self, msg):
+        #self.msg_if.pub_info(str(msg))
+        frame_3d = msg.data
+        frame3d_list = self.frame3d_list
+        if frame_3d in frame3d_list:
+            self.node_if.set_param('frame_3d',frame_3d)
+        self.publish_status()
+
+    ###################
+    ## Render Callbacks
+    def resetRenderControlsCb(self,msg):
+        self.resetRenderControls()
+
+    def resetRenderControls(self,do_updates = True):
+        self.node_if.reset_param('image_width')
+        self.node_if.reset_param('image_height')
+        self.node_if.reset_param('start_range_ratio')
+        self.node_if.reset_param('stop_range_ratio')
+        self.node_if.reset_param('zoom_ratio')
+        self.node_if.reset_param('rotate_ratio')
+        self.node_if.reset_param('tilt_ratio')
+        self.node_if.reset_param('cam_fov')
+        self.node_if.reset_param('cam_view')
+        self.node_if.reset_param('cam_pos')
+        self.node_if.reset_param('cam_rot')
+        self.node_if.reset_param('use_wbg')
+        self.node_if.reset_param('render_enable')
+
+        if do_updates:
+            self.publish_status()
+
+    def setImageSizeCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        width = msg.image_width
+        height = msg.image_height
+        if width > 100 and width < 5000 and height > 100 and height < 5000:
+            self.node_if.set_param('image_width',  width)
+            self.node_if.set_param('image_height', height)
+            self.publish_status()
+
+    def setImageSizeIndCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        index = msg.data
+        if index < len(nepi_img.STANDARD_IMAGE_SIZES):
+            size_str = nepi_img.STANDARD_IMAGE_SIZES[index]
+            size__split = size_str.split(" ")
+            width = float(size__split[0])
+            height = float(size__split[2])
+            if width > 100 and width < 5000 and height > 100 and height < 5000:
+                self.node_if.set_param('image_width',  width)
+                self.node_if.set_param('image_height', height)
+                self.publish_status()
+
+    def setZoomRatioCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_val = msg.data
+        if new_val >= 0 and new_val <= 1 :
+            self.node_if.set_param('zoom_ratio',new_val)
+            self.publish_status()
+
+    def setRotateRatioCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_val = msg.data
+        if new_val >= 0 and new_val <= 1 :
+            self.node_if.set_param('rotate_ratio',new_val)
+            self.publish_status()
+
+    def setTiltRatioCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_val = msg.data
+        if new_val >= 0 and new_val <= 1 :
+            self.node_if.set_param('tilt_ratio',new_val)
+            self.publish_status()
+
+    def setCamFovCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_val = msg.data
+        if new_val > 100:
+            new_val = 100
+        if new_val < 30:
+            new_val = 30
+        self.node_if.set_param('cam_fov',new_val)
+        self.publish_status()
+
+    def setCamViewCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_array = []
+        new_array.append(msg.x)
+        new_array.append(msg.y)
+        new_array.append(msg.z)
+        self.node_if.set_param('cam_view',new_array)
+        self.publish_status()
+
+    def setCamPositionCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_array = []
+        new_array.append(msg.x)
+        new_array.append(msg.y)
+        new_array.append(msg.z)
+        self.node_if.set_param('cam_pos',new_array)
+        self.publish_status()
+
+    def setCamRotationCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_array = []
+        new_array.append(msg.x)
+        new_array.append(msg.y)
+        new_array.append(msg.z)
+        self.node_if.set_param('cam_rot',new_array)
+        self.publish_status()
+
+    def setRangeRatiosCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        min_ratio = msg.start_range
+        max_ratio = msg.stop_range
+        if min_ratio < max_ratio and min_ratio >= 0 and max_ratio <= 1:
+            self.node_if.set_param('start_range_ratio', min_ratio)
+            self.node_if.set_param('stop_range_ratio', max_ratio)
+            self.publish_status()
+
+    def setWhiteBgCb(self,msg):
+        enable = msg.data
+        self.node_if.set_param('use_wbg', enable)
+        self.publish_status()
+
+    def setRenderEnableCb(self,msg):
+        render_enable = msg.data
+        self.node_if.set_param('render_enable', render_enable)
+        self.publish_status()
+
 ##################################################
 # PointcloudImageIF
 
@@ -5751,6 +6264,13 @@ class PointcloudImageIF(BaseImageIF):
         tilt_3d_ratio = 0.5
         )
 
+    DEFAULT_CAM_DICT = dict(
+        cam_fov = 60,
+        cam_view = [3, 0, 0],
+        cam_pos = [-5, 0, 0],
+        cam_rot = [0, 0, 1]
+        )
+
     params_dict = None
     services_dict = None
     pubs_dict = None
@@ -5759,6 +6279,14 @@ class PointcloudImageIF(BaseImageIF):
     data_product = 'pointcloud_image'
 
     auto_adjust_controls = []
+
+    # Pointcloud renderer state (lazily created on first render)
+    img_renderer = None
+    img_renderer_mtl = None
+    last_img_width = None
+    last_img_height = None
+    last_fov = None
+    last_bg_white = None
 
     def __init__(self, namespace = None , 
                 data_product = None,
@@ -5818,13 +6346,17 @@ class PointcloudImageIF(BaseImageIF):
     def publish_pointcloud_img(self,o3d_pc,
                             width_deg = 100,
                             height_deg = 70,
+                            render_dict = None,
                             timestamp = None,
+                            frame_id = 'sensor',
                             pub_twice = False
                             ):
-        """Convert a pointcloud to an image and publish it.
+        """Render an Open3D pointcloud to an image and publish it.
 
-        Currently a stub; the image conversion logic is commented out.
-        Returns the original pointcloud and a None image.
+        Applies the supplied render controls (image size, range clip, zoom,
+        rotate, tilt, and camera pose), renders the pointcloud through an
+        Open3D offscreen renderer, and publishes the resulting image via the
+        BaseImageIF publish pipeline.
 
         Args:
             o3d_pc (open3d.geometry.PointCloud): The pointcloud to visualize.
@@ -5832,14 +6364,20 @@ class PointcloudImageIF(BaseImageIF):
                 Defaults to 100.
             height_deg (float, optional): Vertical field of view in degrees.
                 Defaults to 70.
+            render_dict (dict, optional): Render control values (image_width,
+                image_height, start_range_ratio, stop_range_ratio, zoom_ratio,
+                rotate_ratio, tilt_ratio, cam_fov, cam_view, cam_pos, cam_rot,
+                use_wbg). Falls back to interface defaults when None.
             timestamp (float or rospy.Time, optional): Acquisition timestamp.
                 Defaults to current time if None.
+            frame_id (str, optional): TF frame ID for the published image.
+                Defaults to 'sensor'.
             pub_twice (bool, optional): Publish the resulting image twice.
                 Defaults to False.
 
         Returns:
-            tuple: (o3d_pc, cv2_img) where cv2_img is None until the conversion
-            pipeline is implemented.
+            tuple: (o3d_pc, cv2_img) where cv2_img is the rendered image, or
+            None if rendering produced no image.
         """
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
@@ -5847,36 +6385,89 @@ class PointcloudImageIF(BaseImageIF):
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
         cv2_img = None
-        if o3d_pc is not None:
-            # start_range_ratio = self.controls_dict['start_range_ratio']
-            # stop_range_ratio = self.controls_dict['stop_range_ratio']
-
-            # # Get range data
-            # delta_range_m = max_range_m - min_range_m
-            # # Adjust range Limits if IDX Controls enabled and range ratios are not min/max
-            # max_range_m = min_range_m + stop_range_ratio * delta_range_m
-            # min_range_m = min_range_m + start_range_ratio * delta_range_m
-            # delta_range_m = max_range_m - min_range_m
-            # # Filter depth_data in range
-            # depth_data[np.isnan(depth_data)] = max_range_m 
-            # depth_data[depth_data <= min_range_m] = max_range_m # set to max
-            # depth_data[depth_data >= max_range_m] = max_range_m # set to max
-            # # Create colored cv2 depth image
-            # depth_data = depth_data - min_range_m # Shift down 
-            # depth_data = np.abs(depth_data - max_range_m) # Reverse for colormap
-            # depth_data = np.array(255*depth_data/delta_range_m,np.uint8) # Scale for bgr colormap
-            # cv2_img = cv2.applyColorMap(depth_data, cv2.COLORMAP_JET)
-
-            # self.publish_cv2_img(cv2_img,
-            #                     encoding = 'bgr8',
-            #                     width_deg = width_deg,
-            #                     height_deg = height_deg,
-            #                     min_range_m = min_range_m, 
-            #                     max_range_m = max_range_m,
-            #                     timestamp = timestamp,
-            #                     pub_twice = pub_twice
-            #                  )
+        if o3d_pc is None:
             return o3d_pc, cv2_img
+
+        if timestamp is None:
+            timestamp = nepi_utils.get_time()
+        else:
+            timestamp = nepi_sdk.sec_from_timestamp(timestamp)
+
+        # Resolve render controls
+        if render_dict is None:
+            render_dict = copy.deepcopy(self.DEFAULT_CONTROLS_DICT)
+            render_dict.update(self.DEFAULT_CAM_DICT)
+
+        img_width = int(render_dict.get('image_width', 955))
+        img_height = int(render_dict.get('image_height', 600))
+        start_range_ratio = render_dict.get('start_range_ratio', 0.0)
+        stop_range_ratio = render_dict.get('stop_range_ratio', 1.0)
+        zoom_ratio = render_dict.get('zoom_ratio', 0.5)
+        rotate_ratio = render_dict.get('rotate_ratio', 0.5)
+        tilt_ratio = render_dict.get('tilt_ratio', 0.5)
+        cam_fov = render_dict.get('cam_fov', self.DEFAULT_CAM_DICT['cam_fov'])
+        cam_view = list(render_dict.get('cam_view', self.DEFAULT_CAM_DICT['cam_view']))
+        cam_pos = list(render_dict.get('cam_pos', self.DEFAULT_CAM_DICT['cam_pos']))
+        cam_rot = list(render_dict.get('cam_rot', self.DEFAULT_CAM_DICT['cam_rot']))
+        use_wbg = render_dict.get('use_wbg', False)
+
+        # Range clip
+        min_range_m = nepi_pc.get_min_range(o3d_pc)
+        max_range_m = nepi_pc.get_max_range(o3d_pc)
+        delta_range_m = max_range_m - min_range_m
+        clip_min_range_m = min_range_m + start_range_ratio * delta_range_m
+        clip_max_range_m = min_range_m + stop_range_ratio * delta_range_m
+        if start_range_ratio > 0 or stop_range_ratio < 1:
+            o3d_pc = nepi_pc.range_clip_spherical(o3d_pc, clip_min_range_m, clip_max_range_m)
+
+        # Apply zoom via camera position
+        if cam_pos[0] < 0:
+            zoom_ratio = 1 - zoom_ratio
+        cam_pos[0] = cam_pos[0] * zoom_ratio
+
+        # Apply rotate and tilt
+        rotate_angle = (0.5 - rotate_ratio) * 2 * 180
+        o3d_pc = nepi_pc.rotate_pc(o3d_pc, [0, 0, rotate_angle])
+        tilt_angle = (0.5 - tilt_ratio) * 2 * 180
+        o3d_pc = nepi_pc.rotate_pc(o3d_pc, [0, tilt_angle, 0])
+
+        bg_color = [1, 1, 1, 1] if use_wbg else [0, 0, 0, 0]
+
+        # (Re)create the renderer when geometry-independent params change
+        update_renderer = (self.img_renderer is None or self.img_renderer_mtl is None
+            or self.last_img_width != img_width or self.last_img_height != img_height
+            or self.last_fov != cam_fov or self.last_bg_white != use_wbg)
+        if update_renderer:
+            self.img_renderer = None
+            self.msg_if.pub_warn("Creating new pointcloud renderer", log_name_list = self.log_name_list)
+            self.img_renderer = nepi_pc.create_img_renderer(img_width=img_width, img_height=img_height, fov=cam_fov, background=bg_color)
+            self.img_renderer_mtl = nepi_pc.create_img_renderer_mtl(shader="defaultLit")
+            self.last_img_width = img_width
+            self.last_img_height = img_height
+            self.last_fov = cam_fov
+            self.last_bg_white = use_wbg
+
+        # Render the frame
+        self.img_renderer = nepi_pc.remove_img_renderer_geometry(self.img_renderer)
+        self.img_renderer = nepi_pc.add_img_renderer_geometry(o3d_pc, self.img_renderer, self.img_renderer_mtl)
+        o3d_img = nepi_pc.render_img(self.img_renderer, cam_view, cam_pos, cam_rot)
+        self.img_renderer = nepi_pc.remove_img_renderer_geometry(self.img_renderer)
+
+        if o3d_img is not None:
+            cv2_img = nepi_pc.o3dimg_to_cv2img(o3d_img)
+
+        # Publish and Save Pointcloud Image Data
+        if cv2_img is not None:
+            self.publish_cv2_img(cv2_img,
+                                encoding = 'rgb8',
+                                width_deg = width_deg,
+                                height_deg = height_deg,
+                                min_range_m = min_range_m,
+                                max_range_m = max_range_m,
+                                timestamp = timestamp,
+                                pub_twice = pub_twice
+                                )
+        return o3d_pc, cv2_img
 
 
     ###############################
