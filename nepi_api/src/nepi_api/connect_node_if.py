@@ -1029,7 +1029,8 @@ class ConnectNodePublishersIF:
         self._unregisterPub(pub_name)
 
     def unregister_pubs(self):
-        for pub_name in self.pubs_dict.keys():
+        pub_names = list(self.pubs_dict.keys())
+        for pub_name in pub_names:
             self._unregisterPub(pub_name)
 
     def add_pubs(self,pubs_dict):
@@ -1176,7 +1177,8 @@ class ConnectNodeSubscribersIF:
         self._unregisterSub(sub_name)
 
     def unregister_subs(self):
-        for sub_name in self.subs_dict.keys():
+        sub_names = list(self.subs_dict.keys())
+        for sub_name in sub_names:
             self._unregisterSub(sub_name)
 
     def add_subs(self,subs_dict):
