@@ -528,6 +528,11 @@ class ConnectNodePublishersIF:
         self.pubs_dict[pub_name] = pub_dict
         self._initializePubs()
 
+    def register_pubs(self,pubs_dict = None):
+        if pubs_dict is not None:
+            self.pubs_dict.update(pubs_dict)
+        self._initializePubs()
+
     def unregister_pub(self,pub_name):
         self._unregisterPub(pub_name)
 
@@ -668,6 +673,11 @@ class ConnectNodeSubscribersIF:
 
     def register_sub(self,sub_name, sub_dict):
         self.subs_dict[sub_name] = sub_dict
+        self._initializeSubs()
+
+    def register_subs(self,subs_dict = None):
+        if subs_dict is not None:
+            self.subs_dict.update(subs_dict)
         self._initializeSubs()
 
     def unregister_sub(self,sub_name):
@@ -969,6 +979,9 @@ class ConnectNodeClassIF:
         if self.services_if is not None:
             self.services_if.register_pub(pub_name, pub_dict)
 
+    def register_pubs(self,pubs_dict = None):
+        if self.pubs_if is not None:
+            self.pubs_if.register_pubs(pubs_dict)
 
     def unregister_pub(self,pub_name):
         if self.services_if is not None:
@@ -990,6 +1003,9 @@ class ConnectNodeClassIF:
         if self.services_if is not None:
             self.services_if.register_sub(sub_name, sub_dict)
 
+    def register_subs(self, subs_dict):
+        if self.subs_if is not None:
+            self.subs_if.register_subs(subs_dict)
 
     def unregister_sub(self,sub_name):
         if self.services_if is not None:

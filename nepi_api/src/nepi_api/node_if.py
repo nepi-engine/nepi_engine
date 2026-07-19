@@ -25,7 +25,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_system
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
-
+from nepi_interfaces.msg import MgrSystemStatus, ConnectIFStatus
 from nepi_interfaces.msg import UpdateString
 
 from std_msgs.msg import Empty as EmptyMsg
@@ -35,6 +35,506 @@ from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
 
 from nepi_api.messages_if import MsgIF
+
+
+
+
+
+
+#########################################
+# Connect Node IF Class
+#########################################
+
+
+CONNECTED_TIMEOUT = 2
+
+class ConnectNodeIF:
+    
+    msg_if = None
+    node_if = None
+    node_if_shared = False
+    connect_if = None
+    connect_ready = False
+
+    active_nodes = []
+    active_topics = []
+    active_topic_types =  []
+    active_services =  []  
+    
+    connect_namespace = ''
+    connect_id = None
+    connect_status_msg = None
+    connect_name = None
+
+    available_topics = []
+    available_names = []
+    auto_select_enabled = True
+
+    selected_topic_param = 'None'
+    selected_topic = "None"
+    connecting = False
+    connected = False
+    connected_topic = 'None'
+    connect_msg = 'Not Selected'
+
+    show_selector = True
+    show_controls = True
+    show_data = True
+
+    connect_node_pubs_dict = None
+    connect_node_subs_dict = None
+
+    status_has_published = False
+
+    #######################
+    ### IF Initialization
+    def __init__(self, 
+                connect_id = None,
+                connect_status_msg = None,
+                connect_name = None,
+                selected_topic = "None",
+                auto_select_enabled = True,
+                show_selector = True,
+                show_controls = True,
+                show_data = True,
+                msg_if = None,
+                node_if = None
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
+
+        # Check ID Class
+        if connect_id is None:
+            self.msg_if.pub_warn("Connect ID Not Provided") 
+            return 
+        self.connect_id = connect_id
+
+
+
+        # Check Status Msg Type
+        if connect_status_msg is None:
+            self.msg_if.pub_warn("Connect Status Msg Type Not Provided") 
+            return 
+        self.connect_status_msg = connect_status_msg
+
+
+        self.connect_name = nepi_utils.get_clean_name(connect_name)
+        if self.connect_name is None or self.connect_name == '':
+            self.msg_if.pub_warn("Topic Name Not Valid: " + str(connect_name)) 
+            return
+        self.msg_if.pub_info("Using Topic Name: " + self.connect_name)
+        self.connect_namespace = nepi_sdk.create_namespace(self.node_name,self.connect_name)
+
+        
+        ##############################    
+        # Initialize Class Variables
+
+        if selected_topic != "None":
+            sselected_topic = nepi_sdk.get_full_namespace(selected_topic)
+        if selected_topic == '' or selected_topic == '/':
+            selected_topic = "None"
+        self.selected_topic = selected_topic
+
+        self.auto_select_enabled = auto_select_enabled
+        self.msg_if.pub_info("Auto select enabled: " + str(self.auto_select_enabled))
+
+        self.show_selector = show_selector
+        self.show_controls = show_controls
+        self.show_data = show_data
+
+                   
+        ##############################   
+        ## Node Setup
+
+        # Configs Config Dict ####################
+        CFGS_DICT = {
+                'namespace': self.connect_namespace      
+        }
+
+
+        # Publishers Config Dict ####################
+        self.connect_node_pubs_dict = {
+            'status_pub': {
+                'namespace': self.connect_namespace,
+                'topic': 'status',
+                'msg': ConnectIFStatus,
+                'qsize': 1,
+                'latch': True
+            }
+        }
+
+
+
+
+        # Subscribers Config Dict ####################
+        self.connect_node_subs_dict = {
+            'select_topic': {
+                'namespace': self.connect_namespace,
+                'topic': 'select_topic',
+                'msg': String,
+                'qsize': None,
+                'callback': self._selectTopicCb, 
+                'callback_args': ()
+            },
+            'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self._systemStatusCb
+            },
+        }
+
+
+        if node_if is None:
+            self.node_if = ConnectNodeClassIF(
+                            configs_dict = CFGS_DICT,
+                            services_dict = None,
+                            pubs_dict = self.connect_node_pubs_dict,
+                            subs_dict = self.connect_node_subs_dict,
+                            log_name_list = [],
+                            msg_if = self.msg_if
+            )
+            self.node_if.wait_for_ready()            
+        else:
+            self.node_if_shared = True
+            try:
+                self.node_if = node_if
+                self.node_if.register_pubs(self.connect_node_pubs_dict)
+                self.node_if.register_subs(self.connect_node_subs_dict)
+                nepi_sdk.sleep(1)
+            except Exception as e:
+                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
+                return
+
+
+        self.selected_topic_param = self.connect_name + "_selected_topic"
+        if selected_topic == "None":
+            if self.node_if.has_param(self.selected_topic_param):
+                selected_topic = self.node_if.get_param(self.selected_topic_param)
+            else:
+                self.node_if.add_param('selected_topic', self.connect_namespace, selected_topic)
+        self.selected_topic = selected_topic
+        self.msg_if.pub_info("Init Selected Topic: " + self.selected_topic)
+
+
+        ##############################
+        # Start updater process
+        nepi_sdk.start_timer_process(1.0, self._systemStatusCb, oneshot = True)        
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb) 
+
+        ##############################
+        # Complete Initialization
+        self.connect_ready = True
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
+        ###############################
+    
+
+    #######################
+    # Class Public Methods
+    #######################
+
+
+    def get_connect_ready_state(self):
+        """Return the ready state of the interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
+        return self.connect_ready
+
+    def wait_for_connect_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
+        success = False
+        if self.connect_ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_sdk.get_time()
+            while self.connect_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
+            if self.connect_ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.connect_ready  
+
+    def get_namespace(self):
+        """Return the fully-resolved ROS namespace for the connected PTX device.
+
+        Returns:
+            str: The fully-qualified namespace string used for topic and service resolution.
+        """
+        return self.connect_namespace
+    
+
+    def get_available_topics(self):
+        return self.available_topics
+    
+    def get_selected_topic(self):
+        return self.selected_topic
+    
+    def set_selected_topic(self, selected_topic):
+        if selected_topic in self.available_topics:
+            self.selected_topic = selected_topic
+        self.publish_status()
+        if self.node_if is not None:
+            self.msg_if.pub_warn("selected_topic: " + str(selected_topic))
+            self.node_if.set_param('selected_topic', selected_topic)
+    
+
+    def check_connection(self):
+        """Check whether the device is currently connected.
+
+        Returns:
+            bool: True if a status message has been received within the connection timeout window,
+                False otherwise.
+        """
+        return self.connected
+
+    def wait_for_connection(self, timeout = float('inf') ):
+        """Block until the device is connected or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if connection was established, False if the timeout was reached.
+        """
+        if self.node_if is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_sdk.get_time()
+            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
+            if self.connected == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.connected
+
+
+    # def subscribe_topic(self):
+    #     pass
+
+    # def unsubscribe_topic(self):
+    #     pass
+
+
+    def unregister(self):
+        success = False
+        self.unsubscribe_topic()
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.sleep(1)
+            else:
+                self.unsubscribe_topic()
+
+                if self.node_if is not None:
+                    if self.connect_node_subs_dict is not None:
+                        for sub_name in self.connect_node_subs_dict.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.connect_node_subs_dict = None
+
+                if self.node_if is not None:
+                    if self.connect_node_pubs_dict is not None:
+                        for pub_name in self.connect_node_pubs_dict.keys():
+                            self.node_if.unregister_pub(pub_name)
+                self.connect_node_pubs_dict = None
+                
+        time.sleep(1)
+        try:
+            self.node_if = None
+            self.selected_topic = 'None'
+            self.connecting = False 
+            self.connected = False 
+            self.connected_topic = 'None'
+            success = True
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to unregister:  " + str(e))
+        return success
+
+
+    def _selectTopicCb(self,msg):
+        topic = msg.data
+        self.set_selected_topic(topic)
+
+
+
+    def get_available_name(self, available_topics = []):
+        available_names = []
+        for topic in available_topics:
+            name = topic
+            topic = topic[1:]
+            topic_split = topic.split('/')
+            if len(topic_split) > 2:
+                name = topic_split[2]
+            available_names.append(name)
+        return available_names
+
+    def _publishStatusCb(self,timer):
+        self.publish_status()
+
+
+    def publish_status(self):
+
+        available_topics = copy.deepcopy(self.available_topics)
+        selected_topic = copy.deepcopy(self.selected_topic)
+        status_msg = ConnectIFStatus()
+
+        status_msg.name = self.connect_name
+        status_msg.id = self.connect_id
+
+        status_msg.status_msg_type = self.connect_status_msg
+
+        status_msg.available_topics = available_topics
+        available_names = self.get_available_name(available_topics)
+        status_msg.available_names = available_names
+
+        selected_name = 'None'
+        if selected_topic not in available_topics:
+            if len(available_topics) > 0 and self.auto_select_enabled == True:
+                selected_topic = available_topics[0]
+                self.selected_topic = selected_topic
+            else:
+                selected_topic = 'None' 
+
+        if selected_topic in available_topics:
+            selected_ind = available_topics.index(selected_topic)
+            selected_name = available_names[selected_ind]
+
+        status_msg.selected_topic = selected_topic
+        status_msg.selected_name = selected_name
+
+        status_msg.connecting = self.connecting
+        status_msg.connected = self.connected
+        connected_topic = self.connected_topic
+        if connected_topic is None:
+            connected_topic = 'None'
+        status_msg.connected_topic = connected_topic
+
+        connect_msg = "Not Selected"
+        if self.selected_topic != "None":
+            connect_msg = "Selected"
+            if self.connecting == True:
+                connect_msg = "Connecting"
+            if self.connected == True:
+                connect_msg = "Connected"
+        status_msg.connect_msg = connect_msg
+
+
+        status_msg.show_selector = self.show_selector
+        status_msg.show_selector = self.show_controls
+        status_msg.show_selector = self.show_data
+
+
+        ###########
+        if self.node_if is not None:
+            if self.status_has_published == False:
+                self.msg_if.pub_warn("Publishing Status: " + str(status_msg))
+                self.status_has_published = True
+            self.node_if.publish_pub('status_pub', status_msg) 
+            #self.node_if.save_config()
+
+
+
+
+    #######################
+    # Class Private Methods
+    #######################
+
+    # Wait for System and Config Statuses Callbacks
+    def _systemStatusCb(self,msg):
+            self.active_nodes = msg.active_nodes
+            self.active_topics = msg.active_topics
+            self.active_topic_types = msg.active_topic_types
+            self.active_services = msg.active_services
+            
+
+    def _systemStatusCb(self,timer):
+        needs_publish = False
+        ##############
+
+        selected_topic = copy.deepcopy(self.selected_topic)
+        last_available = copy.deepcopy(self.available_topics)
+
+        topics = nepi_sdk.find_topics_by_msg(self.connect_status_msg, topics_list = self.active_topics, types_list = self.active_topic_types)
+        available_topics = []
+        for topic in topics:
+            available_topics.append(topic.replace('/status',''))
+        if available_topics != last_available:
+            self.available_topics = available_topics
+            needs_publish = True
+
+        ####################
+        if self.connected_topic is not None:
+            if self.connected_topic not in self.available_topics:
+                success = self.unsubscribe_topic()
+        if selected_topic == 'None' and len(self.available_topics) > 0:
+            self.selected_topic = self.available_topics[0]
+        needs_publish = True
+
+        was_connected = copy.deepcopy(self.connected)
+        if self.selected_topic in self.available_topics and self.connected_topic != selected_topic:
+            success = self.subscribe_topic(self.selected_topic)
+        elif self.connect_if is not None:
+            self.connected = self.connect_if.check_connection()
+        else:
+            self.connected = False
+        
+        ##################
+        cur_time = nepi_utils.get_time()
+        last_time = copy.deepcopy(self.last_status_time )
+        if self.connected == True:
+            if (cur_time - last_time) > CONNECTED_TIMEOUT:
+                self.connecting = False 
+                self.connected = False 
+                self.connected_topic = ''
+                self.status_msg = None
+
+
+
+        ##################
+        # Get settings from param server
+        # if needs_publish == True:
+        #   self.publish_status()
+        nepi_sdk.start_timer_process(1.0, self._systemStatusCb, oneshot = True)
+
+
+
+
+
+
+
+
+
+
+
+#########################################
+# Connect Node Setup Classes
+#########################################
 
 
 ##################################################
@@ -1264,12 +1764,17 @@ class NodeClassIF:
 
 
     # Param Methods ####################
+    def add_param(self,param_name, namespace, value):
+        params = None
+        if self.params_if is not None:
+            params = self.params_if.add_param(param_name, namespace, value)
+
     def get_params(self):
         params = None
         if self.params_if is not None:
             params = self.params_if.get_params()
         return params
-
+    
     def load_params(self, file_path):
         if self.params_if is not None:
             self.params_if.load_params(file_path)
