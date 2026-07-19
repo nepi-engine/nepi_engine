@@ -91,6 +91,9 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 panTiltCb = None,
                 stopPanCb = None,
                 stopTiltCb = None,
+                show_selector = True,
+                show_controls = True,
+                show_data = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -103,9 +106,9 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 connect_name = connect_name,
                 selected_topic = namespace,
                 auto_select_enabled = True,
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
+                show_selector = show_selector,
+                show_controls = show_controls,
+                show_data = show_data,
                 msg_if = None,
                 node_if = None
                 )
