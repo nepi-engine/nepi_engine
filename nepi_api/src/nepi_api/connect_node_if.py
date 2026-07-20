@@ -38,6 +38,12 @@ from nepi_interfaces.msg import Reset
 
 from nepi_api.messages_if import MsgIF
 
+# Reuse the full node config/param machinery so ConnectNodeClassIF can persist
+# params (e.g. the connect selected_topic) via the config manager, exactly the
+# way NodeClassIF does. node_if.py does not import this module, so there is no
+# circular import.
+from nepi_api.node_if import NodeConfigsIF, NodeParamsIF
+
 
 
 
@@ -144,6 +150,8 @@ class ConnectNodeIF:
         ##############################    
         # Initialize Class Variables
 
+        if selected_topic is None:
+            selected_topic = "None"
         if selected_topic != "None":
             sselected_topic = nepi_sdk.get_full_namespace(selected_topic)
         if selected_topic == '' or selected_topic == '/':
@@ -163,7 +171,18 @@ class ConnectNodeIF:
 
         # Configs Config Dict ####################
         CFGS_DICT = {
-                'namespace': self.connect_namespace      
+                'namespace': self.connect_namespace
+        }
+
+        # Params Config Dict ####################
+        # Persist the selected topic under the connect namespace so the
+        # selection survives node restarts (via the config manager). Passing a
+        # params_dict is what enables config management on ConnectNodeClassIF.
+        CONNECT_PARAMS_DICT = {
+            'selected_topic': {
+                'namespace': self.connect_namespace,
+                'factory_val': self.selected_topic
+            }
         }
 
 
@@ -204,39 +223,44 @@ class ConnectNodeIF:
         if node_if is None:
             self.node_if = ConnectNodeClassIF(
                             configs_dict = CFGS_DICT,
+                            params_dict = CONNECT_PARAMS_DICT,
                             services_dict = None,
                             pubs_dict = self.connect_node_pubs_dict,
                             subs_dict = self.connect_node_subs_dict,
                             log_name_list = [],
                             msg_if = self.msg_if
             )
-            self.node_if.wait_for_ready()            
+            self.node_if.wait_for_ready()
         else:
             self.node_if_shared = True
             try:
                 self.node_if = node_if
                 self.node_if.register_pubs(self.connect_node_pubs_dict)
                 self.node_if.register_subs(self.connect_node_subs_dict)
+                # Register the persisted selection param on the shared node_if too.
+                self.node_if.add_param('selected_topic', self.connect_namespace, self.selected_topic)
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
                 return
 
 
-        self.selected_topic_param = self.connect_name + "_selected_topic"
+        # Restore any persisted selection. When no explicit topic was requested
+        # (selected_topic == "None"), use the value the config manager restored
+        # for this connect namespace. Otherwise honor the explicit request.
+        self.selected_topic_param = 'selected_topic'
         if selected_topic == "None":
-            if self.node_if.has_param(self.selected_topic_param):
-                selected_topic = self.node_if.get_param(self.selected_topic_param)
-            else:
-                self.node_if.add_param('selected_topic', self.connect_namespace, selected_topic)
+            persisted = self.node_if.get_param(self.selected_topic_param)
+            if persisted is not None and persisted != '' and persisted != "None":
+                selected_topic = persisted
         self.selected_topic = selected_topic
-        self.msg_if.pub_info("Init Selected Topic: " + self.selected_topic)
+        self.msg_if.pub_info("Init Selected Topic: " + str(self.selected_topic))
 
 
         ##############################
         # Start updater process
-        nepi_sdk.start_timer_process(1.0, self._systemStatusCb, oneshot = True)        
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb) 
+        nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
         # Complete Initialization
@@ -297,12 +321,15 @@ class ConnectNodeIF:
         return self.selected_topic
     
     def set_selected_topic(self, selected_topic):
-        if selected_topic in self.available_topics:
+        if selected_topic in self.available_topics or selected_topic == "None":
             self.selected_topic = selected_topic
         self.publish_status()
+        # Persist the selection so it survives a node restart. set_param writes
+        # the ROS param; save_config asks the config manager to save it to file.
         if self.node_if is not None:
             self.msg_if.pub_warn("selected_topic: " + str(selected_topic))
-            self.node_if.set_param('selected_topic', selected_topic)
+            self.node_if.set_param('selected_topic', self.selected_topic)
+            self.node_if.save_config()
     
 
     def check_connection(self):
@@ -448,8 +475,8 @@ class ConnectNodeIF:
 
 
         status_msg.show_selector = self.show_selector
-        status_msg.show_selector = self.show_controls
-        status_msg.show_selector = self.show_data
+        status_msg.show_controls = self.show_controls
+        status_msg.show_data = self.show_data
 
 
         ###########
@@ -467,15 +494,20 @@ class ConnectNodeIF:
     # Class Private Methods
     #######################
 
-    # Wait for System and Config Statuses Callbacks
+    # ROS callback for the system status msg. Populates the active topic/type
+    # lists that discovery searches. NOTE: this MUST NOT share a name with the
+    # discovery timer below -- a duplicate name silently shadows this method, so
+    # active_topics never gets populated and discovery finds nothing.
     def _systemStatusCb(self,msg):
             self.active_nodes = msg.active_nodes
             self.active_topics = msg.active_topics
             self.active_topic_types = msg.active_topic_types
             self.active_services = msg.active_services
-            
 
-    def _systemStatusCb(self,timer):
+
+    # Discovery/connection timer. Finds available topics of the connect status
+    # msg type among the active topics, auto-selects, and subscribes.
+    def _updaterCb(self,timer):
         needs_publish = False
         ##############
 
@@ -503,9 +535,12 @@ class ConnectNodeIF:
             success = self.subscribe_topic(self.selected_topic)
         elif self.connect_if is not None:
             self.connected = self.connect_if.check_connection()
-        else:
+        elif self.selected_topic not in self.available_topics:
             self.connected = False
-        
+        # else: already subscribed to the selected topic -- leave self.connected
+        # to the status callback (sets True on each msg) and the staleness check
+        # below, so it does not get clobbered False every cycle.
+
         ##################
         cur_time = nepi_utils.get_time()
         last_time = copy.deepcopy(self.last_status_time )
@@ -522,7 +557,7 @@ class ConnectNodeIF:
         # Get settings from param server
         # if needs_publish == True:
         #   self.publish_status()
-        nepi_sdk.start_timer_process(1.0, self._systemStatusCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
 
 
@@ -1307,19 +1342,24 @@ class ConnectNodeClassIF:
     node_if = None
     msg_if = None
 
+    configs_dict = None
+    configs_if = None
+    params_if = None
     services_if = None
     pubs_if = None
     subs_if = None
 
     #######################
     ### IF Initialization
-    def __init__(self, 
+    def __init__(self,
                 configs_dict = None,
+                params_dict = None,
                 services_dict = None,
                 pubs_dict = None,
                 subs_dict = None,
                 node_name = None,
                 do_wait = False,
+                wait_cfg_mgr = True,
                 log_name_list = [],
                 msg_if = None
                 ):
@@ -1331,7 +1371,7 @@ class ConnectNodeClassIF:
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
+        ##############################
         # Create Msg Class
         if msg_if is None:
             self.msg_if = MsgIF()
@@ -1340,8 +1380,36 @@ class ConnectNodeClassIF:
         self.log_name_list = copy.deepcopy(log_name_list)
         self.log_name_list.append(self.class_name)
         self.msg_if.pub_info("Starting Connect Node IF Initialization Processes", log_name_list = self.log_name_list)
-  
-        ##############################  
+
+        ##############################
+        # Create Config and Param Classes
+        #
+        # Params always get a (possibly empty) params_if so has_param/get_param/
+        # set_param never fail. Config management (which is what actually makes
+        # params persist across restarts, via the config manager) is only wired
+        # when a params_dict is provided, so connect interfaces that pass no
+        # params_dict keep their previous lightweight, non-config-managed
+        # behavior unchanged.
+        if params_dict is not None and configs_dict is not None:
+            # Inject our own config callbacks that reload params first, mirroring
+            # NodeClassIF, so a config-manager reload repopulates the params.
+            self.configs_dict = configs_dict
+            injected_configs_dict = {
+                'init_callback': self._initConfigCb,
+                'reset_callback': self._resetConfigCb,
+                'factory_reset_callback': self._factoryResetConfigCb,
+                'init_configs': True,
+                'namespace': configs_dict['namespace']
+            }
+            self.configs_if = NodeConfigsIF(configs_dict = injected_configs_dict,
+                                            wait_cfg_mgr = wait_cfg_mgr,
+                                            msg_if = self.msg_if,
+                                            log_name_list = self.log_name_list)
+            nepi_sdk.sleep(1)
+
+        self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+
+        ##############################
         # Create Sub Classes
         self.services_if = ConnectNodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
         self.pubs_if = ConnectNodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
@@ -1388,29 +1456,61 @@ class ConnectNodeClassIF:
 
 
     # Config Methods ####################
-    def get_config_namespace(self):
-        namespace = None
+    def save_config(self):
         if self.configs_if is not None:
-            namespace = self.configs_if.get_namespace()
-        return namespace
+            self.configs_if.save_config()
 
-    def save_config(self, config_dict):
-        success = False
+    def save_config_all(self):
         if self.configs_if is not None:
-            success = self.configs_if.save()
-        return success
+            self.configs_if.save_config_all()
 
-    def reset_config(self, config_dict):
-        success = False
+    def reset_config(self):
         if self.configs_if is not None:
-            success = self.configs_if.reset()
-        return success
+            self.configs_if.reset_config()
 
-    def factory_reset_config(self, config_dict):
-        success = False
+    def factory_reset_config(self):
         if self.configs_if is not None:
-            success = self.configs_if.factory_reset()
-        return success
+            self.configs_if.factory_reset_config()
+
+
+    # Param Methods ####################
+    def add_param(self, param_name, namespace, value):
+        if self.params_if is not None:
+            self.params_if.add_param(param_name, namespace, value)
+
+    def get_params(self):
+        params = None
+        if self.params_if is not None:
+            params = self.params_if.get_params()
+        return params
+
+    def initialize_params(self):
+        if self.params_if is not None:
+            self.params_if.initialize_params()
+
+    def reset_params(self):
+        if self.params_if is not None:
+            self.params_if.reset_params()
+
+    def factory_reset_params(self):
+        if self.params_if is not None:
+            self.params_if.factory_reset_params()
+
+    def has_param(self, param_name):
+        exists = False
+        if self.params_if is not None:
+            exists = self.params_if.has_param(param_name)
+        return exists
+
+    def get_param(self, param_name):
+        value = None
+        if self.params_if is not None:
+            value = self.params_if.get_param(param_name)
+        return value
+
+    def set_param(self, param_name, value):
+        if self.params_if is not None:
+            self.params_if.set_param(param_name, value)
 
 
     # Service Methods ####################
@@ -1470,20 +1570,20 @@ class ConnectNodeClassIF:
 
 
     def register_pub(self,pub_name, pub_dict):
-        if self.services_if is not None:
-            self.services_if.register_pub(pub_name, pub_dict)
+        if self.pubs_if is not None:
+            self.pubs_if.register_pub(pub_name, pub_dict)
 
     def register_pubs(self,pubs_dict = None):
         if self.pubs_if is not None:
             self.pubs_if.register_pubs(pubs_dict)
 
     def unregister_pub(self,pub_name):
-        if self.services_if is not None:
-            self.services_if.unregister_pub(pub_name)
+        if self.pubs_if is not None:
+            self.pubs_if.unregister_pub(pub_name)
 
     def unregister_pubs(self):
-        if self.services_if is not None:
-            self.services_if.unregister_pubs()
+        if self.pubs_if is not None:
+            self.pubs_if.unregister_pubs()
                     
     # Subsciber Methods ####################
     def get_subs(self):
@@ -1494,20 +1594,20 @@ class ConnectNodeClassIF:
 
 
     def register_sub(self,sub_name, sub_dict):
-        if self.services_if is not None:
-            self.services_if.register_sub(sub_name, sub_dict)
+        if self.subs_if is not None:
+            self.subs_if.register_sub(sub_name, sub_dict)
 
     def register_subs(self, subs_dict):
         if self.subs_if is not None:
             self.subs_if.register_subs(subs_dict)
 
     def unregister_sub(self,sub_name):
-        if self.services_if is not None:
-            self.services_if.unregister_sub(sub_name)
+        if self.subs_if is not None:
+            self.subs_if.unregister_sub(sub_name)
 
     def unregister_subs(self):
-        if self.services_if is not None:
-            self.services_if.unregister_subs()
+        if self.subs_if is not None:
+            self.subs_if.unregister_subs()
 
     # Class Methods ####################
     def unregister_class(self):
@@ -1522,5 +1622,28 @@ class ConnectNodeClassIF:
     # Class Private Methods
     ###############################
 
+    # Config-manager callbacks injected into NodeConfigsIF. They reload the
+    # params first (so a config reload repopulates them) and then call any
+    # caller-provided callback, mirroring NodeClassIF.
+    def _initConfigCb(self, do_updates = False):
+        self.initialize_params()
+        if self.configs_dict is not None:
+            if 'init_callback' in self.configs_dict.keys():
+                if self.configs_dict['init_callback'] is not None:
+                    self.configs_dict['init_callback'](do_updates = do_updates)
+
+    def _resetConfigCb(self):
+        self.reset_params()
+        if self.configs_dict is not None:
+            if 'reset_callback' in self.configs_dict.keys():
+                if self.configs_dict['reset_callback'] is not None:
+                    self.configs_dict['reset_callback']()
+
+    def _factoryResetConfigCb(self):
+        self.factory_reset_params()
+        if self.configs_dict is not None:
+            if 'factory_reset_callback' in self.configs_dict.keys():
+                if self.configs_dict['factory_reset_callback'] is not None:
+                    self.configs_dict['factory_reset_callback']()
 
 

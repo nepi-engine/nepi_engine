@@ -91,6 +91,9 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 panTiltCb = None,
                 stopPanCb = None,
                 stopTiltCb = None,
+                show_selector = True,
+                show_controls = True,
+                show_data = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -103,9 +106,9 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 connect_name = connect_name,
                 selected_topic = namespace,
                 auto_select_enabled = True,
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
+                show_selector = show_selector,
+                show_controls = show_controls,
+                show_data = show_data,
                 msg_if = None,
                 node_if = None
                 )
@@ -356,6 +359,20 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         """Publish a stop command to halt all motion on the PTX device.
         """
         pub_name = 'stop_moving'
+        msg = Empty()
+        self.node_if.publish_pub(pub_name,msg)
+
+    def stop_pan(self):
+        """Publish a stop command to halt pan-axis motion on the PTX device.
+        """
+        pub_name = 'stop_pan'
+        msg = Empty()
+        self.node_if.publish_pub(pub_name,msg)
+
+    def stop_tilt(self):
+        """Publish a stop command to halt tilt-axis motion on the PTX device.
+        """
+        pub_name = 'stop_tilt'
         msg = Empty()
         self.node_if.publish_pub(pub_name,msg)
 
@@ -738,6 +755,18 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             'stop_moving': {
                 'namespace': self.selected_topic,
                 'topic': 'stop_moving',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'stop_pan': {
+                'namespace': self.selected_topic,
+                'topic': 'stop_pan',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'stop_tilt': {
+                'namespace': self.selected_topic,
+                'topic': 'stop_tilt',
                 'msg': Empty,
                 'qsize': 1,
             },
