@@ -439,7 +439,7 @@ class ConnectNodeIF:
         status_msg.status_msg_type = self.connect_status_msg
 
         status_msg.available_topics = available_topics
-        available_names = self.get_available_name(available_topics)
+        available_names = self.get_available_names(available_topics)
         status_msg.available_names = available_names
 
         selected_name = 'None'
