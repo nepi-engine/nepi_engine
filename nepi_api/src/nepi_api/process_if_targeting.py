@@ -34,8 +34,6 @@ from sensor_msgs.msg import Image
 from nepi_interfaces.msg import NavPose, ImageStatus, Localization, MgrSystemStatus
 from nepi_interfaces.msg import StringArray, BoundingBox, AiBoundingBoxes
 from nepi_interfaces.msg import Target, Targets, TargetingStatus, TargetingUpdate
-from nepi_interfaces.msg import AiDetectorStatus
-from nepi_interfaces.srv import AiDetectorStatusQuery, AiDetectorStatusQueryRequest, AiDetectorStatusQueryResponse
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -46,7 +44,7 @@ from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
 
 from nepi_api.messages_if import MsgIF
-from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
+from nepi_api.node_if import NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
 
@@ -54,16 +52,74 @@ from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 
 
 
-EXAMPLE_DETECTION_DICT_ENTRY = {
-    'name': 'chair', # Class String Name
+EXAMPLE_TARGET_DICT_ENTRY = {
+    'name': 'chair', # Class     'Name
     'id': 1, # Class Index from Classes List
     'uid': '', # Reserved for unique tracking by downstream applications
     'prob': .3, # Probability of detection
     'xmin': 10,
     'ymin': 10,
     'xmax': 100,
-    'ymax': 100
+    'ymax': 100,
+
+    # Epoch seconds of the source image this target was detected in
+    'timestamp': 0, # Timestamp in seconds
+
+    'target_name': 'chair', # Class Name
+    'target_uid': '', # Unique target identifier int
+    'target_confidence': .3, # Probability of detection
+
+    # 2D Data ENU Reference Frame
+    'xmin_pixel': 10,
+    'xmax_pixel': 100,
+
+    'ymin_pixel': 10,
+    'ymax_pixel': 100,
+
+    'width_pixels': 90,
+    'height_pixels': 90,
+
+    'area_ratio': 30, 
+    'area_pixels': 1800,
+    'vel_pixels': 40,
+
+    # 3D Data in ENU Reference Frame
+    'width_meters': 10,
+    'height_meters': 10,
+    'depth_meters': 10,
+    'area_meters': 100,
+    'volume_meters': 1000,
+    'vel_xyz_mps': 60,
+    'center_xyz_meters': [10,10,10],
+
+    # Range, Bearing, Nav, and Pose Data ENU Reference Frame
+    'range_m': 10.0,
+    'azimuth_deg': 10.0,
+    'elevation_deg': 10.0,
+
+    # Color Distribution Percent 
+    'color_black': 10.0,
+    'color_white': 10.0,	
+    'color_red': 10.0,	
+    'color_blue': 10.0,	
+    'color_yellow': 10.0,	
+    'color_cyan': 10.0,	
+    'color_magenta': 10.0,	
+    'color_green': 30.0,	
+
+    # Contour Data
+    'contour_moments': [10.0,10.0,10.0],
+
+    # Shape Distribution Percent
+    'shape_triangle': 10.0,
+    'shape_rectangle': 10.0,
+    'shape_quadrilateral': 10.0,
+    'shape_pentagon': 10.0,
+    'shape_hexagon': 10.0,
+    'shape_circle': 60.0,
 }
+
+
 
 MIN_THRESHOLD = 0.01
 MAX_THRESHOLD = 1.0
@@ -89,10 +145,10 @@ GET_IMAGE_TIMEOUT_SEC = 5
 
 class AiDetectorIF:
     
-    IMAGE_DATA_PRODUCT = 'detection_image'
+    IMAGE_DATA_PRODUCT = 'targets_image'
     IMAGE_SUB_MSG = 'Waiting for Source Image'
     IMAGE_PUB_MSG = 'Loading Image Publisher'
-    IMAGE_FILTERS = ['detection','targeting','tracking']
+    IMAGE_FILTERS = ['color_image']
 
     BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
     BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
@@ -1459,10 +1515,10 @@ class AiDetectorIF:
         topics = nepi_sdk.find_topics_by_msg('Image', topics_list = self.active_topics, types_list = self.active_topic_types)
         available_image_topics = []
         for topic in topics:
-            valid_topic = True
+            valid_topic = False
             for filter in self.IMAGE_FILTERS:
                 if filter in topic:
-                    valid_topic = False
+                    valid_topic = True
             if valid_topic == True:
                 available_image_topics.append(topic)
         if available_image_topics != last_available:
