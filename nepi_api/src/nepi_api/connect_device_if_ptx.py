@@ -362,6 +362,20 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         msg = Empty()
         self.node_if.publish_pub(pub_name,msg)
 
+    def stop_pan(self):
+        """Publish a stop command to halt pan-axis motion on the PTX device.
+        """
+        pub_name = 'stop_pan'
+        msg = Empty()
+        self.node_if.publish_pub(pub_name,msg)
+
+    def stop_tilt(self):
+        """Publish a stop command to halt tilt-axis motion on the PTX device.
+        """
+        pub_name = 'stop_tilt'
+        msg = Empty()
+        self.node_if.publish_pub(pub_name,msg)
+
 
     def goto_to_position(self,pan_deg,tilt_deg):
         """Command the PTX device to move to an absolute pan and tilt position.
@@ -741,6 +755,18 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             'stop_moving': {
                 'namespace': self.selected_topic,
                 'topic': 'stop_moving',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'stop_pan': {
+                'namespace': self.selected_topic,
+                'topic': 'stop_pan',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'stop_tilt': {
+                'namespace': self.selected_topic,
+                'topic': 'stop_tilt',
                 'msg': Empty,
                 'qsize': 1,
             },
