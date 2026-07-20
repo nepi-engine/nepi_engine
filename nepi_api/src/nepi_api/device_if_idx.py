@@ -1495,7 +1495,7 @@ class IDXDeviceIF:
                         range_m = self.max_range_m - self.min_range_m
                         min_range_m = self.min_range_m + self.start_range_ratio * range_m
                         max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
-                        [o3d_pc, cv2_pc_img] = dp_if.publish_cv2_o3d_pc(o3d_pc,
+                        o3d_pc = dp_if.publish_o3d_pc(o3d_pc,
                                                 width_deg = self.width_deg,
                                                 height_deg = self.height_deg,
                                                 min_range_m = min_range_m,

@@ -5812,12 +5812,12 @@ class PointcloudIF:
             # Start Pub Process
             start_time = nepi_utils.get_time()   
 
-            self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
+            self.status_msg.point_count = len(o3d_pc.points)
 
 
             if self.node_if is not None and self.needs_data == True:
                 #Convert to ros Image message
-                ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc,navpose_frame = 'None')
+                ros_pc = nepi_pc.o3dpc_to_rospc(o3d_pc)
                 sec = nepi_sdk.sec_from_timestamp(timestamp)
                 ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'sensor')
                 #self.msg_if.pub_debug("Publishing Pointcloud with header: " + str(ros_pc.header), log_name_list = self.log_name_list, throttle_s = 5.0)

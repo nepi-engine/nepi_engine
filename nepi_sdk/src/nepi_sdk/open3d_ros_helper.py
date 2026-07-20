@@ -357,7 +357,12 @@ def o3dpc_to_rospc(o3dpc, stamp=None, frame_id=None):
         rgb_npy = rgb_npy.astype(np.uint32)
         data['rgb'] = rgb_npy
 
-    rospc = rnp.msgify(PointCloud2, data)
+    # NOTE: build the PointCloud2 directly rather than via rnp.msgify. Some
+    # ros_numpy installs expose the point_cloud2/image submodules but not the
+    # top-level msgify/numpify registry (AttributeError: module 'ros_numpy' has
+    # no attribute 'msgify'). Every field below is set explicitly, and the packed
+    # buffer is written from the structured array, so no registry call is needed.
+    rospc = PointCloud2()
 
     if stamp is None:
         rospc.header.stamp = nepi_sdk.get_msg_stamp()
@@ -398,6 +403,10 @@ def o3dpc_to_rospc(o3dpc, stamp=None, frame_id=None):
     rospc.is_bigendian = False
     rospc.row_step = rospc.point_step * n_points
     rospc.is_dense = True
+    # Pack the structured array (x,y,z[,rgb]) straight into the message buffer.
+    # The dtype layout matches the fields/point_step declared above (contiguous,
+    # little-endian == is_bigendian False), so tobytes() is the serialized cloud.
+    rospc.data = data.tobytes()
     return rospc
 
 def do_transform_point(o3dpc, transform_stamped):
