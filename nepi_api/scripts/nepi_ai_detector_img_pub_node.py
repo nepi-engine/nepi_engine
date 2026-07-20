@@ -1023,7 +1023,7 @@ class AiDetectorImgPub:
         self.overlay_clf_name = self.status_msg.overlay_clf_name
         self.overlay_img_name = self.status_msg.overlay_img_name
         last_sel_imgs = copy.deepcopy(self.selected_img_topics)
-        self.selected_img_topics = self.status_msg.selected_images
+        self.selected_img_topics = self.status_msg.selected_sources
         if last_sel_imgs != self.selected_img_topics:
             self.msg_if.pub_warn("Updating selected images topics: " + str(self.selected_img_topics))
         

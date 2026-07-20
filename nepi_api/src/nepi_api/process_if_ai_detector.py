@@ -112,7 +112,7 @@ class AiDetectorIF:
 
     data_products = ['bounding_boxes',IMAGE_DATA_PRODUCT]
 
-    available_image_topics = []
+    available_source_topics = []
 
     api_lib_folder = '/opt/nepi/nepi_engine/lib/nepi_api'
 
@@ -199,7 +199,7 @@ class AiDetectorIF:
     max_proc_rate_hz = DEFAULT_MAX_PROC_RATE
     max_img_rate_hz = DEFAULT_MAX_IMG_RATE
     use_last_image = DEFAULT_USE_LAST_IMAGE
-    selected_images = []
+    selected_sources = []
 
     pub_image_enabled=True
     launch_node_process=None
@@ -333,7 +333,7 @@ class AiDetectorIF:
                 'namespace': self.node_namespace,
                 'factory_val': self.enabled
             },
-            'selected_images': {
+            'selected_sources': {
                 'namespace': self.node_namespace,
                 'factory_val': []
             },
@@ -1052,8 +1052,8 @@ class AiDetectorIF:
             self.max_proc_rate_hz = self.node_if.get_param('max_proc_rate_hz')
             self.max_img_rate_hz = self.node_if.get_param('max_img_rate_hz')
             self.use_last_image = self.node_if.get_param('use_last_image')
-            self.selected_images = self.node_if.get_param('selected_images')
-            self.msg_if.pub_info("Init selected images: " + str(self.selected_images), log_name_list = self.log_name_list)
+            self.selected_sources = self.node_if.get_param('selected_sources')
+            self.msg_if.pub_info("Init selected images: " + str(self.selected_sources), log_name_list = self.log_name_list)
 
             self.save_config()
         if do_updates == True:
@@ -1102,10 +1102,10 @@ class AiDetectorIF:
 
     def setImageTopic(self, img_topic, save_config = True):
         self.msg_if.pub_info("Set Image Topic: " + img_topic)         
-        self.selected_images = [img_topic]
+        self.selected_sources = [img_topic]
         self.publish_status()
         if self.node_if is not None and save_config == True:
-            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.set_param('selected_sources',self.selected_sources)
             self.save_config()
 
     def setImageTopicsCb(self,msg):
@@ -1116,10 +1116,10 @@ class AiDetectorIF:
 
     def setImageTopics(self, img_topics, save_config = True):
         self.msg_if.pub_info("Set Image Topics: " + str(img_topics))         
-        self.selected_images = img_topics
+        self.selected_sources = img_topics
         self.publish_status()
         if self.node_if is not None and save_config == True:
-            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.set_param('selected_sources',self.selected_sources)
             self.save_config()
 
 
@@ -1138,15 +1138,15 @@ class AiDetectorIF:
 
     def addImageTopic(self,img_topic):   
         self.msg_if.pub_info("Adding Image Topic: " + img_topic)
-        img_topics = copy.deepcopy(self.selected_images)
+        img_topics = copy.deepcopy(self.selected_sources)
         if img_topic not in img_topics:
             img_topics.append(img_topic)
         else:
             self.msg_if.pub_warn('Image topic allready selected')
-        self.selected_images = img_topics
+        self.selected_sources = img_topics
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.set_param('selected_sources',self.selected_sources)
             self.save_config()
 
 
@@ -1166,13 +1166,13 @@ class AiDetectorIF:
 
     def removeImageTopic(self,img_topic,save_config = True):
         self.msg_if.pub_info("Removing Image Topic: " + img_topic)         
-        img_topics = copy.deepcopy(self.selected_images)
+        img_topics = copy.deepcopy(self.selected_sources)
         if img_topic in img_topics:
             img_topics.remove(img_topic)
-        self.selected_images = img_topics
+        self.selected_sources = img_topics
         self.publish_status()
         if self.node_if is not None and save_config == True:
-            self.node_if.set_param('selected_images',self.selected_images)
+            self.node_if.set_param('selected_sources',self.selected_sources)
             self.save_config()
 
 
@@ -1450,33 +1450,33 @@ class AiDetectorIF:
         
     def updaterCb(self,timer):
         #self.msg_if.pub_warn("Updating with image topic: " +  self.img_topic)
-        selected_images = copy.deepcopy(self.selected_images)
+        selected_sources = copy.deepcopy(self.selected_sources)
         active_img_topics = self.getActiveImgTopics()
 
         ##############
-        last_available = copy.deepcopy(self.available_image_topics)
+        last_available = copy.deepcopy(self.available_source_topics)
         
         topics = nepi_sdk.find_topics_by_msg('Image', topics_list = self.active_topics, types_list = self.active_topic_types)
-        available_image_topics = []
+        available_source_topics = []
         for topic in topics:
             valid_topic = False
             for filter in self.IMAGE_FILTERS:
                 if filter in topic:
                     valid_topic = True
             if valid_topic == True:
-                available_image_topics.append(topic)
-        if available_image_topics != last_available:
-            self.available_image_topics = available_image_topics
+                available_source_topics.append(topic)
+        if available_source_topics != last_available:
+            self.available_source_topics = available_source_topics
             needs_publish = True
 
         ##############
         #self.msg_if.pub_warn("")
-        #self.msg_if.pub_warn("Updating with image topics: " +  str(selected_images))
+        #self.msg_if.pub_warn("Updating with image topics: " +  str(selected_sources))
         #self.msg_if.pub_warn("Updating with active image topics: " +  str(active_img_topics))
         purge_list = []
         # Update Image subscribers
         found_img_topics = []
-        for img_topic in selected_images:
+        for img_topic in selected_sources:
             img_topic = nepi_sdk.find_topic(img_topic, exact = True)
             if img_topic != '':
                 found_img_topics.append(img_topic)
@@ -1485,7 +1485,7 @@ class AiDetectorIF:
                     success = self.subscribeImgTopic(img_topic)              
         # Update Image Subs purge list
         for img_topic in active_img_topics:
-            if img_topic not in found_img_topics or img_topic not in selected_images:
+            if img_topic not in found_img_topics or img_topic not in selected_sources:
                 purge_list.append(img_topic)
         if len(purge_list) > 0:
             self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
@@ -1784,7 +1784,7 @@ class AiDetectorIF:
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         enabled = self.enabled
         if enabled == True:
-            img_topics = self.selected_images
+            img_topics = self.selected_sources
             connected_list = []
             for topic in img_topics:
                 if topic in imgs_info_dict.keys():
@@ -2526,8 +2526,8 @@ class AiDetectorIF:
         self.status_msg.use_last_image = self.use_last_image
 
 
-        self.status_msg.available_image_topics = self.available_image_topics
-        self.status_msg.selected_images = self.selected_images
+        self.status_msg.available_source_topics = self.available_source_topics
+        self.status_msg.selected_sources = self.selected_sources
 
 
 
@@ -2545,14 +2545,14 @@ class AiDetectorIF:
             img_has_ranges.append(imgs_info_dict[img_topic]['has_range'])
             img_hfovs.append(imgs_info_dict[img_topic]['width_deg'])
             img_vfovs.append(imgs_info_dict[img_topic]['height_deg'])
-        self.status_msg.images_connected = img_connects
-        self.status_msg.images_have_range = img_has_ranges
-        self.status_msg.images_fov_horz_degs = img_hfovs
-        self.status_msg.images_fov_vert_degs = img_vfovs
+        self.status_msg.sources_connected = img_connects
+        self.status_msg.sources_have_range = img_has_ranges
+        self.status_msg.sources_fov_horz_degs = img_hfovs
+        self.status_msg.sources_fov_vert_degs = img_vfovs
         img_selected = len(img_connects) > 0 or self.img_file_processing
-        self.status_msg.image_selected = img_selected 
+        self.status_msg.source_selected = img_selected 
         img_connected = True in img_connects or self.img_file_processing
-        self.status_msg.image_connected = img_connected 
+        self.status_msg.source_connected = img_connected 
 
 
 
