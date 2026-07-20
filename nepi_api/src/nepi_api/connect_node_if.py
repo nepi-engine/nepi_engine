@@ -412,7 +412,7 @@ class ConnectNodeIF:
 
 
 
-    def get_available_name(self, available_topics = []):
+    def get_available_names(self, available_topics = []):
         available_names = []
         for topic in available_topics:
             name = topic

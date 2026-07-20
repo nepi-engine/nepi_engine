@@ -2608,40 +2608,8 @@ class AiDetectorIF:
         # ################
         # # Targeting Status
 
-        self.targets_status_msg.name = self.node_name
-        self.targets_status_msg.node_name = self.node_name
-        self.targets_status_msg.namespace = self.node_namespace + '/' + self.targeting_topic
-        self.targets_status_msg.group = 'ai_detection'
-        self.targets_status_msg.description = self.model_description
-
-        self.targets_status_msg.save_data_topic = self.save_data_namespace
-        self.targets_status_msg.save_config_enabled = self.save_config_enabled
-
-        #################
-        self.targets_status_msg.enabled = self.enabled
-        self.targets_status_msg.running = running
-        self.targets_status_msg.state = detecting
-        self.targets_status_msg.msg_str = self.msg_str
-
-        self.targets_status_msg.available_source_topics = self.available_image_topics
-        self.targets_status_msg.selected_sources = self.selected_images
-        self.targets_status_msg.sources_connected = img_connects
-        self.targets_status_msg.sources_have_range = img_has_ranges
-        self.targets_status_msg.sources_fov_horz_degs = img_hfovs
-        self.targets_status_msg.sources_fov_vert_degs = img_vfovs
-
-        self.targets_status_msg.source_selected = img_selected 
-        self.targets_status_msg.source_connected = img_connected 
-
-        self.targets_status_msg.available_classes = self.classes
-        self.targets_status_msg.selected_classes = sel_classes
-
-        self.targets_status_msg.threshold_filter = self.threshold
-
-        self.targets_status_msg.pub_image_enabled = self.pub_image_enabled
-        self.targets_status_msg.image_source_topics  = img_source_topics
-        self.targets_status_msg.image_pub_topics = img_pub_topics
-
+        self.targets_status_msg = self.status_msg
+        
         #self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(self.targets_status_msg), throttle_s = 5)
         if self.node_if is not None:
             # if self.targeting_has_published == False:
