@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -17,876 +17,129 @@
 # - mailto:nepi@numurus.com
 #
 
-
 import os
-import time 
+import time
 import copy
-
+import math
 import threading
+import numpy as np
+
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_system
 from nepi_sdk import nepi_img
-from nepi_sdk import nepi_pc
-from nepi_sdk import nepi_nav
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image
-
+from nepi_interfaces.msg import SaveDataRate
 from nepi_interfaces.msg import ImageStatus
 
-from sensor_msgs.msg import PointCloud2
-from nepi_interfaces.msg import PointcloudStatus
-
-from nepi_interfaces.msg import NavPose, NavPoses, NavPoseStatus, NavPosesStatus
-
 from nepi_api.messages_if import MsgIF
-from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, Transform3DIF
+
+from nepi_api.connect_node_if import ConnectNodeIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
 
 
 
-##################################################
-## ConnectNavPoseIF
 
-EXAMPLE_NAVPOSE_DATA_DICT = {
-    'navpose_frame': 'nepi_frame',
-    'frame_nav': 'ENU',
-    'frame_altitude': 'WGS84',
-    'frame_depth': 'MSL',
+#########################################
+# Connect IF Class
+#########################################
 
-    'geoid_height_meters': 0,
 
+CONNECT_ID='DATA'
+CONNECT_STATUS_MSG='ImageStatus'
+CONNECT_NAME='data_connect'
 
-    'has_location': True,
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'latitude': 47.080909,
-    'longitude': -120.8787889,
 
-    'has_heading': True,
-    'time_heading': nepi_utils.get_time(),
-    # Heading should be provided in Degrees True North
-    'heading_deg': 120.50,
+CONNECTED_TIMEOUT = 2
 
-    'has_position': True,
-    'time_position': nepi_utils.get_time(),
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 1.234,
-    'y_m': 1.234,
-    'z_m': 1.234,
 
-    'has_orientation': True,
-    'time_orientation': nepi_utils.get_time(),
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 30.51,
-    'pitch_deg': 30.51,
-    'yaw_deg': 30.51,
+class ConnectDataIF(ConnectNodeIF):
 
-    'has_altitude': True,
-    'time_altitude': nepi_utils.get_time(),
-    # Altitude should be provided in postivie meters in specified altitude_m frame
-    'altitude_m': 12.321,
+    # ADD Additional Connect Callback Functions
 
-    'has_depth': False,
-    'time_depth': nepi_utils.get_time(),
-    # Depth should be provided in positive meters
-    'depth_m': 0.0,
-
-    'has_pan_tilt': False,
-    'time_pan_tilt': nepi_utils.get_time(),
-    # Pan Tilt should be provided in positive degs
-    'pan_deg': 0.0,
-    'tilt_deg': 0.0
-}
-
-EXAMPLE_NAVPOSES_DATA_DICT = {
-    'navpose_frame_options': ['nepi_frame'],
-    'navposes': [copy.deepcopy(EXAMPLE_NAVPOSE_DATA_DICT)]
-}
-
-
-class ConnectNavPoseIF:
-
-    NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
-    NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
-    NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
-
-
-    DEFAULT_CALLBACK_DICT = dict(
-        frame_updated_callback = None,
-        navpose_updated_callback = None,
-        navposes_updated_callback = None
-    )
-    callback_dict = copy.deepcopy(DEFAULT_CALLBACK_DICT)
-
-    ready = False
-    namespace = '~'
-
-    node_if = None
-    save_data_if = None
-
-    status_msg = NavPoseStatus()
-
-    data_poduct = 'navpose'
-    data_products_list = ['navpose']
-
-    navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-    navposes_dict = dict()
-    navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
-
-    navpose_ref_description = ''
-
-    navpose_frame_selectable = True
-    navpose_frame_options = ['None']
-    sel_navpose_frame = 'None'
-
-    use_pannavpose_ref_descriptiontilt_for_heading = False
-
-    connected = False
-
- 
-    def __init__(self, namespace = None,
-                callback_dict = dict(),
-                navpose_ref_description = '',
-                navpose_frame_selectable = True,
-                transform_if = None,
-                save_data_if = None,
-                log_name = None,
-                log_name_list = [],
-                msg_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
-
-        ##############################    
-        # Initialize Class Variables
-        if namespace is not None:
-            self.namespace = namespace
-        namespace = nepi_sdk.create_namespace(namespace,'navpose')
-        self.namespace = nepi_sdk.get_full_namespace(namespace)
-
-        
-        for key in self.DEFAULT_CALLBACK_DICT.keys():
-            if key not in callback_dict.keys():
-                callback_dict[key] = self.DEFAULT_CALLBACK_DICT[key]
-        self.callback_dict = callback_dict
-
-        self.navpose_frame_selectable = navpose_frame_selectable
-        self.navpose_ref_description = navpose_ref_description
-
-        #########################
-        # Initialize status message
-        self.status_msg.node_name = self.node_name
-        self.status_msg.navpose_topic = self.namespace       
-
-        self.status_msg.is_navapose_subscriber = True
-        self.status_msg.is_navpose_publisher = True
-
-        
-        ##############################   
-        ## Node Setup
-
-        # Configs Config Dict ####################
-        self.CONFIGS_DICT = {
-            'init_callback': self._initCb,
-            'reset_callback': self._resetCb,
-            'factory_reset_callback': self._factoryResetCb,
-            'init_configs': True,
-            'namespace': self.namespace
-        }
-
-        # Services Config Dict ####################     
-        self.SRVS_DICT = None
-
-        # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            'sel_navpose_frame': {
-                'namespace': self.namespace,
-                'factory_val': self.sel_navpose_frame
-            },
-            'use_pantilt_for_heading': {
-                'namespace': self.namespace,
-                'factory_val': self.use_pantilt_for_heading
-            },
-        }
-
-
-
-        # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            'status_pub': {
-                    'msg': NavPosesStatus,
-                    'namespace': self.namespace,
-                    'topic': 'status',
-                    'qsize': 1,
-                    'latch': True
-                },
-            'navpose_pub': {
-                    'msg': NavPose,
-                    'namespace': self.namespace,
-                    'topic': '',
-                    'qsize': 1,
-                    'latch': True
-                }
-
-        }
-     
-        # Subs Config Dict ####################
-        self.SUBS_DICT = {
-            'set_navpose_frame': {
-                'namespace': self.namespace,
-                'topic': 'set_navpose_frame',
-                'msg': String,
-                'qsize': 5,
-                'callback': self._setNavposeFrameCb, 
-                'callback_args': ()
-            },
-            'set_use_pantilt_for_heading': {
-                'namespace': self.namespace,
-                'topic': 'set_use_pantilt_for_heading',
-                'msg': Bool,
-                'qsize': 5,
-                'callback': self._setPtHeadingCb, 
-                'callback_args': ()
-            },
-        }
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(
-                        params_dict = self.PARAMS_DICT,
-                        pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
-                         msg_if = self.msg_if
-                                            )
-
-        success = nepi_sdk.wait()
-
-        if save_data_if is not None and save_data_if != 'None':
-            self.save_data_if = save_data_if
-        elif save_data_if != 'None':
-            
-            # Setup Save Data IF Class 
-            self.msg_if.pub_info("Starting Save Data IF Initialization")
-            factory_data_rates= {}
-            for d in self.data_products_list:
-                factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-            self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
-
-            factory_filename_dict = {
-                'prefix': "", 
-                'add_timestamp': True, 
-                'add_ms': True,
-                'add_us': False,
-                'suffix': "",
-                'add_node_name': True
-                }
-
-            sd_namespace = self.namespace
-            self.save_data_if = SaveDataIF(namespace = sd_namespace,
-                                    data_products = self.data_products_list,
-                                    factory_rate_dict = factory_data_rates,
-                                    factory_filename_dict = factory_filename_dict,
-                                    log_name_list = self.log_name_list,
-                                    msg_if = self.msg_if)
-            nepi_sdk.sleep(1)
-        if self.save_data_if is not None:
-            data_products = self.save_data_if.get_data_products()
-            for data_product in self.data_products_list:
-                if data_product not in data_products:
-                    self.save_data_if.register_data_product(data_product)
-            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-
-
-        #########################
-        if transform_if is not None and transform_if != 'None':
-            self.transform_if = transform_if
-        elif transform_if != 'None':
-            tf_namespace = self.namespace
-            self.transform_if = Transform3DIF(namespace = tf_namespace,
-                source_ref_description = '',
-                end_ref_description = self.node_name,
-                get_3d_transform_function = None,
-                log_name_list = self.log_name_list,
-                msg_if = self.msg_if)
-            nepi_sdk.sleep(1)
-       
-        if self.transform_if is not None:
-            self.status_msg.transform_topic = self.transform_if.get_namespace()
-            self.msg_if.pub_info("Using transform namespace: " + str(self.status_msg.transform_topic))
-
-        ######################
-
-        self.status_msg.transform_topic = ''
-
-       
-        ##############################
-        # Update vals from param server
-        self.init(do_updates = True)
-        self.publish_status()
-
-        ##############################
-        # Start Node Processes
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
-        nepi_sdk.start_timer_process(1.0, self._saveDataCb, oneshot = True)
-
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
-        ###############################
-
-
-    ###############################
-    # Class Public Methods
-    ###############################
-
-
-    def get_ready_state(self):
-        """Return the current ready state of this interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to
-                float('inf') (wait indefinitely).
-
-        Returns:
-            bool: True if ready before the timeout, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
-            timer = 0
-            time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_utils.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
-            else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready
-
-    def get_namespace(self):
-        """Return the ROS namespace for this navpose interface.
-
-        Returns:
-            str: The fully resolved ROS namespace string.
-        """
-        return self.namespace
-
-    def get_data_products(self):
-        """Return the list of data products provided by this interface.
-
-        Returns:
-            list: A list containing the single data product name for this interface.
-        """
-        return [self.data_product]
-
-    def get_blank_navpose_dict(self):
-        """Return a blank navpose dictionary with default values.
-
-        Returns:
-            dict: A deep copy of the blank navpose dictionary template.
-        """
-        blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-        return blank_navpose_dict
-
-
-    def set_navpose_frame_selectable(self, enabled):
-        """Set whether the navpose frame can be selected by external commands.
-
-        Args:
-            enabled (bool): True to allow frame selection, False to lock it.
-        """
-        self.navpose_frame_selectable = enabled
-
-    def get_navpose_frame_selectable(self):
-        """Return whether the navpose frame is user-selectable.
-
-        Returns:
-            bool: True if the frame can be selected, False if it is locked.
-        """
-        return self.navpose_frame_selectable
-
-    def set_navpose_ref_desc(self, description):
-        """Set the human-readable reference description for the navpose source.
-
-        Args:
-            description (str): Text describing the navpose reference source.
-        """
-        self.self.navpose_ref_description = description
-
-    def get_navpose_ref_desc(self):
-        """Return the human-readable reference description for the navpose source.
-
-        Returns:
-            str: The navpose reference description string.
-        """
-        return self.self.navpose_ref_description
-
-    def get_navpose_frames(self):
-        """Return the list of available navpose frame options.
-
-        Returns:
-            list: List of frame name strings that can be selected.
-        """
-        return self.navpose_frame_options
-
-    def get_navpose_frame(self):
-        """Return the currently selected navpose frame.
-
-        Returns:
-            str: The name of the currently selected navpose frame.
-        """
-        return self.sel_navpose_frame
-
-    def set_navpose_frame(self, frame):
-        """Set the active navpose frame and persist the selection.
-
-        If the given frame name is in the list of available options, it becomes
-        the selected frame and the frame_updated_callback is invoked. Status is
-        published and the configuration is saved regardless of whether the frame
-        was valid.
-
-        Args:
-            frame (str): The frame name to select. Must be in navpose_frame_options
-                to take effect.
-        """
-        if frame in self.navpose_frame_options:
-            self.sel_navpose_frame = frame
-            if 'frame_updated_callback' in self.callback_dict.keys():
-                self.callback_dict['frame_updated_callback'](frame)
-        self.publish_status()
-        if self.node_if is not None:
-            self.node_if.save_config()
-
-    def get_navpose_dict(self):
-        """Return a copy of the current navpose data dictionary.
-
-        Returns:
-            dict: A deep copy of the latest navpose data dictionary.
-        """
-        navpose_dict =  copy.deepcopy(self.navpose_dict)
-        return navpose_dict
-
-
-    def get_status_dict(self):
-        """Return the current status message as a plain dictionary.
-
-        Returns:
-            dict: The status message converted to a dictionary, or None if no
-                status message is available.
-        """
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-    def save_data(self):
-        """Save the current navpose data and schedule the next save cycle.
-
-        If a SaveDataIF is configured, the current navpose dictionary is written
-        to the data product store. A one-shot timer is then started to trigger
-        the next save.
-        """
-        if self.save_data_if is not None:
-            navpose_dict = copy.deepcopy(self.navpose_dict)
-            self.save_data_if.save('navpose',navpose_dict)
-        nepi_sdk.start_timer_process(0.1, self._saveDataCb, oneshot = True)
-
-
-    def get_navpose_callback_options(self):
-        """Return the list of supported navpose callback names.
-
-        Returns:
-            list: List of string keys identifying the available callback slots.
-        """
-        return list(self.callback_dict.keys())
-
-    def set_navpose_callback(self, name, function):
-        """Register a function for a named navpose callback slot.
-
-        Args:
-            name (str): The callback slot name. Must be a key in the callback
-                dictionary.
-            function (callable): The function to invoke when the callback fires.
-        """
-        self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
-        if name in self.callback_dict.keys():
-            self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
-            self.callback_dict[name] = function
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
-
-    def clear_navpose_callback(self, name):
-        """Clear a previously registered navpose callback by name.
-
-        Args:
-            name (str): The callback slot name to clear. Must be a key in the
-                callback dictionary.
-        """
-        self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
-        if name in self.callback_dict.keys():
-            self.callback_dict[name] = None
-
-    def unsubscribe(self):
-        """Unregister this interface, releasing all ROS resources.
-
-        Sets the ready flag to False, unregisters the underlying node class,
-        and clears the namespace and status message.
-        """
-        self.ready = False
-        if self.node_if is not None:
-            self.node_if.unregister_class()
-        time.sleep(1)
-        self.namespace = None
-        self.status_msg = NavPosesStatus()
-
-
-
-    def publish_status(self):
-        """Publish the current status message on the status topic.
-
-        Assembles the latest state — selected frame, frame options, pan-tilt
-        heading flag, and connection state — into the status message and
-        publishes it via the node interface.
-        """
-        if self.node_if is not None and self.status_msg is not None:
-
-            sel_navpose_frame = copy.deepcopy(self.sel_navpose_frame)
-            if sel_navpose_frame in self.navposes_dict.keys():
-                sel_navpose_frame = 'None'
-            self.status_msg.sel_navpose_frame = sel_navpose_frame
-
-            self.status_msg.navpose_frame_selectable = self.navpose_frame_selectable
-            if self.navpose_frame_selectable == False:
-                self.status_msg.navpose_frame_options = [sel_navpose_frame]
-            else:
-                self.status_msg.navpose_frame_options = self.navpose_frame_options
-
-            self.status_msg.use_pantilt_for_heading = self.use_pantilt_for_heading
-
-            self.status_msg.connected = self.connected
-
-            self.node_if.publish_pub('status_pub', self.status_msg)
-
-
-
-
-    def init(self, do_updates = False):
-        """Load parameters from the ROS parameter server and refresh status.
-
-        Args:
-            do_updates (bool, optional): Reserved for future use; triggers
-                additional update logic when True. Defaults to False.
-        """
-        if self.node_if is not None:
-            self.sel_navpose_frame = self.node_if.get_param('sel_navpose_frame')
-            self.use_pantilt_for_heading = self.node_if.get_param('use_pantilt_for_heading')
-        if do_updates == True:
-            pass
-        self.publish_status()
-
-    def reset(self):
-        """Reset the interface to its current parameter server values.
-
-        Delegates to init() to reload parameters and republish status.
-        """
-        if self.node_if is not None:
-            pass
-        self.init()
-
-    def factory_reset(self):
-        """Reset the interface to factory defaults.
-
-        Delegates to init() to reload parameters and republish status.
-        """
-        if self.node_if is not None:
-            pass
-        self.init()
-
-
-    ###############################
-    # Class Private Methods
-    ###############################
-
-
-    def _initCb(self, do_updates = False):
-        self.init(do_updates = do_updates)
-
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
-
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
-
-
-    def _setNavposeFrameCb(self,msg):
-        frame = msg.data
-        if frame in self.navpose_frame_options:
-            self.sel_navpose_frame = frame
-        self.publish_status()
-        if 'frame_updated_callback' in self.callback_dict.keys():
-            self.callback_dict['frame_updated_callback'](self.sel_navpose_frame)
-        if self.node_if is not None:
-            self.node_if.set_param('sel_navpose_frame', self.sel_navpose_frame)
-            self.node_if.save_config()
-
-    def _setPtHeadingCb(self,msg):
-        enabled = msg.data
-        self.use_pantilt_for_heading = enabled
-        self.publish_status()
-        if self.node_if is not None:
-            self.node_if.set_param('use_pantilt_for_heading', enabled)
-            self.node_if.save_config()
-
-    def _navposeCb(self,msg):
-        self.connected = True
-        self.navposes_dict = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
-        self.navpose_frame_options = list(self.navposes_dict.keys())
-        if 'navposes_updated_callback' in self.callback_dict.keys():
-            self.callback_dict['navposes_updated_callback'](self.navposes_dict)
-
-        last_navpose_dict = copy.deepcopy(self.navpose_dict)
-        sel_navpose_frame = copy.deepcopy(self.sel_navpose_frame)
-        if sel_navpose_frame in self.navposes_dict.keys():
-            self.navpose_dict = self.navposes_dict[sel_navpose_frame]
-        else:
-            self.navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-        if last_navpose_dict != self.navpose_dict and 'navpose_updated_callback' in self.callback_dict.keys():
-            self.callback_dict['navpose_updated_callback'](self.navpose_dict)
-            if self.node_if is not None:
-                navpose_msg = nepi_nav.convert_navpose_dict2msg(self.navpose_dict,self.log_name_list)
-                self.node_if.publish_pub('navpose_pub',navpose_msg)
-
-    def _navposeStatusCb(self,msg):
-        #source_ref_description
-        self.connected = True
-        self.navposes_dict = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
-        self.navpose_frame_options = list(self.navposes_dict.keys())
-        if 'navposes_updated_callback' in self.callback_dict.keys():
-            self.callback_dict['navposes_updated_callback'](self.navposes_dict)
-
-        last_navpose_dict = copy.deepcopy(self.navpose_dict)
-        sel_navpose_frame = copy.deepcopy(self.sel_navpose_frame)
-        if sel_navpose_frame in self.navposes_dict.keys():
-            self.navpose_dict = self.navposes_dict[sel_navpose_frame]
-        else:
-            self.navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-        if last_navpose_dict != self.navpose_dict and 'navpose_updated_callback' in self.callback_dict.keys():
-            self.callback_dict['navpose_updated_callback'](self.navpose_dict)
-            if self.node_if is not None:
-                navpose_msg = nepi_nav.convert_navpose_dict2msg(self.navpose_dict,self.log_name_list)
-                self.node_if.publish_pub('navpose_pub',navpose_msg)
-
-        
-
-
-    def _publishStatusCb(self,timer):
-        self.publish_status()
-
-    def _saveDataCb(self,timer):
-        self.save_data()
-
-
-
-##################################################
-## ConnectNavPosesIF
-
-EXAMPLE_NAVPOSE_DATA_DICT = {
-    'navpose_frame': 'nepi_frame',
-    'frame_nav': 'ENU',
-    'frame_altitude': 'WGS84',
-    'frame_depth': 'MSL',
-
-    'geoid_height_meters': 0,
-
-
-    'has_location': True,
-    'time_location': nepi_utils.get_time(),
-    # Location Lat,Long
-    'latitude': 47.080909,
-    'longitude': -120.8787889,
-
-    'has_heading': True,
-    'time_heading': nepi_utils.get_time(),
-    # Heading should be provided in Degrees True North
-    'heading_deg': 120.50,
-
-    'has_position': True,
-    'time_position': nepi_utils.get_time(),
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 1.234,
-    'y_m': 1.234,
-    'z_m': 1.234,
-
-    'has_orientation': True,
-    'time_orientation': nepi_utils.get_time(),
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 30.51,
-    'pitch_deg': 30.51,
-    'yaw_deg': 30.51,
-
-    'has_altitude': True,
-    'time_altitude': nepi_utils.get_time(),
-    # Altitude should be provided in postivie meters in specified altitude_m frame
-    'altitude_m': 12.321,
-
-    'has_depth': False,
-    'time_depth': nepi_utils.get_time(),
-    # Depth should be provided in positive meters
-    'depth_m': 0.0,
-
-    'has_pan_tilt': False,
-    'time_pan_tilt': nepi_utils.get_time(),
-    # Pan Tilt should be provided in positive degs
-    'pan_deg': 0.0,
-    'tilt_deg': 0.0
-}
-
-EXAMPLE_NAVPOSES_DATA_DICT = {
-    'navpose_frame_options': ['nepi_frame'],
-    'navposes': [copy.deepcopy(EXAMPLE_NAVPOSE_DATA_DICT)]
-}
-
-
-############################################################
-## ConnectImageIF
-'''
-EXAMPLE_DATA_DICT = {   
-    'namespace':  self.node_namespace,     
-    'data': None,
-    'width': 0,
-    'height': 0,
-    'timestamp': nepi_sdk.get_time(),
-    'ros_img_header': Header(),
-    'ros_img_stamp': Header().stamp,
-    'get_latency_time': 0,
-    'got_latency_time': 0,
-    'process_time': 0 
-}
-'''
-
-class ConnectImageIF:
 
     msg_if = None
     ready = False
     namespace = '~'
 
-    con_node_if = None
+    node_if = None
 
-    connected = False
     status_msg = None
-    status_connected = False
+    connected = False
+    last_status_time = 0
 
+    statusCb = None # Backwards Compatibility
+
+    # Data pipeline state. The connected data source publishes an Image on its
+    # base namespace and an ImageStatus on <namespace>/status. Retrieved image
+    # frames are cached here (thread-safe) for polling consumers, or handed
+    # straight to callback_function when one is provided.
     data_dict = None
     data_dict_lock = threading.Lock()
 
     get_data = False
     got_data = False
 
+    preprocessFunction = None
+    callbackFunction = None
 
-
+    connect_topic_subs_dict = None
+    connect_topic_pubs_dict = None
     #######################
     ### IF Initialization
-    def __init__(self, 
-                namespace,
+    def __init__(self,
+                connect_name = CONNECT_NAME,
+                namespace = None,
+                statusCb = None,
                 preprocess_function = None,
                 callback_function = None,
+                show_selector = True,
+                show_controls = True,
+                show_data = True,
                 log_name = None,
                 log_name_list = [],
-                msg_if = None
+                msg_if = None,
+                node_if = None
                 ):
+
+        super().__init__(
+                connect_id = CONNECT_ID,
+                connect_status_msg = CONNECT_STATUS_MSG,
+                connect_name = connect_name,
+                selected_topic = namespace,
+                auto_select_enabled = True,
+                show_selector = show_selector,
+                show_controls = show_controls,
+                show_data = show_data,
+                msg_if = None,
+                node_if = None
+                )
         ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+        self.wait_for_connect_ready()
 
 
-        ##############################    
+
+        ##############################
         # Initialize Class Variables
 
-
+        self.statusCb = statusCb
         self.preprocessFunction = preprocess_function
         self.callbackFunction = callback_function
 
 
-
-        ##############################   
-        ## Node Setup
-
-        # Subs Config Dict ####################
-        self.SUBS_DICT = {
-            'img_sub': {
-                'msg': Image,
-                'namespace': self.namespace,
-                'topic': '',
-                'qsize': 1,
-                'callback': self._dataCb
-            },
-            'status_sub': {
-                'msg': ImageStatus,
-                'namespace': self.namespace,
-                'topic': 'status',
-                'qsize': 5,
-                'callback': self._statusCb
-            }
-        }
-
-        # Create Node Class ####################
-        self.con_node_if = ConnectNodeClassIF(
-                        subs_dict = self.SUBS_DICT,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
-                                            )
-
+        ##############################
+        # Start updater process
+        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete")
         ###############################
+
 
     #######################
     # Class Public Methods
@@ -894,7 +147,7 @@ class ConnectImageIF:
 
 
     def get_ready_state(self):
-        """Return the current ready state of this interface.
+        """Return the ready state of the interface.
 
         Returns:
             bool: True if the interface has completed initialization, False otherwise.
@@ -905,115 +158,149 @@ class ConnectImageIF:
         """Block until the interface is ready or the timeout expires.
 
         Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to
-                float('inf') (wait indefinitely).
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
 
         Returns:
-            bool: True if ready before the timeout, False if the timeout was reached.
+            bool: True if the interface became ready, False if the timeout was reached.
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection")
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect")
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected")
         return self.ready
 
     def get_namespace(self):
-        """Return the ROS namespace for this image interface.
+        """Return the fully-resolved ROS namespace for the connected data source.
 
         Returns:
-            str: The ROS namespace string used by this interface.
+            str: The fully-qualified namespace string used for topic and service resolution.
         """
-        return self.namespace
+        return self.selected_topic
 
     def check_connection(self):
-        """Return whether an image message has been received.
+        """Check whether the data source is currently connected.
 
         Returns:
-            bool: True if at least one image message has been received, False otherwise.
+            bool: True if a status message has been received within the connection timeout window,
+                False otherwise.
         """
         return self.connected
 
     def wait_for_connection(self, timeout = float('inf') ):
-        """Block until an image message is received or the timeout expires.
+        """Block until the data source is connected or the timeout expires.
 
         Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to
-                float('inf') (wait indefinitely).
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
 
         Returns:
-            bool: True if connected before the timeout, False otherwise.
+            bool: True if connection was established, False if the timeout was reached.
         """
-        if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+        if self.node_if is not None and self.selected_topic != 'None':
+            self.msg_if.pub_info("Waiting for connection")
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect")
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected")
         return self.connected
 
 
     def check_status_connection(self):
-        """Return whether a status message has been received from the image source.
+        """Check whether the status topic from the data source is currently connected.
 
         Returns:
-            bool: True if at least one status message has been received, False otherwise.
+            bool: True if status messages are being received, False otherwise.
         """
-        return self.status_connected
+        return self.connected
 
     def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until a status message is received or the timeout expires.
+        """Block until the data source status topic is connected or the timeout expires.
 
         Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to
-                float('inf') (wait indefinitely).
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
 
         Returns:
-            bool: True if a status message was received before the timeout, False otherwise.
+            bool: True if the status connection was established, False if the timeout was reached.
         """
-        if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
+        if self.node_if is not None and self.selected_topic != 'None':
+            self.msg_if.pub_info("Waiting for status connection")
             timer = 0
             time_start = nepi_sdk.get_time()
-            while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
-            if self.status_connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
+            if self.connected == False:
+                self.msg_if.pub_info("Failed to connect to status msg")
             else:
-                self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
-        return self.status_connected
+                self.msg_if.pub_info("Status Connected")
+        return self.connected
 
     def get_status_dict(self):
-        """Return the last received image status message as a plain dictionary.
+        """Return the latest data source status as a dictionary.
 
         Returns:
-            dict: The status message converted to a dictionary, or None if no
-                status message has been received yet.
+            dict: A dictionary representation of the most recent ImageStatus message,
+                or None if no status has been received yet.
         """
-        img_status_dict = None
+        status_dict = None
         if self.status_msg is not None:
-            img_status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return self.img_status_dict
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+        return status_dict
 
-    def set_get_img(self, state):
-        """Set the flag requesting capture of the next available image.
+    def get_status_msg(self):
+        """Return the latest data source status as a msg.
+
+        Returns:
+            dict: A msg representation of the most recent ImageStatus message,
+                or None if no status has been received yet.
+        """
+        return self.status_msg
+
+    def get_data_topic(self):
+        """Return the image data topic of the connected data source.
+
+        Returns:
+            str: The selected data source namespace, which is also the Image topic
+                the source publishes on, or 'None' if no source is selected.
+        """
+        return self.selected_topic
+
+    def get_encoding(self):
+        """Return the image encoding reported by the connected data source.
+
+        Returns:
+            str: The encoding string (e.g. 'bgr8'), or None if no status has been received.
+        """
+        if self.status_msg is not None:
+            return self.status_msg.encoding
+
+    def get_image_size_px(self):
+        """Return the image dimensions in pixels reported by the connected data source.
+
+        Returns:
+            list: A two-element list [width_px, height_px], or None if no status
+                has been received.
+        """
+        if self.status_msg is not None:
+            return [self.status_msg.width_px, self.status_msg.height_px]
+
+    def set_get_data(self, state):
+        """Set the flag requesting capture of the next available image frame.
 
         Args:
-            state (bool): True to request the next image frame, False to clear
-                the request.
+            state (bool): True to request the next frame, False to clear the request.
 
         Returns:
             bool: Always True.
@@ -1026,8 +313,8 @@ class ConnectImageIF:
 
         Returns:
             list: A two-element list [get_data, got_data] where get_data indicates
-                whether an image has been requested and got_data indicates whether
-                an image is waiting to be retrieved.
+                whether a frame has been requested and got_data indicates whether a
+                frame is waiting to be retrieved.
         """
         return [self.get_data, self.got_data]
 
@@ -1035,7 +322,7 @@ class ConnectImageIF:
         """Retrieve and consume the latest captured image data dictionary.
 
         Thread-safe. Clears the stored data after retrieval so subsequent calls
-        return None until a new image arrives.
+        return None until a new frame arrives.
 
         Returns:
             dict: The image data dictionary containing the cv2 image, dimensions,
@@ -1047,897 +334,249 @@ class ConnectImageIF:
         self.data_dict_lock.release()
         return data_dict
 
-    def unregister(self):
-        """Unregister this interface and release all ROS subscriptions."""
-        self._unsubscribeTopic()
+    def save_config(self):
+        """Publish a save configuration command to persist current settings on the data source.
+        """
+        self.node_if.publish_pub('save_config',Empty())
+
+    def reset_config(self):
+        """Publish a reset configuration command to restore the last saved settings on the data source.
+        """
+        self.node_if.publish_pub('reset_config',Empty())
+
+    def factory_reset_config(self):
+        """Publish a factory reset command to restore factory default settings on the data source.
+        """
+        self.node_if.publish_pub('factory_reset_config',Empty())
 
     #################
-    ## Save Config Functions
+    ## Save Data Functions
 
-    def call_save_config(self):
-        """Send a save-config command to the connected image source node."""
-        self.con_node_if.publish_pub('save_config',Empty())
+    def get_save_data_products(self):
+        """Return the list of available save data products for this data source.
 
-    def call_reset_config(self):
-        """Send a reset-config command to the connected image source node."""
-        self.con_node_if.publish_pub('reset_config',Empty())
+        Returns:
+            list: A list of data product identifiers supported by the save data interface.
+        """
+        data_products = self.con_save_data_if.get_data_products()
+        return data_products
 
-    def call_factory_reset_config(self):
-        """Send a factory-reset-config command to the connected image source node."""
-        self.con_node_if.publish_pub('factory_reset_config',Empty())
+    def get_save_data_status_dict(self):
+        """Return the current save data status as a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the save data interface status.
+        """
+        status_dict = self.con_save_data_if.get_status_dict()
+        return status_dict
+
+    def save_data_enable_pub(self,enable):
+        """Enable or disable data saving on the data source.
+
+        Args:
+            enable (bool): True to enable data saving, False to disable it.
+        """
+        self.con_save_data_if.save_data_pub(enable)
+
+    def save_data_prefix_pub(self,prefix):
+        """Publish an updated filename prefix for saved data files.
+
+        Args:
+            prefix (str): The prefix string to prepend to saved data filenames.
+        """
+        self.con_save_data_if.save_data_prefix_pub(prefix)
+
+    def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
+        """Publish an updated save rate for a data product.
+
+        Args:
+            rate_hz (float): Desired save rate in Hz.
+            data_product (int, optional): Identifier for the specific data product to update.
+                Defaults to SaveDataRate.ALL_DATA_PRODUCTS.
+        """
+        self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
+
+    def save_data_snapshot_pub(self):
+        """Trigger a one-shot snapshot save of current data on the data source.
+        """
+        self.con_save_data_if.publish_pub()
+
+    def save_data_factory_reset_pub(self):
+        """Publish a factory reset command to restore the save data configuration to defaults.
+        """
+        pub_name = 'factory_reset'
+        msg = Empty()
+        self.con_save_data_if.publish_pub(pub_name,msg)
 
     ###############################
     # Class Private Methods
     ###############################
 
+    def updaterCb(self,timer):
+        cur_time = nepi_utils.get_time()
+        last_time = copy.deepcopy(self.last_status_time )
+        if self.connected == True:
+            if (cur_time - last_time) > CONNECTED_TIMEOUT:
+                self.connected = False
+                self.status_msg = None
 
-    def _unsubscribeTopic(self):
+        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
+
+
+
+
+    def subscribe_topic(self, topic):
+        self.msg_if.pub_warn("subscribe_data_topic Called")
+
         success = False
-        self.connected = False
-        if self.con_node_if is not None:
-            self.msg_if.pub_info("Unregistering topic: " + str(self.namespace))
-            try:
-                self.connected = False
-                self.con_node_if.unregister_class()
-                time.sleep(1)
-                self.con_node_if = None
-                self.namespace = None
-                self.connected = False
-                self.data_dict = None
-                success = True
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to unregister image:  " + str(e))
-        return success
+        success = self.unsubscribe_topic()
 
-
-    def _dataCb(self,data_msg):      
-        #self.msg_if.pub_warn("Got img for topic:  " + self.namespace)
-
-        # Process ros image message
-        current_time = nepi_sdk.get_msg_stamp()
-        get_msg_stampstamp = data_msg.header.stamp
-        latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
-        data_dict['get_latency_time'] = latency
-        #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency))
-
-        start_time = nepi_sdk.get_time()   
-
-
-        get_data = (self.callbackFunction is not None or self.get_data == True)
-        #self.msg_if.pub_warn("Got Img with get_data: " + str(self.get_data) + " got_data: " + str(self.got_data))
-        if get_data == True:
-            self.get_data = False
-           # self.msg_if.pub_warn("Got get_data flag. Processing img for topic:  " + self.namespace)
-            ##############################
-            ### Preprocess Image
-            
-            data = nepi_img.rosimg_to_cv2img(data_msg)
-
-            if self.preprocessFunction is not None:
-                try:
-                    data = self.preprocessFunction(data)
-                except Exception as e:
-                    self.msg_if.pub_warn("Provided Image Preprocess Function failed:  " + str(e))
-
-            data_dict = dict()
-            data_dict['namespace'] = self.namespace
-            data_dict['data'] = data
-            height, width = data.shape[:2]
-            data_dict['width'] = width 
-            data_dict['height'] = height 
-            get_msg_stampstamp = data_msg.header.stamp
-            data_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(get_msg_stampstamp)
-            data_dict['ros_img_header'] = data_msg.header
-            data_dict['ros_img_stamp'] = get_msg_stampstamp
-            ##############################
-
-            process_time = round( (nepi_sdk.get_time() - start_time) , 3)
-            data_dict['process_time'] = process_time
-
-            latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
-            data_dict['got_latency_time'] = latency
-            #self.msg_if.pub_debug("Img Pub Latency: {:.2f}".format(latency))
-
-            if self.callbackFunction is not None:
-                self.callbackFunction(data_dict)
-            else:
-                self.data_dict_lock.acquire()
-                self.data_dict = data_dict
-                self.data_dict_lock.release()
-                self.got_data = True
-        self.connected = True
-
-
-    def _statusCb(self,status_msg):      
-        self.status_connected = True
-        self.status_msg = status_msg
-
-
-
-############################################################
-
-
-'''
-EXAMPLE_DATA_DICT = {      
-    'namespace':  self.node_namespace, 
-    'data': None,
-    'width': 0,
-    'height': 0,
-    'depth': 0,
-    'point_count': 0,
-    'has_rgb': False,
-    'timestamp': nepi_sdk.get_time(),
-    'ros_pc_header': Header(),
-    'ros_pc_stamp': Header().stamp,
-    'get_latency_time':0,
-    'pub_latency_time':0,
-    'process_time':0
-}
-'''
-
-class ConnectPointcloudIF:
-    """AI is creating summary for 
-
-    :return: [description]
-    :rtype: [type]
-    """
-
-    msg_if = None
-    ready = False
-    namespace = '~'
-
-    con_node_if = None
-
-    connected = False
-    status_msg = None
-    status_connected = False
-
-
-    data_dict = None
-    data_dict_lock = threading.Lock()
-
-    get_data = False
-    got_data = False
-
-
- 
-    #######################
-    ### IF Initialization
-    def __init__(self, 
-                namespace,
-                preprocess_function = None,
-                callback_function = None,
-                log_name = None,
-                log_name_list = [],
-                msg_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
-
-
-        ##############################    
-        # Initialize Class Variables
-
-        
-
-        self.preprocessFunction = preprocess_function
-        self.callbackFunction = callback_function
-
-
-        ##############################   
-        ## Node Setup
-
-        # Subs Config Dict ####################
-        self.SUBS_DICT = {
-            'pc_sub': {
-                'msg': PointCloud2,
-                'namespace': self.namespace,
+        # Subscribers Config Dict ####################
+        self.connect_topic_subs_dict = {
+            'status_sub': {
+                'namespace': self.selected_topic,
+                'topic': 'status',
+                'msg': ImageStatus,
+                'qsize': 10,
+                'callback': self._statusCb
+            },
+            'data_sub': {
+                'namespace': self.selected_topic,
                 'topic': '',
+                'msg': Image,
                 'qsize': 1,
                 'callback': self._dataCb
-            },
-            'status_sub': {
-                'msg': PointcloudStatus,
-                'namespace': self.namespace,
-                'topic': 'status',
-                'qsize': 5,
-                'callback': self._statusCb
             }
         }
 
-        # Create Node Class ####################
-        self.con_node_if = ConnectNodeClassIF(
-                        subs_dict = self.SUBS_DICT,
-                                            log_name_list = self.log_name_list,
-                                            msg_if = self.msg_if
-                                            )
-
-        #self.con_node_if.wait_for_ready()
-        nepi_sdk.wait()
 
 
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
-        ###############################
-    
-
-    #######################
-    # Class Public Methods
-    #######################
-
-
-    def get_ready_state(self):
-        """Return the current ready state of this interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to
-                float('inf') (wait indefinitely).
-
-        Returns:
-            bool: True if ready before the timeout, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
-            else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.ready
-
-    def get_namespace(self):
-        """Return the ROS namespace for this pointcloud interface.
-
-        Returns:
-            str: The ROS namespace string used by this interface.
-        """
-        return self.namespace
-
-    def check_connection(self):
-        """Return whether a pointcloud message has been received.
-
-        Returns:
-            bool: True if at least one pointcloud message has been received, False otherwise.
-        """
-        return self.connected
-
-    def wait_for_connection(self, timeout = float('inf') ):
-        """Block until a pointcloud message is received or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to
-                float('inf') (wait indefinitely).
-
-        Returns:
-            bool: True if connected before the timeout, False otherwise.
-        """
-        if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
-            else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-        return self.connected
+        # Publishers Config Dict ####################
+        self.connect_topic_pubs_dict = {
+            'save_config': {
+                'namespace': self.selected_topic,
+                'topic': 'save_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'reset_config': {
+                'namespace': self.selected_topic,
+                'topic': 'reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'factory_reset_config': {
+                'namespace': self.selected_topic,
+                'topic': 'factory_reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            }
 
 
-    def check_status_connection(self):
-        """Return whether a status message has been received from the pointcloud source.
+        }
 
-        Returns:
-            bool: True if at least one status message has been received, False otherwise.
-        """
-        return self.status_connected
+        if self.node_if is not None:
+            self.node_if.register_pubs(self.connect_topic_pubs_dict)
+            self.node_if.register_subs(self.connect_topic_subs_dict)
+            self.connecting = True
+            self.connected = False
+            self.connected_topic = 'None'
+            self.status_msg = None
 
-    def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until a status message is received or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to
-                float('inf') (wait indefinitely).
-
-        Returns:
-            bool: True if a status message was received before the timeout, False otherwise.
-        """
-        if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.status_connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
-            else:
-                self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
-        return self.status_connected
-
-    def get_status_dict(self):
-        """Return the last received pointcloud status message as a plain dictionary.
-
-        Returns:
-            dict: The status message converted to a dictionary, or None if no
-                status message has been received yet.
-        """
-        img_status_dict = None
-        if self.status_msg is not None:
-            img_status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return self.img_status_dict
-
-    def set_get_img(self, state):
-        """Set the flag requesting capture of the next available pointcloud.
-
-        Args:
-            state (bool): True to request the next pointcloud frame, False to
-                clear the request.
-
-        Returns:
-            bool: Always True.
-        """
-        self.get_data = state
-        return True
-
-    def read_get_got_states(self):
-        """Return the current get and got data flags.
-
-        Returns:
-            list: A two-element list [get_data, got_data] where get_data indicates
-                whether a pointcloud has been requested and got_data indicates whether
-                a pointcloud is waiting to be retrieved.
-        """
-        return [self.get_data, self.got_data]
-
-    def get_pointcloud_dict(self):
-        """Retrieve and consume the latest captured pointcloud data dictionary.
-
-        Thread-safe. Clears the stored data after retrieval so subsequent calls
-        return None until a new pointcloud arrives.
-
-        Returns:
-            dict: The pointcloud data dictionary containing the Open3D pointcloud,
-                point count, RGB and intensity flags, timestamps, and latency
-                metrics, or None if no pointcloud is available.
-        """
-        self.data_dict_lock.acquire()
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = None
-        self.data_dict_lock.release()
-        return data_dict
-
-    def unregister(self):
-        """Unregister this interface and release all ROS subscriptions."""
-        self._unsubscribeTopic()
-
-    #################
-    ## Save Config Functions
-
-    def call_save_config(self):
-        """Send a save-config command to the connected pointcloud source node."""
-        self.con_node_if.publish_pub('save_config',Empty())
-
-    def call_reset_config(self):
-        """Send a reset-config command to the connected pointcloud source node."""
-        self.con_node_if.publish_pub('reset_config',Empty())
-
-    def call_factory_reset_config(self):
-        """Send a factory-reset-config command to the connected pointcloud source node."""
-        self.con_node_if.publish_pub('factory_reset_config',Empty())
-
-    ###############################
-    # Class Private Methods
-    ###############################
-
-
-    def _unsubscribeTopic(self):
-        success = False
-        self.connected = False
-        if self.con_node_if is not None:
-            self.msg_if.pub_warn("Unregistering topic: " + str(self.namespace))
-            try:
-                self.connected = False 
-                self.con_node_if.unregister_class()
-                time.sleep(1)
-                self.con_node_if = None
-                self.namespace = None
-                self.connected = False 
-                self.data_dict = None
-                success = True
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to unregister image:  " + str(e))
         return success
 
 
 
-    def _dataCb(self,data_msg):      
+
+    def unsubscribe_topic(self):
+        success = False
+        if self.connecting == True or self.connected == True:
+            self.msg_if.pub_warn("unsubscribe_topic Called")
+
+            if self.node_if is not None:
+                if self.connect_topic_subs_dict is not None:
+                    for sub_name in self.connect_topic_subs_dict.keys():
+                        self.node_if.unregister_sub(sub_name)
+            self.connect_topic_subs_dict = None
+
+            if self.node_if is not None:
+                if self.connect_topic_pubs_dict is not None:
+                    for pub_name in self.connect_topic_pubs_dict.keys():
+                        self.node_if.unregister_pub(pub_name)
+            self.connect_topic_pubs_dict = None
+
+            nepi_sdk.sleep(1)
+            self.connecting = False
+            self.connected = False
+            self.connected_topic = 'None'
+            self.status_msg = None
+            self.data_dict = None
+            success = True
+        return success
+
+
+    def _statusCb(self,status_msg):
+        self.last_status_time = nepi_utils.get_time()
+        if self.connected == False:
+            self.msg_if.pub_warn("Connected to DATA Status:  " + str(self.selected_topic))
+            self.connecting = False
+            self.connected_topic = self.selected_topic
         self.connected = True
-        #self.msg_if.pub_warn("Got pc for topic:  " + self.namespace)
+        self.status_msg = status_msg
 
-        # Process ros pointcloud message
-        current_time = nepi_sdk.get_msg_stamp()
-        get_msg_stampstamp = data_msg.header.stamp
-        latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
-        self.data_dict['get_latency_time'] = latency
-        #self.msg_if.pub_debug("Get Pc Latency: {:.2f}".format(latency))
+        if self.statusCb is not None:
+            status_dict = self.get_status_dict()
+            self.statusCb(status_dict)
 
-        start_time = nepi_sdk.get_time()   
 
+    def _dataCb(self,data_msg):
+        # Only build a frame when a consumer has asked for one (get_data flag) or
+        # a callback_function is registered; otherwise the incoming Image is
+        # dropped cheaply. Connection state is driven by the status callback.
         get_data = (self.callbackFunction is not None or self.get_data == True)
-        #self.msg_if.pub_warn("Got Pc with get_data: " + str(self.get_data) + " got_data: " + str(self.got_data))
-        if get_data == True:
-            self.get_data = False
-           # self.msg_if.pub_warn("Got get_data flag. Processing pc for topic:  " + self.namespace)
-            ##############################
-            ### Preprocess Pointcloud
-            
-            data = nepi_pc.rospc_to_o3dpc(data_msg, remove_nans=True)
-
-            if self.pointcloudPreprocessFunction is not None:
-                try:
-                    data = self.pointcloudPreprocessFunction(data)
-                except Exception as e:
-                    self.msg_if.pub_warn("Provided Pointcloud Preprocess Function failed:  " + str(e))
-
-            data_dict = dict()
-            data_dict['namespace'] = self.namespace
-            data_dict['data'] = data
-
-            data_dict['has_rgb'] = data.has_colors() 
-            data_dict['has_intensity'] = False # Need to add
-
-            data_dict['point_count'] = data.point["colors"].shape[0]
-
-            data_dict['width'] = 0  # Need to add
-            data_dict['height'] = 0 # Need to add
-            data_dict['depth'] = 0 # Need to add
-
-            get_msg_stampstamp = data_msg.header.stamp
-            data_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(get_msg_stampstamp)
-            data_dict['ros_pc_header'] = data_msg.header
-            data_dict['ros_pc_stamp'] = get_msg_stampstamp
-            ##############################
-
-            process_time = round( (nepi_sdk.get_time() - start_time) , 3)
-            data_dict['process_time'] = process_time
-
-            latency = (current_time.to_sec() - get_msg_stampstamp.to_sec())
-            data_dict['got_latency_time'] = latency
-            #self.msg_if.pub_debug("Img Pub Latency: {:.2f}".format(latency))
-
-            if self.callbackFunction is not None:
-                self.callbackFunction(data_dict)
-            else:
-                self.data_dict_lock.acquire()
-                self.data_dict = data_dict
-                self.data_dict_lock.release()
-                self.got_data = True
-        self.connected = True
-
-
-    def _statusCb(self,status_msg):      
-        self.status_connected = True
-        self.pc_status_msg = status_msg
-
-
-
-
-
-
-
-# class ConnectNavPosesIF:
-
-
-#     NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
-#     NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
-#     NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
-
-
-#     DEFAULT_CALLBACK_DICT = dict(
-#         frame_updated_callback = None,
-#         navpose_updated_callback = None,
-#         navposes_updated_callback = None
-#     )
-#     callback_dict = copy.deepcopy(DEFAULT_CALLBACK_DICT)
-
-#     ready = False
-#     namespace = '~'
-
-#     node_if = None
-#     save_data_if = None
-
-#     status_msg = NavPosesStatus()
-
-#     data_poduct = 'navpose'
-#     data_products_list = ['navpose']
-
-#     navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-#     navposes_dict = dict()
-#     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
-#     navpose_frame_options = ['None']
-#     navpose_frame = 'None'
-
-#     connected = False
-
- 
-#     def __init__(self, namespace = None,
-#                 callback_dict = dict(),
-#                 save_data_if = None,
-#                 log_name = None,
-#                 log_name_list = [],
-#                 msg_if = None
-#                 ):
-#         ####  IF INIT SETUP ####
-#         self.class_name = type(self).__name__
-#         self.base_namespace = nepi_sdk.get_base_namespace()
-#         self.node_name = nepi_sdk.get_node_name()
-#         self.node_namespace = nepi_sdk.get_node_namespace()
-
-#         ##############################  
-        
-#         # Create Msg Class
-#         if msg_if is not None:
-#             self.msg_if = msg_if
-#         else:
-#             self.msg_if = MsgIF()
-#         self.log_name_list = copy.deepcopy(log_name_list)
-#         self.log_name_list.append(self.class_name)
-#         if log_name is not None:
-#             log_name = nepi_utils.get_clean_name(log_name)
-#             self.log_name_list.append(log_name)
-#         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
-
-#         ##############################    
-#         # Initialize Class Variables
-#         if namespace is not None:
-#             self.namespace = namespace
-#         namespace = nepi_sdk.create_namespace(namespace,'navpose')
-#         self.namespace = nepi_sdk.get_full_namespace(namespace)
-
-        
-#         for key in self.DEFAULT_CALLBACK_DICT.keys():
-#             if key not in callback_dict.keys():
-#                 callback_dict[key] = self.DEFAULT_CALLBACK_DICT[key]
-#         self.callback_dict = callback_dict
-
-#         self.status_msg.node_name = self.node_name
-#         self.status_msg.navposes_topic = self.namespace
-#         ##############################   
-#         ## Node Setup
-
-#         # Configs Config Dict ####################
-#         self.CONFIGS_DICT = {
-#             'init_callback': self._initCb,
-#             'reset_callback': self._resetCb,
-#             'factory_reset_callback': self._factoryResetCb,
-#             'init_configs': True,
-#             'namespace': self.namespace
-#         }
-
-#         # Services Config Dict ####################     
-#         self.SRVS_DICT = None
-
-#         # Params Config Dict ####################
-#         self.PARAMS_DICT = {
-#             'navpose_frame': {
-#                 'namespace': self.namespace,
-#                 'factory_val': self.navpose_frame
-#             }
-#         }
-
-
-
-#         # Pubs Config Dict ####################
-#         self.PUBS_DICT = {
-#             'navpose_pub': {
-#                     'msg': NavPose,
-#                     'namespace': self.namespace,
-#                     'topic': '',
-#                     'qsize': 1,
-#                     'latch': True
-#                 },
-#             'status_pub': {
-#                     'msg': NavPosesStatus,
-#                     'namespace': self.namespace,
-#                     'topic': 'status',
-#                     'qsize': 1,
-#                     'latch': True
-#                 }
-#         }
-     
-#         # Subs Config Dict ####################
-#         self.SUBS_DICT = {
-#             'navposes_sub': {
-#                 'namespace': self.base_namespace,
-#                 'topic': 'navposes',
-#                 'msg': NavPoses,
-#                 'qsize': 1,
-#                 'callback': self._navposesSubCb, 
-#                 'callback_args': ()
-#             },
-#             'set_navpose_frame': {
-#                 'namespace': self.namespace,
-#                 'topic': 'set_navpose_frame',
-#                 'msg': String,
-#                 'qsize': 5,
-#                 'callback': self._setNavposeFrameCb, 
-#                 'callback_args': ()
-#             }
-#         }
-#         # Create Node Class ####################
-#         self.node_if = NodeClassIF(
-#                         params_dict = self.PARAMS_DICT,
-#                         pubs_dict = self.PUBS_DICT,
-#                         subs_dict = self.SUBS_DICT,
-#                         log_name_list = self.log_name_list,
-#                          msg_if = self.msg_if
-#                                             )
-
-#         success = nepi_sdk.wait()
-
-#         if save_data_if is not None and save_data_if != 'None':
-#            self.save_data_if = save_data_if
-#         elif save_data_if != 'None':
-            
-#             # Setup Save Data IF Class 
-#             self.msg_if.pub_info("Starting Save Data IF Initialization")
-#             factory_data_rates= {}
-#             for d in self.data_products_list:
-#                 factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
-#             self.msg_if.pub_warn("Starting data products list: " + str(self.data_products_list))
-
-#             factory_filename_dict = {
-#                 'prefix': "", 
-#                 'add_timestamp': True, 
-#                 'add_ms': True,
-#                 'add_us': False,
-#                 'suffix': "",
-#                 'add_node_name': True
-#                 }
-
-#             sd_namespace = self.namespace
-#             self.save_data_if = SaveDataIF(namespace = sd_namespace,
-#                                     data_products = self.data_products_list,
-#                                     factory_rate_dict = factory_data_rates,
-#                                     factory_filename_dict = factory_filename_dict,
-#                                     log_name_list = self.log_name_list,
-#                                     msg_if = self.msg_if)
-#             nepi_sdk.sleep(1)
-#         if self.save_data_if is not None:
-#             data_products = self.save_data_if.get_data_products()
-#             for data_product in self.data_products_list:
-#                 if data_product not in data_products:
-#                     self.save_data_if.register_data_product(data_product)
-#             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-#             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-
-       
-#         ##############################
-#         # Update vals from param server
-#         self.init(do_updates = True)
-#         self.publish_status()
-
-#         ##############################
-#         # Start Node Processes
-#         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
-#         nepi_sdk.start_timer_process(1.0, self._saveDataCb, oneshot = True)
-
-
-#         ##############################
-#         # Complete Initialization
-#         self.ready = True
-#         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
-#         ###############################
-
-
-#     ###############################
-#     # Class Public Methods
-#     ###############################
-
-
-#     def get_ready_state(self):
-#         return self.ready
-
-#     def wait_for_ready(self, timeout = float('inf') ):
-#         success = False
-#         if self.ready is not None:
-#             self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
-#             timer = 0
-#             time_start = nepi_utils.get_time()
-#             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-#                 nepi_sdk.sleep(.1)
-#                 timer = nepi_utils.get_time() - time_start
-#             if self.ready == False:
-#                 self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
-#             else:
-#                 self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
-#         return self.ready  
-
-#     def get_namespace(self):
-#         return self.namespace
-    
-#     def get_data_products(self):
-#         return [self.data_product]
-
-#     def get_blank_navpose_dict(self):
-#         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-#         return blank_navpose_dict
-    
-
-#     def get_navpose_frames(self):
-#         return self.navpose_frame_options
-    
-#     def get_navpose_frame(self):
-#         return self.navpose_frame
-
-#     def set_navpose_frame(self,frame):
-#         if frame in self.navpose_frame_options:
-#             self.navpose_frame = frame
-#             if 'frame_updated_callback' in self.callback_dict.keys():
-#                 self.callback_dict['frame_updated_callback'](frame)
-#         self.publish_status()
-#         if self.node_if is not None:
-#             self.node_if.save_config()
-
-#     def get_navpose_dict(self):
-#         navpose_dict =  copy.deepcopy(self.navpose_dict)
-#         return navpose_dict
-    
-#     def get_navposes_dict(self):
-#         navposes_dict =  copy.deepcopy(self.navposes_dict)
-#         return navposes_dict
-
-#     def get_status_dict(self):
-#         status_dict = None
-#         if self.status_msg is not None:
-#             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-#         return status_dict
-
-#     def save_data(self):
-#         if self.save_data_if is not None:
-#             navpose_dict = copy.deepcopy(self.navpose_dict)
-#             self.save_data_if.save('navpose',navpose_dict)
-#         nepi_sdk.start_timer_process(0.1, self._saveDataCb, oneshot = True)
-
-
-#     def get_navpose_callback_options(self):
-#         return list(self.callback_dict.keys())
-    
-#     def set_navpose_callback(self,name,function):
-#         self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
-#         if name in self.callback_dict.keys():
-#             self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
-#             self.callback_dict[name] = function
-#         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
-
-#     def clear_navpose_callback(self,name):
-#         self.msg_if.pub_warn("Got clear callback for: " + str(name), log_name_list = self.log_name_list)
-#         if name in self.callback_dict.keys():
-#             self.callback_dict[name] = None 
-
-#     def unsubscribe(self):
-#         self.ready = False
-#         if self.node_if is not None:
-#             self.node_if.unregister_class()
-#         time.sleep(1)
-#         self.namespace = None
-#         self.status_msg = NavPosesStatus()
-
-
-
-#     def publish_status(self):
-#         if self.node_if is not None and self.status_msg is not None:
-
-#             self.navpose_topic = self.namespace + '/navpose'
-#             self.status_msg.navpose_frame_options = self.navpose_frame_options
-#             navpose_frame = copy.deepcopy(self.navpose_frame)
-#             if navpose_frame in self.navposes_dict.keys():
-#                 navpose_frame = 'None'
-#             self.status_msg.navpose_frame = navpose_frame
-           
-#             self.node_if.publish_pub('status_pub', self.status_msg)
-
-
-
-
-#     def init(self, do_updates = False):
-#         if self.node_if is not None:
-#             self.navpose_frame = self.node_if.get_param('navpose_frame')
-#         if do_updates == True:
-#             pass
-#         self.publish_status()
-
-#     def reset(self):
-#         if self.node_if is not None:
-#             pass
-#         self.init()
-
-#     def factory_reset(self):
-#         if self.node_if is not None:
-#             pass
-#         self.init()
-
-
-#     ###############################
-#     # Class Private Methods
-#     ###############################
-
-
-#     def _initCb(self, do_updates = False):
-#         self.init(do_updates = do_updates)
-
-#     def _resetCb(self, do_updates = True):
-#         self.init(do_updates = do_updates)
-
-#     def _factoryResetCb(self, do_updates = True):
-#         self.init(do_updates = do_updates)
-
-
-#     def _setNavposeFrameCb(self,msg):
-#         frame = msg.data
-#         if frame in self.navpose_frame_options:
-#             self.navpose_frame = frame
-#             if 'frame_updated_callback' in self.callback_dict.keys():
-#                 self.callback_dict['frame_updated_callback'](frame)
-#         self.publish_status()
-#         if self.node_if is not None:
-#             self.node_if.save_config()
-
-#     def _navposesSubCb(self,msg):
-#         self.connected = True
-#         self.navposes_dict = nepi_nav.convert_navposes_msg2dict(msg,self.log_name_list)
-#         self.navpose_frame_options = list(self.navposes_dict.keys())
-#         if 'navposes_updated_callback' in self.callback_dict.keys():
-#             self.callback_dict['navposes_updated_callback'](self.navposes_dict)
-
-#         last_navpose_dict = copy.deepcopy(self.navpose_dict)
-#         navpose_frame = copy.deepcopy(self.navpose_frame)
-#         if navpose_frame in self.navposes_dict.keys():
-#             self.navpose_dict = self.navposes_dict[navpose_frame]
-#         else:
-#             self.navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-#         if last_navpose_dict != self.navpose_dict and 'navpose_updated_callback' in self.callback_dict.keys():
-#             self.callback_dict['navpose_updated_callback'](self.navpose_dict)
-#             if self.node_if is not None:
-#                 navpose_msg = nepi_nav.convert_navpose_dict2msg(self.navpose_dict,self.log_name_list)
-#                 self.node_if.publish_pub('navpose_pub',navpose_msg)
-
-
-#     def _publishStatusCb(self,timer):
-#         self.publish_status()
-
-#     def _saveDataCb(self,timer):
-#         self.save_data()
-
+        if get_data == False:
+            return
+
+        current_time = nepi_sdk.get_msg_stamp()
+        msg_stamp = data_msg.header.stamp
+        get_latency = (current_time.to_sec() - msg_stamp.to_sec())
+
+        start_time = nepi_sdk.get_time()
+
+        self.get_data = False
+
+        ##############################
+        ### Preprocess Image
+        data = nepi_img.rosimg_to_cv2img(data_msg)
+
+        if self.preprocessFunction is not None:
+            try:
+                data = self.preprocessFunction(data)
+            except Exception as e:
+                self.msg_if.pub_warn("Provided Image Preprocess Function failed:  " + str(e))
+
+        data_dict = dict()
+        data_dict['namespace'] = self.selected_topic
+        data_dict['data'] = data
+        height, width = data.shape[:2]
+        data_dict['width'] = width
+        data_dict['height'] = height
+        data_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(msg_stamp)
+        data_dict['ros_img_header'] = data_msg.header
+        data_dict['ros_img_stamp'] = msg_stamp
+        data_dict['get_latency_time'] = get_latency
+        ##############################
+
+        process_time = round( (nepi_sdk.get_time() - start_time) , 3)
+        data_dict['process_time'] = process_time
+
+        got_latency = (nepi_sdk.get_msg_stamp().to_sec() - msg_stamp.to_sec())
+        data_dict['got_latency_time'] = got_latency
+
+        if self.callbackFunction is not None:
+            self.callbackFunction(data_dict)
+        else:
+            self.data_dict_lock.acquire()
+            self.data_dict = data_dict
+            self.data_dict_lock.release()
+            self.got_data = True
