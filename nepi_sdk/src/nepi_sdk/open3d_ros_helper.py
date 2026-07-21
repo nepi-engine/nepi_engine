@@ -286,7 +286,25 @@ def rospc_to_o3dpc(rospc, remove_nans=False):
     Returns: 
         o3dpc (o3d.geometry.PointCloud): Open3D PointCloud
     """
-    cloud_array = rnp.point_cloud2.pointcloud2_to_array(rospc).ravel()
+    # Parse the PointCloud2 buffer directly with numpy instead of via ros_numpy:
+    # some installs lack the ros_numpy.point_cloud2 submodule (AttributeError:
+    # module 'ros_numpy' has no attribute 'point_cloud2'). The structured dtype is
+    # built from each field's real offset with the message point_step as itemsize,
+    # which reproduces ros_numpy.point_cloud2.pointcloud2_to_array's output.
+    _PF_TO_STR = {
+        PointField.INT8: 'i1',   PointField.UINT8: 'u1',
+        PointField.INT16: 'i2',  PointField.UINT16: 'u2',
+        PointField.INT32: 'i4',  PointField.UINT32: 'u4',
+        PointField.FLOAT32: 'f4', PointField.FLOAT64: 'f8',
+    }
+    byte_order = '>' if rospc.is_bigendian else '<'
+    np_dtype = np.dtype({
+        'names': [f.name for f in rospc.fields],
+        'formats': [byte_order + _PF_TO_STR[f.datatype] for f in rospc.fields],
+        'offsets': [f.offset for f in rospc.fields],
+        'itemsize': rospc.point_step,
+    })
+    cloud_array = np.frombuffer(rospc.data, dtype=np_dtype).ravel()
 
     if remove_nans:
         # Remove NaN values
