@@ -6441,7 +6441,7 @@ class PointcloudImageIF(BaseImageIF):
             self.img_renderer = None
             self.msg_if.pub_warn("Creating new pointcloud renderer", log_name_list = self.log_name_list)
             self.img_renderer = nepi_pc.create_img_renderer(img_width=img_width, img_height=img_height, fov=cam_fov, background=bg_color)
-            self.img_renderer_mtl = nepi_pc.create_img_renderer_mtl(shader="defaultLit")
+            self.img_renderer_mtl = nepi_pc.create_img_renderer_mtl(shader="defaultUnlit")
             self.last_img_width = img_width
             self.last_img_height = img_height
             self.last_fov = cam_fov

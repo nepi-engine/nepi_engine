@@ -135,15 +135,25 @@ def cv2img_to_o3dimg(cv2_image):
 ###########################################
 ### Pointcloud info functions    
 
+def _point_ranges(o3d_pc):
+    # Radial distance (from sensor origin) of every point, NaN/Inf dropped.
+    pts = np.asarray(o3d_pc.points)
+    if pts.size == 0:
+        return np.empty(0)
+    dists = np.linalg.norm(pts, axis=1)
+    return dists[np.isfinite(dists)]
+
 def get_min_range(o3d_pc):
-    min_range = get_min_ranges(o3d_pc)
-    min_distance = np.linalg.norm(min_range)
-    return min_distance
-    
+    # Nearest point distance. NOTE: this is the true min radial range, not the
+    # norm of the AABB min corner (which could exceed the max corner's norm and
+    # yield min>max -> spurious "Invalid ranges supplied" warnings).
+    dists = _point_ranges(o3d_pc)
+    return float(dists.min()) if dists.size else 0.0
+
 def get_max_range(o3d_pc):
-    max_range = get_max_ranges(o3d_pc)
-    max_distance = np.linalg.norm(max_range)
-    return max_distance
+    # Farthest point distance (true max radial range).
+    dists = _point_ranges(o3d_pc)
+    return float(dists.max()) if dists.size else 0.0
    
 def get_min_ranges(o3d_pc):
     min_bounds = np.asarray(o3d_pc.get_min_bound())
