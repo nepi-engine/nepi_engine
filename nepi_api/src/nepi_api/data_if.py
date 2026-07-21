@@ -1037,6 +1037,7 @@ class BaseImageIF:
         click_angle_callback = None,
         drag_callback = None,
         window_callback = None,
+        scroll_callback = None,
         frame_updated_callback = None
     )
 
@@ -1044,6 +1045,9 @@ class BaseImageIF:
 
     ready = False
     namespace = '~'
+
+    # Enable state for 3D render controls (mouse drag/window interaction)
+    render_3d_controls_enabled = False
 
     node_if = None
     save_data_if = None
@@ -1473,7 +1477,31 @@ class BaseImageIF:
                 'topic': 'mouse_event',
                 'msg': ImageMouseEvent,
                 'qsize': 5,
-                'callback': self._mouseEventCb, 
+                'callback': self._mouseEventCb,
+                'callback_args': ()
+            },
+            'render_3d_controls': {
+                'namespace': self.namespace,
+                'topic': 'render_3d_controls',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.render3dControlsCb,
+                'callback_args': ()
+            },
+            'reset_render_3d_controls': {
+                'namespace': self.namespace,
+                'topic': 'reset_render_3d_controls',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.resetRender3dControlsCb,
+                'callback_args': ()
+            },
+            'reset_render_3d_position': {
+                'namespace': self.namespace,
+                'topic': 'reset_render_3d_position',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.resetRender3dPositionCb,
                 'callback_args': ()
             },
             'overlay_size_ratio': {
@@ -3074,6 +3102,7 @@ class BaseImageIF:
             self.status_msg.window_y_ratios.stop_range = self.controls_dict['window_ratios'][3]
             self.status_msg.rotate_3d_ratio = self.controls_dict['rotate_3d_ratio']
             self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
+            self.status_msg.render_3d_controls_enabled = self.render_3d_controls_enabled
 
 
             self.status_msg.overlay_size_ratio = self.overlay_size_ratio
@@ -3306,6 +3335,16 @@ class BaseImageIF:
                 self.needs_update()
             self.drag_window = None
 
+        if msg.scroll_event == True:
+            scroll_pixel = [int(msg.scroll.x), int(msg.scroll.y)]
+            scroll_color_bgr = (msg.scroll.b, msg.scroll.g, msg.scroll.r, msg.scroll.a)
+            scroll_amount = msg.scroll_amount
+            if self.callback_dict['scroll_callback'] is not None:
+                try:
+                    self.callback_dict['scroll_callback'](scroll_pixel, scroll_color_bgr, scroll_amount)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to call mouse scroll_callback: " + str(e), log_name_list = self.log_name_list)
+
 
 
 
@@ -3418,7 +3457,38 @@ class BaseImageIF:
 
     def _setTiltCb(self, msg):
         ratio = msg.data
-        self.set_tilt_3d_ratio(ratio) 
+        self.set_tilt_3d_ratio(ratio)
+
+    def render3dControlsCb(self, msg):
+        enabled = msg.data
+        self.render_3d_controls_enabled = enabled
+        if enabled == True:
+            self.msg_if.pub_info("Enabling 3D render controls (mouse drag/window)", log_name_list = self.log_name_list)
+            if hasattr(self, 'render3dDragHandler'):
+                self.set_image_callback('drag_callback', self.render3dDragHandler)
+            if hasattr(self, 'render3dWindowHandler'):
+                self.set_image_callback('window_callback', self.render3dWindowHandler)
+            if hasattr(self, 'render3dScrollHandler'):
+                self.set_image_callback('scroll_callback', self.render3dScrollHandler)
+            if hasattr(self, 'render3dClickHandler'):
+                self.set_image_callback('click_pixel_callback', self.render3dClickHandler)
+        else:
+            self.msg_if.pub_info("Disabling 3D render controls (mouse drag/window)", log_name_list = self.log_name_list)
+            self.clear_image_callback('drag_callback')
+            self.clear_image_callback('window_callback')
+            self.clear_image_callback('scroll_callback')
+            self.clear_image_callback('click_pixel_callback')
+        self.publish_status()
+
+    def resetRender3dControlsCb(self, msg):
+        self.msg_if.pub_info("Got reset 3D render orientation msg", log_name_list = self.log_name_list)
+        if hasattr(self, 'reset_render_3d_orientation'):
+            self.reset_render_3d_orientation()
+
+    def resetRender3dPositionCb(self, msg):
+        self.msg_if.pub_info("Got reset 3D render position msg", log_name_list = self.log_name_list)
+        if hasattr(self, 'reset_render_3d_position'):
+            self.reset_render_3d_position()
 
 
 
@@ -4976,6 +5046,7 @@ class PointcloudIF:
     last_pub_time = None
 
     needs_data = False
+    needs_data_last_logged = None
 
     time_list = [0,0,0,0,0,0,0,0,0,0]
 
@@ -5722,7 +5793,9 @@ class PointcloudIF:
             bool: True if there are active subscribers or save/snapshot requests.
         """
         needs_data = copy.deepcopy(self.needs_data)
-        self.msg_if.pub_warn("Returning: " + self.namespace + " " "needs data: " + str(needs_data), log_name_list = self.log_name_list, throttle_s = 5.0)
+        if needs_data != self.needs_data_last_logged:
+            self.msg_if.pub_warn("Returning: " + self.namespace + " " "needs data: " + str(needs_data), log_name_list = self.log_name_list)
+            self.needs_data_last_logged = needs_data
         return needs_data
 
     def _setVoxelCb(self,msg):
@@ -5770,7 +5843,8 @@ class PointcloudIF:
         Returns:
             open3d.geometry.PointCloud: The original pointcloud unchanged.
         """
-        
+    
+
 
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
@@ -6243,14 +6317,15 @@ class PointcloudImageIF(BaseImageIF):
         has_zoom = False,
         has_pan = False,
         has_window = False,
-        has_rotate_3d = False,
-        has_tilt_3d = False
+        has_rotate_3d = True,
+        has_tilt_3d = True
         )
 
     DEFAULT_FILTERS_DICT = dict()
 
     #Default Control Values 
     DEFAULT_CONTROLS_DICT = dict( 
+
         resolution_ratio = 1.0,
         auto_adjust_enabled = False,
         auto_adjust_ratio = 0.3,
@@ -6271,6 +6346,35 @@ class PointcloudImageIF(BaseImageIF):
         cam_rot = [0, 0, 1]
         )
 
+    #Default Control Values 
+    DEFAULT_OFFSETS_DICT = dict( 
+
+        resolution_ratio = 0,
+        auto_adjust_enabled = False,
+        auto_adjust_ratio = 0,
+        brightness_ratio = 0,
+        contrast_ratio =  0,
+        threshold_ratio =  0,
+        start_range_ratio = 0,
+        stop_range_ratio = 0,
+        zoom_ratio = 0,
+        window_ratios = [0,0,0,0],
+        rotate_3d_ratio = 0,
+        tilt_3d_ratio = 0,
+        cam_fov = 0,
+        cam_view = [0, 0, 0],
+        cam_pos = [0, 0, 0],
+        cam_rot = [0, 0, 0]
+        )
+
+    # Working copy of the render offsets; drag handlers mutate this, the
+    # reset callback restores it to DEFAULT_OFFSETS_DICT (start orientation).
+    offsets_dict = copy.deepcopy(DEFAULT_OFFSETS_DICT)
+
+    # Anchor state for interactive 3D drags (start pixel is the fixed drag anchor)
+    render_3d_drag_anchor = None
+    render_3d_drag_last = None
+
     params_dict = None
     services_dict = None
     pubs_dict = None
@@ -6287,6 +6391,10 @@ class PointcloudImageIF(BaseImageIF):
     last_img_height = None
     last_fov = None
     last_bg_white = None
+
+    render_dict = copy.deepcopy(DEFAULT_CONTROLS_DICT)
+    render_dict.update(DEFAULT_CAM_DICT)
+    
 
     def __init__(self, namespace = None , 
                 data_product = None,
@@ -6347,6 +6455,8 @@ class PointcloudImageIF(BaseImageIF):
                             width_deg = 100,
                             height_deg = 70,
                             render_dict = None,
+                            img_width = None,
+                            img_height = None,
                             timestamp = None,
                             frame_id = 'sensor',
                             pub_twice = False
@@ -6379,6 +6489,8 @@ class PointcloudImageIF(BaseImageIF):
             tuple: (o3d_pc, cv2_img) where cv2_img is the rendered image, or
             None if rendering produced no image.
         """
+
+
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
@@ -6393,22 +6505,38 @@ class PointcloudImageIF(BaseImageIF):
         else:
             timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
-        # Resolve render controls
+        # Resolve render controls (render_dict comes from the pointcloud status each
+        # frame; fall back to interface defaults only when nothing was passed)
         if render_dict is None:
-            render_dict = copy.deepcopy(self.DEFAULT_CONTROLS_DICT)
-            render_dict.update(self.DEFAULT_CAM_DICT)
+            render_dict = copy.deepcopy(self.render_dict)
 
-        img_width = int(render_dict.get('image_width', 955))
-        img_height = int(render_dict.get('image_height', 600))
-        start_range_ratio = render_dict.get('start_range_ratio', 0.0)
-        stop_range_ratio = render_dict.get('stop_range_ratio', 1.0)
-        zoom_ratio = render_dict.get('zoom_ratio', 0.5)
-        rotate_ratio = render_dict.get('rotate_ratio', 0.5)
-        tilt_ratio = render_dict.get('tilt_ratio', 0.5)
-        cam_fov = render_dict.get('cam_fov', self.DEFAULT_CAM_DICT['cam_fov'])
-        cam_view = list(render_dict.get('cam_view', self.DEFAULT_CAM_DICT['cam_view']))
-        cam_pos = list(render_dict.get('cam_pos', self.DEFAULT_CAM_DICT['cam_pos']))
-        cam_rot = list(render_dict.get('cam_rot', self.DEFAULT_CAM_DICT['cam_rot']))
+        # Working copy of the interactive render offsets (drag handlers add into this,
+        # reset restores it to DEFAULT_OFFSETS_DICT); offsets are added on top of the
+        # status-driven base values below.
+        offsets_dict = copy.deepcopy(self.offsets_dict)
+
+        # Explicit img_width/img_height args override the status-driven size
+        if img_width is None:
+            img_width = render_dict.get('image_width', 955)
+        if img_height is None:
+            img_height = render_dict.get('image_height', 600)
+        img_width = int(img_width)
+        img_height = int(img_height)
+        start_range_ratio = render_dict.get('start_range_ratio', 0.0) + offsets_dict.get('start_range_ratio', 0)
+        stop_range_ratio = render_dict.get('stop_range_ratio', 1.0) + offsets_dict.get('stop_range_ratio', 0)
+        zoom_ratio = nepi_utils.check_ratio(render_dict.get('zoom_ratio', 0.5) + offsets_dict.get('zoom_ratio', 0))
+        rotate_ratio = render_dict.get('rotate_ratio', 0.5) + offsets_dict.get('rotate_3d_ratio', 0)
+        tilt_ratio = render_dict.get('tilt_ratio', 0.5) + offsets_dict.get('tilt_3d_ratio', 0)
+        cam_fov = render_dict.get('cam_fov', self.DEFAULT_CAM_DICT['cam_fov']) + offsets_dict.get('cam_fov', 0)
+        cam_view_base = list(render_dict.get('cam_view', self.DEFAULT_CAM_DICT['cam_view']))
+        cam_pos_base = list(render_dict.get('cam_pos', self.DEFAULT_CAM_DICT['cam_pos']))
+        cam_rot_base = list(render_dict.get('cam_rot', self.DEFAULT_CAM_DICT['cam_rot']))
+        cam_view_off = offsets_dict.get('cam_view', [0, 0, 0])
+        cam_pos_off = offsets_dict.get('cam_pos', [0, 0, 0])
+        cam_rot_off = offsets_dict.get('cam_rot', [0, 0, 0])
+        cam_view = [cam_view_base[i] + cam_view_off[i] for i in range(len(cam_view_base))]
+        cam_pos = [cam_pos_base[i] + cam_pos_off[i] for i in range(len(cam_pos_base))]
+        cam_rot = [cam_rot_base[i] + cam_rot_off[i] for i in range(len(cam_rot_base))]
         use_wbg = render_dict.get('use_wbg', False)
 
         # Range clip
@@ -6473,6 +6601,88 @@ class PointcloudImageIF(BaseImageIF):
     ###############################
     # Class Private Methods
     ###############################
+
+    def render3dDragHandler(self, start_pixel, start_color_bgr, stop_pixel, stop_color_bgr):
+        self.msg_if.pub_info("3D render drag handler fired - start: " + str(start_pixel) + " stop: " + str(stop_pixel), log_name_list = self.log_name_list)
+        img_width = self.status_msg.width_px
+        img_height = self.status_msg.height_px
+        if img_width <= 0 or img_height <= 0:
+            return
+        # A drag streams many events sharing the same fixed anchor (start) pixel and a
+        # moving stop pixel; accumulate the offset from the previous streamed position
+        # so a continuous drag maps 1:1 and successive drags keep adding.
+        if start_pixel != self.render_3d_drag_anchor:
+            self.render_3d_drag_anchor = list(start_pixel)
+            self.render_3d_drag_last = list(start_pixel)
+        rotate_change = float(stop_pixel[0] - self.render_3d_drag_last[0]) / float(img_width)
+        tilt_change = float(stop_pixel[1] - self.render_3d_drag_last[1]) / float(img_height)
+        self.render_3d_drag_last = list(stop_pixel)
+        rotate_offset = min(1.0, max(-1.0, self.offsets_dict['rotate_3d_ratio'] + rotate_change))
+        tilt_offset = min(1.0, max(-1.0, self.offsets_dict['tilt_3d_ratio'] + tilt_change))
+        self.offsets_dict['rotate_3d_ratio'] = rotate_offset
+        self.offsets_dict['tilt_3d_ratio'] = tilt_offset
+        self.publish_status()
+        self.needs_update()
+
+    def render3dWindowHandler(self, window = None):
+        self.msg_if.pub_info("3D render window handler fired - window: " + str(window), log_name_list = self.log_name_list)
+        self.publish_status()
+
+    def render3dScrollHandler(self, scroll_pixel, scroll_color_bgr, scroll_amount):
+        self.msg_if.pub_info("3D render scroll handler fired - amount: " + str(scroll_amount), log_name_list = self.log_name_list)
+        # scroll_amount is a normalized wheel step (+ = zoom in, - = zoom out); accumulate
+        # into the zoom offset applied on top of the status-driven zoom in publish.
+        zoom_step = float(scroll_amount) * 0.05
+        zoom_offset = min(1.0, max(-1.0, self.offsets_dict['zoom_ratio'] + zoom_step))
+        self.offsets_dict['zoom_ratio'] = zoom_offset
+        self.publish_status()
+        self.needs_update()
+
+    def render3dClickHandler(self, pixel, color_bgr, click_count, angles):
+        self.msg_if.pub_info("3D render click handler fired - pixel: " + str(pixel), log_name_list = self.log_name_list)
+        img_width = self.status_msg.width_px
+        img_height = self.status_msg.height_px
+        if img_width <= 0 or img_height <= 0:
+            return
+        # Click position as a ratio from image center, [-1, 1]
+        x_ratio = float(pixel[0] - img_width / 2.0) / float(img_width / 2.0)
+        y_ratio = float(pixel[1] - img_height / 2.0) / float(img_height / 2.0)
+        # Pan the view by shifting both the camera eye (cam_pos) and look-at target
+        # (cam_view) by the same vector so the view direction stays fixed: horizontal
+        # click pans sideways (camera y), vertical click pans up/down (camera z).
+        # pixel y increases downward, so invert it for up/down.
+        pan_scale = 1.0
+        pan_y = x_ratio * pan_scale
+        pan_z = -y_ratio * pan_scale
+        cam_view = list(self.offsets_dict['cam_view'])
+        cam_pos = list(self.offsets_dict['cam_pos'])
+        cam_view[1] = cam_view[1] + pan_y
+        cam_pos[1] = cam_pos[1] + pan_y
+        cam_view[2] = cam_view[2] + pan_z
+        cam_pos[2] = cam_pos[2] + pan_z
+        self.offsets_dict['cam_view'] = cam_view
+        self.offsets_dict['cam_pos'] = cam_pos
+        self.publish_status()
+        self.needs_update()
+
+    def reset_render_3d_orientation(self):
+        """Reset the interactive 3D orientation offsets (rotate, tilt, zoom) to start."""
+        defaults = copy.deepcopy(self.DEFAULT_OFFSETS_DICT)
+        self.offsets_dict['rotate_3d_ratio'] = defaults['rotate_3d_ratio']
+        self.offsets_dict['tilt_3d_ratio'] = defaults['tilt_3d_ratio']
+        self.offsets_dict['zoom_ratio'] = defaults['zoom_ratio']
+        self.render_3d_drag_anchor = None
+        self.render_3d_drag_last = None
+        self.publish_status()
+        self.needs_update()
+
+    def reset_render_3d_position(self):
+        """Reset the interactive 3D position offsets (pan / camera translation) to start."""
+        defaults = copy.deepcopy(self.DEFAULT_OFFSETS_DICT)
+        self.offsets_dict['cam_view'] = defaults['cam_view']
+        self.offsets_dict['cam_pos'] = defaults['cam_pos']
+        self.publish_status()
+        self.needs_update()
 
 
 
