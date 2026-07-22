@@ -579,8 +579,16 @@ class RBXRobotIF:
                 'namespace': self.namespace,
                 'topic': 'set_motor_control',
                 'msg': MotorControl,
-                'qsize': None,
-                'callback': self.setMotorControlCb, 
+                # A "set all motors" action (e.g. the RUI's main slider) fires
+                # one message per motor in a near-simultaneous burst. qsize=None
+                # maps to a queue_size of 1, which drops all but the newest
+                # buffered message whenever the callback (a synchronous MAVROS
+                # service round-trip) is still busy on the previous one --
+                # observed as only the first and last motor of a burst actually
+                # updating. Sized comfortably above CAP_SETTINGS' motor_count
+                # max (16) so a full burst is never dropped.
+                'qsize': 20,
+                'callback': self.setMotorControlCb,
                 'callback_args': ()
             },
 
@@ -1145,8 +1153,7 @@ class RBXRobotIF:
         self.msg_if.pub_info("Received set motor control ratio message", log_name_list = self.log_name_list)
         self.msg_if.pub_info(motor_msg)
         if self.setMotorControl is not None:
-          new_motor_ctrl = motor_msg
-          self.setMotorControl(new_motor_ctrl)
+          self.setMotorControl(motor_msg)
 
     ### Function to set motor control
     def setMotorControl(self,new_motor_ctrl):
