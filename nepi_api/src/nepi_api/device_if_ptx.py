@@ -36,6 +36,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
 
 from nepi_interfaces.msg import DevicePTXStatus, PanTiltLimits, PanTiltPosition, SingleAxisTimedMove, SingleAxisTimedSpeedMove
+from nepi_interfaces.msg import MotorStatus, MotorsStatus, MotorCommand
 from nepi_interfaces.srv import PTXCapabilitiesQuery, PTXCapabilitiesQueryRequest, PTXCapabilitiesQueryResponse
 from nepi_interfaces.msg import NavPosePanTilt
 
@@ -140,6 +141,13 @@ class PTXActuatorIF:
     speed_pan_ratio = speed_ratio
     speed_tilt_ratio = speed_ratio
     speed_max_dps = 10
+
+    # Intended continuous-motion direction per motor for the standard motor
+    # command interface. 1 = clockwise (toward the max soft-limit angle),
+    # -1 = counter-clockwise (toward the min soft-limit angle). Set by the
+    # standard 'set_direction' command and used by 'go_direction'.
+    cmd_dir_pan = 1
+    cmd_dir_tilt = 1
 
 
     tr_source_ref_description = 'tilt_axis_center'
@@ -556,6 +564,13 @@ class PTXActuatorIF:
                 'qsize': 1,
                 'latch': False
             },
+            'motor_status_pub': {
+                'msg': MotorsStatus,
+                'namespace': self.namespace,
+                'topic': 'motor_status',
+                'qsize': 10,
+                'latch': False
+            },
             'stop_pan_callback_pub': {
                 'msg': Empty,
                 'namespace': self.namespace,
@@ -775,6 +790,42 @@ class PTXActuatorIF:
                 'msg': Int32,
                 'qsize': 1,
                 'callback': self._setReportDecimalPlaceCb,
+                'callback_args': ()
+            },
+            # Standard NEPI motor command interface. Carried on the four standard
+            # per-motor command topics alongside the 'motor_status' topic, all
+            # using nepi_interfaces/MotorCommand keyed by motor_name
+            # (motor_0 = pan, motor_1 = tilt, "all" = both).
+            'set_speed': {
+                'namespace': self.namespace,
+                'topic': 'set_speed',
+                'msg': MotorCommand,
+                'qsize': 1,
+                'callback': self._setMotorSpeedCb,
+                'callback_args': ()
+            },
+            'set_direction': {
+                'namespace': self.namespace,
+                'topic': 'set_direction',
+                'msg': MotorCommand,
+                'qsize': 1,
+                'callback': self._setMotorDirectionCb,
+                'callback_args': ()
+            },
+            'go_direction': {
+                'namespace': self.namespace,
+                'topic': 'go_direction',
+                'msg': MotorCommand,
+                'qsize': 1,
+                'callback': self._goMotorDirectionCb,
+                'callback_args': ()
+            },
+            'stop_motor': {
+                'namespace': self.namespace,
+                'topic': 'stop_motor',
+                'msg': MotorCommand,
+                'qsize': 1,
+                'callback': self._stopMotorCb,
                 'callback_args': ()
             }
 
@@ -1541,6 +1592,84 @@ class PTXActuatorIF:
         self.node_if.set_param('report_decimal_place', val)
         self.msg_if.pub_info("Updated report_decimal_place to " + str(val))
 
+    # ---- Standard NEPI motor command interface -------------------------------
+    # motor_0 = pan, motor_1 = tilt, "all" = both. Direction convention:
+    #   1 (clockwise)         -> increasing axis angle -> max soft-limit
+    #  -1 (counter-clockwise) -> decreasing axis angle -> min soft-limit
+    # Continuous motion (go_direction) is implemented by driving the axis to its
+    # soft-limit at the currently set speed, using the existing gotoPanPosition /
+    # gotoTiltPosition primitives; motion runs until the limit is reached or a
+    # stop_motor command arrives.
+
+    def _resolveMotorAxes(self, motor_name):
+        name = motor_name if motor_name is not None else ''
+        name = name.strip().lower()
+        if name == 'all':
+            return ['pan', 'tilt']
+        if name == 'motor_0':
+            return ['pan']
+        if name == 'motor_1':
+            return ['tilt']
+        self.msg_if.pub_warn("Unknown motor_name in motor command: " + str(motor_name))
+        return []
+
+    def _setMotorSpeedCb(self, msg):
+        axes = self._resolveMotorAxes(msg.motor_name)
+        if len(axes) == 0:
+            return
+        speed_ratio = nepi_utils.check_ratio(msg.speed_ratio)
+        # Use per-axis speed control when the hardware supports it, otherwise
+        # fall back to the combined speed ratio (which applies to both axes).
+        if self.has_seperate_pan_tilt_speed == True:
+            if 'pan' in axes:
+                self._setPanSpeedRatio(speed_ratio)
+            if 'tilt' in axes:
+                self._setTiltSpeedRatio(speed_ratio)
+        else:
+            self._setSpeedRatio(speed_ratio)
+
+    def _setMotorDirectionCb(self, msg):
+        axes = self._resolveMotorAxes(msg.motor_name)
+        if len(axes) == 0:
+            return
+        direction = 1 if msg.direction >= 0 else -1
+        if 'pan' in axes:
+            self.cmd_dir_pan = direction
+        if 'tilt' in axes:
+            self.cmd_dir_tilt = direction
+        self.msg_if.pub_info("Set motor direction " + str(msg.motor_name) + " to " + str(direction))
+        self.publish_status()
+
+    def _goMotorDirectionCb(self, msg):
+        axes = self._resolveMotorAxes(msg.motor_name)
+        if len(axes) == 0:
+            return
+        if 'pan' in axes:
+            self._goPanDirection(self.cmd_dir_pan)
+        if 'tilt' in axes:
+            self._goTiltDirection(self.cmd_dir_tilt)
+
+    def _goPanDirection(self, direction):
+        target_deg = self.max_pan_softstop_deg if direction >= 0 else self.min_pan_softstop_deg
+        self.msg_if.pub_info("Driving pan continuously toward soft-limit deg " + str(target_deg))
+        self.gotoPanPosition(target_deg)
+
+    def _goTiltDirection(self, direction):
+        target_deg = self.max_tilt_softstop_deg if direction >= 0 else self.min_tilt_softstop_deg
+        self.msg_if.pub_info("Driving tilt continuously toward soft-limit deg " + str(target_deg))
+        self.gotoTiltPosition(target_deg)
+
+    def _stopMotorCb(self, msg):
+        axes = self._resolveMotorAxes(msg.motor_name)
+        if len(axes) == 0:
+            return
+        if 'pan' in axes and 'tilt' in axes:
+            self.stopPanTilt('All')
+        elif 'pan' in axes:
+            self.stopPanTilt('pan')
+        elif 'tilt' in axes:
+            self.stopPanTilt('tilt')
+
     def stopPanCb(self):
         if self.node_if is not None:
             self.node_if.publish_pub('stop_pan_callback_pub',Empty())
@@ -1726,7 +1855,6 @@ class PTXActuatorIF:
         self.status_msg.speed_pan_ratio = self.speed_pan_ratio
         self.status_msg.speed_tilt_ratio = self.speed_tilt_ratio
 
-
         if self.node_if is not None:
             #self.msg_if.pub_warn("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
             #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
@@ -1736,10 +1864,51 @@ class PTXActuatorIF:
             pan_tilt_msg.pan_deg = self.status_msg.pan_now_deg
             pan_tilt_msg.tilt_deg = self.status_msg.tilt_now_deg
             self.node_if.publish_pub('pan_tilt_pub',pan_tilt_msg)
+            # Standard per-motor status on the dedicated motor_status topic
+            self.node_if.publish_pub('motor_status_pub', self.get_motors_status_msg())
 
 
         pub_time = nepi_utils.get_time() - start_time
         return pub_time
+
+    def get_motors_status_msg(self):
+        """Builds the standard MotorsStatus message for this pan/tilt device.
+
+        Each physical motor maps to exactly one MotorStatus: motor_0 = pan,
+        motor_1 = tilt. Fields are populated from existing PTX state. motor_dir is
+        derived from the reverse-enable flags (-1 when reversed, 1 otherwise).
+
+        Note: PTX has no per-axis enable/disable control, so motor_enable is
+        reported True for both axes whenever the interface is active.
+
+        Returns:
+            MotorsStatus: Wrapper message with a two-element motors array
+                [pan, tilt] published on the dedicated motor_status topic.
+        """
+        msg = MotorsStatus()
+        msg.timestamp = nepi_utils.get_time()
+        msg.device_name = self.device_name
+
+        pan_motor = MotorStatus()
+        pan_motor.motor_name = "motor_0"
+        pan_motor.motor_enable = True
+        pan_motor.motor_dir = -1 if self.reverse_pan_enabled else 1
+        pan_motor.motor_max_speed = self.speed_max_dps
+        pan_motor.motor_speed_ratio = self.speed_pan_ratio
+        pan_motor.motor_speed = abs(self.speed_pan_dps)
+        pan_motor.motor_position = self.status_msg.pan_now_deg
+
+        tilt_motor = MotorStatus()
+        tilt_motor.motor_name = "motor_1"
+        tilt_motor.motor_enable = True
+        tilt_motor.motor_dir = -1 if self.reverse_tilt_enabled else 1
+        tilt_motor.motor_max_speed = self.speed_max_dps
+        tilt_motor.motor_speed_ratio = self.speed_tilt_ratio
+        tilt_motor.motor_speed = abs(self.speed_tilt_dps)
+        tilt_motor.motor_position = self.status_msg.tilt_now_deg
+
+        msg.motors = [pan_motor, tilt_motor]
+        return msg
 
     def getZeroCb(self):
         return 0
