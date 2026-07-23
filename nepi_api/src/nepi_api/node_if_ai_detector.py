@@ -978,7 +978,7 @@ class AiDetectorIF:
     ##########################################
 
     def setEnableCb(self,msg):
-        self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
+        #self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
         enabled = msg.data
         self.setEnable(enabled)
 
@@ -994,13 +994,13 @@ class AiDetectorIF:
 
 
     def setImageTopicCb(self,msg):
-        self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
+        #self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
         source_topic = msg.data
         self.setImageTopic(source_topic)
 
 
     def setImageTopic(self, source_topic, save_config = True):
-        self.msg_if.pub_info("Set Image Topic: " + source_topic)         
+        #self.msg_if.pub_info("Set Image Topic: " + source_topic)         
         self.selected_sources = [source_topic]
         self.publish_status()
         if self.node_if is not None and save_config == True:
@@ -1008,13 +1008,13 @@ class AiDetectorIF:
             self.save_config()
 
     def setImageTopicsCb(self,msg):
-        self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
+        #self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
         source_topics = msg.data
         self.setImageTopics(source_topics)
 
 
     def setImageTopics(self, source_topics, save_config = True):
-        self.msg_if.pub_info("Set Image Topics: " + str(source_topics))         
+        #self.msg_if.pub_info("Set Image Topics: " + str(source_topics))         
         self.selected_sources = source_topics
         self.publish_status()
         if self.node_if is not None and save_config == True:
@@ -1023,20 +1023,20 @@ class AiDetectorIF:
 
 
     def addImageTopicCb(self,msg):
-        self.msg_if.pub_info("Received Add Image Topic: " + msg.data)
+        #self.msg_if.pub_info("Received Add Image Topic: " + msg.data)
         source_topic = msg.data
         self.addImageTopic(source_topic)
 
 
     def addImageTopicsCb(self,msg):
-        self.msg_if.pub_info("Received Add Image Topics: " + str(msg))
+        #self.msg_if.pub_info("Received Add Image Topics: " + str(msg))
         source_topic_list = msg.array
         for source_topic in source_topic_list:
             self.addImageTopic(source_topic)
 
 
     def addImageTopic(self,source_topic):   
-        self.msg_if.pub_info("Adding Image Topic: " + source_topic)
+        #self.msg_if.pub_info("Adding Image Topic: " + source_topic)
         source_topics = copy.deepcopy(self.selected_sources)
         if source_topic not in source_topics:
             source_topics.append(source_topic)
@@ -1050,13 +1050,13 @@ class AiDetectorIF:
 
 
     def removeImageTopicCb(self,msg):
-        self.msg_if.pub_info("Received Remove Image Topic: " + str(msg))
+        #self.msg_if.pub_info("Received Remove Image Topic: " + str(msg))
         source_topic = msg.data
         self.removeImageTopic(source_topic)
 
 
     def removeImageTopicsCb(self,msg):
-        self.msg_if.pub_info("Received Remove Image Topic: " + str(msg))
+        #self.msg_if.pub_info("Received Remove Image Topic: " + str(msg))
         source_topic_list = msg.array
         for source_topic in source_topic_list:
             self.removeImageTopic(source_topic)
@@ -1064,7 +1064,7 @@ class AiDetectorIF:
 
 
     def removeImageTopic(self,source_topic,save_config = True):
-        self.msg_if.pub_info("Removing Image Topic: " + source_topic)         
+        #self.msg_if.pub_info("Removing Image Topic: " + source_topic)         
         source_topics = copy.deepcopy(self.selected_sources)
         if source_topic in source_topics:
             source_topics.remove(source_topic)
@@ -1078,7 +1078,7 @@ class AiDetectorIF:
     ###################
     # Detector
     def setClassCb(self,msg):
-        self.msg_if.pub_info("Received Set class: " + msg.data)
+        #self.msg_if.pub_info("Received Set class: " + msg.data)
         class_name = msg.data
         self.setClass(class_name)
 
@@ -1092,7 +1092,7 @@ class AiDetectorIF:
             self.save_config()
 
     def setClassesCb(self,msg):
-        self.msg_if.pub_info("Received Set classes: " + msg.data)
+        #self.msg_if.pub_info("Received Set classes: " + msg.data)
         class_names = msg.data
         self.setClasses(class_names)
 
@@ -1107,7 +1107,7 @@ class AiDetectorIF:
 
 
     def addAllClassesCb(self,msg):
-        self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
+        #self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
         self.addAllClasses()
 
     def addAllClasses(self):
@@ -1120,7 +1120,7 @@ class AiDetectorIF:
 
 
     def removeAllClassesCb(self,msg):
-        self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
+        #self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
         self.selected_classes = []
         self.publish_status(do_updates = False) # Updated Here
         if self.node_if is not None:
@@ -1129,7 +1129,7 @@ class AiDetectorIF:
 
 
     def addClassCb(self,msg):
-        self.msg_if.pub_info('Got add class msg: ' + str(msg))
+        #self.msg_if.pub_info('Got add class msg: ' + str(msg))
         class_name = msg.data
         if class_name in self.classes:
             sel_classes = copy.deepcopy(self.selected_classes)
@@ -1143,7 +1143,7 @@ class AiDetectorIF:
 
 
     def removeClassCb(self,msg):
-        self.msg_if.pub_info('Got remove class msg: ' + str(msg))
+        #self.msg_if.pub_info('Got remove class msg: ' + str(msg))
         class_name = msg.data
         sel_classes = copy.deepcopy(self.selected_classes)
         if class_name in sel_classes:
@@ -1177,7 +1177,7 @@ class AiDetectorIF:
     ###################
     # Targeting
     def setClassTargetingCb(self,msg):
-        self.msg_if.pub_info("Received Set class: " + msg.data)
+        #self.msg_if.pub_info("Received Set class: " + msg.data)
         class_name = msg.data
         self.setClassTargeting(class_name)
 
@@ -1191,7 +1191,7 @@ class AiDetectorIF:
             self.save_config()
 
     def setClassesTargetingCb(self,msg):
-        self.msg_if.pub_info("Received Set classes: " + msg.data)
+        #self.msg_if.pub_info("Received Set classes: " + msg.data)
         class_names = msg.data
         self.setClassesTargeting(class_names)
 
@@ -1206,7 +1206,7 @@ class AiDetectorIF:
 
 
     def addAllClassesTargetingCb(self,msg):
-        self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
+        #self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
         self.addAllClassesTargeting()
 
     def addAllClassesTargeting(self):
@@ -1219,7 +1219,7 @@ class AiDetectorIF:
 
 
     def removeAllClassesTargetingCb(self,msg):
-        self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
+        #self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
         self.selected_classes = []
         self.publish_status(do_updates = False) # Updated Here
         if self.node_if is not None:
@@ -1228,7 +1228,7 @@ class AiDetectorIF:
 
 
     def addClassTargetingCb(self,msg):
-        self.msg_if.pub_info('Got add class msg: ' + str(msg))
+        #self.msg_if.pub_info('Got add class msg: ' + str(msg))
         class_name = msg.data
         if class_name in self.classes:
             sel_classes = copy.deepcopy(self.selected_classes)
@@ -1242,7 +1242,7 @@ class AiDetectorIF:
 
 
     def removeClassTargetingCb(self,msg):
-        self.msg_if.pub_info('Got remove class msg: ' + str(msg))
+        #self.msg_if.pub_info('Got remove class msg: ' + str(msg))
         class_name = msg.data
         sel_classes = copy.deepcopy(self.selected_classes)
         if class_name in sel_classes:
