@@ -49,6 +49,7 @@ from pygeodesy.ellipsoidalKarney import LatLon
 from nepi_interfaces.msg import DeviceRBXInfo, DeviceRBXStatus 
 from nepi_interfaces.msg import AxisControls, ErrorBounds
 from nepi_interfaces.msg import MotorControl
+from nepi_interfaces.msg import MotorStatus, MotorsStatus
 from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, MotorControl, GotoErrors
 
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
@@ -536,6 +537,13 @@ class RBXRobotIF:
                 'msg': String,
                 'qsize': 1,
                 'latch': True
+            },
+            'motor_status_pub': {
+                'namespace': self.namespace,
+                'topic': 'motor_status',
+                'msg': MotorsStatus,
+                'qsize': 10,
+                'latch': False
             }
         }
      
@@ -1976,6 +1984,44 @@ class RBXRobotIF:
         mcs.append(mc)
       return mcs
 
+    def get_motors_status_msg(self):
+      """Builds the standard MotorsStatus message for this RBX device.
+
+      One MotorStatus per motor, named motor_0, motor_1, ... in motor-index
+      order, populated from the manual motor-control speed ratios reported by
+      getMotorControlRatios().
+
+      Note: RBX exposes only a per-motor speed ratio. It has no per-motor
+      direction, max speed, current speed (dps), position feedback, or explicit
+      enable state, so motor_dir is reported as 1, motor_enable as True, and
+      motor_max_speed / motor_speed / motor_position as 0. These map in as RBX
+      gains that feedback.
+
+      Returns:
+          MotorsStatus: Wrapper message published on the dedicated motor_status
+              topic.
+      """
+      msg = MotorsStatus()
+      msg.timestamp = nepi_utils.get_time()
+      msg.device_name = self.device_name
+      if self.getMotorControlRatios is not None:
+        ratios = self.getMotorControlRatios()
+      else:
+        ratios = []
+      motors = []
+      for i in range(len(ratios)):
+        motor = MotorStatus()
+        motor.motor_name = "motor_" + str(i)
+        motor.motor_enable = True
+        motor.motor_dir = 1
+        motor.motor_max_speed = 0.0
+        motor.motor_speed_ratio = ratios[i]
+        motor.motor_speed = 0.0
+        motor.motor_position = 0.0
+        motors.append(motor)
+      msg.motors = motors
+      return msg
+
     def get_3d_transform(self):
         """Returns the current 3D transformation data.
 
@@ -2085,6 +2131,8 @@ class RBXRobotIF:
             self.status_msg.data_ref_description = self.data_ref_description
             self.node_if.publish_pub('status_msg_pub', self.status_msg)
             self.node_if.publish_pub('status_msg_str_pub', str(status_str_msg))
+            # Standard per-motor status on the dedicated motor_status topic
+            self.node_if.publish_pub('motor_status_pub', self.get_motors_status_msg())
 
         # Create ROS Image message
         cv2_img = copy.deepcopy(self.cv2_img) # Initialize status image
