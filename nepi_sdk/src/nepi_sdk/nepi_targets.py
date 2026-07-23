@@ -137,14 +137,8 @@ string[] ordered_filters
 string[] enabled_filters
 string selected_filter
 
-bool pub_image_enabled
+bool imaging_enabled
 
-bool overlay_label
-bool overlay_range_bearing
-bool overlay_nav
-bool overlay_pose
-bool overlay_clf_name
-bool overlay_img_name
 
 ##################
 string[] target_source_topics
@@ -206,9 +200,9 @@ def convert_target_dict2msg(target_data_dict, log_name_list = []):
 
         target_msg.timestamp = target_data_dict['timestamp']
 
-        target_msg.target_name = target_data_dict['target_name']
-        target_msg.target_uid = target_data_dict['target_uid']
-        target_msg.target_confidence = target_data_dict['target_confidence']
+        target_msg.name = target_data_dict['name']
+        target_msg.uid = target_data_dict['uid']
+        target_msg.confidence = target_data_dict['confidence']
 
         # 2D Data ENU Reference Frame
         target_msg.xmin_pixel = target_data_dict['xmin_pixel']

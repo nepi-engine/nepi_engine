@@ -111,29 +111,25 @@ def get_classes_colors_list(classes_str_list):
 
 
 
-def get_boxes_info_from_msg(bboxes_msg):
+def get_boxes_info_from_msg(detections_msg):
     boxes_info_dict  = {
-        'model_name': bboxes_msg.model_name ,
-        'detect_timestamp': bboxes_msg.detect_timestamp ,
-        'image_topic': bboxes_msg.image_topic ,
-        'image_timestamp': bboxes_msg.image_timestamp ,
-        'image_height': bboxes_msg.image_height ,
-        'image_width': bboxes_msg.image_width ,
-        'prc_height': bboxes_msg.prc_height ,
-        'prc_width': bboxes_msg.prc_width ,
+        'detect_timestamp': detections_msg.timestamp ,
+        'model_name': detections_msg.process_name,
+        'image_topic': detections_msg.source_topic ,
+        'image_timestamp': detections_msg.source_timestamp ,
     }
     return boxes_info_dict
 
 
-def get_boxes_list_from_msg(bboxes_msg):
-    bboxes_list = bboxes_msg.bounding_boxes
+def get_boxes_list_from_msg(detections_msg):
+    detections_list = detections_msg.bounding_boxes
     boxes_list = []
-    for bbox in bboxes_list:
+    for bbox in detections_list:
         box_dict = {
-            'name': bbox.Class ,
+            'name': bbox.name ,
             'id': bbox.id ,
             'uid': bbox.uid ,
-            'prob': bbox.probability ,
+            'prob': bbox.confidence ,
             'xmin': bbox.xmin ,
             'ymin': bbox.ymin ,
             'xmax': bbox.xmax ,
@@ -189,7 +185,7 @@ def read_detect_dict_from_xml_file(file_path,classes = []):
         tree = ET.parse(file_path)
         root = tree.getroot()
         labels = []
-        bboxes = []
+        detections = []
         size = root.find("size")
         image_width = 1.0 * int(size.find("width").text)
         image_height = 1.0 * int(size.find("height").text)
@@ -344,7 +340,7 @@ def save_txt_label_file(bounding_boxes,file_path):
 
 def convert_dict_to_txt(detect_dict_list,image_width,image_height):
     labels = []
-    bboxes = []
+    detections = []
     for detect_dict in detect_dict_list:
         try:
             class_ind = detect_dict['id']
@@ -369,34 +365,34 @@ def convert_dict_to_txt(detect_dict_list,image_width,image_height):
 
 
             labels.append(detect_dict['name'])
-            bboxes.append(bbox)
+            detections.append(bbox)
         except Exception as e:
             print("Failed to convert xml data to txt data: " + str(e))
-    return labels, bboxes
+    return labels, detections
 
 
 def convert_xml_to_txt(folder_path, classes, classes_dict):
     files = nepi_utils.get_file_list(folder_path, ext_list = ['xml'])
     for file in files:
         [detect_dict_list, image_width, image_height] = read_detect_dict_from_xml_file(file,classes)
-        [labels, bboxes] = convert_dict_to_txt(detect_dict_list,image_width,image_height)
-        broken_labels = [i for i, box in enumerate(bboxes) if box[0] == -1]
+        [labels, detections] = convert_dict_to_txt(detect_dict_list,image_width,image_height)
+        broken_labels = [i for i, box in enumerate(detections) if box[0] == -1]
         if len(broken_labels) > 0:
             [new_classes, new_classes_dict] = fix_brocken_labels(labels,classes,classes_dict)
             classes = new_classes
             classes_dict = new_classes_dict
-            new_bboxes = []
+            new_detections = []
             for i, label in enumerate(labels):
                 if label in classes_dict.keys():
                     ind = classes_dict[label]
                     if ind != -1:
-                        bbox = bboxes[i]
+                        bbox = detections[i]
                         bbox[0] = ind
-                        new_bboxes.append(bbox)
-            bboxes = new_bboxes
+                        new_detections.append(bbox)
+            detections = new_detections
             success = update_xml_label_file(file,classes,classes_dict)
         txt_file = file.replace('.xml','.txt')
-        success = save_txt_label_file(bboxes,txt_file)
+        success = save_txt_label_file(detections,txt_file)
     return classes,classes_dict
 
 
