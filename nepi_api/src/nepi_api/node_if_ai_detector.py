@@ -559,17 +559,17 @@ class AiDetectorIF:
                 'callback': self.setPubImageCb, 
                 'callback_args': ()
             },
-            'detector_set_max_proc_rate': {
+            'detector_set_max_process_rate': {
                 'namespace': self.detector_namespace,
-                'topic': 'set_max_proc_rate',
+                'topic': 'set_max_process_rate',
                 'msg': Float32,
                 'qsize': 10,
                 'callback': self.setMaxProcRateCb, 
                 'callback_args': ()
             },
-            'detector_set_max_img_rate': {
+            'detector_set_max_image_pub_rate': {
                 'namespace': self.detector_namespace,
-                'topic': 'set_max_img_rate',
+                'topic': 'set_max_image_pub_rate',
                 'msg': Float32,
                 'qsize': 10,
                 'callback': self.setMaxImgRateCb, 
@@ -714,17 +714,17 @@ class AiDetectorIF:
                 'callback': self.setPubImageCb, 
                 'callback_args': ()
             },
-            'targeting_set_max_proc_rate': {
+            'targeting_set_max_process_rate': {
                 'namespace': self.targeting_namespace,
-                'topic': 'set_max_proc_rate',
+                'topic': 'set_max_process_rate',
                 'msg': Float32,
                 'qsize': 10,
                 'callback': self.setMaxProcRateCb, 
                 'callback_args': ()
             },
-            'targeting_set_max_img_rate': {
+            'targeting_set_max_image_pub_rate': {
                 'namespace': self.targeting_namespace,
-                'topic': 'set_max_img_rate',
+                'topic': 'set_max_image_pub_rate',
                 'msg': Float32,
                 'qsize': 10,
                 'callback': self.setMaxImgRateCb, 

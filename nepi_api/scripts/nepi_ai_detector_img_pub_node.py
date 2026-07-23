@@ -199,7 +199,7 @@ class AiDetectorImgPub:
         self.model_name = 'None'
         self.enabled = False
         self.state_str_msg = "Unknown"
-        self.max_image_pub_rate_hz = 1.0
+        self.max_image_pub_rate_hz = 10
         self.use_last_image = True
 
         self.imaging_enabled = True
