@@ -1646,11 +1646,11 @@ class SaveDataIF:
                 the write. When False, the data is written unconditionally (if
                 space is available). Defaults to True.
         """
-        if self.space_available == True:
+        if self.space_available == False:
             self.data_product_snapshot_reset(data_product)
             return ''
         else:
-            if self.disabled == True:
+            if self.disabled == False:
                 should_save = self.data_product_should_save(data_product)
                 snapshot_enabled = self.data_product_snapshot_enabled(data_product)
                 # Save data if enabled
@@ -1768,7 +1768,9 @@ class SaveDataIF:
                     self.save_rate_dict[data_product][1] = 0.0 # Reset timer
             self.node_if.set_param('save_rate_dict',self.save_rate_dict)
             self.filename_dict =  self.node_if.get_param('filename_dict')
-            self.disabled = self.node_if.get_param('disabled')
+            disabled = self.node_if.get_param('disabled')
+            if disabled is not None:
+                self.disabled = disabled
         self.publish_status()
 
 
@@ -2287,6 +2289,7 @@ class Transform3DIF:
         if self.node_if is not None:
             self.status_msg.has_transform = self.has_transform
             self.node_if.publish_pub('status_pub',self.status_msg)
+
 
     def init(self, do_updates = True):
         """Load transform, source, and end parameters from the ROS param server.
