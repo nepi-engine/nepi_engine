@@ -604,7 +604,7 @@ class NavPoseMgr(object):
             if frame_name not in self.data_products_list:
                 self.data_products_list.append(frame_name)
         for d in self.data_products_list:
-            factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+            factory_data_rates[d] = [1.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
             if d == 'navposes':
                 factory_data_rates[d][0] = self.MAX_PUB_RATE
         sd_namespace = self.node_namespace

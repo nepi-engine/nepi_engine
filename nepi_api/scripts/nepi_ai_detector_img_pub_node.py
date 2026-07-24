@@ -539,7 +539,6 @@ class AiDetectorImgPub:
         img_info_dict['last_img_time'] = 0
         img_info_dict['last_det_time'] = 0
         img_info_dict['det_dict_list'] = []   
-        img_info_dict['loc_dict_list'] = []
         img_info_dict['last_img'] = None
 
         self.imgs_info_lock.acquire()
@@ -673,13 +672,7 @@ class AiDetectorImgPub:
                             det_dict_list = copy.deepcopy(self.imgs_info_dict[source_topic]['det_dict_list'])
                             #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
                             if det_dict_list == None:
-                                det_dict_list = []
-                                
-                            loc_dict_list = copy.deepcopy(self.imgs_info_dict[source_topic]['loc_dict_list'])
-                            #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
-                            if loc_dict_list == None:
-                                loc_dict_list = []
-                            
+                                det_dict_list = []                            
 
                             if self.use_last_image == False:
                                 # process image for next time
@@ -696,7 +689,6 @@ class AiDetectorImgPub:
                                 success = self.processDetImage(source_topic, 
                                                             use_cv2_img, 
                                                             det_dict_list, 
-                                                            loc_dict_list,
                                                             timestamp = timestamp,  
                                 )
 
@@ -711,7 +703,7 @@ class AiDetectorImgPub:
 
                            
 
-    def processFileImg(self, img_file,det_dict_list,loc_dict_list):   
+    def processFileImg(self, img_file,det_dict_list):   
         source_topic = 'img_file'      
         max_image_pub_rate_hz = copy.deepcopy(self.max_image_pub_rate_hz)
         if max_image_pub_rate_hz > .01:
@@ -743,12 +735,10 @@ class AiDetectorImgPub:
                         
                         #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
                         if det_dict_list == None:
-                            det_dict_list = []   
-                            loc_dict_list = []             
+                            det_dict_list = []           
                         success = self.processDetImage(source_topic, 
                                                     cv2_img, 
                                                     det_dict_list, 
-                                                    loc_dict_list,
                                                     timestamp = timestamp,  
                                                     )
 
@@ -759,13 +749,13 @@ class AiDetectorImgPub:
                            
 
 
-    def processDetImage(self,source_topic, cv2_img, detect_dict_list, loc_dict_list, timestamp = None):
+    def processDetImage(self,source_topic, cv2_img, detect_dict_list, timestamp = None):
       
         # Post process image with overlays
         if detect_dict_list is not None:
             # Publish image first for consumers
             #self.msg_if.pub_warn("Starting detect image: " + str(cv2_img.shape))
-            cv2_img = self.apply_detection_overlay(source_topic, detect_dict_list, loc_dict_list, cv2_img)
+            cv2_img = self.apply_detection_overlay(source_topic, detect_dict_list, cv2_img)
             #self.msg_if.pub_warn("Return detect image: " + str(cv2_img.shape)
 
             add_overlay_list = []
@@ -842,7 +832,7 @@ class AiDetectorImgPub:
 
                
 
-    def apply_detection_overlay(self,source_topic, detect_dict_list, loc_dict_list, cv2_img):
+    def apply_detection_overlay(self,source_topic, detect_dict_list, cv2_img):
         cv2_det_img = copy.deepcopy(cv2_img)
         cv2_shape = cv2_img.shape
         img_width = cv2_shape[1] 
@@ -914,13 +904,11 @@ class AiDetectorImgPub:
                     overlay_text = overlay_text + class_name + " "
                 if overlay_range_bearing:
                     rb_text = ''
-                    if len(loc_dict_list) > i:
-                        loc_dict = loc_dict_list[i]
-                        if loc_dict['range_m'] != -999 and loc_dict['range_m'] != '':
-                            rb_text = rb_text + str(round(loc_dict['range_m'],1)) + 'm :'
-                        if loc_dict['azimuth_deg'] != -999 and loc_dict['elevation_deg'] != -999:
-                            rb_text = rb_text + str(round(loc_dict['azimuth_deg'],1)) + 'deg '
-                            rb_text = rb_text + str(round(loc_dict['elevation_deg'],1)) + 'deg '
+                    if detect_dict['range_m'] != -999 and detect_dict['range_m'] != '':
+                        rb_text = rb_text + str(round(detect_dict['range_m'],1)) + 'm :'
+                    if detect_dict['azimuth_deg'] != -999 and detect_dict['elevation_deg'] != -999:
+                        rb_text = rb_text + str(round(detect_dict['azimuth_deg'],1)) + 'deg '
+                        rb_text = rb_text + str(round(detect_dict['elevation_deg'],1)) + 'deg '
                     if len(rb_text) > 0:
                         overlay_text = overlay_text + rb_text
 
@@ -974,18 +962,9 @@ class AiDetectorImgPub:
         img_stamp = msg.source_timestamp
         source_topic = msg.source_topic
         current_time = nepi_utils.get_time()
-        blist = nepi_ais.get_boxes_list_from_msg(msg)
-        llist = []
-        l_msg_list = msg.localizations
-        for l_msg in l_msg_list:
-            l_dict = dict()
-            l_dict['range_m'] = l_msg.range_m
-            l_dict['azimuth_deg'] = l_msg.azimuth_deg
-            l_dict['elevation_deg'] = l_msg.elevation_deg
-            llist.append(l_dict)
+        dlist = nepi_ais.get_boxes_list_from_msg(msg)
         if source_topic in self.imgs_info_dict.keys():
-            self.imgs_info_dict[source_topic]['det_dict_list'] = blist
-            self.imgs_info_dict[source_topic]['loc_dict_list'] = llist
+            self.imgs_info_dict[source_topic]['det_dict_list'] = dlist
             self.imgs_info_dict[source_topic]['img_stamp'] = img_stamp      
             self.imgs_info_dict[source_topic]['last_det_time'] = current_time
         else:
@@ -993,7 +972,7 @@ class AiDetectorImgPub:
                 self.imgs_info_dict['img_file'] = dict()
                 self.imgs_info_dict['img_file']['img_stamp'] = img_stamp      
                 self.imgs_info_dict['img_file']['last_det_time'] = current_time
-                self.processFileImg(source_topic,blist,llist)
+                self.processFileImg(source_topic,dlist)
 
   
 

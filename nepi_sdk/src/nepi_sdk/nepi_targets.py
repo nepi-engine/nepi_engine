@@ -42,141 +42,6 @@ logger = Logger(log_name = log_name)
 ## Library Data
 
 
-BLANK_TARGET_DICT = {
-'''
-string target_name
-string target_uid
-float32 target_confidence
-
-# 2D Data ENU Reference Frame
-int32 xmin_pixel
-int32 xmax_pixel
-
-int32 ymin_pixel
-int32 ymax_pixel
-
-int32 width_pixels
-int32 height_pixels
-
-float32 area_ratio 
-float32 area_pixels
-geometry_msgs/Vector3 vel_pixels
-
-# 3D Data in ENU Reference Frame
-float32 width_meters
-float32 height_meters
-float32 depth_meters
-float32 area_meters
-float32 volume_meters
-geometry_msgs/Vector3 vel_xyz_mps
-geometry_msgs/Vector3 center_xyz_meters
-
-# Range, Bearing, Nav, and Pose Data ENU Reference Frame
-float32 range_m
-float32 azimuth_deg
-float32 elevation_deg
-
-Target navpose
-
-# Color Distribution Percent 
-float32 color_black	
-float32 color_white	
-float32 color_red	
-float32 color_blue	
-float32 color_yellow	
-float32 color_cyan	
-float32 color_magenta	
-float32 color_green	
-
-# Contour Data
-int32[] contour_moments
-}
-
-
-BLANK_TARGETS_DICT = {
-string name
-float64 targeting_timestamp
-
-string source_topic
-string source_type
-string source_description
-float64 source_timestamp
-Target source_nav_pose
-
-bool has_2d_data
-bool has_3d_data
-bool has_range_data
-bool has_bearing_data
-bool has_nav_data
-bool has_pose_data
-bool has_color_data
-bool has_countour_data
-bool has_shape_data
-
-Target[] targets
-'''
-}
-
-
-BLANK_SETTINGS_DICT = {
-'''
-string name
-string namespace
-bool enabled
-string state
-bool targeting_state
-
-float32 max_proc_rate_hz
-float32 max_img_rate_hz
-
-string[] available_targets
-string[] selected_targets
-
-string[] available_filters
-string[] ordered_filters
-string[] enabled_filters
-string selected_filter
-
-bool imaging_enabled
-
-
-##################
-string[] target_source_topics
-string[] selected_source_topics
-string[] selected_img_topics
-string[] selected_depth_map_topics
-string[] selected_pointcloud_topics
-string[] selected_pub_sub_namespaces
-
-
-###############
-float32 avg_image_receive_rate
-
-float32 avg_image_process_time
-
-float32 avg_image_process_latency
-float32 avg_image_process_rate
-    
-float32 avg_targeting_process_time
-    
-float32 avg_targeting_process_latency
-float32 avg_targeting_process_rate
-
-float32 max_targeting_rate
-'''
-
-}
-
-
-BLANK_TARGET_FILTER_DICT = {
-
-}
-
-
-BLANK_TARGET_FILTERS_DICT = {
-
-}
-
 ########################
 ## Misc AI Helper Functions
 def get_targeting_source_publisher_namespaces():
@@ -248,3 +113,22 @@ def convert_target_msg2dict(target_msg, log_name_list = []):
     logger.log_warn("Failed to convert Target Data msg: " + str(e), throttle_s = 5.0)
   return target_data_dict
 
+
+def get_boxes_list_from_msg(targets_msg):
+    targets_list = targets_msg.targets
+    boxes_list = []
+    for target in detections_list:
+        box_dict = {
+            'name': target.name ,
+            'id': target.id ,
+            'uid': target.uid ,
+            'prob': target.confidence ,
+            'xmin': target.xmin_pixel ,
+            'ymin': target.ymin_pixel ,
+            'xmax': target.xmax_pixel ,
+            'ymax': target.ymax_pixel ,
+            'area_ratio': target.area_ratio ,
+            'area_pixels': target.area_pixels
+        }
+        boxes_list.append(box_dict)
+    return boxes_list

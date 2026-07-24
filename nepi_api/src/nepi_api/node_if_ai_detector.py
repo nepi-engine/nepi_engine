@@ -35,7 +35,7 @@ from nepi_interfaces.msg import ImageStatus
 from nepi_interfaces.msg import MgrSystemStatus
 from nepi_interfaces.msg import StringArray
 from nepi_interfaces.msg import ProcessStatus
-from nepi_interfaces.msg import BoundingBox2D, Localization, Detections, DetectorStatus
+from nepi_interfaces.msg import Detection, Detections, DetectorStatus
 from nepi_interfaces.srv import DetectorStatusQuery, DetectorStatusQueryRequest, DetectorStatusQueryResponse
 from nepi_interfaces.msg import Target, Targets, TargetingStatus
 
@@ -115,7 +115,7 @@ class AiDetectorIF:
     save_data_namespace = 'None'
     
 
-    data_products = ['detections',IMAGE_DATA_PRODUCT]
+    data_products = ['detections','targets',IMAGE_DATA_PRODUCT]
 
     available_source_topics = []
 
@@ -2130,7 +2130,7 @@ class AiDetectorIF:
                 ################
                 # Bounding Boxes
                 try:
-                    detection_msg = BoundingBox2D()
+                    detection_msg = Detection()
                     detection_msg.name = detect_dict['name']
                     detection_msg.id = detect_dict['id']
                     detection_msg.uid = detect_dict['uid']
@@ -2152,16 +2152,10 @@ class AiDetectorIF:
                     self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e)) 
 
                 try:
-                    l_msg = Localization()
-                    l_msg.name = detect_dict['name']
-                    l_msg.id = detect_dict['id']
-                    l_msg.uid = detect_dict['uid']
-                    l_msg.confidence = detect_dict['prob']
                     # Ranl Bearing, Nav, and Pose Data ENU Reference Frame
-                    l_msg.range_m = target_range_m
-                    l_msg.azimuth_deg = target_horz_angle_deg
-                    l_msg.elevation_deg = target_vert_angle_deg
-                    l_msg_list.append(l_msg)
+                    detection_msg.range_m = target_range_m
+                    detection_msg.azimuth_deg = target_horz_angle_deg
+                    detection_msg.elevation_deg = target_vert_angle_deg
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e))
 
@@ -2288,9 +2282,12 @@ class AiDetectorIF:
             if len(detect_dict_list) > 0 and self.save_data_if is not None:
                 data_product = 'detections'
                 detections_dict = nepi_sdk.convert_msg2dict(detections_msg)
-                detection_dict_list = nepi_ais.get_boxes_list_from_msg(detections_msg)
-                detections_dict['detections']=detection_dict_list
+                # detection_dict_list = nepi_ais.get_boxes_list_from_msg(detections_msg)
+                # detections_dict['detections']=detection_dict_list
                 self.save_data_if.save(data_product,detections_dict,timestamp = detect_timestamp)
+                data_product = 'targets'
+                targets_dict = nepi_sdk.convert_msg2dict(targets_msg)
+                self.save_data_if.save(data_product,targets_dict,timestamp = detect_timestamp)
 
     def publishData(self,pub_name, msg):
         #self.msg_if.pub_warn("Publishing topic: " + str(pub_name) + " with msg " + str(msg))
