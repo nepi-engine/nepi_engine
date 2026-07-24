@@ -962,7 +962,8 @@ class AiDetectorImgPub:
         img_stamp = msg.source_timestamp
         source_topic = msg.source_topic
         current_time = nepi_utils.get_time()
-        dlist = nepi_ais.get_boxes_list_from_msg(msg)
+        detections_dict = nepi_sdk.convert_msg2dict(msg)
+        dlist = detections_dict['detections']
         if source_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict[source_topic]['det_dict_list'] = dlist
             self.imgs_info_dict[source_topic]['img_stamp'] = img_stamp      
