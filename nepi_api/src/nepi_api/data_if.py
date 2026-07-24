@@ -1631,7 +1631,15 @@ class BaseImageIF:
                 'topic': 'rotate_2d',
                 'msg': Empty,
                 'qsize': 5,
-                'callback': self._setRotate2dCb, 
+                'callback': self._setRotate2dCb,
+                'callback_args': ()
+            }
+            self.SUBS_DICT['set_rotate_2d_deg'] = {
+                'namespace': self.namespace,
+                'topic': 'set_rotate_2d_deg',
+                'msg': Int32,
+                'qsize': 5,
+                'callback': self._setRotate2dDegCb,
                 'callback_args': ()
             }
         if caps_dict['has_flip_horz'] == True:
@@ -3411,6 +3419,11 @@ class BaseImageIF:
         if new_angle >= 360:
             new_angle = 0
         new_angle = int(round(new_angle/90.0,0) * 90)
+        self.set_rotate_2d_deg(new_angle)
+
+    def _setRotate2dDegCb(self, msg):
+        self.msg_if.pub_info("Received Set Rotate 2d Deg message: " + str(msg), log_name_list = self.log_name_list)
+        new_angle = int(msg.data) % 360
         self.set_rotate_2d_deg(new_angle)
 
     def _setFlipHorzCb(self, msg):

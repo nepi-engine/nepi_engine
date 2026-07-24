@@ -53,14 +53,6 @@ log_name = "nepi_img"
 logger = Logger(log_name = log_name)
 
 
-ROTATE_DICT = {
-'0': '0',
-'90': cv2.ROTATE_90_CLOCKWISE,
-'180': cv2.ROTATE_180,
-'270': cv2.ROTATE_90_COUNTERCLOCKWISE,
-'360': '0'
-}
-
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
 
 def get_image_publisher_namespaces(name):
@@ -595,11 +587,24 @@ def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEARE
 
 
 def rotate_degrees(cv2_img, degrees=0):
-    if degrees != 0:
-      deg_str=str(degrees)
-      if deg_str in ROTATE_DICT.keys():
-         if ROTATE_DICT[deg_str] != '0':
-            cv2_img = cv2.rotate(cv2_img, ROTATE_DICT[deg_str])         
+    # Normalize any integer angle to the range 0-359 (360/multiples collapse to 0).
+    degrees = int(degrees) % 360
+    if degrees == 0:
+        return cv2_img
+    # Rotate about the image center while keeping the OUTPUT size identical to the
+    # input (same width and height) so the display box never changes dimensions or
+    # aspect ratio. Uncovered corners are filled with solid black (borderValue=0,
+    # BORDER_CONSTANT). getRotationMatrix2D treats a POSITIVE angle as
+    # counter-clockwise, so we negate to keep the original clockwise direction
+    # (matching the old cv2.ROTATE_90_CLOCKWISE behavior for 90 degrees; 180 and
+    # 270 likewise render as before).
+    height, width = cv2_img.shape[:2]
+    center = (width / 2.0, height / 2.0)
+    rot_mat = cv2.getRotationMatrix2D(center, -degrees, 1.0)
+    cv2_img = cv2.warpAffine(cv2_img, rot_mat, (width, height),
+                             flags=cv2.INTER_LINEAR,
+                             borderMode=cv2.BORDER_CONSTANT,
+                             borderValue=0)
     return cv2_img
 
 def flip_horz(cv2_img):
