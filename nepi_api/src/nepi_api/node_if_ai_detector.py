@@ -2220,7 +2220,7 @@ class AiDetectorIF:
 
             detections_msg.source_topic = source_topic
             detections_msg.source_timestamp = float(img_dict['timestamp'])
-            detections_msg.bounding_boxes = detection_msg_list
+            detections_msg.detections = detection_msg_list
             detections_msg.localizations = l_msg_list
             #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
             self.publishData('detections',detections_msg)
