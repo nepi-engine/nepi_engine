@@ -34,7 +34,7 @@ from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingB
 from nepi_interfaces.msg import Target, Targets, TargetingStatus
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_ais"
+log_name = "nepi_targets"
 logger = Logger(log_name = log_name)
 
 

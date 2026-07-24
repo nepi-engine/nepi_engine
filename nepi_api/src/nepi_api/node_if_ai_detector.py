@@ -43,10 +43,7 @@ from nepi_interfaces.msg import Target, Targets, TargetingStatus
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
-from nepi_sdk import nepi_aifs
-from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
-from nepi_sdk import nepi_nav
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
@@ -2281,8 +2278,6 @@ class AiDetectorIF:
             if len(detect_dict_list) > 0 and self.save_data_if is not None:
                 data_product = 'detections'
                 detections_dict = nepi_sdk.convert_msg2dict(detections_msg)
-                # detection_dict_list = nepi_ais.get_boxes_list_from_msg(detections_msg)
-                # detections_dict['detections']=detection_dict_list
                 self.save_data_if.save(data_product,detections_dict,timestamp = detect_timestamp)
                 data_product = 'targets'
                 targets_dict = nepi_sdk.convert_msg2dict(targets_msg)
