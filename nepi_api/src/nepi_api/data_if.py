@@ -1093,7 +1093,7 @@ class BaseImageIF:
             overalay_crosshairs = False,
             overalay_crosshair_names = False,
             overalay_crosshair_pixels = False,
-            overalay_crosshairs_degrees = False,
+            overalay_crosshair_degrees = False,
             crosshairs_dict = dict()
     )
     click_crosshair_enabled = False
