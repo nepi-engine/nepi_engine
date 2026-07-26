@@ -1020,6 +1020,8 @@ class BaseImageIF:
         contrast_ratio =  0.5,
         threshold_ratio =  0.0,
         rotate_2d_deg = 0,
+        rotate_2d_keep_size = False,
+        rotate_2d_swap_box = False,
         flip_horz = False,
         flip_vert = False,
         start_range_ratio = 0.0,
@@ -1336,6 +1338,10 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["rotate_2d_deg"]
             },
+            'rotate_2d_swap_box': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict["rotate_2d_swap_box"]
+            },
             'flip_horz': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["flip_horz"]
@@ -1640,6 +1646,14 @@ class BaseImageIF:
                 'msg': Int32,
                 'qsize': 5,
                 'callback': self._setRotate2dDegCb,
+                'callback_args': ()
+            }
+            self.SUBS_DICT['set_rotate_2d_swap_box'] = {
+                'namespace': self.namespace,
+                'topic': 'set_rotate_2d_swap_box',
+                'msg': Bool,
+                'qsize': 5,
+                'callback': self._setRotate2dSwapBoxCb,
                 'callback_args': ()
             }
         if caps_dict['has_flip_horz'] == True:
@@ -2535,6 +2549,21 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param('rotate_2d_deg', deg_int)
 
+    def set_rotate_2d_swap_box(self, enabled):
+        """Enable or disable swapping the Free Cam output box dimensions (W/H).
+
+        Swaps only the output box aspect (e.g. landscape <-> portrait); the image
+        content orientation is unaffected and stays rotated by the current angle.
+
+        Args:
+            enabled (bool): True to swap the output box aspect, False for the original box.
+        """
+        self.controls_dict['rotate_2d_swap_box'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('rotate_2d_swap_box', enabled)
+
     def set_flip_horz(self, enabled):
         """Enable or disable horizontal image flip.
 
@@ -3021,12 +3050,14 @@ class BaseImageIF:
 
         self.node_if.factory_reset_param('resolution_ratio')
         self.node_if.factory_reset_param('rotate_2d_deg')
+        self.node_if.factory_reset_param('rotate_2d_swap_box')
         self.node_if.factory_reset_param('flip_horz')
         self.node_if.factory_reset_param('flip_vert')
 
 
         self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
         self.controls_dict['rotate_2d_deg'] = self.node_if.get_param('rotate_2d_deg')
+        self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param('rotate_2d_swap_box')
         self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
         self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
 
@@ -3148,6 +3179,7 @@ class BaseImageIF:
             self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
 
             self.controls_dict['rotate_2d_deg'] = self.node_if.get_param('rotate_2d_deg')
+            self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param('rotate_2d_swap_box')
             self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
             self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
 
@@ -3414,6 +3446,8 @@ class BaseImageIF:
 
     def _setRotate2dCb(self, msg):
         self.msg_if.pub_info("Received Rotate 2d Deg update message: " + str(msg), log_name_list = self.log_name_list)
+        # 90-deg button path: resize-box mode (output box grows to fit).
+        self.controls_dict['rotate_2d_keep_size'] = False
         cur_angle = self.controls_dict['rotate_2d_deg']
         new_angle = cur_angle + 90
         if new_angle >= 360:
@@ -3423,8 +3457,15 @@ class BaseImageIF:
 
     def _setRotate2dDegCb(self, msg):
         self.msg_if.pub_info("Received Set Rotate 2d Deg message: " + str(msg), log_name_list = self.log_name_list)
+        # Free Cam path: fixed-box mode (box holds shape, black fill).
+        self.controls_dict['rotate_2d_keep_size'] = True
         new_angle = int(msg.data) % 360
         self.set_rotate_2d_deg(new_angle)
+
+    def _setRotate2dSwapBoxCb(self, msg):
+        self.msg_if.pub_info("Received Set Rotate 2d Swap Box message: " + str(msg), log_name_list = self.log_name_list)
+        enable = msg.data
+        self.set_rotate_2d_swap_box(enable)
 
     def _setFlipHorzCb(self, msg):
         self.msg_if.pub_info("Received Flip Horz update message: " + str(msg), log_name_list = self.log_name_list)
@@ -3832,11 +3873,15 @@ class ColorImageIF(BaseImageIF):
         ##########
         # Apply Oreantation Controls
         degrees = self.controls_dict['rotate_2d_deg']
+        keep_size = self.controls_dict['rotate_2d_keep_size']
+        swap_box = self.controls_dict['rotate_2d_swap_box']
         fliph = self.controls_dict['flip_horz']
         flipv = self.controls_dict['flip_vert']
 
-        if degrees != 0:
-           cv2_img = nepi_img.rotate_degrees(cv2_img,degrees)
+        # Also rotate at angle 0 when the Free Cam box is swapped, so the upright
+        # image is re-canvased (centered, black-filled) into the swapped box.
+        if degrees != 0 or (keep_size == True and swap_box == True):
+           cv2_img = nepi_img.rotate_degrees(cv2_img, degrees, keep_size=keep_size, swap_dims=swap_box)
 
         if fliph == True:
             cv2_img = nepi_img.flip_horz(cv2_img)
@@ -4882,14 +4927,18 @@ class DepthMapImageIF(BaseImageIF):
         ##########
         # Apply Oreantation Controls
         degrees = self.controls_dict['rotate_2d_deg']
+        keep_size = self.controls_dict['rotate_2d_keep_size']
+        swap_box = self.controls_dict['rotate_2d_swap_box']
         fliph = self.controls_dict['flip_horz']
         flipv = self.controls_dict['flip_vert']
 
-        if degrees != 0:
-           cv2_img = nepi_img.rotate_degrees(cv2_img,degrees) 
+        # Also rotate at angle 0 when the Free Cam box is swapped, so the upright
+        # image is re-canvased (centered, black-filled) into the swapped box.
+        if degrees != 0 or (keep_size == True and swap_box == True):
+           cv2_img = nepi_img.rotate_degrees(cv2_img, degrees, keep_size=keep_size, swap_dims=swap_box)
 
         if fliph == True:
-            cv2_img = nepi_img.flip_horz(cv2_img) 
+            cv2_img = nepi_img.flip_horz(cv2_img)
 
         if flipv == True:
             cv2_img = nepi_img.flip_vert(cv2_img) 

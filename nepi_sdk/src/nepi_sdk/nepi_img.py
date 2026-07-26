@@ -586,22 +586,62 @@ def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEARE
     return resized_image, ratio, new_width, new_height
 
 
-def rotate_degrees(cv2_img, degrees=0):
-    # Normalize any integer angle to the range 0-359 (360/multiples collapse to 0).
+def rotate_degrees(cv2_img, degrees=0, keep_size=False, swap_dims=False):
+    """Rotate an image, either resizing the output box or holding a fixed/swapped box.
+
+    Args:
+        cv2_img (cv2.mat): OpenCV image to rotate.
+        degrees (int): Rotation angle in degrees. Normalized to 0-359 (360 -> 0).
+        keep_size (bool): Selects the rotation MODE.
+            False (default, the "Rotate 90 Degs" button path): rotate only in
+            90-degree steps and RESIZE the output to fit the rotated image, so a
+            90/270 rotation transposes width/height and the display box grows.
+            No black fill. ``swap_dims`` is ignored in this mode.
+            True (the Free Cam path): rotate the image CONTENT to any integer angle
+            inside a fixed-shape output box, filling uncovered areas with solid
+            black. The box does not grow to follow the image.
+        swap_dims (bool): keep_size mode only. When True the output canvas takes the
+            swapped shape (H, W) instead of (W, H); the content orientation depends
+            ONLY on ``degrees`` and is composited centered into the swapped canvas.
+
+    Returns:
+        cv2.mat: The rotated (and, in keep_size mode, re-canvased) image.
+    """
+    # A POSITIVE ``degrees`` value is a CLOCKWISE visual rotation in both modes,
+    # matching the original cv2.ROTATE_90_CLOCKWISE button behavior.
     degrees = int(degrees) % 360
-    if degrees == 0:
+
+    if keep_size == False:
+        # Original "Rotate 90 Degs" behavior: rotate in 90-degree steps and let the
+        # output box grow to fit (90/270 transpose the dimensions). Non-cardinal
+        # angles are not expected here, so round to the nearest 90 rather than
+        # black-filling; a rounded value of 0 returns the image unchanged.
+        step = int(round(degrees / 90.0)) % 4
+        if step == 1:
+            cv2_img = cv2.rotate(cv2_img, cv2.ROTATE_90_CLOCKWISE)
+        elif step == 2:
+            cv2_img = cv2.rotate(cv2_img, cv2.ROTATE_180)
+        elif step == 3:
+            cv2_img = cv2.rotate(cv2_img, cv2.ROTATE_90_COUNTERCLOCKWISE)
         return cv2_img
-    # Rotate about the image center while keeping the OUTPUT size identical to the
-    # input (same width and height) so the display box never changes dimensions or
-    # aspect ratio. Uncovered corners are filled with solid black (borderValue=0,
-    # BORDER_CONSTANT). getRotationMatrix2D treats a POSITIVE angle as
-    # counter-clockwise, so we negate to keep the original clockwise direction
-    # (matching the old cv2.ROTATE_90_CLOCKWISE behavior for 90 degrees; 180 and
-    # 270 likewise render as before).
+
+    # Free Cam (keep_size == True): rotate the content to any angle inside a fixed
+    # output box, black-filling uncovered areas (BORDER_CONSTANT, borderValue=0).
+    # The output canvas is (W, H) normally, or (H, W) when swap_dims is True; the
+    # image orientation is unaffected by swap_dims.
     height, width = cv2_img.shape[:2]
-    center = (width / 2.0, height / 2.0)
-    rot_mat = cv2.getRotationMatrix2D(center, -degrees, 1.0)
-    cv2_img = cv2.warpAffine(cv2_img, rot_mat, (width, height),
+    if swap_dims == True:
+        out_w, out_h = height, width
+    else:
+        out_w, out_h = width, height
+    # getRotationMatrix2D treats a POSITIVE angle as counter-clockwise, so negate to
+    # keep the clockwise visual direction used by the 90-deg button.
+    rot_mat = cv2.getRotationMatrix2D((width / 2.0, height / 2.0), -degrees, 1.0)
+    # Shift the affine translation so the rotated content is centered in the
+    # (possibly swapped) output canvas.
+    rot_mat[0, 2] += (out_w - width) / 2.0
+    rot_mat[1, 2] += (out_h - height) / 2.0
+    cv2_img = cv2.warpAffine(cv2_img, rot_mat, (out_w, out_h),
                              flags=cv2.INTER_LINEAR,
                              borderMode=cv2.BORDER_CONSTANT,
                              borderValue=0)
