@@ -595,7 +595,6 @@ def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEARE
     return resized_image, ratio, new_width, new_height
 
 
-<<<<<<< HEAD
 def rotate_degrees(cv2_img, degrees=0, keep_size=False, swap_dims=False):
     """Rotate an image, either resizing the output box or holding a fixed/swapped box.
 
@@ -655,32 +654,6 @@ def rotate_degrees(cv2_img, degrees=0, keep_size=False, swap_dims=False):
                              flags=cv2.INTER_LINEAR,
                              borderMode=cv2.BORDER_CONSTANT,
                              borderValue=0)
-=======
-def rotate_degrees(cv2_img, deg=0):
-    # Normalize any integer angle to the range 0-359 (360/multiples collapse to 0).
-    deg = int(deg) % 360
-    deg_str=str(deg)
-    if deg == 0:
-        return cv2_img
-    elif deg_str in ROTATE_DICT.keys():
-        if ROTATE_DICT[deg_str] != '0':
-            cv2_img = cv2.rotate(cv2_img, ROTATE_DICT[deg_str])   
-    elif abs(deg) > 1:     
-        # Rotate about the image center while keeping the OUTPUT size identical to the
-        # input (same width and height) so the display box never changes dimensions or
-        # aspect ratio. Uncovered corners are filled with solid black (borderValue=0,
-        # BORDER_CONSTANT). getRotationMatrix2D treats a POSITIVE angle as
-        # counter-clockwise, so we negate to keep the original clockwise direction
-        # (matching the old cv2.ROTATE_90_CLOCKWISE behavior for 90 deg; 180 and
-        # 270 likewise render as before).
-        height, width = cv2_img.shape[:2]
-        center = (width / 2.0, height / 2.0)
-        rot_mat = cv2.getRotationMatrix2D(center, -deg, 1.0)
-        cv2_img = cv2.warpAffine(cv2_img, rot_mat, (width, height),
-                                flags=cv2.INTER_LINEAR,
-                                borderMode=cv2.BORDER_CONSTANT,
-                                borderValue=0)
->>>>>>> 2c4774d42c1b0e31ba4d4bbaecfa96375b33a07a
     return cv2_img
 
 def translate_pixels(cv2_img, shift_x, shift_y):
