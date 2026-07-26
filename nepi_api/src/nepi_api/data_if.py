@@ -1631,49 +1631,49 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustRotateDegCb,
                 'callback_args': ()
             },
-            'set_live_update_translate_x_ratio': {
+            'set_live_update_x_ratio': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_translate_x_ratio',
+                'topic': 'set_live_update_x_ratio',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranXRatioCb,
                 'callback_args': ()
             },
-            'set_live_update_translate_x_pixel': {
+            'set_live_update_x_pixel': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_translate_x_pixel',
+                'topic': 'set_live_update_x_pixel',
                 'msg': Int32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranXPixelCb,
                 'callback_args': ()
             },
-            'set_live_update_translate_x_deg': {
+            'set_live_update_x_deg': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_translate_x_deg',
+                'topic': 'set_live_update_x_deg',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranXDegCb,
                 'callback_args': ()
             },
-            'set_live_update_translate_y_ratio': {
+            'set_live_update_y_ratio': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_translate_y_ratio',
+                'topic': 'set_live_update_y_ratio',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranYRatioCb,
                 'callback_args': ()
             },
-            'set_live_update_translate_y_piyel': {
+            'set_live_update_y_piyel': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_translate_y_pixel',
+                'topic': 'set_live_update_y_pixel',
                 'msg': Int32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranYPixelCb,
                 'callback_args': ()
             },
-            'set_live_update_translate_y_deg': {
+            'set_live_update_y_deg': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_translate_y_deg',
+                'topic': 'set_live_update_y_deg',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranYDegCb,
@@ -2336,7 +2336,7 @@ class BaseImageIF:
 
                 if process_data == True:
                     cv2_img = self.process_cv2_img(cv2_img)
-                    #cv2_img = self._liveAdjust(cv2_img)
+                    cv2_img = self._liveAdjust(cv2_img)
                 if cv2_img is not None:
                     
                     
@@ -3198,31 +3198,31 @@ class BaseImageIF:
         ratio = round(0.5 + (deg / 180)/2)
         self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
-    def set_live_adjust_translate_x_ratio(self,ratio):
+    def set_live_adjust_x_ratio(self,ratio):
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
-    def set_live_adjust_translate_x_pixel(self,pixel):
+    def set_live_adjust_x_pixel(self,pixel):
         if abs(pixel) > self.raw_width:
             pixel = np.sign(pixel) * self.raw_width
         ratio = round(0.5 + (pixel / self.raw_width)/2)
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
-    def set_live_adjust_translate_x_deg(self,deg):
+    def set_live_adjust_x_deg(self,deg):
         if abs(deg) > self.deg_width:
             deg = np.sign(deg) * self.deg_width
         ratio = round(0.5 + (deg / self.deg_width)/2)    
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
-    def set_live_adjust_translate_y_ratio(self,ratio):
+    def set_live_adjust_y_ratio(self,ratio):
         self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
-    def set_live_adjust_translate_y_pixel(self,pixel):
+    def set_live_adjust_y_pixel(self,pixel):
         if abs(pixel) > self.raw_height:
             pixel = np.sign(pixel) * self.raw_height
         ratio = round(0.5 + (pixel / self.raw_height)/2)
         self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
-    def set_live_adjust_translate_y_deg(self,deg):
+    def set_live_adjust_y_deg(self,deg):
         if abs(deg) > self.deg_height:
             deg = np.sign(deg) * self.deg_height
         ratio = round(0.5 + (deg / self.deg_height)/2)    
@@ -3943,27 +3943,27 @@ class BaseImageIF:
 
     def _setLiveAdjustTranXRatioCb(self,msg):
         ratio = msg.data
-        self.set_live_adjust_translate_x_ratio(ratio)
+        self.set_live_adjust_x_ratio(ratio)
 
     def _setLiveAdjustTranXPixelCb(self,msg):
         pixel = msg.data
-        self.set_live_adjust_translate_x_pixel(pixel)
+        self.set_live_adjust_x_pixel(pixel)
 
     def _setLiveAdjustTranXDegCb(self,msg):
         deg = msg.data
-        self.set_live_adjust_translate_x_deg(deg)
+        self.set_live_adjust_x_deg(deg)
 
     def _setLiveAdjustTranYRatioCb(self,msg):
         ratio = msg.data
-        self.set_live_adjust_translate_y_ratio(ratio)
+        self.set_live_adjust_y_ratio(ratio)
 
     def _setLiveAdjustTranYPixelCb(self,msg):
         pixel = msg.data
-        self.set_live_adjust_translate_y_pixel(pixel)
+        self.set_live_adjust_y_pixel(pixel)
 
     def _setLiveAdjustTranYDegCb(self,msg):
         deg = msg.data
-        self.set_live_adjust_translate_y_deg(deg)
+        self.set_live_adjust_y_deg(deg)
 
     def _resetControlsCb(self,msg):
         self.reset_filters()
@@ -4911,6 +4911,7 @@ class DepthMapIF:
                 self._updateRangesM(min_range_m,max_range_m)
             else:
                 self._updateRangesM(0,1)
+            np_depth_map = self._liveAdjust(np_depth_map)
             #self.msg_if.pub_info('Pub Depth Adj Min Max Depths: ' + str([self.min_range_m, self.max_range_m]) )
 
             self.status_msg.publishing = True
