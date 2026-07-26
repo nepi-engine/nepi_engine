@@ -612,7 +612,7 @@ def rotate_degrees(cv2_img, deg=0):
         # counter-clockwise, so we negate to keep the original clockwise direction
         # (matching the old cv2.ROTATE_90_CLOCKWISE behavior for 90 deg; 180 and
         # 270 likewise render as before).
-        logger.log_warn("Live Adjust Rotating degrees: " + str(deg))
+        #logger.log_warn("Live Adjust Rotating degrees: " + str(deg))
         height, width = cv2_img.shape[:2]
         center = (width / 2.0, height / 2.0)
         rot_mat = cv2.getRotationMatrix2D(center, -deg, 1.0)
@@ -958,15 +958,16 @@ def overlay_rectangle(cv2_img,bot_left_px, top_right_px, color=(255,0,0), alpha 
       cv2_img = cv2.addWeighted(overlay, alpha, cv2_img, 1 - alpha, 0)
       return cv2_img
 
-def overlay_crosshair(cv2_img, x_px, y_px, color=(0, 255, 0), size=20, thickness=None, size_ratio = 0.5,):
+def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size=10, thickness=2, size_ratio = 0.5,):
     """Draws a crosshair on an image at a given (x_px, y_px) position."""
     # Draw vertical line
-    if size is None or thickness is None:
-        size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
-    size = size * (0.5 + size_ratio)
-    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color, thickness)
+    # if size is None or thickness is None:
+    #     size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    size = int(size * (0.5 + size_ratio))
+    thickness = int(thickness * (0.5 + size_ratio))
+    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color_rgb, thickness)
     # Draw horizontal line
-    cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color, thickness)
+    cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color_rgb, thickness)
     return cv2_img
 
 def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px = 20, h_px = 20):

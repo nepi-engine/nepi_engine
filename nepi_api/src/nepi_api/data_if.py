@@ -1044,6 +1044,20 @@ class BaseImageIF:
         frame_updated_callback = None
     )
 
+    DEFAULT_OVERLAYS_DICT = dict(
+            overlay_img_name = False,
+            overlay_date_time = False,
+            overlay_nav = False,
+            overlay_pose = False, 
+            init_overlay_list = [],
+            add_overlay_list = [],
+            overlay_crosshairs = False,
+            overlay_crosshair_names = False,
+            overlay_crosshair_pixels = False,
+            overlay_crosshair_degrees = False,
+            crosshairs_dict = dict()
+    )
+
     callback_dict = copy.deepcopy(DEFAULT_CALLBACK_DICT)
 
     ready = False
@@ -1056,7 +1070,7 @@ class BaseImageIF:
     save_data_if = None
 
     status_msg = ImageStatus()
-
+    
     last_width = DEFUALT_IMG_WIDTH_PX
     last_height = DEFUALT_IMG_HEIGHT_PX
 
@@ -1086,19 +1100,7 @@ class BaseImageIF:
 
 
     overlay_size_ratio = 0.5
-    overlays_dict = dict(
-            overlay_img_name = False,
-            overlay_date_time = False,
-            overlay_nav = False,
-            overlay_pose = False, 
-            init_overlay_list = [],
-            add_overlay_list = [],
-            overlay_crosshairs = False,
-            overlay_crosshair_names = False,
-            overlay_crosshair_pixels = False,
-            overlay_crosshair_degrees = False,
-            crosshairs_dict = dict()
-    )
+    overlays_dict = copy.deepcopy(DEFAULT_OVERLAYS_DICT)
     click_crosshair_enabled = False
 
 
@@ -1137,12 +1139,12 @@ class BaseImageIF:
     x_scaler = 1
     y_scaler = 1
 
-    raw_height = 0
-    raw_width = 0
-    proc_height = 0
-    proc_width = 0
-    deg_width = 100
-    deg_height = 70
+    height_org = 0
+    width_org = 0
+    height_proc = 0
+    width_proc = 0
+    width_deg = 100
+    height_deg = 70
 
     zoom_ratio = 1
     x_ratio = 0.5
@@ -1603,7 +1605,7 @@ class BaseImageIF:
             },
             'add_crosshair_pixel': {
                 'msg': ImageCrosshair,
-                'namespace': self.namespace + '/mouse_event',
+                'namespace': self.namespace,
                 'topic': 'add_crosshair_pixel',
                 'qsize': 5,
                 'callback': self._addCrosshairPixelCb
@@ -2416,7 +2418,7 @@ class BaseImageIF:
                self.navpose_if.callback_dict[name] = None
 
     def process_cv2_img(self, cv2_img):
-        """Apply any image processing pipeline to a raw OpenCV image.
+        """Apply any image processing pipeline to a org OpenCV image.
 
         Base implementation is a pass-through. Subclasses override this to apply
         resolution, orientation, filter, and adjustment controls.
@@ -2517,8 +2519,8 @@ class BaseImageIF:
                 start_time = nepi_utils.get_time()   
 
 
-                self.deg_width = width_deg
-                self.deg_height = height_deg
+                self.width_deg = width_deg
+                self.height_deg = height_deg
                 self.status_msg.width_deg = width_deg * (1 - self.zoom_ratio)
                 self.status_msg.height_deg = height_deg * (1 - self.zoom_ratio)
 
@@ -2538,7 +2540,7 @@ class BaseImageIF:
                 self.status_msg.max_range_m_adj = self.min_range_m + delta_range * stop_range_ratio
 
                 [height,width] = cv2_img.shape[0:2]
-                [self.raw_height,self.raw_width] = [height,width]
+                [self.height_org,self.width_org] = [height,width]
                 #self.msg_if.pub_warn("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
 
 
@@ -2550,7 +2552,7 @@ class BaseImageIF:
                     
 
                     [height,width] = cv2_img.shape[0:2]
-                    [self.proc_height,self.proc_width] = [height,width]
+                    [self.height_proc,self.width_proc] = [height,width]
 
                     if height > 5 and width > 5:
                         #self.msg_if.pub_debug("Got Processed size: " + str([height,width]), log_name_list = self.log_name_list)
@@ -2606,12 +2608,16 @@ class BaseImageIF:
                         overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
                         overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
                         if crosshair_len > 0 and overlay_crosshairs == True:
+                            
                             for crosshair_name in crosshairs_dict.keys():
                                 crosshair = crosshairs_dict[crosshair_name]
-                                x_offset_ratio = crosshair['x_offset_ratio']
+                                #self.msg_if.pub_warn("Rendering image with crosshair: " + str(crosshair) , log_name_list = self.log_name_list)
+                                
+                                x_offset_ratio = crosshair[0]
                                 crosshair_x = int(width/2 + width/2 * ((x_offset_ratio - 0.5) * 2))
-                                y_offset_ratio = crosshair['y_offset_ratio']
+                                y_offset_ratio = crosshair[1]
                                 crosshair_y = int(height/2 + height/2 * ((y_offset_ratio - 0.5) * 2))
+                                #self.msg_if.pub_warn("Rendering image crosshair: " + str([crosshair_x,crosshair_y]) , log_name_list = self.log_name_list)
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
                                                         x_px = crosshair_x , y_px = crosshair_y, 
                                                         color_rgb = (0, 255, 0), 
@@ -2726,7 +2732,7 @@ class BaseImageIF:
 
    
             except Exception as e:
-                self.msg_if.pub_warn("Failed to publish: " + str(e), log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Failed to publish image: " + str(e), log_name_list = self.log_name_list)
         self.publishing = False
         return cv2_img
         
@@ -3068,17 +3074,17 @@ class BaseImageIF:
         center of the view, preserving the existing window size.
 
         Args:
-            pixel (list): [x, y] pixel coordinates in the raw image space.
+            pixel (list): [x, y] pixel coordinates in the org image space.
             color_bgr (list, optional): BGRA color of the selected pixel.
                 Defaults to [0, 0, 0, 0].
         """
         self.drag_pixel = None
         self.drag_window = None
 
-        if self.raw_width > 10 and self.raw_height > 10:
+        if self.width_org > 10 and self.height_org > 10:
             # Update Ratios
-            xr_ratio = pixel[0] / self.raw_width
-            yr_ratio = pixel[1] / self.raw_height
+            xr_ratio = pixel[0] / self.width_org
+            yr_ratio = pixel[1] / self.height_org
             wrs = copy.deepcopy(self.controls_dict['window_ratios'])
 
             xr_len = wrs[1] - wrs[0]
@@ -3217,20 +3223,20 @@ class BaseImageIF:
         """Set the image crop window from absolute pixel coordinates.
 
         Converts the pixel-space window into normalized ratio coordinates and
-        updates the crop window. Requires the raw image dimensions to be known.
+        updates the crop window. Requires the org image dimensions to be known.
 
         Args:
-            window (list): [x_min, x_max, y_min, y_max] in raw image pixel space.
+            window (list): [x_min, x_max, y_min, y_max] in org image pixel space.
         """
         self.drag_pixel = None
         self.drag_window = None
  
-        if self.raw_width > 10 and self.raw_height > 10:
+        if self.width_org > 10 and self.height_org > 10:
             # Update Ratios
-            xr_len = (window[1] - window[0]) / self.raw_width
-            yr_len = (window[3] - window[2]) / self.raw_height
-            xr_ratio = window[0] / self.raw_width + (xr_len / 2) 
-            yr_ratio = window[2] / self.raw_height + (yr_len / 2)
+            xr_len = (window[1] - window[0]) / self.width_org
+            yr_len = (window[3] - window[2]) / self.height_org
+            xr_ratio = window[0] / self.width_org + (xr_len / 2) 
+            yr_ratio = window[2] / self.height_org + (yr_len / 2)
 
             r_len_max = max(xr_len, yr_len)
 
@@ -3482,39 +3488,42 @@ class BaseImageIF:
         self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_rotate_deg(self,deg):
+        self.msg_if.pub_info("Received Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
         if abs(deg) > 180:
                 deg = np.sign(deg) * 180
-        ratio = round(0.5 + (deg / 180)/2)
+        self.msg_if.pub_info("Updated Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
+        ratio = nepi_utils.check_ratio(0.5 + (deg / 180)/2)
+        self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio), log_name_list = self.log_name_list)
         self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_ratio(self,ratio):
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_pixel(self,pixel):
-        if abs(pixel) > self.raw_width:
-            pixel = np.sign(pixel) * self.raw_width
-        ratio = round(0.5 + (pixel / self.raw_width)/2)
+        if abs(pixel) > self.width_org:
+            pixel = np.sign(pixel) * self.width_org
+        ratio = round(0.5 + (pixel / self.width_org)/2)
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_deg(self,deg):
-        if abs(deg) > self.deg_width:
-            deg = np.sign(deg) * self.deg_width
-        ratio = round(0.5 + (deg / self.deg_width)/2)    
+        if abs(deg) > self.width_deg:
+            deg = np.sign(deg) * self.width_deg
+        ratio = round(0.5 + (deg / self.width_deg)/2)    
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_ratio(self,ratio):
         self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_pixel(self,pixel):
-        if abs(pixel) > self.raw_height:
-            pixel = np.sign(pixel) * self.raw_height
-        ratio = round(0.5 + (pixel / self.raw_height)/2)
+        if abs(pixel) > self.height_org:
+            pixel = np.sign(pixel) * self.height_org
+        ratio = round(0.5 + (pixel / self.height_org)/2)
         self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_deg(self,deg):
-        if abs(deg) > self.deg_height:
-            deg = np.sign(deg) * self.deg_height
-        ratio = round(0.5 + (deg / self.deg_height)/2)    
+        if abs(deg) > self.height_deg:
+            deg = np.sign(deg) * self.height_deg
+        ratio = round(0.5 + (deg / self.height_deg)/2)    
         self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def reset_filters(self):
@@ -3665,13 +3674,13 @@ class BaseImageIF:
 
             live_adjust_x_ratio = copy.deepcopy(self.live_adjust_x_ratio)
             shift_x_scaler = (live_adjust_x_ratio - 0.5) * 2
-            live_adjust_x_pixels = math.floor((shift_x_scaler * self.raw_width))
-            live_adjust_x_degs = round(shift_x_scaler * self.deg_width,1)
+            live_adjust_x_pixels = math.floor((shift_x_scaler * self.width_org))
+            live_adjust_x_degs = round(shift_x_scaler * self.width_deg,1)
 
             live_adjust_y_ratio = copy.deepcopy(self.live_adjust_y_ratio)
             shift_y_scaler = (live_adjust_y_ratio - 0.5) * 2
-            live_adjust_y_pixels = math.floor((shift_y_scaler * self.raw_height))
-            live_adjust_y_degs = round(shift_y_scaler * self.deg_height,1)
+            live_adjust_y_pixels = math.floor((shift_y_scaler * self.height_org))
+            live_adjust_y_degs = round(shift_y_scaler * self.height_deg,1)
 
             self.status_msg.live_adjust_rotate_ratio = live_adjust_rotate_ratio
             self.status_msg.live_adjust_rotate_deg = live_adjust_rotate_deg
@@ -3695,21 +3704,22 @@ class BaseImageIF:
 
 
             crosshairs_dict = self.overlays_dict['crosshairs_dict']
+
             crosshairs_msg_list = []
             for crosshair_name in crosshairs_dict.keys():
                 crosshair_msg = ImageCrosshair()
                 crosshair_msg.name = crosshair_name
-                crosshair = crosshairs_dict[crosshair_name]
-                xor = crosshair['x_offset_ratio']
+                crosshairs = crosshairs_dict[crosshair_name]
+                xor = crosshairs[0]
                 crosshair_msg.x_offset_ratio = xor
-                crosshair_msg.x_offset_deg = round((xor - 0.5)*2 * self.deg_width/2, 2)
-                crosshair_msg.x_offset_pixel = int((xor - 0.5)*2 * self.raw_width/2)
-                crosshair_msg.x_pixel = int(round(self.raw_width/2 + crosshair_msg.x_offset_pixel))
-                yor = crosshair['y_offset_ratio']
+                crosshair_msg.x_offset_deg = round((xor - 0.5)*2 * self.width_deg/2, 2)
+                crosshair_msg.x_offset_pixel = int((xor - 0.5)*2 * self.width_org/2)
+                crosshair_msg.x_pixel = int(round(self.width_org/2 + crosshair_msg.x_offset_pixel))
+                yor = crosshairs[1]
                 crosshair_msg.y_offset_ratio = yor
-                crosshair_msg.y_offset_deg = round((yor - 0.5)*2 * self.deg_height/2, 2)
-                crosshair_msg.y_offset_pixel = int((yor - 0.5)*2 * self.raw_height/2)
-                crosshair_msg.y_pixel = int(round(self.raw_height/2 + crosshair_msg.y_offset_pixel))
+                crosshair_msg.y_offset_deg = round((yor - 0.5)*2 * self.height_deg/2, 2)
+                crosshair_msg.y_offset_pixel = int((yor - 0.5)*2 * self.height_org/2)
+                crosshair_msg.y_pixel = int(round(self.height_org/2 + crosshair_msg.y_offset_pixel))
                 crosshairs_msg_list.append(crosshair_msg)
             self.status_msg.overlay_crosshairs = self.overlays_dict['overlay_crosshairs']
             self.status_msg.overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
@@ -3767,7 +3777,7 @@ class BaseImageIF:
             overlays_dict = self.node_if.get_param('overlays_dict')
             for key in self.overlays_dict.keys():
                 if key in overlays_dict.keys():
-                    self.overlays_dict[key] = self.overlays_dict[key]
+                    self.overlays_dict[key] = overlays_dict[key]
 
         if do_updates == True:
             pass
@@ -3932,7 +3942,7 @@ class BaseImageIF:
                 pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
                 pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
             angles = [pixel_vert_angle_deg,pixel_vert_angle_deg]
-            self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enable), log_name_list = self.log_name_list)
+            #self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enabled), log_name_list = self.log_name_list)
             if self.click_crosshair_enabled == True and click_count == 1:
                             self.click_crosshair_enabled = False
                             x_offset_ratio = object_loc_x_ratio_from_center
@@ -4226,9 +4236,9 @@ class BaseImageIF:
     def _addCrosshairPixelCb(self,msg):
         name = msg.name
         x_px = msg.x_pixel
-        x_ratio = nepi_utils.check_ratio(x_px/self.width_raw)
+        x_ratio = nepi_utils.check_ratio(x_px/self.width_org)
         y_px = msg.y_pixel
-        y_ratio = nepi_utils.check_ratio(y_px/self.height_raw)
+        y_ratio = nepi_utils.check_ratio(y_px/self.height_org)
         self.add_crosshair(x_ratio,y_ratio,name)
 
     def _addCrosshairDegreesCb(self,msg):
@@ -4236,7 +4246,7 @@ class BaseImageIF:
         x_deg = msg.x_offset_deg
         x_ratio = nepi_utils.check_ratio(x_deg/self.width_deg)
         y_deg = msg.y_offset_deg
-        y_ratio = nepi_utils.check_ratio(y_deg/self.height_raw)
+        y_ratio = nepi_utils.check_ratio(y_deg/self.height_deg)
         self.add_crosshair(x_ratio,y_ratio,name)
 
     def _removeCrosshairCb(self,msg):
@@ -4627,7 +4637,7 @@ class ColorImageIF(BaseImageIF):
             color = (0, 200, 0) # Green color in BGR
             alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
 
-            # Draw a filled rectangle on the overlay copy
+            # Dorg a filled rectangle on the overlay copy
             cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
 
 
@@ -5216,7 +5226,7 @@ class DepthMapIF:
             # Start Img Pub Process
             start_time = nepi_utils.get_time()   
 
-            # Publish and Save Raw Image Data if Required  
+            # Publish and Save org Image Data if Required  
             [height,width] = np_depth_map.shape[0:2]
             last_width = self.status_msg.width_px
             last_height = self.status_msg.height_px
@@ -5682,7 +5692,7 @@ class DepthMapImageIF(BaseImageIF):
             color = (0, 200, 0) # Green color in BGR
             alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
 
-            # Draw a filled rectangle on the overlay copy
+            # Dorg a filled rectangle on the overlay copy
             cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
 
 
