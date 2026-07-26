@@ -25,6 +25,7 @@ import numpy as np
 import copy
 import threading
 import math
+import cv2
 
 
 
@@ -1026,7 +1027,7 @@ class BaseImageIF:
         stop_range_ratio = 1.0,
         window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
-        tilt_3d_ratio = 0.5
+        tilt_3d_ratio = 0.5,
         )
 
 
@@ -1090,10 +1091,10 @@ class BaseImageIF:
             overlay_pose = False, 
             init_overlay_list = [],
             add_overlay_list = [],
-            overalay_crosshairs = False,
-            overalay_crosshair_names = False,
-            overalay_crosshair_pixels = False,
-            overalay_crosshair_degrees = False,
+            overlay_crosshairs = False,
+            overlay_crosshair_names = False,
+            overlay_crosshair_pixels = False,
+            overlay_crosshair_degrees = False,
             crosshairs_dict = dict()
     )
     click_crosshair_enabled = False
@@ -1596,7 +1597,7 @@ class BaseImageIF:
             },
             'add_crosshair_pixel': {
                 'msg': ImageCrosshair,
-                'namespace': self.namespace,
+                'namespace': self.namespace + '/mouse_event',
                 'topic': 'add_crosshair_pixel',
                 'qsize': 5,
                 'callback': self._addCrosshairPixelCb
@@ -1608,77 +1609,270 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._addCrosshairDegreesCb
             },
+            'remove_crosshair': {
+                'msg': String,
+                'namespace': self.namespace,
+                'topic': 'remove_crosshair',
+                'qsize': 5,
+                'callback': self._removeCrosshairCb
+            },
             'clear_crosshairs': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'clear_crosshairs',
                 'qsize': 5,
-                'callback': self._clearOverlayCrosshairsCb
+                'callback': self._clearCrosshairsCb
             },
-            'set_live_update_rotate_ratio': {
+            'set_live_adjust_rotate_ratio': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_rotate_ratio',
+                'topic': 'set_live_adjust_rotate_ratio',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustRotateRatioCb,
                 'callback_args': ()
             },
-            'set_live_update_rotate_deg': {
+            'set_live_adjust_rotate_deg': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_rotate_deg',
+                'topic': 'set_live_adjust_rotate_deg',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustRotateDegCb,
                 'callback_args': ()
             },
-            'set_live_update_x_ratio': {
+            'set_live_adjust_x_ratio': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_x_ratio',
+                'topic': 'set_live_adjust_x_ratio',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranXRatioCb,
                 'callback_args': ()
             },
-            'set_live_update_x_pixel': {
+            'set_live_adjust_x_pixel': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_x_pixel',
+                'topic': 'set_live_adjust_x_pixel',
                 'msg': Int32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranXPixelCb,
                 'callback_args': ()
             },
-            'set_live_update_x_deg': {
+            'set_live_adjust_x_deg': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_x_deg',
+                'topic': 'set_live_adjust_x_deg',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranXDegCb,
                 'callback_args': ()
             },
-            'set_live_update_y_ratio': {
+            'set_live_adjust_y_ratio': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_y_ratio',
+                'topic': 'set_live_adjust_y_ratio',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranYRatioCb,
                 'callback_args': ()
             },
-            'set_live_update_y_piyel': {
+            'set_live_adjust_y_pixel': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_y_pixel',
+                'topic': 'set_live_adjust_y_pixel',
                 'msg': Int32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranYPixelCb,
                 'callback_args': ()
             },
-            'set_live_update_y_deg': {
+            'set_live_adjust_y_deg': {
                 'namespace': self.namespace,
-                'topic': 'set_live_update_y_deg',
+                'topic': 'set_live_adjust_y_deg',
                 'msg': Float32,
                 'qsize': 5,
                 'callback': self._setLiveAdjustTranYDegCb,
                 'callback_args': ()
             },
+
+
+            'all_overlay_size_ratio': {
+                'msg': Float32,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_overlay_size_ratio',
+                'qsize': 5,
+                'callback': self._setOverlaySizeCb
+            },
+            'all_overlay_img_name': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_overlay_source_name',
+                'qsize': 5,
+                'callback': self._setOverlayImgNameCb
+            },
+            'all_overlay_date_time': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_overlay_date_time',
+                'qsize': 5,
+                'callback': self._setOverlayDateTimeCb
+            },
+            'all_overlay_nav': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_overlay_nav',
+                'qsize': 5,
+                'callback': self._setOverlayNavCb
+            },
+            'all_overlay_pose': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_overlay_pose',
+                'qsize': 5,
+                'callback': self._setOverlayPoseCb
+            },
+            'all_overlay_text': {
+                'msg': String,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'add_overlay_text',
+                'qsize': 5,
+                'callback': self._setOverlayTextCb
+            },
+            'all_overlay_list': {
+                'msg': StringArray,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_overlay_list',
+                'qsize': 5,
+                'callback': self._setOverlayListCb
+            },
+            'all_overlay_clear': {
+                'msg': Empty,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'clear_overlay_list',
+                'qsize': 5,
+                'callback': self._clearOverlayListCb
+            },
+            'all_overlay_crosshairs': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'all_overlay_crosshairs',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairsCb
+            },
+            'all_overlay_crosshair_names': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'all_overlay_crosshair_names',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairNamesCb
+            },
+            'all_overlay_crosshair_pixels': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'all_overlay_crosshair_pixels',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairPixelsCb
+            },
+            'all_overlay_crosshair_degrees': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'overlay_crosshair_degrees',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairDegreesCb
+            },
+            'all_click_crosshair_enable': {
+                'msg': Bool,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'click_crosshair_enable',
+                'qsize': 5,
+                'callback': self._clickCrosshairEnableCb
+            },
+            'all_add_crosshair_pixel': {
+                'msg': ImageCrosshair,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'add_crosshair_pixel',
+                'qsize': 5,
+                'callback': self._addCrosshairPixelCb
+            },
+            'all_add_crosshair_degrees': {
+                'msg': ImageCrosshair,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'add_crosshair_degrees',
+                'qsize': 5,
+                'callback': self._addCrosshairDegreesCb
+            },
+            'all_remove_crosshair': {
+                'msg': String,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'remove_crosshair',
+                'qsize': 5,
+                'callback': self._removeCrosshairCb
+            },
+            'all_clear_crosshairs': {
+                'msg': Empty,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'clear_crosshairs',
+                'qsize': 5,
+                'callback': self._clearCrosshairsCb
+            },
+            'all_set_live_adjust_rotate_ratio': {
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_live_adjust_rotate_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustRotateRatioCb,
+                'callback_args': ()
+            },
+            'all_set_live_adjust_rotate_deg': {
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_live_adjust_rotate_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustRotateDegCb,
+                'callback_args': ()
+            },
+            'all_set_live_adjust_x_ratio': {
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_live_adjust_x_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXRatioCb,
+                'callback_args': ()
+            },
+            'all_set_live_adjust_x_pixel': {
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_live_adjust_x_pixel',
+                'msg': Int32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXPixelCb,
+                'callback_args': ()
+            },
+            'all_set_live_adjust_x_deg': {
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_live_adjust_x_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXDegCb,
+                'callback_args': ()
+            },
+            'all_set_live_adjust_y_ratio': {
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_live_adjust_y_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYRatioCb,
+                'callback_args': ()
+            },
+            'all_set_live_adjust_y_pixel': {
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_live_adjust_y_pixel',
+                'msg': Int32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYPixelCb,
+                'callback_args': ()
+            },
+            'all_set_live_adjust_y_deg': {
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_live_adjust_y_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYDegCb,
+                'callback_args': ()
+            },
+
             'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
@@ -2388,14 +2582,16 @@ class BaseImageIF:
                                                     color_rgb = (0, 255, 0), 
                                                     apply_shadow = True, 
                                                     size_ratio = self.overlay_size_ratio )
+
+
+                                                    
                         crosshairs_dict = self.overlays_dict['crosshairs_dict']
                         crosshair_len = len(list(crosshairs_dict.keys()))
-                        overalay_crosshairs = self.overlays_dict['overalay_crosshairs']
-                        overalay_crosshair_names = self.overlays_dict['overalay_crosshair_names']
-                        overalay_crosshair_pixels = self.overlays_dict['overalay_crosshair_pixels']
-                        overalay_crosshair_degrees = self.overlays_dict['overalay_crosshair_degrees']
-                        overalay_crosshair_len = len(list(crosshairs_dict.keys()))
-                        if crosshair_len > 0 and overalay_crosshairs == True:
+                        overlay_crosshairs = self.overlays_dict['overlay_crosshairs']
+                        overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
+                        overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
+                        overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
+                        if crosshair_len > 0 and overlay_crosshairs == True:
                             for crosshair_name in crosshairs_dict.keys():
                                 crosshair = crosshairs_dict[crosshair_name]
                                 x_offset_ratio = crosshair['x_offset_ratio']
@@ -2406,6 +2602,59 @@ class BaseImageIF:
                                                         x_px = crosshair_x , y_px = crosshair_y, 
                                                         color_rgb = (0, 255, 0), 
                                                         size_ratio = self.overlay_size_ratio )
+                                
+
+                                # overlay_text = []
+                                # if overlay_crosshair_names == True:
+                                #     overlay_text.append(name)
+                                # if overlay_crosshair_pixels == True:
+                                #     overlay_text.append(str(crosshairs_dict['x_pixel']) + ',' + str(crosshairs_dict['y_pixel']))
+                                # if overlay_crosshair_degrees == True:
+                                #     overlay_text.append(str(crosshairs_dict['x_offset_deg']) + ',' + str(crosshairs_dict['y_offset_deg']))
+                                # if len(overlay_text) > 0:
+
+                                #     # Overlay text data on OpenCV image
+                                #     font = cv2.FONT_HERSHEY_DUPLEX
+                                #     scale = 1.5e-3 - 0.1e-3 * math.ceil(max([height, width])/700)
+                                #     fontScale, fontThickness  = nepi_img.optimal_font_dims(cv2_img,font_scale = scale, thickness_scale = scale) 
+                                #     fontColor = (255, 255, 255)
+                                #     fontColorBk = (0,0,0)
+                                #     lineType = cv2.LINE_AA
+                                #     text2overlay=overlay_text
+                                #     text_size = cv2.getTextSize(text2overlay, 
+                                #         font, 
+                                #         fontScale,
+                                #         fontThickness)
+                                #     #self.msg_if.pub_warn("Text Size: " + str(text_size))
+                                #     line_height = text_size[0][1]
+                                #     line_width = text_size[0][0]
+                                #     x_padding = int(line_height*0.4)
+                                #     y_padding = int(line_height*0.4)
+                                    
+                                #     center = bot_left_box[0] + int(( top_right_box[0] - bot_left_box[0]) / 2 )
+                                #     #bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
+                                #     bot_left_text = (center + x_padding , ymin - (line_thickness * 2) - y_padding)
+                                #     # Create Text Background Box
+                                #     #bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
+                                #     bot_left_box =  ( center - x_padding, bot_left_text[1] + y_padding)
+                                #     top_right_box = (center + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
+                                #     box_color = [0,0,0]
+
+                                #     try:
+                                #         cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, box_color , -1)
+                                #         cv2.putText(cv2_det_img,text2overlay, 
+                                #             bot_left_text, 
+                                #             font, 
+                                #             fontScale,
+                                #             fontColor,
+                                #             fontThickness,
+                                #             lineType)
+                                #     except Exception as e:
+                                #         self.msg_if.pub_warn("Failed to apply overlay label text: " + str(e))
+
+
+
+
 
                         
                         if self.node_if is not None and self.needs_data == True:
@@ -3182,6 +3431,17 @@ class BaseImageIF:
         self.needs_update()
         self.node_if.set_param('overlays_dict', self.overlays_dict)
 
+    def remove_crosshair(self, name):
+        """Remove entry from crosshairs overlay dict."""
+        try:
+            del self.overlays_dict['crosshairs_dict'][name]
+        except:
+            pass
+        
+        self.publish_status()
+        self.needs_update()
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
+
     def clear_crosshairs(self):
         """Clear all entries from crosshairs overlay dict."""
         self.overlays_dict['crosshairs_dict'] = dict()
@@ -3314,6 +3574,10 @@ class BaseImageIF:
         self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
         self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
 
+        self.live_adjust_rotate_ratio = 0.5
+        self.live_adjust_x_ratio = 0.5
+        self.live_adjust_y_ratio = 0.5
+
 
         self.publish_status()  
         self.needs_update()
@@ -3398,12 +3662,13 @@ class BaseImageIF:
             self.status_msg.add_overlay_list = self.overlays_dict['add_overlay_list']
             
 
-            crosshairs = self.overlays_dict['crosshairs_dict']
+
+            crosshairs_dict = self.overlays_dict['crosshairs_dict']
             crosshairs_msg_list = []
-            for crosshair_name in crosshairs.keys():
+            for crosshair_name in crosshairs_dict.keys():
                 crosshair_msg = ImageCrosshair()
                 crosshair_msg.name = crosshair_name
-                crosshair = crosshairs[crosshair_name]
+                crosshair = crosshairs_dict[crosshair_name]
                 xor = crosshair['x_offset_ratio']
                 crosshair_msg.x_offset_ratio = xor
                 crosshair_msg.x_offset_deg = round((xor - 0.5)*2 * self.deg_width/2, 2)
@@ -3415,7 +3680,11 @@ class BaseImageIF:
                 crosshair_msg.y_offset_pixel = int((yor - 0.5)*2 * self.raw_height/2)
                 crosshair_msg.y_pixel = int(round(self.raw_height/2 + crosshair_msg.y_offset_pixel))
                 crosshairs_msg_list.append(crosshair_msg)
-            self.status_msg.num_crosshairs = len(list(crosshairs.keys()))
+            self.status_msg.overlay_crosshairs = self.overlays_dict['overlay_crosshairs']
+            self.status_msg.overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
+            self.status_msg.overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
+            self.status_msg.overlay_crosshair_degs = self.overlays_dict['overlay_crosshair_degrees']
+            self.status_msg.num_crosshairs = len(list(crosshairs_dict.keys()))
             self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
             self.status_msg.crosshairs = crosshairs_msg_list
 
@@ -3463,7 +3732,11 @@ class BaseImageIF:
             else:
                 self.filter_dict = dict()
             self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
-            self.overlays_dict = self.node_if.get_param('overlays_dict')
+            overlays_dict = self.node_if.get_param('overlays_dict')
+            for key in self.overlays_dict.keys():
+                if key in overlays_dict.keys():
+                    self.overlays_dict[key] = self.overlays_dict[key]
+
         if do_updates == True:
             pass
         self.zoom_ratio = 0
@@ -3579,9 +3852,8 @@ class BaseImageIF:
         if abs(rotate_deg) > 180:
             rotate_deg = np.sign(rotate_deg) * 180
         if abs(rotate_deg) > 1:
-            liveUpdated_cv2_img = nepi_img.rotate_degrees(cv2_img,rotate_deg)
-        else:
-            liveUpdated_cv2_img = cv2_img
+            #self.msg_if.pub_warn("Live Adjusting Rotate with ratio and degrees: " + str([rotate_ratio,rotate_deg]), log_name_list = self.log_name_list, throttle_s = 5)
+            cv2_img = nepi_img.rotate_degrees(cv2_img,rotate_deg)
         
 
         ###### Translation Update
@@ -3595,11 +3867,10 @@ class BaseImageIF:
 
 
         if abs(shift_x_pixels) > 5 or abs(shift_y_pixels) > 5:
-            liveUpdated_cv2_img = nepi_img.translate_pixels(cv2_img,shift_x_pixels,shift_y_pixels)
-        else:
-            liveUpdated_cv2_img = cv2_img
+            cv2_img = nepi_img.translate_pixels(cv2_img,shift_x_pixels,shift_y_pixels)
+ 
         
-        return liveUpdated_cv2_img
+        return cv2_img
 
 
 
@@ -3629,6 +3900,7 @@ class BaseImageIF:
                 pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
                 pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
             angles = [pixel_vert_angle_deg,pixel_vert_angle_deg]
+            self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enable), log_name_list = self.log_name_list)
             if self.click_crosshair_enabled == True and click_count == 1:
                             self.click_crosshair_enabled = False
                             x_offset_ratio = object_loc_x_ratio_from_center
@@ -3926,11 +4198,13 @@ class BaseImageIF:
         y_ratio = nepi_utils.check_ratio(y_deg/self.height_raw)
         self.add_crosshair(x_ratio,y_ratio,name)
 
+    def _removeCrosshairCb(self,msg):
+        name = msg.data
+        self.remove_overlay_crosshair(name)
 
 
-
-    def _clearOverlayCrosshairsCb(self,msg):
-        self.clear_overlay_crosshairs()
+    def _clearCrosshairsCb(self,msg):
+        self.clear_crosshairs()
 
 
     def _setLiveAdjustRotateRatioCb(self,msg):
@@ -4027,7 +4301,7 @@ class ImageIF(BaseImageIF):
         stop_range_ratio = 1.0,
         window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
-        tilt_3d_ratio = 0.5
+        tilt_3d_ratio = 0.5,
         )
 
     params_dict = None
@@ -4158,7 +4432,7 @@ class ColorImageIF(BaseImageIF):
         stop_range_ratio = 1.0,
         window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
-        tilt_3d_ratio = 0.5
+        tilt_3d_ratio = 0.5,
         )
 
     params_dict = None
@@ -5144,7 +5418,7 @@ class DepthMapImageIF(BaseImageIF):
         stop_range_ratio = 1.0,
         window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
-        tilt_3d_ratio = 0.5
+        tilt_3d_ratio = 0.5,
         )
 
     params_dict = None
@@ -5679,31 +5953,31 @@ class PointcloudIF:
                 'namespace': self.namespace,
                 'factory_val': self.frame3d_list[0]
             },
-            'process/clip_enabled': {
+            'clip_enabled': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_enabled']
             },
-            'process/clip_selection': {
+            'clip_selection': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_selection']
             },
-            'process/range_min_m': {
+            'range_min_m': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_min_range_m']
             },
-            'process/range_max_m': {
+            'range_max_m': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_max_range_m']
             },
-            'process/voxel_downsample_size': {
+            'voxel_downsample_size': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['voxel_downsample_size']
             },
-            'process/uniform_downsample_k_points': {
+            'uniform_downsample_k_points': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['uniform_downsample_k_points']
             },
-            'process/outlier_removal_num_neighbors': {
+            'outlier_removal_num_neighbors': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['outlier_removal_num_neighbors']
             }
@@ -5734,7 +6008,7 @@ class PointcloudIF:
         self.SUBS_DICT = {
             'reset_controls': {
                 'namespace': self.node_namespace,
-                'topic': 'process/reset_controls',
+                'topic': 'reset_controls',
                 'msg': Empty,
                 'qsize': 10,
                 'callback': self.resetProcessControlsCb,
@@ -5742,7 +6016,7 @@ class PointcloudIF:
             },
             'set_clip_enable': {
                 'namespace': self.node_namespace,
-                'topic': 'process/set_clip_enable',
+                'topic': 'set_clip_enable',
                 'msg': Bool,
                 'qsize': 10,
                 'callback': self.clipEnableCb,
@@ -5750,7 +6024,7 @@ class PointcloudIF:
             },
             'clip_selection': {
                 'namespace': self.node_namespace,
-                'topic': 'process/set_clip_selection',
+                'topic': 'set_clip_selection',
                 'msg': String,
                 'qsize': 10,
                 'callback': self.setClipSelectionCb,
@@ -5758,7 +6032,7 @@ class PointcloudIF:
             },
             'range_clip_m': {
                 'namespace': self.node_namespace,
-                'topic': 'process/set_range_clip_m',
+                'topic': 'set_range_clip_m',
                 'msg': RangeWindow,
                 'qsize': 10,
                 'callback': self.setRangeMetersCb,
@@ -5766,7 +6040,7 @@ class PointcloudIF:
             },
             'clip_bounding_box3d_topic': {
                 'namespace': self.node_namespace,
-                'topic': 'process/set_clip_bounding_box3d_topic',
+                'topic': 'set_clip_bounding_box3d_topic',
                 'msg': String,
                 'qsize': 10,
                 'callback': self.setClipBoxTopicCb,
@@ -5774,7 +6048,7 @@ class PointcloudIF:
             },
             'voxel_downsample_size': {
                 'namespace': self.node_namespace,
-                'topic': 'process/set_voxel_downsample_size',
+                'topic': 'set_voxel_downsample_size',
                 'msg': Float32,
                 'qsize': 10,
                 'callback': self.setVoxelSizeCb,
@@ -5782,7 +6056,7 @@ class PointcloudIF:
             },
             'downsample_k_points': {
                 'namespace': self.node_namespace,
-                'topic': 'process/uniform_downsample_k_points',
+                'topic': 'uniform_downsample_k_points',
                 'msg': Int32,
                 'qsize': 10,
                 'callback': self.setUniformPointsCb,
@@ -5790,7 +6064,7 @@ class PointcloudIF:
             },
             'outlier_removal': {
                 'namespace': self.node_namespace,
-                'topic': 'process/outlier_removal_num_neighbors',
+                'topic': 'outlier_removal_num_neighbors',
                 'msg': Int32,
                 'qsize': 10,
                 'callback': self.setOutlierNumCb,
@@ -6546,28 +6820,29 @@ class PointcloudIF:
         self.resetProcessControls()
 
     def resetProcessControls(self,do_updates = True):
-        self.node_if.reset_param('process/clip_enabled')
-        self.node_if.reset_param('process/clip_selection')
-        self.node_if.reset_param('process/range_min_m')
-        self.node_if.reset_param('process/range_max_m')
+        self.node_if.reset_param('clip_enabled')
+        self.node_if.reset_param('clip_selection')
+        self.node_if.reset_param('range_min_m')
+        self.node_if.reset_param('range_max_m')
         self.bounding_box3d_topic = "NONE"
-        self.node_if.reset_param('process/voxel_downsample_size')
-        self.node_if.reset_param('process/uniform_downsample_k_points')
-        self.node_if.reset_param('process/outlier_removal_num_neighbors')
+        self.node_if.reset_param('voxel_downsample_size')
+        self.node_if.reset_param('uniform_downsample_k_points')
+        self.node_if.reset_param('outlier_removal_num_neighbors')
+
         if do_updates:
             self.publish_status()
 
     def clipEnableCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         new_enable = msg.data
-        self.node_if.set_param('process/clip_enabled', new_enable)
+        self.node_if.set_param('clip_enabled', new_enable)
         self.publish_status()
 
     def setClipSelectionCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         sel = msg.data
         if sel in self.clip_options:
-            self.node_if.set_param('process/clip_selection', sel )
+            self.node_if.set_param('clip_selection', sel )
         self.publish_status()
 
     def setClipBoxTopicCb(self,msg):
@@ -6580,29 +6855,29 @@ class PointcloudIF:
         range_min_m = msg.start_range
         range_max_m = msg.stop_range
         if range_min_m < range_max_m:
-            self.node_if.set_param('process/range_min_m', range_min_m)
-            self.node_if.set_param('process/range_max_m', range_max_m)
+            self.node_if.set_param('range_min_m', range_min_m)
+            self.node_if.set_param('range_max_m', range_max_m)
         self.publish_status()
 
     def setVoxelSizeCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         val = msg.data
         if val >= 0:
-            self.node_if.set_param('process/voxel_downsample_size',val)
+            self.node_if.set_param('voxel_downsample_size',val)
         self.publish_status()
 
     def setUniformPointsCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         val = msg.data
         if val >= 0:
-            self.node_if.set_param('process/uniform_downsample_k_points',val)
+            self.node_if.set_param('uniform_downsample_k_points',val)
         self.publish_status()
 
     def setOutlierNumCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         val = msg.data
         if val >= 0:
-            self.node_if.set_param('process/outlier_removal_num_neighbors',val)
+            self.node_if.set_param('outlier_removal_num_neighbors',val)
         self.publish_status()
 
     def setFrame3dCb(self, msg):
@@ -6773,7 +7048,7 @@ class PointcloudImageIF(BaseImageIF):
         stop_range_ratio = 1.0,
         window_ratios = [0,1,0,1],
         rotate_3d_ratio = 0.5,
-        tilt_3d_ratio = 0.5
+        tilt_3d_ratio = 0.5,
         )
 
     DEFAULT_CAM_DICT = dict(

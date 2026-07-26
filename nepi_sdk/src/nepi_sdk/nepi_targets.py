@@ -29,8 +29,6 @@ from nepi_sdk import nepi_nav
 
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 
-from nepi_interfaces.msg import StringArray, ObjectCount, BoundingBox, BoundingBoxes, AiBoundingBoxes
-
 from nepi_interfaces.msg import Target, Targets, TargetingStatus
 
 from nepi_sdk.nepi_sdk import logger as Logger

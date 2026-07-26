@@ -597,7 +597,7 @@ def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEARE
 
 def rotate_degrees(cv2_img, deg=0):
     # Normalize any integer angle to the range 0-359 (360/multiples collapse to 0).
-    deg = int(deg) % 360
+    #deg = int(deg) % 360
     deg_str=str(deg)
     if deg == 0:
         return cv2_img
@@ -612,6 +612,7 @@ def rotate_degrees(cv2_img, deg=0):
         # counter-clockwise, so we negate to keep the original clockwise direction
         # (matching the old cv2.ROTATE_90_CLOCKWISE behavior for 90 deg; 180 and
         # 270 likewise render as before).
+        logger.log_warn("Live Adjust Rotating degrees: " + str(deg))
         height, width = cv2_img.shape[:2]
         center = (width / 2.0, height / 2.0)
         rot_mat = cv2.getRotationMatrix2D(center, -deg, 1.0)
