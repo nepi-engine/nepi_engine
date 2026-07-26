@@ -58,7 +58,7 @@ from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQue
 
 
 
-from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindow, RangeWindow, ImagePixel, ImageMouseEvent
+from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindow, RangeWindow, ImagePixel, ImageMouseEvent, ImageCrosshair
 from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import RangeWindow
@@ -1089,8 +1089,14 @@ class BaseImageIF:
             overlay_nav = False,
             overlay_pose = False, 
             init_overlay_list = [],
-            add_overlay_list = []
+            add_overlay_list = [],
+            overalay_crosshairs = False,
+            overalay_crosshair_names = False,
+            overalay_crosshair_pixels = False,
+            overalay_crosshairs_degrees = False,
+            crosshairs_dict = dict()
     )
+    click_crosshair_enabled = False
 
 
     auto_adjust_controls = []
@@ -1132,6 +1138,8 @@ class BaseImageIF:
     raw_width = 0
     proc_height = 0
     proc_width = 0
+    deg_width = 100
+    deg_height = 70
 
     zoom_ratio = 1
     x_ratio = 0.5
@@ -1149,6 +1157,12 @@ class BaseImageIF:
     active_topics = []
     active_topic_types = []
     active_services = []
+
+    live_adjust_rotate_ratio = 0.5
+    live_adjust_x_ratio = 0.5
+    live_adjust_y_ratio = 0.5
+
+
 
     def __init__(self, 
                 namespace , 
@@ -1360,26 +1374,10 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.overlay_size_ratio
             },
-            'overlay_img_name': {
+            'overlays_dict': {
                 'namespace': self.namespace,
-                'factory_val': False
+                'factory_val': self.overlays_dict
             },
-            'overlay_date_time': {
-                'namespace': self.namespace,
-                'factory_val': False
-            },
-            'overlay_nav': {
-                'namespace': self.namespace,
-                'factory_val': False
-            },
-            'overlay_pose': {
-                'namespace': self.namespace,
-                'factory_val': False
-            },
-            'add_overlay_list': {
-                'namespace': self.namespace,
-                'factory_val': []
-            }
         }
 
         if params_dict is not None:
@@ -1480,6 +1478,7 @@ class BaseImageIF:
                 'callback': self._mouseEventCb,
                 'callback_args': ()
             },
+        
             'render_3d_controls': {
                 'namespace': self.namespace,
                 'topic': 'render_3d_controls',
@@ -1560,6 +1559,126 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._clearOverlayListCb
             },
+            'overlay_crosshairs': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_crosshairs',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairsCb
+            },
+            'overlay_crosshair_names': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_crosshair_names',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairNamesCb
+            },
+            'overlay_crosshair_pixels': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_crosshair_pixels',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairPixelsCb
+            },
+            'overlay_crosshair_degrees': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_crosshair_degrees',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairDegreesCb
+            },
+            'click_crosshair_enable': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'click_crosshair_enable',
+                'qsize': 5,
+                'callback': self._clickCrosshairEnableCb
+            },
+            'add_crosshair_pixel': {
+                'msg': ImageCrosshair,
+                'namespace': self.namespace,
+                'topic': 'add_crosshair_pixel',
+                'qsize': 5,
+                'callback': self._addCrosshairPixelCb
+            },
+            'add_crosshair_degrees': {
+                'msg': ImageCrosshair,
+                'namespace': self.namespace,
+                'topic': 'add_crosshair_degrees',
+                'qsize': 5,
+                'callback': self._addCrosshairDegreesCb
+            },
+            'clear_crosshairs': {
+                'msg': Empty,
+                'namespace': self.namespace,
+                'topic': 'clear_crosshairs',
+                'qsize': 5,
+                'callback': self._clearOverlayCrosshairsCb
+            },
+            'set_live_update_rotate_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_live_update_rotate_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustRotateRatioCb,
+                'callback_args': ()
+            },
+            'set_live_update_rotate_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_live_update_rotate_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustRotateDegCb,
+                'callback_args': ()
+            },
+            'set_live_update_translate_x_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_live_update_translate_x_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXRatioCb,
+                'callback_args': ()
+            },
+            'set_live_update_translate_x_pixel': {
+                'namespace': self.namespace,
+                'topic': 'set_live_update_translate_x_pixel',
+                'msg': Int32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXPixelCb,
+                'callback_args': ()
+            },
+            'set_live_update_translate_x_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_live_update_translate_x_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXDegCb,
+                'callback_args': ()
+            },
+            'set_live_update_translate_y_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_live_update_translate_y_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYRatioCb,
+                'callback_args': ()
+            },
+            'set_live_update_translate_y_piyel': {
+                'namespace': self.namespace,
+                'topic': 'set_live_update_translate_y_pixel',
+                'msg': Int32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYPixelCb,
+                'callback_args': ()
+            },
+            'set_live_update_translate_y_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_live_update_translate_y_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYDegCb,
+                'callback_args': ()
+            },
             'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
@@ -1568,6 +1687,7 @@ class BaseImageIF:
                 'callback': self._systemStatusCb
             }
         }
+
 
 
         # Create subs if required
@@ -2189,7 +2309,8 @@ class BaseImageIF:
                 start_time = nepi_utils.get_time()   
 
 
-
+                self.deg_width = width_deg
+                self.deg_height = height_deg
                 self.status_msg.width_deg = width_deg * (1 - self.zoom_ratio)
                 self.status_msg.height_deg = height_deg * (1 - self.zoom_ratio)
 
@@ -2215,7 +2336,7 @@ class BaseImageIF:
 
                 if process_data == True:
                     cv2_img = self.process_cv2_img(cv2_img)
-                
+                    cv2_img = self._liveAdjust(cv2_img)
                 if cv2_img is not None:
                     
                     
@@ -2267,6 +2388,24 @@ class BaseImageIF:
                                                     color_rgb = (0, 255, 0), 
                                                     apply_shadow = True, 
                                                     size_ratio = self.overlay_size_ratio )
+                        crosshairs_dict = self.overlays_dict['crosshairs_dict']
+                        crosshair_len = len(list(crosshairs_dict.keys()))
+                        overalay_crosshairs = self.overlays_dict['overalay_crosshairs']
+                        overalay_crosshair_names = self.overlays_dict['overalay_crosshair_names']
+                        overalay_crosshair_pixels = self.overlays_dict['overalay_crosshair_pixels']
+                        overalay_crosshair_degrees = self.overlays_dict['overalay_crosshair_degrees']
+                        overalay_crosshair_len = len(list(crosshairs_dict.keys()))
+                        if crosshair_len > 0 and overalay_crosshairs == True:
+                            for crosshair_name in crosshairs_dict.keys():
+                                crosshair = crosshairs_dict[crosshair_name]
+                                x_offset_ratio = crosshair['x_offset_ratio']
+                                crosshair_x = int(width/2 + width/2 * ((x_offset_ratio - 0.5) * 2))
+                                y_offset_ratio = crosshair['y_offset_ratio']
+                                crosshair_y = int(height/2 + height/2 * ((y_offset_ratio - 0.5) * 2))
+                                cv2_img = nepi_img.overlay_crosshair(cv2_img, 
+                                                        x_px = crosshair_x , y_px = crosshair_y, 
+                                                        color_rgb = (0, 255, 0), 
+                                                        size_ratio = self.overlay_size_ratio )
 
                         
                         if self.node_if is not None and self.needs_data == True:
@@ -2849,10 +2988,6 @@ class BaseImageIF:
 
 
 
-
-
-
-
     def update_window_ratios(self):
         """Update the vertical pan ratio and refresh status and update callbacks."""
         self.y_ratio = nepi_utils.check_ratio(ratio)
@@ -2890,9 +3025,11 @@ class BaseImageIF:
         Args:
             ratio (float): Text size ratio in [0.0, 1.0].
         """
-        self.overlay_size_ratio = nepi_utils.check_ratio(ratio)
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlay_size_ratio = ratio
         self.publish_status()
         self.needs_update()
+        self.node_if.set_param('overlay_size_ratio', ratio)
 
     def set_overlay_image_name(self,enabled):
         """Enable or disable the image name text overlay.
@@ -2903,7 +3040,7 @@ class BaseImageIF:
         self.overlays_dict['overlay_img_name'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlay_img_name', enabled)
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_date_time(self,enabled):
         """Enable or disable the date/time text overlay.
@@ -2914,7 +3051,7 @@ class BaseImageIF:
         self.overlays_dict['overlay_date_time'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlay_date_time', enabled)
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_nav(self,enabled):
         """Enable or disable the GPS navigation (lat/lon/heading) text overlay.
@@ -2925,7 +3062,7 @@ class BaseImageIF:
         self.overlays_dict['overlay_nav'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlay_nav', enabled)
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_pose(self,enabled):
         """Enable or disable the roll/pitch/yaw pose text overlay.
@@ -2936,7 +3073,7 @@ class BaseImageIF:
         self.overlays_dict['overlay_pose'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlay_pose', enabled)
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_list(self,overlay_list):
         """Replace the additional text overlay list with the provided list.
@@ -2947,7 +3084,7 @@ class BaseImageIF:
         self.overlays_dict['add_overlay_list'] = overlay_list
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('add_overlay_list', overlay_list)
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_text(self,overlay_text):
         """Append a text string to the additional overlay list.
@@ -2960,15 +3097,136 @@ class BaseImageIF:
         self.overlays_dict['add_overlay_list'] = overlay_list
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('add_overlay_list', overlay_list)
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def clear_overlay_list(self):
         """Clear all entries from the additional text overlay list."""
         self.overlays_dict['add_overlay_list'] = []
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('add_overlay_list', [])
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
 
+    def set_overlay_crosshairs(self,enabled):
+        """Enable or disable the crosshair overlays.
+
+        Args:
+            enabled (bool): True to show crosshairs data, False to hide it.
+        """
+        self.overlays_dict['overlay_crosshairs'] = enabled
+        self.publish_status()
+        self.needs_update()
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+
+    def set_overlay_crosshair_names(self,enabled):
+        """Enable or disable the crosshair overlays.
+
+        Args:
+            enabled (bool): True to show crosshairs data, False to hide it.
+        """
+        self.overlays_dict['overlay_crosshair_names'] = enabled
+        self.publish_status()
+        self.needs_update()
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_crosshair_pixels(self,enabled):
+        """Enable or disable the crosshair overlays.
+
+        Args:
+            enabled (bool): True to show crosshairs data, False to hide it.
+        """
+        self.overlays_dict['overlay_crosshair_pixels'] = enabled
+        self.publish_status()
+        self.needs_update()
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_crosshair_degrees(self,enabled):
+        """Enable or disable the crosshair overlays.
+
+        Args:
+            enabled (bool): True to show crosshairs data, False to hide it.
+        """
+        self.overlays_dict['overlay_crosshair_degrees'] = enabled
+        self.publish_status()
+        self.needs_update()
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_click_crosshair(self,enabled):
+        """Enable or disable the click crosshair enable.
+
+        Args:
+            enabled (bool): True to show crosshairs data, False to hide it.
+        """
+        self.click_crosshair_enabled = enabled
+        self.publish_status()
+
+
+    def add_crosshair(self, x_offset_ratio, y_offset_ratio, name = None):
+        """Append a crosshair overlay at pixel location.
+
+        Args:
+            x pixel, y pixel, crosshair name str.
+        """
+        crosshairs_dict = self.overlays_dict['crosshairs_dict']
+        crosshair_names = list(crosshairs_dict.keys())
+        num_crosshairs = len(crosshair_names)
+        x_offset_ratio = nepi_utils.check_ratio(x_offset_ratio)
+        y_offset_ratio = nepi_utils.check_ratio(y_offset_ratio)
+        ch_name = str(num_crosshairs + 1)
+        if name is not None:
+            if name != '':
+                ch_name = name
+        crosshairs_dict[ch_name] = [x_offset_ratio, y_offset_ratio]
+        self.overlays_dict['crosshairs_dict'] = crosshairs_dict
+        self.publish_status()
+        self.needs_update()
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def clear_crosshairs(self):
+        """Clear all entries from crosshairs overlay dict."""
+        self.overlays_dict['crosshairs_dict'] = dict()
+        self.publish_status()
+        self.needs_update()
+        self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_live_adjust_rotate_ratio(self,ratio):
+        self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
+
+    def set_live_adjust_rotate_deg(self,deg):
+        if abs(deg) > 180:
+                deg = np.sign(deg) * 180
+        ratio = round(0.5 + (deg / 180)/2)
+        self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
+
+    def set_live_adjust_translate_x_ratio(self,ratio):
+        self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
+
+    def set_live_adjust_translate_x_pixel(self,pixel):
+        if abs(pixel) > self.raw_width:
+            pixel = np.sign(pixel) * self.raw_width
+        ratio = round(0.5 + (pixel / self.raw_width)/2)
+        self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
+
+    def set_live_adjust_translate_x_deg(self,deg):
+        if abs(deg) > self.deg_width:
+            deg = np.sign(deg) * self.deg_width
+        ratio = round(0.5 + (deg / self.deg_width)/2)    
+        self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
+
+    def set_live_adjust_translate_y_ratio(self,ratio):
+        self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
+
+    def set_live_adjust_translate_y_pixel(self,pixel):
+        if abs(pixel) > self.raw_height:
+            pixel = np.sign(pixel) * self.raw_height
+        ratio = round(0.5 + (pixel / self.raw_height)/2)
+        self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
+
+    def set_live_adjust_translate_y_deg(self,deg):
+        if abs(deg) > self.deg_height:
+            deg = np.sign(deg) * self.deg_height
+        ratio = round(0.5 + (deg / self.deg_height)/2)    
+        self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def reset_filters(self):
         """Reset all filter and adjustment controls to factory defaults."""
@@ -2997,18 +3255,9 @@ class BaseImageIF:
 
     def reset_overlays(self):
         """Reset all overlay settings to factory defaults."""
-        self.node_if.factory_reset_param('overlay_size_ratio')
-        self.node_if.factory_reset_param('overlay_img_name')
-        self.node_if.factory_reset_param('overlay_date_time')
-        self.node_if.factory_reset_param('overlay_nav')
-        self.node_if.factory_reset_param('overlay_pose')
-        self.node_if.factory_reset_param('add_overlay_list')
-
-        self.overlays_dict['overlay_img_name'] = self.node_if.get_param('overlay_img_name')
-        self.overlays_dict['overlay_date_time'] = self.node_if.get_param('overlay_date_time')
-        self.overlays_dict['overlay_nav'] = self.node_if.get_param('overlay_nav')
-        self.overlays_dict['overlay_pose'] = self.node_if.get_param('overlay_pose')
-        self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
+        self.node_if.factory_reset_param('overlays_dict')
+        self.overlays_dict = self.node_if.get_param('overlays_dict')
+       
         
         self.publish_status()  
         self.needs_update()
@@ -3113,6 +3362,32 @@ class BaseImageIF:
             self.status_msg.render_3d_controls_enabled = self.render_3d_controls_enabled
 
 
+            live_adjust_rotate_ratio = copy.deepcopy(self.live_adjust_rotate_ratio)
+            rotate_deg = ((live_adjust_rotate_ratio - 0.5) * 2) * 180
+            if abs(rotate_deg) > 180:
+                rotate_deg = np.sign(rotate_deg) * 180
+            live_adjust_rotate_deg = rotate_deg
+
+            live_adjust_x_ratio = copy.deepcopy(self.live_adjust_x_ratio)
+            shift_x_scaler = (live_adjust_x_ratio - 0.5) * 2
+            live_adjust_x_pixels = math.floor((shift_x_scaler * self.raw_width))
+            live_adjust_x_degs = round(shift_x_scaler * self.deg_width,1)
+
+            live_adjust_y_ratio = copy.deepcopy(self.live_adjust_y_ratio)
+            shift_y_scaler = (live_adjust_y_ratio - 0.5) * 2
+            live_adjust_y_pixels = math.floor((shift_y_scaler * self.raw_height))
+            live_adjust_y_degs = round(shift_y_scaler * self.deg_height,1)
+
+            self.status_msg.live_adjust_rotate_ratio = live_adjust_rotate_ratio
+            self.status_msg.live_adjust_rotate_deg = live_adjust_rotate_deg
+            self.status_msg.live_adjust_x_ratio = live_adjust_x_ratio
+            self.status_msg.live_adjust_x_pixels = live_adjust_x_pixels
+            self.status_msg.live_adjust_x_degs = live_adjust_x_degs
+            self.status_msg.live_adjust_y_ratio = live_adjust_y_ratio
+            self.status_msg.live_adjust_y_pixels = live_adjust_y_pixels
+            self.status_msg.live_adjust_y_degs = live_adjust_y_degs
+
+
             self.status_msg.overlay_size_ratio = self.overlay_size_ratio
             self.status_msg.overlay_img_name = self.overlays_dict['overlay_img_name']
             self.status_msg.overlay_date_time =  self.overlays_dict['overlay_date_time']
@@ -3120,6 +3395,31 @@ class BaseImageIF:
             self.status_msg.overlay_pose = self.overlays_dict['overlay_pose']  
             self.status_msg.base_overlay_list = self.overlays_dict['init_overlay_list']
             self.status_msg.add_overlay_list = self.overlays_dict['add_overlay_list']
+            self.status_msg.add_overlay_list = self.overlays_dict['add_overlay_list']
+            
+
+            crosshairs = self.overlays_dict['crosshairs_dict']
+            crosshairs_msg_list = []
+            for crosshair_name in crosshairs.keys():
+                crosshair_msg = ImageCrosshair()
+                crosshair_msg.name = crosshair_name
+                crosshair = crosshairs[crosshair_name]
+                xor = crosshair['x_offset_ratio']
+                crosshair_msg.x_offset_ratio = xor
+                crosshair_msg.x_offset_deg = round((xor - 0.5)*2 * self.deg_width/2, 2)
+                crosshair_msg.x_offset_pixel = int((xor - 0.5)*2 * self.raw_width/2)
+                crosshair_msg.x_pixel = int(round(self.raw_width/2 + crosshair_msg.x_offset_pixel))
+                yor = crosshair['y_offset_ratio']
+                crosshair_msg.y_offset_ratio = yor
+                crosshair_msg.y_offset_deg = round((yor - 0.5)*2 * self.deg_height/2, 2)
+                crosshair_msg.y_offset_pixel = int((yor - 0.5)*2 * self.raw_height/2)
+                crosshair_msg.y_pixel = int(round(self.raw_height/2 + crosshair_msg.y_offset_pixel))
+                crosshairs_msg_list.append(crosshair_msg)
+            self.status_msg.num_crosshairs = len(list(crosshairs.keys()))
+            self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
+            self.status_msg.crosshairs = crosshairs_msg_list
+
+
 
             avg_rate = 0
             if len(self.time_list) > 0:
@@ -3163,12 +3463,7 @@ class BaseImageIF:
             else:
                 self.filter_dict = dict()
             self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
-            self.overlays_dict['overlay_img_name'] = self.node_if.get_param('overlay_img_name')
-            self.overlays_dict['overlay_date_time'] = self.node_if.get_param('overlay_date_time')
-            self.overlays_dict['overlay_nav'] = self.node_if.get_param('overlay_nav')
-            self.overlays_dict['overlay_pose'] = self.node_if.get_param('overlay_pose')
-            self.overlays_dict['add_overlay_list'] = self.node_if.get_param('add_overlay_list')
-
+            self.overlays_dict = self.node_if.get_param('overlays_dict')
         if do_updates == True:
             pass
         self.zoom_ratio = 0
@@ -3264,6 +3559,50 @@ class BaseImageIF:
         else:
           self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]), log_name_list = self.log_name_list)
 
+
+
+    def _liveAdjust(self, cv2_img):
+        """
+        Translates an OpenCV image by a given number of ratio in x and y directions.
+        
+        Positive shift_x_ratio: moves image right
+        Negative shift_x_ratio: moves image left
+        Positive shift_y_ratio: moves image down
+        Negative shift_y_ratio: moves image up
+        """
+        # Get adjustment in pixels)
+        height, width = cv2_img.shape[:2]
+
+        ###### Rotation Update
+        rotate_ratio = nepi_utils.check_ratio(self.live_adjust_rotate_ratio)
+        rotate_deg = ((rotate_ratio - 0.5) * 2) * 180
+        if abs(rotate_deg) > 180:
+            rotate_deg = np.sign(rotate_deg) * 180
+        if abs(rotate_deg) > 1:
+            liveUpdated_cv2_img = nepi_img.rotate_degrees(cv2_img,rotate_deg)
+        else:
+            liveUpdated_cv2_img = cv2_img
+        
+
+        ###### Translation Update
+        shift_x_ratio = nepi_utils.check_ratio(self.live_adjust_x_ratio)
+        shift_x_scaler = (shift_x_ratio - 0.5) * 2
+        shift_x_pixels = math.floor((shift_x_scaler * width))
+        shift_y_ratio = nepi_utils.check_ratio(self.live_adjust_y_ratio)
+        shift_y_scaler = (shift_y_ratio - 0.5) * 2
+        shift_y_pixels = math.floor((shift_y_scaler * width))
+
+
+
+        if abs(shift_x_pixels) > 5 or abs(shift_y_pixels) > 5:
+            liveUpdated_cv2_img = nepi_img.translate_pixels(cv2_img,shift_x_pixels,shift_y_pixels)
+        else:
+            liveUpdated_cv2_img = cv2_img
+        
+        return liveUpdated_cv2_img
+
+
+
     def _mouseEventCb(self,msg):
         #self.msg_if.pub_info("Received mouse event message: " + str(msg), log_name_list = self.log_name_list)
         if self.callback_dict['mouse_event_callback'] is not None:
@@ -3276,19 +3615,26 @@ class BaseImageIF:
             pixel = [int(msg.click.x   + self.x_offset), int(msg.click.y   + self.y_offset)]
             color_bgr = (msg.click.b,msg.click.g,msg.click.r,msg.click.a)
             click_count = msg.click_count
-            if self.callback_dict['click_pixel_callback'] is not None:
-                    image_width = self.status_msg.width_px
-                    image_height = self.status_msg.height_px
-                    image_fov_horz = self.status_msg.width_deg
-                    image_fov_vert = self.status_msg.height_deg
-                    pixel_vert_angle_deg = 0
-                    pixel_horz_angle_deg = 0
-                    if image_width > 10 and image_height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
-                        object_loc_x_ratio_from_center = float(pixel[0] - image_width/2) / float(image_width/2)
-                        object_loc_y_ratio_from_center = float(pixel[0] - image_height/2) / float(image_height/2)
-                        pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
-                        pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
-                    angles = [pixel_vert_angle_deg,pixel_vert_angle_deg]
+            image_width = self.status_msg.width_px
+            image_height = self.status_msg.height_px
+            image_fov_horz = self.status_msg.width_deg
+            image_fov_vert = self.status_msg.height_deg
+            pixel_vert_angle_deg = 0
+            pixel_horz_angle_deg = 0
+            object_loc_x_ratio_from_center = 0
+            object_loc_y_ratio_from_center = 0
+            if image_width > 10 and image_height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
+                object_loc_x_ratio_from_center = float(pixel[0] - image_width/2) / float(image_width/2)
+                object_loc_y_ratio_from_center = float(pixel[0] - image_height/2) / float(image_height/2)
+                pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
+                pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
+            angles = [pixel_vert_angle_deg,pixel_vert_angle_deg]
+            if self.click_crosshair_enabled == True and click_count == 1:
+                            self.click_crosshair_enabled = False
+                            x_offset_ratio = object_loc_x_ratio_from_center
+                            y_offset_ratio = object_loc_y_ratio_from_center
+                            self.add_crosshair(x_offset_ratio,y_offset_ratio)
+            elif self.callback_dict['click_pixel_callback'] is not None:
                     try:
                         self.callback_dict['click_pixel_callback'](pixel,color_bgr,click_count,angles)
                     except Exception as e:
@@ -3541,6 +3887,83 @@ class BaseImageIF:
 
     def _clearOverlayListCb(self,msg):
         self.clear_overlay_list()
+
+
+    def _setrOverlayCrosshairsCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_crosshairs(enabled)
+
+
+    def _setrOverlayCrosshairNamesCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_crosshair_names(enabled)
+
+    def _setrOverlayCrosshairPixelsCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_crosshair_pixels(enabled)
+
+    def _setrOverlayCrosshairDegreesCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_crosshair_degrees(enabled)
+
+    def _clickCrosshairEnableCb(self,msg):
+        enbled = msg.data
+        self.set_click_crosshair(enbled)
+
+    def _addCrosshairPixelCb(self,msg):
+        name = msg.name
+        x_px = msg.x_pixel
+        x_ratio = nepi_utils.check_ratio(x_px/self.width_raw)
+        y_px = msg.y_pixel
+        y_ratio = nepi_utils.check_ratio(y_px/self.height_raw)
+        self.add_crosshair(x_ratio,y_ratio,name)
+
+    def _addCrosshairDegreesCb(self,msg):
+        name = msg.name
+        x_deg = msg.x_offset_deg
+        x_ratio = nepi_utils.check_ratio(x_deg/self.width_deg)
+        y_deg = msg.y_offset_deg
+        y_ratio = nepi_utils.check_ratio(y_deg/self.height_raw)
+        self.add_crosshair(x_ratio,y_ratio,name)
+
+
+
+
+    def _clearOverlayCrosshairsCb(self,msg):
+        self.clear_overlay_crosshairs()
+
+
+    def _setLiveAdjustRotateRatioCb(self,msg):
+        ratio = msg.data
+        self.set_live_adjust_rotate_ratio(ratio)
+
+    def _setLiveAdjustRotateDegCb(self,msg):
+        deg = msg.data
+        self.set_live_adjust_rotate_deg(deg)
+
+    def _setLiveAdjustTranXRatioCb(self,msg):
+        ratio = msg.data
+        self.set_live_adjust_translate_x_ratio(ratio)
+
+    def _setLiveAdjustTranXPixelCb(self,msg):
+        pixel = msg.data
+        self.set_live_adjust_translate_x_pixel(pixel)
+
+    def _setLiveAdjustTranXDegCb(self,msg):
+        deg = msg.data
+        self.set_live_adjust_translate_x_deg(deg)
+
+    def _setLiveAdjustTranYRatioCb(self,msg):
+        ratio = msg.data
+        self.set_live_adjust_translate_y_ratio(ratio)
+
+    def _setLiveAdjustTranYPixelCb(self,msg):
+        pixel = msg.data
+        self.set_live_adjust_translate_y_pixel(pixel)
+
+    def _setLiveAdjustTranYDegCb(self,msg):
+        deg = msg.data
+        self.set_live_adjust_translate_y_deg(deg)
 
     def _resetControlsCb(self,msg):
         self.reset_filters()
