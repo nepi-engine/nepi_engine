@@ -2336,7 +2336,7 @@ class BaseImageIF:
 
                 if process_data == True:
                     cv2_img = self.process_cv2_img(cv2_img)
-                    cv2_img = self._liveAdjust(cv2_img)
+                    #cv2_img = self._liveAdjust(cv2_img)
                 if cv2_img is not None:
                     
                     
