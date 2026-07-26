@@ -4911,7 +4911,7 @@ class DepthMapIF:
                 self._updateRangesM(min_range_m,max_range_m)
             else:
                 self._updateRangesM(0,1)
-            np_depth_map = self._liveAdjust(np_depth_map)
+
             #self.msg_if.pub_info('Pub Depth Adj Min Max Depths: ' + str([self.min_range_m, self.max_range_m]) )
 
             self.status_msg.publishing = True
