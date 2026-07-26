@@ -55,6 +55,15 @@ logger = Logger(log_name = log_name)
 
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
 
+
+ROTATE_DICT = {
+'0': '0',
+'90': cv2.ROTATE_90_CLOCKWISE,
+'180': cv2.ROTATE_180,
+'270': cv2.ROTATE_90_COUNTERCLOCKWISE,
+'360': '0'
+}
+
 def get_image_publisher_namespaces(name):
     msg_type = 'sensor_msgs/Image'
     return nepi_sdk.find_topics_by_msg(msg_type)
@@ -586,6 +595,7 @@ def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEARE
     return resized_image, ratio, new_width, new_height
 
 
+<<<<<<< HEAD
 def rotate_degrees(cv2_img, degrees=0, keep_size=False, swap_dims=False):
     """Rotate an image, either resizing the output box or holding a fixed/swapped box.
 
@@ -645,7 +655,60 @@ def rotate_degrees(cv2_img, degrees=0, keep_size=False, swap_dims=False):
                              flags=cv2.INTER_LINEAR,
                              borderMode=cv2.BORDER_CONSTANT,
                              borderValue=0)
+=======
+def rotate_degrees(cv2_img, deg=0):
+    # Normalize any integer angle to the range 0-359 (360/multiples collapse to 0).
+    deg = int(deg) % 360
+    deg_str=str(deg)
+    if deg == 0:
+        return cv2_img
+    elif deg_str in ROTATE_DICT.keys():
+        if ROTATE_DICT[deg_str] != '0':
+            cv2_img = cv2.rotate(cv2_img, ROTATE_DICT[deg_str])   
+    elif abs(deg) > 1:     
+        # Rotate about the image center while keeping the OUTPUT size identical to the
+        # input (same width and height) so the display box never changes dimensions or
+        # aspect ratio. Uncovered corners are filled with solid black (borderValue=0,
+        # BORDER_CONSTANT). getRotationMatrix2D treats a POSITIVE angle as
+        # counter-clockwise, so we negate to keep the original clockwise direction
+        # (matching the old cv2.ROTATE_90_CLOCKWISE behavior for 90 deg; 180 and
+        # 270 likewise render as before).
+        height, width = cv2_img.shape[:2]
+        center = (width / 2.0, height / 2.0)
+        rot_mat = cv2.getRotationMatrix2D(center, -deg, 1.0)
+        cv2_img = cv2.warpAffine(cv2_img, rot_mat, (width, height),
+                                flags=cv2.INTER_LINEAR,
+                                borderMode=cv2.BORDER_CONSTANT,
+                                borderValue=0)
+>>>>>>> 2c4774d42c1b0e31ba4d4bbaecfa96375b33a07a
     return cv2_img
+
+def translate_pixels(cv2_img, shift_x, shift_y):
+    """
+    Translates an OpenCV image by a given number of pixels in x and y directions.
+    
+    Positive shift_x: moves image right
+    Negative shift_x: moves image left
+    Positive shift_y: moves image down
+    Negative shift_y: moves image up
+    """
+    # Get image dimensions (height, width)
+    height, width = cv2_img.shape[:2]
+
+    if abs(shift_x) > width:
+       shift_x = np.sign(shift_x) * width
+    if abs(shift_y) > width:
+       shift_y = np.sign(shift_y) * width
+    
+    # Create the 2x3 translation matrix
+    # [1, 0, shift_x]
+    # [0, 1, shift_y]
+    translation_matrix = np.float32([[1, 0, shift_x], [0, 1, shift_y]])
+    
+    # Apply the affine transformation
+    translated_cv2_img = cv2.warpAffine(cv2_img, translation_matrix, (width, height))
+    
+    return translated_cv2_img
 
 def flip_horz(cv2_img):
     cv2_img = cv2.flip(cv2_img, 1)          
@@ -955,6 +1018,17 @@ def overlay_rectangle(cv2_img,bot_left_px, top_right_px, color=(255,0,0), alpha 
       cv2.rectangle(overlay, bot_left_px, top_right_px, color, -1)
       cv2_img = cv2.addWeighted(overlay, alpha, cv2_img, 1 - alpha, 0)
       return cv2_img
+
+def overlay_crosshair(cv2_img, x_px, y_px, color=(0, 255, 0), size=20, thickness=None, size_ratio = 0.5,):
+    """Draws a crosshair on an image at a given (x_px, y_px) position."""
+    # Draw vertical line
+    if size is None or thickness is None:
+        size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    size = size * (0.5 + size_ratio)
+    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color, thickness)
+    # Draw horizontal line
+    cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color, thickness)
+    return cv2_img
 
 def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px = 20, h_px = 20):
     # Add status box overlay

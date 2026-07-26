@@ -1443,9 +1443,9 @@ class AiDetectorIF:
                             }
                         }
                     )
+
+                self.imgs_info_dict[source_topic]['depth_map_connecting'] = True
                 self.imgs_info_dict[source_topic]['depth_map_connected'] = False
-                self.imgs_info_dict[source_topic]['depth_map_connecteing'] = True
-                
 
             if len(list(data_subs_dict.keys())) > 0:
                     self.img_ifs_lock.acquire()
@@ -1773,7 +1773,7 @@ class AiDetectorIF:
              self.msg_if.pub_warn("Depth Map Connected Image Topic : " + source_topic)
         #self.msg_if.pub_warn("Get Image Topic set to: " + self.get_source_topic)
 
-        self.imgs_info_dict[source_topic]['img_connected'] = True
+        # self.imgs_info_dict[source_topic]['img_connected'] = True
         
         # stamp = img_msg.header.stamp
         # timestamp = copy.deepcopy(float(stamp.to_sec()))
