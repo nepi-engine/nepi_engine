@@ -3714,7 +3714,7 @@ class BaseImageIF:
             self.status_msg.overlay_crosshairs = self.overlays_dict['overlay_crosshairs']
             self.status_msg.overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
             self.status_msg.overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
-            self.status_msg.overlay_crosshair_degs = self.overlays_dict['overlay_crosshair_degrees']
+            self.status_msg.overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
             self.status_msg.num_crosshairs = len(list(crosshairs_dict.keys()))
             self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
             self.status_msg.crosshairs = crosshairs_msg_list

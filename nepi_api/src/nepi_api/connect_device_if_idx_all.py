@@ -28,9 +28,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_interfaces.msg import SaveDataRate
 from nepi_interfaces.msg import DeviceIDXStatus
-from nepi_interfaces.msg import RangeWindow
 from nepi_interfaces.msg import StringArray, ImageCrosshair
 
 from nepi_api.messages_if import MsgIF
@@ -48,13 +46,13 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 
 CONNECT_ID='IDX'
 CONNECT_STATUS_MSG='DeviceIDXStatus'
-CONNECT_NAME='idx_connect'
+CONNECT_NAME='idx_all_connect'
 
 
 CONNECTED_TIMEOUT = 2
 
 
-class ConnectIDXDeviceIF(ConnectNodeIF):
+class ConnectIDXAllImagesIF(ConnectNodeIF):
 
     # ADD Additional Connect Callback Functions
 
@@ -160,15 +158,16 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
         return self.ready
 
     def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected IDX device.
+        """Return the fully-resolved ROS namespace the collective image controls publish on.
 
         Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
+            str: The shared images namespace (base namespace + '/images') used to fan a
+                single command out to every IDX image.
         """
-        return self.selected_topic
+        return nepi_sdk.create_namespace(self.base_namespace, 'images')
 
     def check_connection(self):
-        """Check whether the device is currently connected.
+        """Check whether at least one IDX device is currently connected.
 
         Returns:
             bool: True if a status message has been received within the connection timeout window,
@@ -177,7 +176,7 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
         return self.connected
 
     def wait_for_connection(self, timeout = float('inf') ):
-        """Block until the device is connected or the timeout expires.
+        """Block until an IDX device is connected or the timeout expires.
 
         Args:
             timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
@@ -200,7 +199,7 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
 
 
     def check_status_connection(self):
-        """Check whether the status topic from the device is currently connected.
+        """Check whether the status topic from an IDX device is currently connected.
 
         Returns:
             bool: True if status messages are being received, False otherwise.
@@ -208,7 +207,7 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
         return self.connected
 
     def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until the device status topic is connected or the timeout expires.
+        """Block until an IDX device status topic is connected or the timeout expires.
 
         Args:
             timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
@@ -230,7 +229,7 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
         return self.connected
 
     def get_status_dict(self):
-        """Return the latest device status as a dictionary.
+        """Return the latest IDX device status as a dictionary.
 
         Returns:
             dict: A dictionary representation of the most recent DeviceIDXStatus message,
@@ -242,7 +241,7 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
         return status_dict
 
     def get_status_msg(self):
-        """Return the latest device status as a msg.
+        """Return the latest IDX device status as a msg.
 
         Returns:
             dict: A msg representation of the most recent DeviceIDXStatus message,
@@ -250,281 +249,147 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
         """
         return self.status_msg
 
-    def get_data_products(self):
-        """Return the list of data products the connected IDX device reports.
-
-        Returns:
-            list: The data product identifiers from the latest status, or an empty list
-                if no status has been received.
-        """
-        if self.status_msg is not None:
-            return list(self.status_msg.data_products)
-        return []
-
-    def get_range_limits_m(self):
-        """Return the current and adjusted range limits in meters for the device.
-
-        Returns:
-            list: A four-element list [min_range_m, max_range_m, min_range_m_adj, max_range_m_adj],
-                or None if no status has been received.
-        """
-        if self.status_msg is not None:
-            return [self.status_msg.min_range_m, self.status_msg.max_range_m,
-                    self.status_msg.min_range_m_adj, self.status_msg.max_range_m_adj]
-
-
-
-    def set_disable(self, disable):
-        """Enable or disable the IDX device data output.
-
-        Args:
-            disable (bool): True to disable the device, False to enable it.
-        """
-        pub_name = 'disable'
-        msg = disable
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_width_deg(self, width_deg):
-        """Set the horizontal field of view of the device output in degrees.
-
-        Args:
-            width_deg (int): Desired output width in degrees.
-        """
-        pub_name = 'set_width_deg'
-        msg = width_deg
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_height_deg(self, height_deg):
-        """Set the vertical field of view of the device output in degrees.
-
-        Args:
-            height_deg (int): Desired output height in degrees.
-        """
-        pub_name = 'set_height_deg'
-        msg = height_deg
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_auto_adjust_enable(self, enable):
-        """Enable or disable automatic image adjustment on the device.
-
-        Args:
-            enable (bool): True to enable auto adjust, False to disable it.
-        """
-        pub_name = 'set_auto_adjust_enable'
-        msg = enable
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_brightness_ratio(self, brightness_ratio):
-        """Set the brightness of the device output.
-
-        Args:
-            brightness_ratio (float): Desired brightness as a ratio from 0.0 to 1.0.
-        """
-        pub_name = 'set_brightness_ratio'
-        msg = brightness_ratio
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_contrast_ratio(self, contrast_ratio):
-        """Set the contrast of the device output.
-
-        Args:
-            contrast_ratio (float): Desired contrast as a ratio from 0.0 to 1.0.
-        """
-        pub_name = 'set_contrast_ratio'
-        msg = contrast_ratio
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_threshold_ratio(self, threshold_ratio):
-        """Set the thresholding level of the device output.
-
-        Args:
-            threshold_ratio (float): Desired threshold as a ratio from 0.0 to 1.0.
-        """
-        pub_name = 'set_threshold_ratio'
-        msg = threshold_ratio
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_resolution_ratio(self, resolution_ratio):
-        """Set the output resolution of the device.
-
-        Args:
-            resolution_ratio (float): Desired resolution as a ratio from 0.0 (lowest) to 1.0 (highest).
-        """
-        pub_name = 'set_resolution_ratio'
-        msg = resolution_ratio
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_max_framerate(self, max_framerate):
-        """Set the maximum output framerate of the device in frames per second.
-
-        Args:
-            max_framerate (float): Desired maximum framerate in Hz.
-        """
-        pub_name = 'set_max_framerate'
-        msg = max_framerate
-        self.node_if.publish_pub(pub_name, msg)
-
-    def set_range_window(self, start_range, stop_range):
-        """Set the range window of the device as start and stop range ratios.
-
-        Args:
-            start_range (float): Start of the range window as a ratio of max range (0.0 - 1.0).
-            stop_range (float): Stop of the range window as a ratio of max range (0.0 - 1.0).
-        """
-        pub_name = 'set_range_window'
-        msg = RangeWindow()
-        msg.start_range = start_range
-        msg.stop_range = stop_range
-        self.node_if.publish_pub(pub_name, msg)
-
-    def reset_controls(self):
-        """Reset the device image and data controls to their default values.
-        """
-        pub_name = 'reset_controls'
-        msg = Empty()
-        self.node_if.publish_pub(pub_name, msg)
-
     #################
-    ## Image Overlay and Crosshair Controls
+    ## Collective Image Overlay and Crosshair Controls
 
     def set_overlay_size_ratio(self, size_ratio):
-        """Set the overlay text and graphic size on the device image output.
+        """Set the overlay text and graphic size on every IDX image output.
 
         Args:
             size_ratio (float): Desired overlay size as a ratio from 0.0 (smallest) to 1.0 (largest).
         """
-        pub_name = 'set_overlay_size_ratio'
+        pub_name = 'all_overlay_size_ratio'
         msg = size_ratio
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_source_name(self, enable):
-        """Enable or disable the image source name overlay on the device image output.
+        """Enable or disable the image source name overlay on every IDX image output.
 
         Args:
             enable (bool): True to overlay the image source name, False to hide it.
         """
-        pub_name = 'set_overlay_source_name'
+        pub_name = 'all_overlay_source_name'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_date_time(self, enable):
-        """Enable or disable the date and time overlay on the device image output.
+        """Enable or disable the date and time overlay on every IDX image output.
 
         Args:
             enable (bool): True to overlay the date and time, False to hide it.
         """
-        pub_name = 'set_overlay_date_time'
+        pub_name = 'all_overlay_date_time'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_nav(self, enable):
-        """Enable or disable the navigation data overlay on the device image output.
+        """Enable or disable the navigation data overlay on every IDX image output.
 
         Args:
             enable (bool): True to overlay navigation data, False to hide it.
         """
-        pub_name = 'set_overlay_nav'
+        pub_name = 'all_overlay_nav'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_pose(self, enable):
-        """Enable or disable the pose data overlay on the device image output.
+        """Enable or disable the pose data overlay on every IDX image output.
 
         Args:
             enable (bool): True to overlay pose data, False to hide it.
         """
-        pub_name = 'set_overlay_pose'
+        pub_name = 'all_overlay_pose'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def add_overlay_text(self, text):
-        """Add a line of custom text to the device image overlay.
+        """Add a line of custom text to every IDX image overlay.
 
         Args:
-            text (str): The text string to add to the overlay.
+            text (str): The text string to add to the overlays.
         """
-        pub_name = 'add_overlay_text'
+        pub_name = 'all_overlay_text'
         msg = String()
         msg.data = text
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_list(self, overlay_list):
-        """Set the full list of custom overlay text lines on the device image output.
+        """Set the full list of custom overlay text lines on every IDX image output.
 
         Args:
             overlay_list (list): A list of text strings to display as image overlays.
         """
-        pub_name = 'set_overlay_list'
+        pub_name = 'all_overlay_list'
         msg = StringArray()
         msg.array = overlay_list
         self.node_if.publish_pub(pub_name, msg)
 
     def clear_overlay_list(self):
-        """Clear all custom overlay text lines from the device image output.
+        """Clear all custom overlay text lines from every IDX image output.
         """
-        pub_name = 'clear_overlay_list'
+        pub_name = 'all_overlay_clear'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_crosshairs(self, enable):
-        """Enable or disable crosshair overlays on the device image output.
+        """Enable or disable crosshair overlays on every IDX image output.
 
         Args:
             enable (bool): True to overlay crosshairs, False to hide them.
         """
-        pub_name = 'overlay_crosshairs'
+        pub_name = 'all_overlay_crosshairs'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_crosshair_names(self, enable):
-        """Enable or disable crosshair name labels on the device image output.
+        """Enable or disable crosshair name labels on every IDX image output.
 
         Args:
             enable (bool): True to overlay crosshair names, False to hide them.
         """
-        pub_name = 'overlay_crosshair_names'
+        pub_name = 'all_overlay_crosshair_names'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_crosshair_pixels(self, enable):
-        """Enable or disable crosshair pixel coordinate labels on the device image output.
+        """Enable or disable crosshair pixel coordinate labels on every IDX image output.
 
         Args:
             enable (bool): True to overlay crosshair pixel coordinates, False to hide them.
         """
-        pub_name = 'overlay_crosshair_pixels'
+        pub_name = 'all_overlay_crosshair_pixels'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_crosshair_degrees(self, enable):
-        """Enable or disable crosshair degree coordinate labels on the device image output.
+        """Enable or disable crosshair degree coordinate labels on every IDX image output.
 
         Args:
             enable (bool): True to overlay crosshair degree coordinates, False to hide them.
         """
-        pub_name = 'overlay_crosshair_degrees'
+        pub_name = 'all_overlay_crosshair_degrees'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def set_click_crosshair_enable(self, enable):
-        """Enable or disable adding a crosshair at the clicked image location.
+        """Enable or disable adding a crosshair at the clicked location on every IDX image.
 
         Args:
             enable (bool): True to add a crosshair on image click, False to disable it.
         """
-        pub_name = 'click_crosshair_enable'
+        pub_name = 'all_click_crosshair_enable'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
     def add_crosshair_pixel(self, name, x_pixel, y_pixel):
-        """Add a named crosshair at a pixel location on the device image output.
+        """Add a named crosshair at a pixel location on every IDX image output.
 
         Args:
             name (str): Identifier for the crosshair.
             x_pixel (int): Horizontal pixel location of the crosshair from the image left edge.
             y_pixel (int): Vertical pixel location of the crosshair from the image top edge.
         """
-        pub_name = 'add_crosshair_pixel'
+        pub_name = 'all_add_crosshair_pixel'
         msg = ImageCrosshair()
         msg.name = name
         msg.x_pixel = x_pixel
@@ -532,14 +397,14 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
         self.node_if.publish_pub(pub_name, msg)
 
     def add_crosshair_degrees(self, name, x_offset_deg, y_offset_deg):
-        """Add a named crosshair at a degree offset on the device image output.
+        """Add a named crosshair at a degree offset on every IDX image output.
 
         Args:
             name (str): Identifier for the crosshair.
             x_offset_deg (float): Horizontal degree offset of the crosshair from image center.
             y_offset_deg (float): Vertical degree offset of the crosshair from image center.
         """
-        pub_name = 'add_crosshair_degrees'
+        pub_name = 'all_add_crosshair_degrees'
         msg = ImageCrosshair()
         msg.name = name
         msg.x_offset_deg = x_offset_deg
@@ -547,179 +412,105 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
         self.node_if.publish_pub(pub_name, msg)
 
     def remove_crosshair(self, name):
-        """Remove a named crosshair from the device image output.
+        """Remove a named crosshair from every IDX image output.
 
         Args:
             name (str): Identifier of the crosshair to remove.
         """
-        pub_name = 'remove_crosshair'
+        pub_name = 'all_remove_crosshair'
         msg = String()
         msg.data = name
         self.node_if.publish_pub(pub_name, msg)
 
     def clear_crosshairs(self):
-        """Remove all crosshairs from the device image output.
+        """Remove all crosshairs from every IDX image output.
         """
-        pub_name = 'clear_crosshairs'
+        pub_name = 'all_clear_crosshairs'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
     #################
-    ## Live Adjust Controls
+    ## Collective Live Adjust Controls
 
     def set_live_adjust_rotate_ratio(self, rotate_ratio):
-        """Set the live rotation adjustment of the device image as a ratio.
+        """Set the live rotation adjustment of every IDX image as a ratio.
 
         Args:
             rotate_ratio (float): Desired rotation as a ratio from 0.0 to 1.0.
         """
-        pub_name = 'set_live_adjust_rotate_ratio'
+        pub_name = 'all_set_live_adjust_rotate_ratio'
         msg = rotate_ratio
         self.node_if.publish_pub(pub_name, msg)
 
     def set_live_adjust_rotate_deg(self, rotate_deg):
-        """Set the live rotation adjustment of the device image in degrees.
+        """Set the live rotation adjustment of every IDX image in degrees.
 
         Args:
             rotate_deg (float): Desired rotation in degrees.
         """
-        pub_name = 'set_live_adjust_rotate_deg'
+        pub_name = 'all_set_live_adjust_rotate_deg'
         msg = rotate_deg
         self.node_if.publish_pub(pub_name, msg)
 
     def set_live_adjust_x_ratio(self, x_ratio):
-        """Set the live horizontal translation adjustment of the device image as a ratio.
+        """Set the live horizontal translation adjustment of every IDX image as a ratio.
 
         Args:
             x_ratio (float): Desired horizontal translation as a ratio from 0.0 to 1.0.
         """
-        pub_name = 'set_live_adjust_x_ratio'
+        pub_name = 'all_set_live_adjust_x_ratio'
         msg = x_ratio
         self.node_if.publish_pub(pub_name, msg)
 
     def set_live_adjust_x_pixel(self, x_pixel):
-        """Set the live horizontal translation adjustment of the device image in pixels.
+        """Set the live horizontal translation adjustment of every IDX image in pixels.
 
         Args:
             x_pixel (int): Desired horizontal translation in pixels.
         """
-        pub_name = 'set_live_adjust_x_pixel'
+        pub_name = 'all_set_live_adjust_x_pixel'
         msg = x_pixel
         self.node_if.publish_pub(pub_name, msg)
 
     def set_live_adjust_x_deg(self, x_deg):
-        """Set the live horizontal translation adjustment of the device image in degrees.
+        """Set the live horizontal translation adjustment of every IDX image in degrees.
 
         Args:
             x_deg (float): Desired horizontal translation in degrees.
         """
-        pub_name = 'set_live_adjust_x_deg'
+        pub_name = 'all_set_live_adjust_x_deg'
         msg = x_deg
         self.node_if.publish_pub(pub_name, msg)
 
     def set_live_adjust_y_ratio(self, y_ratio):
-        """Set the live vertical translation adjustment of the device image as a ratio.
+        """Set the live vertical translation adjustment of every IDX image as a ratio.
 
         Args:
             y_ratio (float): Desired vertical translation as a ratio from 0.0 to 1.0.
         """
-        pub_name = 'set_live_adjust_y_ratio'
+        pub_name = 'all_set_live_adjust_y_ratio'
         msg = y_ratio
         self.node_if.publish_pub(pub_name, msg)
 
     def set_live_adjust_y_pixel(self, y_pixel):
-        """Set the live vertical translation adjustment of the device image in pixels.
+        """Set the live vertical translation adjustment of every IDX image in pixels.
 
         Args:
             y_pixel (int): Desired vertical translation in pixels.
         """
-        pub_name = 'set_live_adjust_y_pixel'
+        pub_name = 'all_set_live_adjust_y_pixel'
         msg = y_pixel
         self.node_if.publish_pub(pub_name, msg)
 
     def set_live_adjust_y_deg(self, y_deg):
-        """Set the live vertical translation adjustment of the device image in degrees.
+        """Set the live vertical translation adjustment of every IDX image in degrees.
 
         Args:
             y_deg (float): Desired vertical translation in degrees.
         """
-        pub_name = 'set_live_adjust_y_deg'
+        pub_name = 'all_set_live_adjust_y_deg'
         msg = y_deg
         self.node_if.publish_pub(pub_name, msg)
-
-    def save_config(self):
-        """Publish a save configuration command to persist current settings on the device.
-        """
-        self.node_if.publish_pub('save_config',Empty())
-
-    def reset_config(self):
-        """Publish a reset configuration command to restore the last saved settings on the device.
-        """
-        self.node_if.publish_pub('reset_config',Empty())
-
-    def factory_reset_config(self):
-        """Publish a factory reset command to restore factory default settings on the device.
-        """
-        self.node_if.publish_pub('factory_reset_config',Empty())
-
-    #################
-    ## Save Data Functions
-
-    def get_save_data_products(self):
-        """Return the list of available save data products for this device.
-
-        Returns:
-            list: A list of data product identifiers supported by the save data interface.
-        """
-        data_products = self.con_save_data_if.get_data_products()
-        return data_products
-
-    def get_save_data_status_dict(self):
-        """Return the current save data status as a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the save data interface status.
-        """
-        status_dict = self.con_save_data_if.get_status_dict()
-        return status_dict
-
-    def save_data_enable_pub(self,enable):
-        """Enable or disable data saving on the device.
-
-        Args:
-            enable (bool): True to enable data saving, False to disable it.
-        """
-        self.con_save_data_if.save_data_pub(enable)
-
-    def save_data_prefix_pub(self,prefix):
-        """Publish an updated filename prefix for saved data files.
-
-        Args:
-            prefix (str): The prefix string to prepend to saved data filenames.
-        """
-        self.con_save_data_if.save_data_prefix_pub(prefix)
-
-    def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
-        """Publish an updated save rate for a data product.
-
-        Args:
-            rate_hz (float): Desired save rate in Hz.
-            data_product (int, optional): Identifier for the specific data product to update.
-                Defaults to SaveDataRate.ALL_DATA_PRODUCTS.
-        """
-        self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
-
-    def save_data_snapshot_pub(self):
-        """Trigger a one-shot snapshot save of current data on the device.
-        """
-        self.con_save_data_if.publish_pub()
-
-    def save_data_factory_reset_pub(self):
-        """Publish a factory reset command to restore the save data configuration to defaults.
-        """
-        pub_name = 'factory_reset'
-        msg = Empty()
-        self.con_save_data_if.publish_pub(pub_name,msg)
 
     ###############################
     # Class Private Methods
@@ -739,10 +530,14 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
 
 
     def subscribe_topic(self, topic):
-        self.msg_if.pub_warn("subscribe_idx_topic Called")
+        self.msg_if.pub_warn("subscribe_idx_all_topic Called")
 
         success = False
         success = self.unsubscribe_topic()
+
+        # Collective controls publish on the shared images namespace, which fans a
+        # single command out to every IDX image.
+        images_namespace = nepi_sdk.create_namespace(self.base_namespace, 'images')
 
         # Subscribers Config Dict ####################
         self.connect_topic_subs_dict = {
@@ -759,222 +554,152 @@ class ConnectIDXDeviceIF(ConnectNodeIF):
 
         # Publishers Config Dict ####################
         self.connect_topic_pubs_dict = {
-            'disable': {
-                'namespace': self.selected_topic,
-                'topic': 'disable',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            'set_width_deg': {
-                'namespace': self.selected_topic,
-                'topic': 'set_width_deg',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            'set_height_deg': {
-                'namespace': self.selected_topic,
-                'topic': 'set_height_deg',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            'set_auto_adjust_enable': {
-                'namespace': self.selected_topic,
-                'topic': 'set_auto_adjust_enable',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            'set_brightness_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_brightness_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            'set_contrast_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_contrast_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            'set_threshold_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_threshold_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            'set_resolution_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_resolution_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            'set_max_framerate': {
-                'namespace': self.selected_topic,
-                'topic': 'set_max_framerate',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            'set_range_window': {
-                'namespace': self.selected_topic,
-                'topic': 'set_range_window',
-                'msg': RangeWindow,
-                'qsize': 1,
-            },
-            'reset_controls': {
-                'namespace': self.selected_topic,
-                'topic': 'reset_controls',
-                'msg': Empty,
-                'qsize': 1,
-            },
-
-            # Per-image overlay and crosshair controls
-            'set_overlay_size_ratio': {
-                'namespace': self.selected_topic,
+            'all_overlay_size_ratio': {
+                'namespace': images_namespace,
                 'topic': 'set_overlay_size_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'set_overlay_source_name': {
-                'namespace': self.selected_topic,
+            'all_overlay_source_name': {
+                'namespace': images_namespace,
                 'topic': 'set_overlay_source_name',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'set_overlay_date_time': {
-                'namespace': self.selected_topic,
+            'all_overlay_date_time': {
+                'namespace': images_namespace,
                 'topic': 'set_overlay_date_time',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'set_overlay_nav': {
-                'namespace': self.selected_topic,
+            'all_overlay_nav': {
+                'namespace': images_namespace,
                 'topic': 'set_overlay_nav',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'set_overlay_pose': {
-                'namespace': self.selected_topic,
+            'all_overlay_pose': {
+                'namespace': images_namespace,
                 'topic': 'set_overlay_pose',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'add_overlay_text': {
-                'namespace': self.selected_topic,
+            'all_overlay_text': {
+                'namespace': images_namespace,
                 'topic': 'add_overlay_text',
                 'msg': String,
                 'qsize': 1,
             },
-            'set_overlay_list': {
-                'namespace': self.selected_topic,
+            'all_overlay_list': {
+                'namespace': images_namespace,
                 'topic': 'set_overlay_list',
                 'msg': StringArray,
                 'qsize': 1,
             },
-            'clear_overlay_list': {
-                'namespace': self.selected_topic,
+            'all_overlay_clear': {
+                'namespace': images_namespace,
                 'topic': 'clear_overlay_list',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'overlay_crosshairs': {
-                'namespace': self.selected_topic,
-                'topic': 'overlay_crosshairs',
+            'all_overlay_crosshairs': {
+                'namespace': images_namespace,
+                'topic': 'all_overlay_crosshairs',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'overlay_crosshair_names': {
-                'namespace': self.selected_topic,
-                'topic': 'overlay_crosshair_names',
+            'all_overlay_crosshair_names': {
+                'namespace': images_namespace,
+                'topic': 'all_overlay_crosshair_names',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'overlay_crosshair_pixels': {
-                'namespace': self.selected_topic,
-                'topic': 'overlay_crosshair_pixels',
+            'all_overlay_crosshair_pixels': {
+                'namespace': images_namespace,
+                'topic': 'all_overlay_crosshair_pixels',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'overlay_crosshair_degrees': {
-                'namespace': self.selected_topic,
+            'all_overlay_crosshair_degrees': {
+                'namespace': images_namespace,
                 'topic': 'overlay_crosshair_degrees',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'click_crosshair_enable': {
-                'namespace': self.selected_topic,
+            'all_click_crosshair_enable': {
+                'namespace': images_namespace,
                 'topic': 'click_crosshair_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'add_crosshair_pixel': {
-                'namespace': self.selected_topic + '/mouse_event',
+            'all_add_crosshair_pixel': {
+                'namespace': images_namespace,
                 'topic': 'add_crosshair_pixel',
                 'msg': ImageCrosshair,
                 'qsize': 1,
             },
-            'add_crosshair_degrees': {
-                'namespace': self.selected_topic,
+            'all_add_crosshair_degrees': {
+                'namespace': images_namespace,
                 'topic': 'add_crosshair_degrees',
                 'msg': ImageCrosshair,
                 'qsize': 1,
             },
-            'remove_crosshair': {
-                'namespace': self.selected_topic,
+            'all_remove_crosshair': {
+                'namespace': images_namespace,
                 'topic': 'remove_crosshair',
                 'msg': String,
                 'qsize': 1,
             },
-            'clear_crosshairs': {
-                'namespace': self.selected_topic,
+            'all_clear_crosshairs': {
+                'namespace': images_namespace,
                 'topic': 'clear_crosshairs',
                 'msg': Empty,
                 'qsize': 1,
             },
-
-            # Per-image live adjust controls
-            'set_live_adjust_rotate_ratio': {
-                'namespace': self.selected_topic,
+            'all_set_live_adjust_rotate_ratio': {
+                'namespace': images_namespace,
                 'topic': 'set_live_adjust_rotate_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'set_live_adjust_rotate_deg': {
-                'namespace': self.selected_topic,
+            'all_set_live_adjust_rotate_deg': {
+                'namespace': images_namespace,
                 'topic': 'set_live_adjust_rotate_deg',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'set_live_adjust_x_ratio': {
-                'namespace': self.selected_topic,
+            'all_set_live_adjust_x_ratio': {
+                'namespace': images_namespace,
                 'topic': 'set_live_adjust_x_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'set_live_adjust_x_pixel': {
-                'namespace': self.selected_topic,
+            'all_set_live_adjust_x_pixel': {
+                'namespace': images_namespace,
                 'topic': 'set_live_adjust_x_pixel',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'set_live_adjust_x_deg': {
-                'namespace': self.selected_topic,
+            'all_set_live_adjust_x_deg': {
+                'namespace': images_namespace,
                 'topic': 'set_live_adjust_x_deg',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'set_live_adjust_y_ratio': {
-                'namespace': self.selected_topic,
+            'all_set_live_adjust_y_ratio': {
+                'namespace': images_namespace,
                 'topic': 'set_live_adjust_y_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'set_live_adjust_y_pixel': {
-                'namespace': self.selected_topic,
+            'all_set_live_adjust_y_pixel': {
+                'namespace': images_namespace,
                 'topic': 'set_live_adjust_y_pixel',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'set_live_adjust_y_deg': {
-                'namespace': self.selected_topic,
+            'all_set_live_adjust_y_deg': {
+                'namespace': images_namespace,
                 'topic': 'set_live_adjust_y_deg',
                 'msg': Float32,
                 'qsize': 1,
