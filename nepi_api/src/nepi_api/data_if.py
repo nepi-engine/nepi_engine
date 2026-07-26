@@ -3482,9 +3482,12 @@ class BaseImageIF:
         self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_rotate_deg(self,deg):
+        self.msg_if.pub_info("Received Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
         if abs(deg) > 180:
                 deg = np.sign(deg) * 180
-        ratio = round(0.5 + (deg / 180)/2)
+        self.msg_if.pub_info("Updated Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
+        ratio = nepi_utils.check_ratio(0.5 + (deg / 180)/2)
+        self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio), log_name_list = self.log_name_list)
         self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_ratio(self,ratio):

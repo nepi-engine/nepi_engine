@@ -612,7 +612,7 @@ def rotate_degrees(cv2_img, deg=0):
         # counter-clockwise, so we negate to keep the original clockwise direction
         # (matching the old cv2.ROTATE_90_CLOCKWISE behavior for 90 deg; 180 and
         # 270 likewise render as before).
-        logger.log_warn("Live Adjust Rotating degrees: " + str(deg))
+        #logger.log_warn("Live Adjust Rotating degrees: " + str(deg))
         height, width = cv2_img.shape[:2]
         center = (width / 2.0, height / 2.0)
         rot_mat = cv2.getRotationMatrix2D(center, -deg, 1.0)
