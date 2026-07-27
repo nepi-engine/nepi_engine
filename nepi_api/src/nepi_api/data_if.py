@@ -2638,7 +2638,7 @@ class BaseImageIF:
 
                                 overlay_text = []
                                 if overlay_crosshair_names == True:
-                                    overlay_text.append(name)
+                                    overlay_text.append(crosshair_name)
                                 if overlay_crosshair_pixels == True:
                                     overlay_text.append(str(crosshairs_dict['x_pixel']) + ',' + str(crosshairs_dict['y_pixel']))
                                 if overlay_crosshair_degrees == True:
