@@ -2561,7 +2561,6 @@ class BaseImageIF:
 
                 if process_data == True:
                     cv2_img = self.process_cv2_img(cv2_img)
-                    cv2_img = self._liveAdjust(cv2_img)
                 if cv2_img is not None:
                     
                     
@@ -2693,11 +2692,10 @@ class BaseImageIF:
                                 #         self.msg_if.pub_warn("Failed to apply overlay label text: " + str(e))
 
 
-
-
-
+                        if process_data == True:
+                            cv2_img = self._liveAdjust(cv2_img)         
                         
-                        if self.node_if is not None and self.needs_data == True:
+                        if self.node_if is not None and self.needs_data == True and cv2_img is not None:
                             #self.msg_if.pub_warn("Publishing once")
                             #Convert to ros Image message
                             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
@@ -3344,7 +3342,8 @@ class BaseImageIF:
         self.overlays_dict['overlay_img_name'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_date_time(self,enabled):
         """Enable or disable the date/time text overlay.
@@ -3355,7 +3354,8 @@ class BaseImageIF:
         self.overlays_dict['overlay_date_time'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_nav(self,enabled):
         """Enable or disable the GPS navigation (lat/lon/heading) text overlay.
@@ -3366,7 +3366,8 @@ class BaseImageIF:
         self.overlays_dict['overlay_nav'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_pose(self,enabled):
         """Enable or disable the roll/pitch/yaw pose text overlay.
@@ -3377,7 +3378,8 @@ class BaseImageIF:
         self.overlays_dict['overlay_pose'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_list(self,overlay_list):
         """Replace the additional text overlay list with the provided list.
@@ -3388,7 +3390,8 @@ class BaseImageIF:
         self.overlays_dict['add_overlay_list'] = overlay_list
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_text(self,overlay_text):
         """Append a text string to the additional overlay list.
@@ -3401,14 +3404,16 @@ class BaseImageIF:
         self.overlays_dict['add_overlay_list'] = overlay_list
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def clear_overlay_list(self):
         """Clear all entries from the additional text overlay list."""
         self.overlays_dict['add_overlay_list'] = []
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_crosshairs(self,enabled):
         """Enable or disable the crosshair overlays.
@@ -3419,7 +3424,8 @@ class BaseImageIF:
         self.overlays_dict['overlay_crosshairs'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
 
     def set_overlay_crosshair_names(self,enabled):
@@ -3431,7 +3437,8 @@ class BaseImageIF:
         self.overlays_dict['overlay_crosshair_names'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_crosshair_pixels(self,enabled):
         """Enable or disable the crosshair overlays.
@@ -3442,7 +3449,8 @@ class BaseImageIF:
         self.overlays_dict['overlay_crosshair_pixels'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_crosshair_degrees(self,enabled):
         """Enable or disable the crosshair overlays.
@@ -3453,7 +3461,8 @@ class BaseImageIF:
         self.overlays_dict['overlay_crosshair_degrees'] = enabled
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_click_crosshair(self,enabled):
         """Enable or disable the click crosshair enable.
@@ -3486,7 +3495,8 @@ class BaseImageIF:
         self.overlays_dict['crosshairs_dict'] = crosshairs_dict
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def remove_crosshair(self, name):
         """Remove entry from crosshairs overlay dict."""
@@ -3497,25 +3507,27 @@ class BaseImageIF:
         
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def clear_crosshairs(self):
         """Clear all entries from crosshairs overlay dict."""
         self.overlays_dict['crosshairs_dict'] = dict()
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_live_adjust_rotate_ratio(self,ratio):
         self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_rotate_deg(self,deg):
-        self.msg_if.pub_info("Received Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Received Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
         if abs(deg) > 180:
                 deg = np.sign(deg) * 180
-        self.msg_if.pub_info("Updated Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Updated Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
         ratio = nepi_utils.check_ratio(0.5 + (deg / 180)/2)
-        self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio), log_name_list = self.log_name_list)
         self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_ratio(self,ratio):
@@ -3524,13 +3536,14 @@ class BaseImageIF:
     def set_live_adjust_x_pixel(self,pixel):
         if abs(pixel) > self.width_org:
             pixel = np.sign(pixel) * self.width_org
-        ratio = round(0.5 + (pixel / self.width_org)/2)
+        ratio = round(0.5 + (pixel / self.width_org)/2,2)
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_deg(self,deg):
         if abs(deg) > self.width_deg:
             deg = np.sign(deg) * self.width_deg
-        ratio = round(0.5 + (deg / self.width_deg)/2)    
+        ratio = round(0.5 + (deg / self.width_deg)/2,2) 
+        #self.msg_if.pub_info("Updating X Rotate Deg to Ratio: " + str(deg) + ":" + str(ratio), log_name_list = self.log_name_list, throttle_s = 5)   
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_ratio(self,ratio):
@@ -3539,13 +3552,13 @@ class BaseImageIF:
     def set_live_adjust_y_pixel(self,pixel):
         if abs(pixel) > self.height_org:
             pixel = np.sign(pixel) * self.height_org
-        ratio = round(0.5 + (pixel / self.height_org)/2)
+        ratio = round(0.5 + (pixel / self.height_org)/2,2)
         self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_deg(self,deg):
         if abs(deg) > self.height_deg:
             deg = np.sign(deg) * self.height_deg
-        ratio = round(0.5 + (deg / self.height_deg)/2)    
+        ratio = round(0.5 + (deg / self.height_deg)/2,2)    
         self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def reset_filters(self):
@@ -3989,10 +4002,10 @@ class BaseImageIF:
                         self.msg_if.pub_warn("Failed to call mouse click_pixel_callback: " + str(e), log_name_list = self.log_name_list)
             else:
                     if click_count == 1:
-                        self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
+                        #self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
                         self.set_pixel(pixel,color_bgr)
                     else:
-                        self.msg_if.pub_info("Double Click resetting render controls", log_name_list = self.log_name_list)
+                        #self.msg_if.pub_info("Double Click resetting render controls", log_name_list = self.log_name_list)
                         self.reset_renders()
 
         if msg.drag_event == True:
