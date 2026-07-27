@@ -2635,61 +2635,24 @@ class BaseImageIF:
                                     crosshair_rbg = (crosshair[2],crosshair[3],crosshair[4])
                                 except:
                                     crosshair_rbg = (0,255,0)
+
+                                overlay_text = []
+                                if overlay_crosshair_names == True:
+                                    overlay_text.append(name)
+                                if overlay_crosshair_pixels == True:
+                                    overlay_text.append(str(crosshairs_dict['x_pixel']) + ',' + str(crosshairs_dict['y_pixel']))
+                                if overlay_crosshair_degrees == True:
+                                    overlay_text.append(str(crosshairs_dict['x_offset_deg']) + ',' + str(crosshairs_dict['y_offset_deg']))
+
                                 crosshair_size_ratio = self.overlay_size_ratio
                                 #self.msg_if.pub_warn("Rendering image crosshair: " + str([crosshair_x,crosshair_y]) , log_name_list = self.log_name_list)
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
                                                         x_px = crosshair_x , y_px = crosshair_y, 
                                                         color_rgb = crosshair_rbg, 
-                                                        size_ratio =  crosshair_size_ratio)
+                                                        size_ratio =  crosshair_size_ratio,
+                                                        overlay_text_list = overlay_text)
                                 
 
-                                # overlay_text = []
-                                # if overlay_crosshair_names == True:
-                                #     overlay_text.append(name)
-                                # if overlay_crosshair_pixels == True:
-                                #     overlay_text.append(str(crosshairs_dict['x_pixel']) + ',' + str(crosshairs_dict['y_pixel']))
-                                # if overlay_crosshair_degrees == True:
-                                #     overlay_text.append(str(crosshairs_dict['x_offset_deg']) + ',' + str(crosshairs_dict['y_offset_deg']))
-                                # if len(overlay_text) > 0:
-
-                                #     # Overlay text data on OpenCV image
-                                #     font = cv2.FONT_HERSHEY_DUPLEX
-                                #     scale = 1.5e-3 - 0.1e-3 * math.ceil(max([height, width])/700)
-                                #     fontScale, fontThickness  = nepi_img.optimal_font_dims(cv2_img,font_scale = scale, thickness_scale = scale) 
-                                #     fontColor = (255, 255, 255)
-                                #     fontColorBk = (0,0,0)
-                                #     lineType = cv2.LINE_AA
-                                #     text2overlay=overlay_text
-                                #     text_size = cv2.getTextSize(text2overlay, 
-                                #         font, 
-                                #         fontScale,
-                                #         fontThickness)
-                                #     #self.msg_if.pub_warn("Text Size: " + str(text_size))
-                                #     line_height = text_size[0][1]
-                                #     line_width = text_size[0][0]
-                                #     x_padding = int(line_height*0.4)
-                                #     y_padding = int(line_height*0.4)
-                                    
-                                #     center = bot_left_box[0] + int(( top_right_box[0] - bot_left_box[0]) / 2 )
-                                #     #bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
-                                #     bot_left_text = (center + x_padding , ymin - (line_thickness * 2) - y_padding)
-                                #     # Create Text Background Box
-                                #     #bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
-                                #     bot_left_box =  ( center - x_padding, bot_left_text[1] + y_padding)
-                                #     top_right_box = (center + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
-                                #     box_color = [0,0,0]
-
-                                #     try:
-                                #         cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, box_color , -1)
-                                #         cv2.putText(cv2_det_img,text2overlay, 
-                                #             bot_left_text, 
-                                #             font, 
-                                #             fontScale,
-                                #             fontColor,
-                                #             fontThickness,
-                                #             lineType)
-                                #     except Exception as e:
-                                #         self.msg_if.pub_warn("Failed to apply overlay label text: " + str(e))
 
 
                         if process_data == True:
