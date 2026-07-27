@@ -33,7 +33,6 @@ import threading
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
 
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header

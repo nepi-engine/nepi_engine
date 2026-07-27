@@ -47,6 +47,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 from nepi_sdk import nepi_sdk
+from nepi_sdk import nepi_utils
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_img"
@@ -963,8 +964,17 @@ def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size=10, thick
     # Draw vertical line
     # if size is None or thickness is None:
     #     size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    if size is None:
+       size = 10
+    if size == 0:
+       size = 10
+    if thickness is None:
+       thickness = 2
+    if thickness == 0:
+       thickness = 2    
     size = int(size * (0.5 + size_ratio))
     thickness = int(thickness * (0.5 + size_ratio))
+    size_ratio = nepi_utils.check_ratio(size_ratio)
     cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color_rgb, thickness)
     # Draw horizontal line
     cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color_rgb, thickness)
