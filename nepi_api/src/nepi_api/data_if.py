@@ -45,7 +45,7 @@ from geometry_msgs.msg import Point, Pose, Quaternion, Twist, Vector3, PoseStamp
 
 
 from nepi_interfaces.msg import NavPose, NavPoses, NavPoseStatus, NavPosesStatus
-from nepi_interfaces.msg import ImageStatus, MgrSystemStatus
+from nepi_interfaces.msg import ColorBGR, ImageStatus, MgrSystemStatus
 from nepi_interfaces.msg import DepthMapStatus
 from nepi_interfaces.msg import IntensityMapStatus
 from nepi_interfaces.msg import PointcloudStatus
@@ -1094,15 +1094,14 @@ class BaseImageIF:
     controls_dict = DEFAULT_CONTROLS_DICT
     init_controls_dict = controls_dict
 
-
-
     caps_report = ImageCapabilitiesQueryResponse()
 
 
     overlay_size_ratio = 0.5
-    overlays_dict = copy.deepcopy(DEFAULT_OVERLAYS_DICT)
+    crosshairs_size_ratio = 0.5
     click_crosshair_enabled = False
-
+    crosshairs_color_rgb = (0,255,0)
+    overlays_dict = copy.deepcopy(DEFAULT_OVERLAYS_DICT) 
 
     auto_adjust_controls = []
     filter_dict = dict()
@@ -1167,8 +1166,6 @@ class BaseImageIF:
     live_adjust_x_ratio = 0.5
     live_adjust_y_ratio = 0.5
 
-    click_crosshair_enabled = False
-    click_crosshair_rgb = (0,255,0)
 
     def __init__(self, 
                 namespace , 
@@ -1384,6 +1381,14 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.overlay_size_ratio
             },
+            'crosshairs_size_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.crosshairs_size_ratio
+            },
+            'crosshairs_color_rgb': {
+                'namespace': self.namespace,
+                'factory_val': self.crosshairs_color_rgb
+            },
             'overlays_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.overlays_dict
@@ -1568,6 +1573,20 @@ class BaseImageIF:
                 'topic': 'clear_overlay_list',
                 'qsize': 5,
                 'callback': self._clearOverlayListCb
+            },
+            'crosshairs_size_ration': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_crosshairs_size_ratio',
+                'qsize': 5,
+                'callback': self._setCrosshairsSizeRatioCb
+            },
+            'crosshairs_color_rgb': {
+                'msg': ColorBGR,
+                'namespace': self.namespace,
+                'topic': 'set_crosshairs_color_rgb',
+                'qsize': 5,
+                'callback': self._setCrosshairsColorRGBCb
             },
             'overlay_crosshairs': {
                 'msg': Bool,
@@ -1761,31 +1780,45 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._clearOverlayListCb
             },
+            'all_crosshairs_size_ration': {
+                'msg': Float32,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_crosshairs_size_ratio',
+                'qsize': 5,
+                'callback': self._setCrosshairsSizeRatioCb
+            },
+            'all_crosshairs_color_rgb': {
+                'msg': ColorBGR,
+                'namespace': self.base_namespace + '/images',
+                'topic': 'set_crosshairs_color_rgb',
+                'qsize': 5,
+                'callback': self._setCrosshairsColorRGBCb
+            },
             'all_overlay_crosshairs': {
                 'msg': Bool,
                 'namespace': self.base_namespace + '/images',
-                'topic': 'all_overlay_crosshairs',
+                'topic': 'overlay_crosshairs',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairsCb
             },
             'all_overlay_crosshair_names': {
                 'msg': Bool,
                 'namespace': self.base_namespace + '/images',
-                'topic': 'all_overlay_crosshair_names',
+                'topic': 'overlay_crosshair_names',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairNamesCb
             },
             'all_overlay_crosshair_pixels': {
                 'msg': Bool,
                 'namespace': self.base_namespace + '/images',
-                'topic': 'all_overlay_crosshair_pixels',
+                'topic': 'overlay_crosshair_pixels',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairPixelsCb
             },
-            'all_overlay_crosshair_degree_offsets': {
+            'all_overlay_crosshair_degrees': {
                 'msg': Bool,
                 'namespace': self.base_namespace + '/images',
-                'topic': 'overlay_crosshair_degree_offsets',
+                'topic': 'overlay_crosshair_degrees',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairDegreesCb
             },
@@ -2644,12 +2677,12 @@ class BaseImageIF:
                                 if overlay_crosshair_degrees == True:
                                     overlay_text.append(str(crosshairs_dict['x_offset_deg']) + ',' + str(crosshairs_dict['y_offset_deg']))
 
-                                crosshair_size_ratio = self.overlay_size_ratio
+                                crosshairs_size_ratio = self.crosshairs_size_ratio
                                 #self.msg_if.pub_warn("Rendering image crosshair: " + str([crosshair_x,crosshair_y]) , log_name_list = self.log_name_list)
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
                                                         x_px = crosshair_x , y_px = crosshair_y, 
                                                         color_rgb = crosshair_rbg, 
-                                                        size_ratio =  crosshair_size_ratio,
+                                                        size_ratio =  crosshairs_size_ratio,
                                                         overlay_text_list = overlay_text)
                                 
 
@@ -3294,7 +3327,8 @@ class BaseImageIF:
         self.overlay_size_ratio = ratio
         self.publish_status()
         self.needs_update()
-        self.node_if.set_param('overlay_size_ratio', ratio)
+        if self.node_if is not None:
+            self.node_if.set_param('overlay_size_ratio', ratio)
 
     def set_overlay_image_name(self,enabled):
         """Enable or disable the image name text overlay.
@@ -3378,6 +3412,27 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
+
+    def set_crosshairs_size_ratio(self, ratio):
+        """Set the relative size of text overlays on the image.
+
+        Args:
+            ratio (float): Text size ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.crosshairs_size_ratio = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('crosshairs_size_ratio', ratio)
+
+    def set_crosshairs_color_rgb(self, r = 0, g = 255, b = 0):
+        self.crosshairs_color_rgb = (r,g,b)
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('crosshairs_color_rgb', (r,g,b))
+      
     def set_overlay_crosshairs(self,enabled):
         """Enable or disable the crosshair overlays.
 
@@ -3700,7 +3755,7 @@ class BaseImageIF:
             self.status_msg.add_overlay_list = self.overlays_dict['add_overlay_list']
             
 
-
+            
             crosshairs_dict = self.overlays_dict['crosshairs_dict']
 
             crosshairs_msg_list = []
@@ -3733,9 +3788,10 @@ class BaseImageIF:
             self.status_msg.overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
             self.status_msg.num_crosshairs = len(list(crosshairs_dict.keys()))
             self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
-            self.status_msg.click_crosshair_r = self.click_crosshair_rgb[0]
-            self.status_msg.click_crosshair_g = self.click_crosshair_rgb[1]
-            self.status_msg.click_crosshair_b = self.click_crosshair_rgb[2]
+            self.status_msg.crosshairs_size_ratio = self.crosshairs_size_ratio
+            self.status_msg.crosshairs_color_r = self.crosshairs_color_rgb[0]
+            self.status_msg.crosshairs_color_g = self.crosshairs_color_rgb[1]
+            self.status_msg.crosshairs_color_b = self.crosshairs_color_rgb[2]
             self.status_msg.crosshairs = crosshairs_msg_list
 
 
@@ -3783,6 +3839,8 @@ class BaseImageIF:
             else:
                 self.filter_dict = dict()
             self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
+            self.crosshairs_size_ratio = self.node_if.get_param('crosshairs_size_ratio')
+            self.crosshairs_color_rgb = self.node_if.get_param('crosshairs_color_rgb')
             overlays_dict = self.node_if.get_param('overlays_dict')
             for key in self.overlays_dict.keys():
                 if key in overlays_dict.keys():
@@ -3954,7 +4012,7 @@ class BaseImageIF:
             #self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enabled), log_name_list = self.log_name_list)
             if self.click_crosshair_enabled == True and click_count == 1:
                             self.click_crosshair_enabled = False
-                            color_rgb = self.click_crosshair_rgb
+                            color_rgb = self.crosshairs_color_rgb
                             x_ratio = float(pixel[0] / image_width)
                             y_ratio = float(pixel[1] / image_height)
                             self.add_crosshair(x_ratio,y_ratio, name = None, color_rgb = color_rgb)
@@ -4221,6 +4279,16 @@ class BaseImageIF:
     def _clearOverlayListCb(self,msg):
         self.clear_overlay_list()
 
+
+    def _setCrosshairsSizeRatioCb(self,msg):
+        ratio = msg.data
+        self.set_crosshairs_size_ratio(ratio)
+
+    def _setCrosshairsColorRGBCb(self,msg):
+        r = msg.r
+        g = msg.g
+        b = msg.b
+        self.set_crosshairs_color_rgb(r,g,b)
 
     def _setrOverlayCrosshairsCb(self,msg):
         enabled = msg.data
