@@ -3560,7 +3560,7 @@ class BaseImageIF:
     def set_live_adjust_x_deg(self,deg):
         if abs(deg) > self.width_deg:
             deg = np.sign(deg) * self.width_deg
-        ratio = round(0.5 + (deg / self.width_deg)/2,2) 
+        ratio = round(0.5 - (deg / self.width_deg)/2,2) 
         #self.msg_if.pub_info("Updating X Rotate Deg to Ratio: " + str(deg) + ":" + str(ratio), log_name_list = self.log_name_list, throttle_s = 5)   
         self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
@@ -4337,7 +4337,7 @@ class BaseImageIF:
     def _addCrosshairDegreesCb(self,msg):
         name = msg.name
         x_deg_offset = msg.x_offset_deg
-        x_ratio = ((self.width_deg/2) + x_deg_offset) / self.width_deg
+        x_ratio = ((self.width_deg/2) = x_deg_offset) / self.width_deg
         x_ratio = nepi_utils.check_ratio(x_ratio)
         y_deg_offset = msg.y_offset_deg
         y_ratio = ((self.height_deg/2) + y_deg_offset) / self.height_deg
