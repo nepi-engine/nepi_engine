@@ -40,7 +40,7 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose, Quaternion
 from nav_msgs.msg import Odometry
 
-from nepi_interfaces.msg import MgrNavPoseStatus,MgrNavPoseCompInfo
+from nepi_interfaces.msg import MgrNavPoseStatus
 
 from nepi_interfaces.msg import UpdateString, UpdateTransform
 
