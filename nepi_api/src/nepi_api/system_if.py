@@ -1042,7 +1042,7 @@ class SaveDataIF:
         # Services Config Dict ####################
         if self.namespace == self.namespace:
             self.SRVS_DICT = {
-                'capabilities_query': {
+                'save_data_capabilities_query': {
                     'namespace': self.namespace,
                     'topic': 'capabilities_query',
                     'srv': SaveDataCapabilitiesQuery,
@@ -1071,7 +1071,7 @@ class SaveDataIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'disable': {
+            'save_data_disable': {
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'disable',
@@ -1135,7 +1135,7 @@ class SaveDataIF:
                 'callback': self._snapshotCb,  
                 'callback_args': ()
             },
-            'reset': {
+            'save_data_reset': {
                 'namespace': self.namespace,
                 'msg': Empty,
                 'topic': 'reset_save_data',
@@ -2669,7 +2669,7 @@ class SettingsIF:
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'capabilities_query': {
+            'settings_capabilities_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
                 'srv': SettingsCapabilitiesQuery,
