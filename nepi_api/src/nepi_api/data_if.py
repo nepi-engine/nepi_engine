@@ -2647,7 +2647,7 @@ class BaseImageIF:
                 #self.msg_if.pub_warn("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
 
 
-                if process_data == True:
+                if process_data == True and  cv2_img is not None:
                     cv2_img = self.process_cv2_img(cv2_img)
                 if cv2_img is not None:
                     
@@ -2743,7 +2743,7 @@ class BaseImageIF:
 
 
 
-                        if process_data == True:
+                        if process_data == True and  cv2_img is not None:
                             cv2_img = self._liveAdjust(cv2_img)         
                         
                         if self.node_if is not None and self.needs_data == True and cv2_img is not None:
