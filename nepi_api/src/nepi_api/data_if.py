@@ -1189,7 +1189,7 @@ class BaseImageIF:
     active_topic_types = []
     active_services = []
 
-    live_adjust_enbabled = True
+    live_adjust_enabled = True
     live_adjust_rotate_ratio = 0.5
     live_adjust_x_ratio = 0.5
     live_adjust_y_ratio = 0.5
@@ -1213,6 +1213,7 @@ class BaseImageIF:
                 navpose_namespace,
                 transform_namespace,
                 init_overlay_list,
+                live_adjust_enabled,
                 log_name,
                 log_name_list,
                 msg_if,
@@ -1279,6 +1280,8 @@ class BaseImageIF:
         else:
             self.filter_dict = dict()
 
+
+        self.live_adjust_enabled = live_adjust_enabled
 
         # Create and update capabilities dictionary
         if caps_dict is not None:
@@ -3619,10 +3622,10 @@ class BaseImageIF:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_live_adjust_enable(self,enabled):
-        self.live_adjust_enbabled = enabled
+        self.live_adjust_enabled = enabled
 
     def set_live_adjust_rotate_ratio(self,ratio):
-        if self.live_adjust_enbabled == True:
+        if self.live_adjust_enabled == True:
             self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_rotate_deg(self,deg):
@@ -3632,18 +3635,18 @@ class BaseImageIF:
         #self.msg_if.pub_info("Updated Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
         ratio = nepi_utils.check_ratio(0.5 + (deg / 180)/2)
         #self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio), log_name_list = self.log_name_list)
-        if self.live_adjust_enbabled == True:
+        if self.live_adjust_enabled == True:
             self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_ratio(self,ratio):
-        if self.live_adjust_enbabled == True:
+        if self.live_adjust_enabled == True:
             self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_pixel(self,pixel):
         if abs(pixel) > self.width_org:
             pixel = np.sign(pixel) * self.width_org
         ratio = round(0.5 + (pixel / self.width_org)/2,2)
-        if self.live_adjust_enbabled == True:
+        if self.live_adjust_enabled == True:
             self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_deg(self,deg):
@@ -3651,26 +3654,26 @@ class BaseImageIF:
         if abs(deg) > self.width_deg:
             deg = np.sign(deg) * self.width_deg
         ratio = round(0.5 - (deg / self.width_deg)/2,2) 
-        if self.live_adjust_enbabled == True:
+        if self.live_adjust_enabled == True:
             #self.msg_if.pub_info("Updating X Rotate Deg to Ratio: " + str(deg) + ":" + str(ratio), log_name_list = self.log_name_list, throttle_s = 5)   
             self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_ratio(self,ratio):
-        if self.live_adjust_enbabled == True:
+        if self.live_adjust_enabled == True:
             self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_pixel(self,pixel):
         if abs(pixel) > self.height_org:
             pixel = np.sign(pixel) * self.height_org
         ratio = round(0.5 + (pixel / self.height_org)/2,2)
-        if self.live_adjust_enbabled == True:
+        if self.live_adjust_enabled == True:
             self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_deg(self,deg):
         if abs(deg) > self.height_deg:
             deg = np.sign(deg) * self.height_deg
         ratio = round(0.5 + (deg / self.height_deg)/2,2)    
-        if self.live_adjust_enbabled == True:
+        if self.live_adjust_enabled == True:
             self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def reset_filters(self):
@@ -4569,6 +4572,7 @@ class ImageIF(BaseImageIF):
                 navpose_namespace = None,
                 transform_namespace = None,
                 save_data_if = None,
+                live_adjust_enabled = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -4600,6 +4604,7 @@ class ImageIF(BaseImageIF):
                 navpose_namespace,
                 transform_namespace,
                 init_overlay_list,
+                live_adjust_enabled,
                 log_name,
                 log_name_list,
                 msg_if,
@@ -4704,6 +4709,7 @@ class ColorImageIF(BaseImageIF):
                 navpose_namespace = None,
                 transform_namespace = None,
                 save_data_if = None,
+                live_adjust_enabled = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -4735,6 +4741,7 @@ class ColorImageIF(BaseImageIF):
                 navpose_namespace,
                 transform_namespace,
                 init_overlay_list,
+                live_adjust_enabled,
                 log_name,
                 log_name_list,
                 msg_if,
@@ -4952,7 +4959,7 @@ class DepthMapIF:
     active_topics = []
     active_topic_types = []
     active_services = []
-
+    live_adjust_enabled = True
     def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'depth_map_sensor',
@@ -4963,6 +4970,7 @@ class DepthMapIF:
                 navpose_if = None,
                 navpose_namespace = None,
                 init_overlay_list = [],
+                live_adjust_enabled = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -5010,6 +5018,7 @@ class DepthMapIF:
         # Initialize Status Msg.  Updated on each publish
         self.perspective = perspective
 
+        self.live_adjust_enabled = live_adjust_enabled
 
         if data_source_description is None:
             data_source_description = self.data_source_description
@@ -5200,6 +5209,7 @@ class DepthMapIF:
                         save_data_if = self.save_data_if,
                         navpose_if = self.navpose_if,
                         navpose_namespace = navpose_namespace,
+                        live_adjust_enabled = self.live_adjust_enabled,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if,
                         node_if = self.node_if
@@ -5742,7 +5752,7 @@ class DepthMapImageIF(BaseImageIF):
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
-                transform_namespace = None,
+                live_adjust_enabled = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -5776,6 +5786,7 @@ class DepthMapImageIF(BaseImageIF):
                 navpose_namespace,
                 transform_namespace,
                 init_overlay_list,
+                live_adjust_enabled,
                 log_name,
                 log_name_list,
                 msg_if,
@@ -6096,7 +6107,7 @@ class PointcloudIF:
     active_topics = []
     active_topic_types = []
     active_services = []
-
+    live_adjust_enabled = True
     def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'sensor',
@@ -6107,6 +6118,7 @@ class PointcloudIF:
                 navpose_if = None,
                 navpose_namespace = None,
                 init_overlay_list = [],
+                live_adjust_enabled = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -6174,6 +6186,8 @@ class PointcloudIF:
 
 
         self.perspective = perspective
+
+        self.live_adjust_enabled = live_adjust_enabled
 
         self.status_msg.node_name = self.node_name
 
@@ -7472,7 +7486,7 @@ class PointcloudImageIF(BaseImageIF):
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
-                transform_namespace = None,
+                live_adjust_enabled = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -7505,6 +7519,7 @@ class PointcloudImageIF(BaseImageIF):
                 navpose_namespace,
                 transform_namespace,
                 init_overlay_list,
+                live_adjust_enabled,
                 log_name,
                 log_name_list,
                 msg_if,
