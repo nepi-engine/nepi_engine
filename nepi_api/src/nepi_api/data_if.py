@@ -432,7 +432,7 @@ class NavPoseIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'reset': {
+            'navpose_reset': {
                 'namespace': self.namespace,
                 'topic': 'reset',
                 'msg': Empty,
