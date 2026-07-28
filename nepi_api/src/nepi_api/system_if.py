@@ -1059,7 +1059,7 @@ class SaveDataIF:
         self.PUBS_DICT = dict()
 
         if self.pub_status == True:
-            self.PUBS_DICT['status_pub'] = {
+            self.PUBS_DICT['save_data_status_pub'] = {
                 'namespace': self.namespace,
                 'msg': SaveDataStatus,
                 'topic': 'status',
@@ -1832,7 +1832,7 @@ class SaveDataIF:
             exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
             status_msg.example_filename = exp_filename
             if self.node_if is not None:
-                self.node_if.publish_pub('status_pub', status_msg)
+                self.node_if.publish_pub('save_data_status_pub', status_msg)
 
     def init(self, do_updates = False):
         """Load save rate and filename parameters from the ROS param server and publish status.
@@ -2103,7 +2103,7 @@ class Transform3DIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'status_pub': {
+            'transform_status_pub': {
                 'namespace': self.namespace,
                 'msg': TransformStatus,
                 'topic': 'status',
@@ -2405,13 +2405,13 @@ class Transform3DIF:
             self.node_if.publish_pub('transform_pub',transform_msg)
 
     def publish_status(self):
-        """Publish the current TransformStatus message on the 'status_pub' topic.
+        """Publish the current TransformStatus message on the 'transform_status_pub' topic.
 
         No-ops if node_if is None.
         """
         if self.node_if is not None:
             self.status_msg.has_transform = self.has_transform
-            self.node_if.publish_pub('status_pub',self.status_msg)
+            self.node_if.publish_pub('transform_status_pub',self.status_msg)
 
 
     def init(self, do_updates = True):
@@ -2681,7 +2681,7 @@ class SettingsIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'status_pub': {
+            'settings_status_pub': {
                 'namespace': self.namespace,
                 'msg': SettingsStatus,
                 'topic': 'status',
@@ -2837,7 +2837,7 @@ class SettingsIF:
 
 
     def publish_status(self):
-        """Build and publish a SettingsStatus message on the 'status_pub' topic.
+        """Build and publish a SettingsStatus message on the 'settings_status_pub' topic.
 
         Retrieves current settings via getSettingsFunction, merges them with
         capability settings, and publishes the resulting status message.
@@ -2851,7 +2851,7 @@ class SettingsIF:
             status_msg.node_name = self.node_name
             status_msg.settings_topic = self.namespace
             #self.msg_if.pub_debug("Publishing settings status msg: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
-            self.node_if.publish_pub('status_pub', status_msg)
+            self.node_if.publish_pub('settings_status_pub', status_msg)
 
     def update_cap_setting(self,cap_setting):
         """Update a capability setting entry if cap updates are enabled.
