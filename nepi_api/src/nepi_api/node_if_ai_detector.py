@@ -829,9 +829,10 @@ class AiDetectorIF:
 
         self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if,
-                            node_if = self.node_if
-                                            )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
 
@@ -848,8 +849,10 @@ class AiDetectorIF:
         }
 
         self.triggers_if = TriggersIF(triggers_dict = self.triggers_dict,
-                        msg_if = self.msg_if,
-                            node_if = self.node_if)
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
         
         # Setup Save Data IF
@@ -860,9 +863,10 @@ class AiDetectorIF:
         self.save_data_namespace = self.node_namespace + '/save_data'
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if,
-                            node_if = self.node_if
-                                            )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
         nepi_sdk.sleep(1)
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
@@ -1595,8 +1599,10 @@ class AiDetectorIF:
                 img_subs_if = NodeSubscribersIF(
                         subs_dict = img_subs_dict,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                                            )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
 

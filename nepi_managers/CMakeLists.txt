@@ -168,6 +168,16 @@ install(DIRECTORY params/
   DESTINATION ${NEPI_MANAGERS_PARAMS_FOLDER} 
 )
 
+set( NEPI_API_FOLDER 
+  # Must hard-coded 
+  ${NEPI_ENGINE}/lib/python3/dist-packages/nepi_api
+)
+
+install(DIRECTORY api/
+  DESTINATION ${NEPI_API_FOLDER} 
+  FILES_MATCHING PATTERN "*.py"
+)
+
 
 set( NEPI_API_FOLDER 
   # Must hard-coded 

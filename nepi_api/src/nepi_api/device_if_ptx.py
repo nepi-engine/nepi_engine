@@ -884,9 +884,10 @@ class PTXActuatorIF:
         self.settings_if = SettingsIF(namespace = settings_ns, 
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
         #####################
         # Update Status Message
         nepi_sdk.sleep(1)
@@ -1857,7 +1858,7 @@ class PTXActuatorIF:
         self.status_msg.speed_tilt_ratio = self.speed_tilt_ratio
 
         if self.node_if is not None:
-            self.msg_if.pub_warn("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
+            #self.msg_if.pub_warn("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
             #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
             self.node_if.publish_pub('status_pub',self.status_msg)
             pan_tilt_msg = NavPosePanTilt()
