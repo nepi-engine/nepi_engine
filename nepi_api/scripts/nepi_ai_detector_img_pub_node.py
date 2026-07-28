@@ -517,7 +517,7 @@ class AiDetectorImgPub:
                                        
                                         }   
         self.img_node_lock.release()
-
+        img_if.set_live_adjusts_enable(False)
 
         ####################
         # Create img info dict
