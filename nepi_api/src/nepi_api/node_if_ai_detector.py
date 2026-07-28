@@ -1530,8 +1530,8 @@ class AiDetectorIF:
                     
                 # Create register new image topic
                 self.msg_if.pub_warn('Registering to image topic: ' + source_topic)
-                img_bass_namespace = os.path.dirname(source_topic) 
-                img_pub_topic = os.path.join(img_bass_namespace,self.IMAGE_DATA_PRODUCT)
+                img_base_namespace = os.path.dirname(source_topic) 
+                img_pub_topic = os.path.join(img_base_namespace,'detection_image')
                 self.msg_if.pub_warn('Publishing on namespace: ' + img_pub_topic)
 
                 ####################
