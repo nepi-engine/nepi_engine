@@ -109,6 +109,7 @@ WATCHDOG_TIMEOUT=3
 
 class AiDetectorImgPub:
 
+    DATA_PRODUCTS = ['detections','detections_image','targets','targets_image']
     DETECTIONS_IMG_DATA_PRODUCT = 'detections_image'
     TARGETS_IMG_DATA_PRODUCT = 'targets_image'
 
@@ -157,7 +158,7 @@ class AiDetectorImgPub:
     
     last_status_time=None
 
-    data_products = [DETECTIONS_IMG_DATA_PRODUCT , TARGETS_IMG_DATA_PRODUCT]
+    data_products = DATA_PRODUCTS
 
 
     DEFAULT_NODE_NAME = "detector_img_pub" # Can be overwitten by luanch command
@@ -493,13 +494,13 @@ class AiDetectorImgPub:
 
         # Create image publisher
         img_if = ColorImageIF(namespace = pub_namespace ,
-                        data_product = 'detection_image',
+                        data_product = 'detections_image',
                         data_source_description = 'image',
                         data_ref_description = 'image',
                         perspective = 'pov',
                         save_data_if = self.save_data_if,
                         init_overlay_list = [],
-                        log_name = 'detection_image',
+                        log_name = 'detections_image',
                         log_name_list = [],
                         msg_if = self.msg_if,
                             node_if = self.node_if
@@ -770,13 +771,13 @@ class AiDetectorImgPub:
             
             if self.imgs_info_dict[source_topic]['img_published'] == False:
                 namespace = self.imgs_info_dict[source_topic]['pub_namespace']
-                topic = os.path.join(namespace,'detection_image')
+                topic = os.path.join(namespace,'detections_image')
                 self.msg_if.pub_warn('Published image topic: ' + topic)
             self.imgs_info_dict[source_topic]['img_published'] = True
                 
         
             # Save Image Data if needed
-            data_product = 'detection_image'
+            data_product = 'detections_image'
             if self.save_data_if is not None:
                 self.save_data_if.save(data_product,cv2_img,timestamp)
         return True
