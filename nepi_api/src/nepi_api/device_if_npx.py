@@ -66,6 +66,9 @@ class NPXDeviceIF:
   NAVPOSE_DEPTH_FRAME_OPTIONS = ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
 
   DEFAULT_UPDATE_RATE = 30
+  # [min, max] Hz clamp range for the update rate. Mirrors the caps report range
+  # [MIN_PUB_RATE, DEFAULT_UPDATE_RATE]; used by _setUpdateMaxRateCb.
+  NAVPOSE_UPDATE_RATE_OPTIONS = [MIN_PUB_RATE, DEFAULT_UPDATE_RATE]
   DEFAULT_3D_FRAME = 'sensor_frame'
   DEFAULT_NAV_FRAME = 'ENU'
   DEFAULT_ALT_FRAME = 'WGS84'
