@@ -83,6 +83,7 @@ class ReadWriteIF:
         }
 
     node_if = None
+    node_if_shared = True
 
 
     #######################
@@ -92,7 +93,8 @@ class ReadWriteIF:
                 node_name = None,
                 log_name = None,
                 log_name_list = [],
-                msg_if = None
+                msg_if = None,
+                node_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -209,6 +211,31 @@ class ReadWriteIF:
             str: The fully-resolved ROS namespace string.
         """
         return self.namespace
+
+    def unregister(self):
+        """Shut down this pointcloud interface and release all ROS resources."""
+        self.ready = False
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.wait()
+                self.node_if = None
+            else:
+                # if self.SRVS_DICT is not None:
+                #         for service_name in self.SRVS_DICT.keys():
+                #             self.node_if.unregister_service(service_name)
+                # self.service_name = None
+
+                if self.SUBS_DICT is not None:
+                        for sub_name in self.SUBS_DICT.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.SUBS_DICT = None
+
+                # if self.node_if is not None:
+                #     if self.PUBS_DICT is not None:
+                #         for pub_name in self.PUBS_DICT.keys():
+                #             self.node_if.unregister_pub(pub_name)
+
 
     def get_supported_data_types(self):
         """Return the list of data type keys supported for file I/O.
@@ -832,6 +859,7 @@ class SaveDataIF:
     all_save_namespace = None
     status_msg = SaveDataStatus
     node_if = None
+    node_if_shared = True
     read_write_if = None
  
     snapshot_dict = dict()
@@ -880,7 +908,8 @@ class SaveDataIF:
                 ignore_global_rate_updates = False,
                 log_name = None,
                 log_name_list = [],
-                msg_if = None
+                msg_if = None,
+                node_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -1206,16 +1235,25 @@ class SaveDataIF:
         
 
 
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(
-                        configs_dict = self.CONFIGS_DICT,
-                        params_dict = self.PARAMS_DICT,
-                        services_dict = self.SRVS_DICT,
-                        pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                                            )
+        # Udpate or Create Node Class ####################
+        if node_if is not None:
+            self.node_if = node_if
+            if self.PARAMS_DICT is not None:
+               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.register_services(self.SRVS_DICT)
+            self.node_if.register_pubs(self.PUBS_DICT)
+            self.node_if.register_subs(self.SUBS_DICT)
+        else:
+            self.node_if_shared = False
+            self.node_if = NodeClassIF(
+                            configs_dict = self.CONFIGS_DICT,
+                            params_dict = self.PARAMS_DICT,
+                            services_dict = self.SRVS_DICT,
+                            pubs_dict = self.PUBS_DICT,
+                            subs_dict = self.SUBS_DICT,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                                                )
 
         success = nepi_sdk.wait()
 
@@ -1277,6 +1315,31 @@ class SaveDataIF:
             str: The fully-resolved ROS namespace string.
         """
         return self.namespace
+    
+    def unregister(self):
+        """Shut down this pointcloud interface and release all ROS resources."""
+        self.ready = False
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.wait()
+                self.node_if = None
+            else:
+                if self.SRVS_DICT is not None:
+                        for service_name in self.SRVS_DICT.keys():
+                            self.node_if.unregister_service(service_name)
+                self.service_name = None
+
+                if self.SUBS_DICT is not None:
+                        for sub_name in self.SUBS_DICT.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.SUBS_DICT = None
+
+                if self.node_if is not None:
+                    if self.PUBS_DICT is not None:
+                        for pub_name in self.PUBS_DICT.keys():
+                            self.node_if.unregister_pub(pub_name)
+
 
     def get_data_products(self):
         """Return the list of registered data product names.
@@ -1317,6 +1380,30 @@ class SaveDataIF:
             purge = True
         if purge == True:
             del self.save_rate_dict[data_product]
+
+    def unregister(self):
+        """Shut down this pointcloud interface and release all ROS resources."""
+        self.ready = False
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.wait()
+                self.node_if = None
+            else:
+                if self.SRVS_DICT is not None:
+                        for service_name in self.SRVS_DICT.keys():
+                            self.node_if.unregister_service(service_name)
+                self.service_name = None
+
+                if self.SUBS_DICT is not None:
+                        for sub_name in self.SUBS_DICT.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.SUBS_DICT = None
+
+                if self.node_if is not None:
+                    if self.PUBS_DICT is not None:
+                        for pub_name in self.PUBS_DICT.keys():
+                            self.node_if.unregister_pub(pub_name)
 
 
     def update_filename_dict(self,filename_dict):
@@ -1926,6 +2013,7 @@ class Transform3DIF:
     namespace = '~'
 
     node_if = None
+    node_if_shared = True
 
     transform = ZERO_TRANSFORM
     source = ''
@@ -1944,7 +2032,8 @@ class Transform3DIF:
                 get_3d_transform_function = None,
                 log_name = None,
                 log_name_list = [],
-                msg_if = None
+                msg_if = None,
+                node_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -2062,15 +2151,24 @@ class Transform3DIF:
                 }
         }
 
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(
-                                    configs_dict = self.CONFIGS_DICT,
-                                    params_dict = self.PARAMS_DICT,
-                                    services_dict = self.SRVS_DICT,
-                                    pubs_dict = self.PUBS_DICT,
-                                    subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list
-        )
+        # Udpate or Create Node Class ####################
+        if node_if is not None:
+            self.node_if = node_if
+            if self.PARAMS_DICT is not None:
+               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.register_pubs(self.PUBS_DICT)
+            self.node_if.register_subs(self.SUBS_DICT)
+        else:
+            self.node_if_shared = False
+            self.node_if = NodeClassIF(
+                            configs_dict = self.CONFIGS_DICT,
+                            params_dict = self.PARAMS_DICT,
+                            services_dict = self.SRVS_DICT,
+                            pubs_dict = self.PUBS_DICT,
+                            subs_dict = self.SUBS_DICT,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                                                )
    
 
         success = nepi_sdk.wait()
@@ -2133,6 +2231,31 @@ class Transform3DIF:
             str: The fully-resolved ROS namespace string.
         """
         return self.namespace
+
+    def unregister(self):
+        """Shut down this pointcloud interface and release all ROS resources."""
+        self.ready = False
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.wait()
+                self.node_if = None
+            else:
+                if self.SRVS_DICT is not None:
+                        for service_name in self.SRVS_DICT.keys():
+                            self.node_if.unregister_service(service_name)
+                self.service_name = None
+
+                if self.SUBS_DICT is not None:
+                        for sub_name in self.SUBS_DICT.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.SUBS_DICT = None
+
+                if self.node_if is not None:
+                    if self.PUBS_DICT is not None:
+                        for pub_name in self.PUBS_DICT.keys():
+                            self.node_if.unregister_pub(pub_name)
+
 
     def get_zero_3d_transform(self):
         """Return the zero/identity 3D transform list.
@@ -2415,6 +2538,7 @@ class SettingsIF:
     namespace = '~'
 
     node_if = None
+    node_if_shared = True
     
    
     caps_settings = nepi_settings.NONE_CAP_SETTINGS
@@ -2435,7 +2559,8 @@ class SettingsIF:
                 save_params = True,
                 log_name = None,
                 log_name_list = [],
-                msg_if = None
+                msg_if = None,
+                node_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -2604,15 +2729,26 @@ class SettingsIF:
                 },            
 
 
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(
-                                    configs_dict = self.CONFIGS_DICT,
-                                    params_dict = self.PARAMS_DICT,
-                                    services_dict = self.SRVS_DICT,
-                                    pubs_dict = self.PUBS_DICT,
-                                    subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list
-        )
+        # Udpate or Create Node Class ####################
+        if node_if is not None:
+            self.node_if = node_if
+            if self.PARAMS_DICT is not None:
+               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.register_services(self.SRVS_DICT)
+            self.node_if.register_pubs(self.PUBS_DICT)
+            self.node_if.register_subs(self.SUBS_DICT)
+        else:
+            self.node_if_shared = False
+            self.node_if = NodeClassIF(
+                            configs_dict = self.CONFIGS_DICT,
+                            params_dict = self.PARAMS_DICT,
+                            services_dict = self.SRVS_DICT,
+                            pubs_dict = self.PUBS_DICT,
+                            subs_dict = self.SUBS_DICT,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                                                )
+
    
 
         success = nepi_sdk.wait()
@@ -2674,6 +2810,31 @@ class SettingsIF:
             str: The fully-resolved ROS namespace string.
         """
         return self.namespace
+    
+    def unregister(self):
+        """Shut down this pointcloud interface and release all ROS resources."""
+        self.ready = False
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.wait()
+                self.node_if = None
+            else:
+                if self.SRVS_DICT is not None:
+                        for service_name in self.SRVS_DICT.keys():
+                            self.node_if.unregister_service(service_name)
+                self.service_name = None
+
+                if self.SUBS_DICT is not None:
+                        for sub_name in self.SUBS_DICT.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.SUBS_DICT = None
+
+                if self.node_if is not None:
+                    if self.PUBS_DICT is not None:
+                        for pub_name in self.PUBS_DICT.keys():
+                            self.node_if.unregister_pub(pub_name)
+
 
     def publish_status(self):
         """Build and publish a SettingsStatus message on the 'status_pub' topic.
@@ -2911,6 +3072,8 @@ EXAMPLE_STATES_DICT = {
 
 class StatesIF:
 
+    node_if = None
+    node_if_shared = True
 
     ready = False
     msg_if = None
@@ -2927,7 +3090,8 @@ class StatesIF:
                 namespace = None,
                 log_name = None,
                 log_name_list = [],
-                msg_if = None
+                msg_if = None,
+                node_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -2972,11 +3136,19 @@ class StatesIF:
             }
         }
 
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(services_dict = self.SRVS_DICT,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                                            )
+        # Udpate or Create Node Class ####################
+        if node_if is not None:
+            self.node_if = node_if
+            self.node_if.register_services(self.SRVS_DICT)
+
+        else:
+            self.node_if_shared = False
+            self.node_if = NodeClassIF(
+                            services_dict = self.SRVS_DICT,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                                                )
+
 
         success = nepi_sdk.wait()
 
@@ -3032,6 +3204,29 @@ class StatesIF:
         """
         return self.namespace
 
+    def unregister(self):
+        """Shut down this pointcloud interface and release all ROS resources."""
+        self.ready = False
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.wait()
+                self.node_if = None
+            else:
+                if self.SRVS_DICT is not None:
+                        for service_name in self.SRVS_DICT.keys():
+                            self.node_if.unregister_service(service_name)
+                self.service_name = None
+
+                if self.SUBS_DICT is not None:
+                        for sub_name in self.SUBS_DICT.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.SUBS_DICT = None
+
+                # if self.node_if is not None:
+                #     if self.PUBS_DICT is not None:
+                #         for pub_name in self.PUBS_DICT.keys():
+                #             self.node_if.unregister_pub(pub_name)
 
     ###############################
     # Class Private Methods
@@ -3074,6 +3269,9 @@ EXAMPLE_TRIGGERS_DICT = {
 
 class TriggersIF:
 
+    node_if = None
+    node_if_shared = True
+
     msg_if = None
     ready = False
     namespace = '~'
@@ -3086,7 +3284,8 @@ class TriggersIF:
                 triggers_dict = None,
                 log_name = None,
                 log_name_list = [],
-                msg_if = None
+                msg_if = None,
+                node_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -3141,12 +3340,19 @@ class TriggersIF:
             }
         }
 
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(services_dict = self.SRVS_DICT,
-                        pubs_dict = self.PUBS_DICT,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
-                                            )
+        # Udpate or Create Node Class ####################
+        if node_if is not None:
+            self.node_if = node_if
+            self.node_if.register_services(self.SRVS_DICT)
+            self.node_if.register_pubs(self.PUBS_DICT)
+        else:
+            self.node_if_shared = False
+            self.node_if = NodeClassIF(
+                            services_dict = self.SRVS_DICT,
+                            pubs_dict = self.PUBS_DICT,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if
+                                                )
 
         success = nepi_sdk.wait()
 
@@ -3202,6 +3408,31 @@ class TriggersIF:
             str: The fully-resolved ROS namespace string.
         """
         return self.namespace
+
+    def unregister(self):
+        """Shut down this pointcloud interface and release all ROS resources."""
+        self.ready = False
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.wait()
+                self.node_if = None
+            else:
+                if self.SRVS_DICT is not None:
+                        for service_name in self.SRVS_DICT.keys():
+                            self.node_if.unregister_service(service_name)
+                self.service_name = None
+
+                if self.SUBS_DICT is not None:
+                        for sub_name in self.SUBS_DICT.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.SUBS_DICT = None
+
+                if self.node_if is not None:
+                    if self.PUBS_DICT is not None:
+                        for pub_name in self.PUBS_DICT.keys():
+                            self.node_if.unregister_pub(pub_name)
+
 
 
     def publish_trigger(self, trigger_dict):

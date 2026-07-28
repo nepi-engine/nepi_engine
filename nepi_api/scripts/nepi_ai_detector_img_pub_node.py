@@ -33,7 +33,6 @@ import threading
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
 
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
@@ -110,7 +109,9 @@ WATCHDOG_TIMEOUT=3
 
 class AiDetectorImgPub:
 
-    IMG_DATA_PRODUCT = 'detection_image'
+    DETECTIONS_IMG_DATA_PRODUCT = 'detections_image'
+    TARGETS_IMG_DATA_PRODUCT = 'targets_image'
+
 
     det_sub_names = ['detections']
     
@@ -156,7 +157,7 @@ class AiDetectorImgPub:
     
     last_status_time=None
 
-    data_product = IMG_DATA_PRODUCT
+    data_products = [DETECTIONS_IMG_DATA_PRODUCT , TARGETS_IMG_DATA_PRODUCT]
 
 
     DEFAULT_NODE_NAME = "detector_img_pub" # Can be overwitten by luanch command
@@ -181,18 +182,10 @@ class AiDetectorImgPub:
         ##############################  
         # Init Class Variables 
 
-        
-        backup_data_products = ['detections','detection_images'] 
-        self.data_products = nepi_sdk.get_param(self.node_namespace + "/data_products",backup_data_products)
-        self.data_product = self.data_products[-1]
         self.msg_if.pub_warn("Starting with Data Products: " + str(self.data_products))
         
-        backup_det_namespace = self.node_namespace.replace("_img_pub","")
-        self.det_namespace = nepi_sdk.get_param(self.node_namespace + "/det_namespace",backup_det_namespace)
-        self.msg_if.pub_warn("Starting with Detector Namespace: " + str(self.det_namespace))
-
-        self.all_namespace = nepi_sdk.get_param(self.node_namespace + "/all_namespace",'')
-        self.msg_if.pub_warn("Starting with All Namespace: " + str(self.all_namespace))
+        self.process_namespace = self.node_namespace.replace("_img_pub","")
+        self.msg_if.pub_warn("Starting with Process Namespace: " + str(self.process_namespace))
 
 
         self.status_msg = ProcessStatus()
@@ -210,7 +203,7 @@ class AiDetectorImgPub:
 
         self.selected_source_topics = []
         self.selected_img_navpose_topics = []
-        self.img_det_namespaces = []
+        self.img_process_namespaces = []
         self.img_det_states = []
 
         
@@ -226,7 +219,7 @@ class AiDetectorImgPub:
                 'reset_callback': self.resetCb,
                 'factory_reset_callback': self.factoryResetCb,
                 'init_configs': True,
-                'namespace':  self.det_namespace,
+                'namespace':  self.process_namespace,
         }
         '''
 
@@ -246,7 +239,7 @@ class AiDetectorImgPub:
         self.SUBS_DICT = {
             'status_sub': {
                 'msg': DetectorStatus,
-                'namespace': self.det_namespace + '/detections',
+                'namespace': self.process_namespace + '/detections',
                 'topic': 'status',
                 'qsize': 10,
                 'callback': self.statusCb, 
@@ -254,7 +247,7 @@ class AiDetectorImgPub:
             },
             'detections': {
                 'msg': Detections,
-                'namespace': self.det_namespace,
+                'namespace': self.process_namespace,
                 'topic': 'detections',
                 'qsize': 10,
                 'callback': self.objectDetectedCb, 
@@ -289,8 +282,9 @@ class AiDetectorImgPub:
         for d in self.data_products:
             factory_data_rates[d] = [1.0, 0.0, 100] 
             
-        self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False, factory_rate_dict = factory_data_rates, namespace = self.det_namespace,
-                        msg_if = self.msg_if
+        self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False, factory_rate_dict = factory_data_rates, namespace = self.process_namespace,
+                        msg_if = self.msg_if,
+                            node_if = self.node_if
                         )
         
         nepi_sdk.sleep(1)
@@ -463,11 +457,11 @@ class AiDetectorImgPub:
         self.msg_if.pub_warn('Subscribing to image topic: ' + source_topic)
 
         img_source_topic = os.path.dirname(source_topic)
-        det_name = os.path.basename(self.det_namespace)
+        det_name = os.path.basename(self.process_namespace)
         #self.msg_if.pub_warn('Creating namespace for image name: ' + img_source_topic)
 
         pub_namespace = img_source_topic #os.path.join(os.path.dirname(source_topic),det_name)
-        img_pub_topic = os.path.join(pub_namespace,self.data_product)
+        img_pub_topic = os.path.join(pub_namespace,self.DETECTIONS_IMG_DATA_PRODUCT)
         self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + img_pub_topic)
 
 
@@ -499,15 +493,16 @@ class AiDetectorImgPub:
 
         # Create image publisher
         img_if = ColorImageIF(namespace = pub_namespace ,
-                        data_product = self.data_product,
+                        data_product = 'detection_image',
                         data_source_description = 'image',
                         data_ref_description = 'image',
                         perspective = 'pov',
                         save_data_if = self.save_data_if,
                         init_overlay_list = [],
-                        log_name = self.data_product,
+                        log_name = 'detection_image',
                         log_name_list = [],
-                        msg_if = self.msg_if
+                        msg_if = self.msg_if,
+                            node_if = self.node_if
                         )
         
         # Subscribe to new image topic
@@ -775,13 +770,13 @@ class AiDetectorImgPub:
             
             if self.imgs_info_dict[source_topic]['img_published'] == False:
                 namespace = self.imgs_info_dict[source_topic]['pub_namespace']
-                topic = os.path.join(namespace,self.data_product)
+                topic = os.path.join(namespace,'detection_image')
                 self.msg_if.pub_warn('Published image topic: ' + topic)
             self.imgs_info_dict[source_topic]['img_published'] = True
                 
         
             # Save Image Data if needed
-            data_product = self.data_product
+            data_product = 'detection_image'
             if self.save_data_if is not None:
                 self.save_data_if.save(data_product,cv2_img,timestamp)
         return True

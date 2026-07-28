@@ -47,6 +47,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 from nepi_sdk import nepi_sdk
+from nepi_sdk import nepi_utils
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_img"
@@ -958,16 +959,28 @@ def overlay_rectangle(cv2_img,bot_left_px, top_right_px, color=(255,0,0), alpha 
       cv2_img = cv2.addWeighted(overlay, alpha, cv2_img, 1 - alpha, 0)
       return cv2_img
 
-def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size=10, thickness=2, size_ratio = 0.5,):
+def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size=10, thickness=2, size_ratio = 0.5, overlay_text_list = []):
     """Draws a crosshair on an image at a given (x_px, y_px) position."""
     # Draw vertical line
     # if size is None or thickness is None:
     #     size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    if size is None:
+       size = 10
+    if size == 0:
+       size = 10
+    if thickness is None:
+       thickness = 2
+    if thickness == 0:
+       thickness = 2    
     size = int(size * (0.5 + size_ratio))
     thickness = int(thickness * (0.5 + size_ratio))
+    size_ratio = nepi_utils.check_ratio(size_ratio)
     cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color_rgb, thickness)
     # Draw horizontal line
     cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color_rgb, thickness)
+    if len(overlay_text_list) > 0:
+        pass
+
     return cv2_img
 
 def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px = 20, h_px = 20):

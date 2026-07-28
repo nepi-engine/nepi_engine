@@ -80,12 +80,11 @@ class ConnectNPXDeviceIF(ConnectNodeIF):
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
-
+        self.msg_if = msg_if
+        self.node_if = node_if
         super().__init__(
                 connect_id = CONNECT_ID,
                 connect_status_msg = CONNECT_STATUS_MSG,
@@ -95,8 +94,8 @@ class ConnectNPXDeviceIF(ConnectNodeIF):
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
-                msg_if = None,
-                node_if = None
+                msg_if = self.msg_if,
+                node_if = self.node_if
                 )
         ####  IF INIT SETUP ####
 
