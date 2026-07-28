@@ -1535,7 +1535,7 @@ class AiDetectorIF:
                 # Create register new image topic
                 self.msg_if.pub_warn('Registering to image topic: ' + source_topic)
                 img_base_namespace = os.path.dirname(source_topic) 
-                img_pub_topic = os.path.join(img_base_namespace,'detection_image')
+                img_pub_topic = os.path.join(img_base_namespace,'detections_image')
                 self.msg_if.pub_warn('Publishing on namespace: ' + img_pub_topic)
 
                 ####################
@@ -2366,7 +2366,7 @@ class AiDetectorIF:
                 if source_topic not in active_topics:
                     self.imgs_has_subs_dict[source_topic] = False
                 else:
-                    filters = ['detection_image']
+                    filters = ['detections_image']
                     topic_names = []      
                     if source_topic in self.imgs_info_dict.keys():
                         topic_names.append(self.imgs_info_dict[source_topic]['img_pub_topic'])
