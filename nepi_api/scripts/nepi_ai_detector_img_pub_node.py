@@ -500,6 +500,7 @@ class AiDetectorImgPub:
                         perspective = 'pov',
                         save_data_if = self.save_data_if,
                         init_overlay_list = [],
+                        live_adjust_enabled = False,
                         log_name = 'detections_image',
                         log_name_list = [],
                             msg_if = self.msg_if)
@@ -517,8 +518,6 @@ class AiDetectorImgPub:
                                        
                                         }   
         self.img_node_lock.release()
-        nepi_sdk.sleep(1)
-        img_if.set_live_adjust_enable(False)
 
         ####################
         # Create img info dict
