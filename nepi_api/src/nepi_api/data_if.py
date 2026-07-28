@@ -3656,13 +3656,15 @@ class BaseImageIF:
             self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_ratio(self,ratio):
-        self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
+        if self.live_adjust_enbabled == True:
+            self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_pixel(self,pixel):
         if abs(pixel) > self.height_org:
             pixel = np.sign(pixel) * self.height_org
         ratio = round(0.5 + (pixel / self.height_org)/2,2)
-        self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
+        if self.live_adjust_enbabled == True:
+            self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_deg(self,deg):
         if abs(deg) > self.height_deg:
