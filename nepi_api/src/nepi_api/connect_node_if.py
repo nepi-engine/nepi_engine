@@ -364,11 +364,11 @@ class ConnectNodeIF:
         return self.connected
 
 
-    # def subscribe_topic(self):
-    #     pass
+    def subscribe_topic(self):
+        pass
 
-    # def unsubscribe_topic(self):
-    #     pass
+    def unsubscribe_topic(self):
+        pass
 
 
     def unregister(self):

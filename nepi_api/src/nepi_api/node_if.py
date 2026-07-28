@@ -1274,9 +1274,12 @@ class NodeClassIF:
 
     # Param Methods ####################
     def add_param(self,param_name, namespace, value):
-        params = None
         if self.params_if is not None:
             params = self.params_if.add_param(param_name, namespace, value)
+
+    def add_params(self,params_dict):
+        if self.params_if is not None:
+            self.params_if.add_params(params_dict)
 
     def get_params(self):
         params = None
@@ -1353,7 +1356,7 @@ class NodeClassIF:
 
     def register_services(self, services_dict):
         if self.services_if is not None:
-            self.services_if.register_services( service_dict)
+            self.services_if.register_services( services_dict)
 
 
     def unregister_service(self,service_name):

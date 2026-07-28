@@ -51,8 +51,13 @@ from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
 # from nepi_api.processes_if import DetectionsIF, TargetsIF
 
 
+SYSTEM_ALL_TOPIC = 'all'
 
-
+#########################################
+# AI Detector Node IF
+#########################################
+DETECTIONS_ALL_TOPIC = 'detections'
+TARGETS_ALL_TOPIC = 'targets'
 
 EXAMPLE_DETECTION_DICT_ENTRY = {
     'name': 'chair', # Class String Name
@@ -89,9 +94,10 @@ GET_IMAGE_TIMEOUT_SEC = 5
 
 class AiDetectorIF:
     
-    IMAGE_DATA_PRODUCT = 'detections_image'
-    IMAGE_SUB_MSG = 'Waiting for Source Image'
-    IMAGE_PUB_MSG = 'Loading Image Publisher'
+
+    DETECTIONS_DATA_PRODUCTS = ['detections','detections_image']
+    TARGETS_DATA_PRODUCTS = ['targets','targets_image']
+                                
     IMAGE_FILTERS = ['color_image']
 
     BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
@@ -101,6 +107,8 @@ class AiDetectorIF:
     detector_namespace = '~'
     targeting_namespace = '~'
     all_namespace = None
+    all_detections_namespace = None
+    all_targets_namespace = None
 
     status_msg = ProcessStatus()
 
@@ -112,7 +120,7 @@ class AiDetectorIF:
     save_data_namespace = 'None'
     
 
-    data_products = ['detections','targets',IMAGE_DATA_PRODUCT]
+    data_products = DETECTIONS_DATA_PRODUCTS + TARGETS_DATA_PRODUCTS
 
     available_source_topics = []
 
@@ -232,8 +240,6 @@ class AiDetectorIF:
                 default_config_dict, 
                 processImageFunction,
                 processFileFunction,
-                all_namespace = None,
-                has_img_tiling = False,
                 enable_image_pub = True,
                 log_name = None,
                 log_name_list = [],
@@ -244,6 +250,8 @@ class AiDetectorIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
+
+
 
         ##############################  
         # Create Msg Class
@@ -257,6 +265,15 @@ class AiDetectorIF:
             self.log_name_list.append(log_name)
         self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
 
+
+        ##############################  
+        # Setup All Namespaces
+
+        # Collective controls publish on the shared namespaces, which fans a
+        # single command out to every IDX image.
+        self.all_namespace = nepi_sdk.create_namespace(self.base_namespace, SYSTEM_ALL_TOPIC)
+        self.all_detections_namespace = nepi_sdk.create_namespace(self.all_namespace, DETECTIONS_ALL_TOPIC)
+        self.all_targets_namespace = nepi_sdk.create_namespace(self.all_namespace, TARGETS_ALL_TOPIC)
 
  
         ##############################
@@ -301,12 +318,6 @@ class AiDetectorIF:
         self.model_proc_img_height = proc_img_height
         self.model_proc_img_width = proc_img_width
         self.default_config_dict = default_config_dict
-        if all_namespace is None:
-            all_namespace = ''
-        else:
-            if all_namespace[-1] == "/":
-                all_namespace = all_namespace[:-1]
-        self.all_namespace = all_namespace
         self.processImage = processImageFunction
         self.processFile = processFileFunction
         self.classes = classes_list
@@ -392,6 +403,9 @@ class AiDetectorIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
+            #######################
+            # Detections
+            #######################
             'detector_status': {
                 'msg': DetectorStatus,
                 'namespace': self.detector_namespace,
@@ -406,6 +420,19 @@ class AiDetectorIF:
                 'qsize': 1,
                 'latch': False
             },
+            #######################
+            # All Detections
+            'all_detections': {
+                'msg': Detections,
+                'namespace': self.all_namespace,
+                'topic': DETECTIONS_ALL_TOPIC,
+                'qsize': 1,
+                'latch': False
+            },
+
+            #######################
+            # Targets
+            #######################
             'targeting_status': {
                 'msg': TargetingStatus,
                 'namespace': self.targeting_namespace,
@@ -417,6 +444,15 @@ class AiDetectorIF:
                 'msg': Targets,
                 'namespace': self.node_namespace,
                 'topic': 'targets',
+                'qsize': 1,
+                'latch': False
+            },
+            #######################
+            # All Targetss
+            'all_targets': {
+                'msg': Targets,
+                'namespace': self.all_namespace,
+                'topic': TARGETS_ALL_TOPIC,
                 'qsize': 1,
                 'latch': False
             }
@@ -795,7 +831,8 @@ class AiDetectorIF:
 
         self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        msg_if = self.msg_if,
+                            node_if = self.node_if
                                             )
 
 
@@ -813,7 +850,8 @@ class AiDetectorIF:
         }
 
         self.triggers_if = TriggersIF(triggers_dict = self.triggers_dict,
-                        msg_if = self.msg_if)
+                        msg_if = self.msg_if,
+                            node_if = self.node_if)
 
         
         # Setup Save Data IF
@@ -824,7 +862,8 @@ class AiDetectorIF:
         self.save_data_namespace = self.node_namespace + '/save_data'
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if
+                        msg_if = self.msg_if,
+                            node_if = self.node_if
                                             )
         nepi_sdk.sleep(1)
         if self.save_data_if is not None:
@@ -878,18 +917,6 @@ class AiDetectorIF:
         elif os.path.exists(node_file_path) == False or self.enable_image_pub == False:
             self.msg_if.pub_warn("Could not find Node File at: " + node_file_path)
         else:
-            #Try and launch node
-            all_pub_namespace = os.path.join(self.base_namespace, "ai", "all_detectors")
-            self.msg_if.pub_warn("Launching Node: " + node_name)
-
-            param_ns = nepi_sdk.create_namespace(node_namespace, 'data_products')
-            nepi_sdk.set_param(param_ns, self.data_products)
-
-            param_ns = nepi_sdk.create_namespace(node_namespace, 'det_namespace')
-            nepi_sdk.set_param(param_ns, self.node_namespace)
-
-            param_ns = nepi_sdk.create_namespace(node_namespace, 'all_namespace')
-            nepi_sdk.set_param(param_ns, self.all_namespace)
 
             [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name, namespace=launch_namespace)
             if success == True:
@@ -1590,13 +1617,6 @@ class AiDetectorIF:
 
                 time.sleep(1)
                 ####################
-                # Publish blank msg to prime topics
-                #img_pubs_if.publish_pub('detections',Detections())   
-
-                # if self.enable_image_pub == True:
-                #     cv2_img = nepi_img.overlay_text(self.BLANK_CV2_IMAGE, self.IMAGE_SUB_MSG)
-                #     ros_img = nepi_img.cv2img_to_rosimg(cv2_img)
-                #     img_pubs_if.publish_pub('image_pub',ros_img) 
 
                 ####################
                 # Create Img Sub Dict
@@ -2220,6 +2240,7 @@ class AiDetectorIF:
             detections_msg.detections = detection_msg_list
             #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
             self.publishData('detections',detections_msg)
+            self.publishData('all_detections',detections_msg)
     
             if det_count > 0:
                 if 'detections_trigger' in self.triggers_dict.keys():
@@ -2262,6 +2283,7 @@ class AiDetectorIF:
 
             #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
             self.publishData('targets',targets_msg)
+            self.publishData('all_targets',targets_msg)
     
             if det_count > 0:
                 if 'targeting_trigger' in self.triggers_dict.keys():

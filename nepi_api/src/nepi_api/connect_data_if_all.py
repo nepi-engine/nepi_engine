@@ -33,11 +33,12 @@ from nepi_interfaces.msg import StringArray, ImageCrosshair
 from nepi_api.messages_if import MsgIF
 
 
+SYSTEM_ALL_TOPIC = 'all'
 
 #########################################
 # Connect Image IF All Class
 #########################################
-IMAGE_IF_ALL_TOPIC = 'images'
+IMAGE_ALL_TOPIC = 'images'
 
 
 class ConnectImagesAllIF:
@@ -67,7 +68,8 @@ class ConnectImagesAllIF:
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'rbx')
+
+
 
         ##############################  
         # Connect Msg Class
@@ -79,6 +81,17 @@ class ConnectImagesAllIF:
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
         ##############################  
+        # Setup All Namespace
+
+        # Collective controls publish on the shared images all_namespace, which fans a
+        # single command out to every IDX image.
+        all_namespace = nepi_sdk.create_namespace(self.base_namespace, SYSTEM_ALL_TOPIC)
+        all_namespace = nepi_sdk.create_namespace(all_namespace, IMAGE_ALL_TOPIC)
+        self.all_namespace = all_namespace
+        self.msg_if.pub_warn("Using connect all_namespace: " + str(self.all_namespace) )
+
+
+        ##############################  
         # Connect Node Class
 
         if node_if is None:
@@ -88,10 +101,7 @@ class ConnectImagesAllIF:
 
 
 
-        # Collective controls publish on the shared images namespace, which fans a
-        # single command out to every IDX image.
-        self.namespace = nepi_sdk.create_namespace(self.base_namespace, IMAGE_IF_ALL_TOPIC)
-        self.msg_if.pub_warn("Using connect namespace: " + str(self.namespace) )
+
 
 
 
@@ -100,157 +110,157 @@ class ConnectImagesAllIF:
         # Publishers Config Dict ####################
         self.connect_topic_pubs_dict = {
             'all_overlay_size_ratio': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_overlay_size_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
             'all_overlay_source_name': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_overlay_source_name',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_date_time': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_overlay_date_time',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_nav': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_overlay_nav',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_pose': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_overlay_pose',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_text': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'add_overlay_text',
                 'msg': String,
                 'qsize': 1,
             },
             'all_overlay_list': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_overlay_list',
                 'msg': StringArray,
                 'qsize': 1,
             },
             'all_overlay_clear': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'clear_overlay_list',
                 'msg': Empty,
                 'qsize': 1,
             },
             'all_overlay_crosshairs': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'all_overlay_crosshairs',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_crosshair_names': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'all_overlay_crosshair_names',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_crosshair_pixels': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'all_overlay_crosshair_pixels',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_crosshair_degrees': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'overlay_crosshair_degrees',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_click_crosshair_enable': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'click_crosshair_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_add_crosshair_pixel': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'add_crosshair_pixel',
                 'msg': ImageCrosshair,
                 'qsize': 1,
             },
             'all_add_crosshair_ratios': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'add_crosshair_ratios',
                 'msg': ImageCrosshair,
                 'qsize': 1,
             },
             'all_add_crosshair_degree_offsets': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'add_crosshair_degree_offsets',
                 'msg': ImageCrosshair,
                 'qsize': 1,
             },
             'all_remove_crosshair': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'remove_crosshair',
                 'msg': String,
                 'qsize': 1,
             },
             'all_clear_crosshairs': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'clear_crosshairs',
                 'msg': Empty,
                 'qsize': 1,
             },
             'all_set_live_adjust_rotate_ratio': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_rotate_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
             'all_set_live_adjust_rotate_deg': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_rotate_deg',
                 'msg': Float32,
                 'qsize': 1,
             },
             'all_set_live_adjust_x_ratio': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_x_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
             'all_set_live_adjust_x_pixel': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_x_pixel',
                 'msg': Int32,
                 'qsize': 1,
             },
             'all_set_live_adjust_x_deg': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_x_deg',
                 'msg': Float32,
                 'qsize': 1,
             },
             'all_set_live_adjust_y_ratio': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_y_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
             'all_set_live_adjust_y_pixel': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_y_pixel',
                 'msg': Int32,
                 'qsize': 1,
             },
             'all_set_live_adjust_y_deg': {
-                'namespace': self.namespace,
+                'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_y_deg',
                 'msg': Float32,
                 'qsize': 1,
@@ -261,7 +271,7 @@ class ConnectImagesAllIF:
             self.node_if.register_pubs(self.connect_topic_pubs_dict)
             self.connecting = False
             self.connected = True
-            self.connected_topic = self.namespace
+            self.connected_topic = self.all_namespace
             self.status_msg = None
             
 
@@ -321,7 +331,7 @@ class ConnectImagesAllIF:
             str: The shared images namespace (base namespace + '/images') used to fan a
                 single command out to every IDX image.
         """
-        return nepi_sdk.create_namespace(self.namespace)
+        return self.all_namespace
 
 
     #################
