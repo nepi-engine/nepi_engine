@@ -159,19 +159,19 @@ class ConnectImagesAllIF:
             },
             'all_overlay_crosshairs': {
                 'namespace': self.all_namespace,
-                'topic': 'all_overlay_crosshairs',
+                'topic': 'overlay_crosshairs',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_crosshair_names': {
                 'namespace': self.all_namespace,
-                'topic': 'all_overlay_crosshair_names',
+                'topic': 'overlay_crosshair_names',
                 'msg': Bool,
                 'qsize': 1,
             },
             'all_overlay_crosshair_pixels': {
                 'namespace': self.all_namespace,
-                'topic': 'all_overlay_crosshair_pixels',
+                'topic': 'overlay_crosshair_pixels',
                 'msg': Bool,
                 'qsize': 1,
             },
