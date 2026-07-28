@@ -1189,7 +1189,7 @@ class BaseImageIF:
     active_topic_types = []
     active_services = []
 
-    live_adjusts_enbabled = True
+    live_adjust_enbabled = True
     live_adjust_rotate_ratio = 0.5
     live_adjust_x_ratio = 0.5
     live_adjust_y_ratio = 0.5
@@ -3619,10 +3619,10 @@ class BaseImageIF:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_live_adjust_enable(self,enabled):
-        self.live_adjusts_enbabled
+        self.live_adjust_enbabled = enabled
 
     def set_live_adjust_rotate_ratio(self,ratio):
-        if self.live_adjusts_enbabled == True:
+        if self.live_adjust_enbabled == True:
             self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_rotate_deg(self,deg):
@@ -3632,18 +3632,18 @@ class BaseImageIF:
         #self.msg_if.pub_info("Updated Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
         ratio = nepi_utils.check_ratio(0.5 + (deg / 180)/2)
         #self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio), log_name_list = self.log_name_list)
-        if self.live_adjusts_enbabled == True:
+        if self.live_adjust_enbabled == True:
             self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_ratio(self,ratio):
-        if self.live_adjusts_enbabled == True:
+        if self.live_adjust_enbabled == True:
             self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_pixel(self,pixel):
         if abs(pixel) > self.width_org:
             pixel = np.sign(pixel) * self.width_org
         ratio = round(0.5 + (pixel / self.width_org)/2,2)
-        if self.live_adjusts_enbabled == True:
+        if self.live_adjust_enbabled == True:
             self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_deg(self,deg):
@@ -3651,7 +3651,7 @@ class BaseImageIF:
         if abs(deg) > self.width_deg:
             deg = np.sign(deg) * self.width_deg
         ratio = round(0.5 - (deg / self.width_deg)/2,2) 
-        if self.live_adjusts_enbabled == True:
+        if self.live_adjust_enbabled == True:
             #self.msg_if.pub_info("Updating X Rotate Deg to Ratio: " + str(deg) + ":" + str(ratio), log_name_list = self.log_name_list, throttle_s = 5)   
             self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
 
@@ -3668,7 +3668,7 @@ class BaseImageIF:
         if abs(deg) > self.height_deg:
             deg = np.sign(deg) * self.height_deg
         ratio = round(0.5 + (deg / self.height_deg)/2,2)    
-        if self.live_adjusts_enbabled == True:
+        if self.live_adjust_enbabled == True:
             self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
 
     def reset_filters(self):
