@@ -350,8 +350,8 @@ class NavPoseIF:
 
         
         if self.pub_navpose == True:
-        
-            self.PUBS_DICT['status_pub'] = {
+
+            self.PUBS_DICT['navpose_status_pub'] = {
                     'msg': NavPoseStatus,
                     'namespace': self.namespace,
                     'topic': 'status',
@@ -896,7 +896,7 @@ class NavPoseIF:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
 
-            self.node_if.publish_pub('status_pub', self.status_msg)
+            self.node_if.publish_pub('navpose_status_pub', self.status_msg)
 
     def init(self, do_updates = False):
         """Initialize or re-initialize interface state and publish status.
@@ -1469,6 +1469,10 @@ class BaseImageIF:
                 'qsize': 1,
                 'latch': False
             },
+            # NOTE: 'data_pub'/'status_pub' keys are generic and identical across every
+            # image-IF instance. Safe only while this IF owns its own node_if. If a shared
+            # node_if is ever passed in, make these keys namespace-unique first or coexisting
+            # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
             'status_pub': {
                 'msg': ImageStatus,
                 'namespace': self.namespace,
@@ -3090,7 +3094,7 @@ class BaseImageIF:
         """
         if (start_ratio < 0 or stop_ratio > 1 or stop_ratio < start_ratio):
             self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
-            self.publishStatus(do_updates=False) # No change
+            self.publish_status() # No change
             return
 
         self.controls_dict['start_range_ratio'] = start_ratio
@@ -4426,7 +4430,7 @@ class BaseImageIF:
 
     def _removeCrosshairCb(self,msg):
         name = msg.data
-        self.remove_overlay_crosshair(name)
+        self.remove_crosshair(name)
 
 
     def _clearCrosshairsCb(self,msg):
@@ -5032,6 +5036,11 @@ class DepthMapIF:
         # Params Config Dict ####################
         self.PARAMS_DICT = None
 
+        # Srvs Config Dict ####################
+        # DepthMapIF provides no services; None is handled by the node_if setup
+        # below and guarded elsewhere (see the 'if self.SRVS_DICT is not None' check).
+        self.SRVS_DICT = None
+
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
             'data_pub': {
@@ -5041,6 +5050,10 @@ class DepthMapIF:
                 'qsize': 1,
                 'latch': False
             },
+            # NOTE: 'data_pub'/'status_pub' keys are generic and identical across every
+            # image-IF instance. Safe only while this IF owns its own node_if. If a shared
+            # node_if is ever passed in, make these keys namespace-unique first or coexisting
+            # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
             'status_pub': {
                 'msg': DepthMapStatus,
                 'namespace': self.namespace,
@@ -6264,6 +6277,11 @@ class PointcloudIF:
 
 
 
+        # Srvs Config Dict ####################
+        # PointcloudIF provides no services; None is handled by the node_if setup
+        # below and guarded elsewhere (see the 'if self.SRVS_DICT is not None' check).
+        self.SRVS_DICT = None
+
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
             'data_pub': {
@@ -6273,6 +6291,10 @@ class PointcloudIF:
                 'qsize': 1,
                 'latch': False
             },
+            # NOTE: 'data_pub'/'status_pub' keys are generic and identical across every
+            # image-IF instance. Safe only while this IF owns its own node_if. If a shared
+            # node_if is ever passed in, make these keys namespace-unique first or coexisting
+            # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
             'status_pub': {
                 'msg':  PointcloudStatus,
                 'namespace': self.namespace,
