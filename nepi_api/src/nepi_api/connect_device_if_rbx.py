@@ -96,7 +96,8 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 msg_if = None,
                 node_if = None
                 ):
-
+        self.msg_if = msg_if
+        self.node_if = node_if
         super().__init__(
                 connect_id = CONNECT_ID,
                 connect_status_msg = CONNECT_STATUS_MSG,

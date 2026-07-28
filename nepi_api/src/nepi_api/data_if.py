@@ -7134,14 +7134,14 @@ class PointcloudIF:
         self.resetProcessControls()
 
     def resetProcessControls(self,do_updates = True):
-        self.node_if.reset_param('clip_enabled')
-        self.node_if.reset_param('clip_selection')
-        self.node_if.reset_param('range_min_m')
-        self.node_if.reset_param('range_max_m')
+        self.node_if.factory_reset_param('clip_enabled')
+        self.node_if.factory_reset_param('clip_selection')
+        self.node_if.factory_reset_param('range_min_m')
+        self.node_if.factory_reset_param('range_max_m')
         self.bounding_box3d_topic = "NONE"
-        self.node_if.reset_param('voxel_downsample_size')
-        self.node_if.reset_param('uniform_downsample_k_points')
-        self.node_if.reset_param('outlier_removal_num_neighbors')
+        self.node_if.factory_reset_param('voxel_downsample_size')
+        self.node_if.factory_reset_param('uniform_downsample_k_points')
+        self.node_if.factory_reset_param('outlier_removal_num_neighbors')
 
         if do_updates:
             self.publish_status()
@@ -7208,19 +7208,19 @@ class PointcloudIF:
         self.resetRenderControls()
 
     def resetRenderControls(self,do_updates = True):
-        self.node_if.reset_param('image_width')
-        self.node_if.reset_param('image_height')
-        self.node_if.reset_param('start_range_ratio')
-        self.node_if.reset_param('stop_range_ratio')
-        self.node_if.reset_param('zoom_ratio')
-        self.node_if.reset_param('rotate_ratio')
-        self.node_if.reset_param('tilt_ratio')
-        self.node_if.reset_param('cam_fov')
-        self.node_if.reset_param('cam_view')
-        self.node_if.reset_param('cam_pos')
-        self.node_if.reset_param('cam_rot')
-        self.node_if.reset_param('use_wbg')
-        self.node_if.reset_param('render_enable')
+        self.node_if.factory_reset_param('image_width')
+        self.node_if.factory_reset_param('image_height')
+        self.node_if.factory_reset_param('start_range_ratio')
+        self.node_if.factory_reset_param('stop_range_ratio')
+        self.node_if.factory_reset_param('zoom_ratio')
+        self.node_if.factory_reset_param('rotate_ratio')
+        self.node_if.factory_reset_param('tilt_ratio')
+        self.node_if.factory_reset_param('cam_fov')
+        self.node_if.factory_reset_param('cam_view')
+        self.node_if.factory_reset_param('cam_pos')
+        self.node_if.factory_reset_param('cam_rot')
+        self.node_if.factory_reset_param('use_wbg')
+        self.node_if.factory_reset_param('render_enable')
 
         if do_updates:
             self.publish_status()
