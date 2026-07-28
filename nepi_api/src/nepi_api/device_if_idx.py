@@ -648,9 +648,10 @@ class IDXDeviceIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                                node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
 
@@ -673,9 +674,10 @@ class IDXDeviceIF:
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                                 log_name_list = self.log_name_list,
-                                msg_if = self.msg_if,
-                                node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
         
@@ -722,8 +724,10 @@ class IDXDeviceIF:
                                 end_ref_description = self.node_name,
                                 get_3d_transform_function = None,
                                 log_name_list = self.log_name_list,
-                                msg_if = self.msg_if,
-                                node_if = self.node_if)
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
         self.transform_topic = self.transform_if.get_namespace()
         self.msg_if.pub_info("Using transform namespace: " + str(self.transform_topic))
 
@@ -750,8 +754,10 @@ class IDXDeviceIF:
                                 transform_namespace = self.transform_topic,
                                 log_name = 'navpose',
                                 log_name_list = self.log_name_list,
-                                msg_if = self.msg_if,
-                                node_if = self.node_if)
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
         # Manages the reference-frame subscription and republishes on each navpose
         nepi_sdk.start_timer_process(2.0, self._updateTransformedNavPoseCb, oneshot = True)
 
@@ -796,9 +802,10 @@ class IDXDeviceIF:
                     data_ref_description = self.data_ref_description,
                     getNavPoseCb = self.getNavPoseCb,
                     max_navpose_update_rate = self.navpose_update_rate,
-                    msg_if = self.msg_if,
-                    node_if = self.node_if
-                    )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
     
@@ -1255,9 +1262,10 @@ class IDXDeviceIF:
                             save_data_if = self.save_data_if,
                             log_name = data_product,
                             log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                            )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
                 ready = dp_if.wait_for_ready()
                 self.data_products_dict[data_product]['image_topic'] = dp_if.get_namespace()
 
@@ -1361,9 +1369,10 @@ class IDXDeviceIF:
                         save_data_if = self.save_data_if,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if,
-                        node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
             ready = dp_if.wait_for_ready()
             self.data_products_dict[data_product]['image_topic'] = dp_if.get_namespace()
 
@@ -1478,9 +1487,10 @@ class IDXDeviceIF:
                         save_data_if = self.save_data_if,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                        msg_if = self.msg_if,
-                        node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
             ready = dp_if.wait_for_ready()
 
             if dp_if is None:

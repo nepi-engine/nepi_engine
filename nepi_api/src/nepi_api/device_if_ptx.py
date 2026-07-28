@@ -884,9 +884,10 @@ class PTXActuatorIF:
         self.settings_if = SettingsIF(namespace = settings_ns, 
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
         #####################
         # Update Status Message
         nepi_sdk.sleep(1)

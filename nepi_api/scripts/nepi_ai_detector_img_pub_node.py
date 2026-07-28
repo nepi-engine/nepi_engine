@@ -502,9 +502,10 @@ class AiDetectorImgPub:
                         init_overlay_list = [],
                         log_name = 'detections_image',
                         log_name_list = [],
-                        msg_if = self.msg_if,
-                            node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
         
         # Subscribe to new image topic
         self.img_node_lock.acquire()

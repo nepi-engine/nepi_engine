@@ -785,9 +785,10 @@ class RBXRobotIF:
         self.msg_if.pub_info("Starting Image IF Initialization", log_name_list = self.log_name_list)
         self.image_if = ImageIF(namespace = self.node_namespace, log_name = 'image',
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
 
@@ -806,9 +807,10 @@ class RBXRobotIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                         settings_dict = self.SETTINGS_DICT,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
         
         # Setup Save Data IF Class ####################
@@ -833,9 +835,10 @@ class RBXRobotIF:
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                        )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
         ####################
         # # Setup NavPose IF Class
@@ -886,9 +889,10 @@ class RBXRobotIF:
                 getNavPoseCb = self.getNavPoseCb,
                 max_navpose_update_rate = self.navpose_update_rate,
                 log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
         ####################################
         # The aggregated system 'navposes' (NavPoses) topic that navposesSysCb

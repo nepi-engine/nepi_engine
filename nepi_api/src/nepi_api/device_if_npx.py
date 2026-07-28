@@ -407,9 +407,10 @@ class NPXDeviceIF:
         self.settings_if = SettingsIF(namespace = settings_ns,
                             settings_dict = self.SETTINGS_DICT,
                             log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                            )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
 
@@ -436,9 +437,10 @@ class NPXDeviceIF:
                             factory_filename_dict = factory_filename_dict,
                             namespace = sd_namespace,
                             log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                            )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
         # Create the per-device 3D mount transform (where the camera is located/oriented).
@@ -448,9 +450,10 @@ class NPXDeviceIF:
                             end_ref_description = self.node_name,
                             get_3d_transform_function = None,
                             log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                            )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
         # Create a NavPose IF
         np_namespace = self.namespace
@@ -469,9 +472,10 @@ class NPXDeviceIF:
                             transform_namespace = self.transform_if.get_namespace(),
                             log_name = 'navpose',
                             log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                            )
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
         #####################
