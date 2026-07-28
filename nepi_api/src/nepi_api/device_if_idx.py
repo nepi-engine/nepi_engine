@@ -1658,7 +1658,7 @@ class IDXDeviceIF:
         """
         self.status_msg.device_name = self.device_name
 
-        self.status_msg.disabled = self.device_disabled
+        self.status_msg.device_disabled = self.device_disabled
         self.status_msg.width_deg = self.width_deg
         self.status_msg.height_deg = self.height_deg
         self.status_msg.perspective = self.perspective
