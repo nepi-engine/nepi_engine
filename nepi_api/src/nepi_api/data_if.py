@@ -4570,6 +4570,7 @@ class ImageIF(BaseImageIF):
                 init_overlay_list = [],
                 navpose_if = None,
                 navpose_namespace = None,
+                transform_namespace = None,
                 save_data_if = None,
                 live_adjust_enabled = True,
                 log_name = None,
@@ -4601,11 +4602,13 @@ class ImageIF(BaseImageIF):
                 self.save_data_if,
                 self.navpose_if,
                 navpose_namespace,
+                transform_namespace,
                 init_overlay_list,
                 live_adjust_enabled,
                 log_name,
                 log_name_list,
-                msg_if
+                msg_if,
+                node_if
                 )
 
         ###############################
@@ -5781,11 +5784,13 @@ class DepthMapImageIF(BaseImageIF):
                 self.save_data_if,
                 self.navpose_if,
                 navpose_namespace,
+                transform_namespace,
                 init_overlay_list,
                 live_adjust_enabled,
                 log_name,
                 log_name_list,
-                msg_if
+                msg_if,
+                node_if
                 )
 
         ###############################
@@ -7512,11 +7517,13 @@ class PointcloudImageIF(BaseImageIF):
                 self.save_data_if,
                 self.navpose_if,
                 navpose_namespace,
+                transform_namespace,
                 init_overlay_list,
                 live_adjust_enabled,
                 log_name,
                 log_name_list,
-                msg_if
+                msg_if,
+                node_if
                 )
 
         ###############################
