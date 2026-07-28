@@ -74,6 +74,7 @@ class ConnectNodeIF:
     connect_status_msg = None
     connect_name = None
 
+    filter_topics_list = []
     available_topics = []
     available_names = []
     auto_select_enabled = True
@@ -100,6 +101,7 @@ class ConnectNodeIF:
                 connect_id = None,
                 connect_status_msg = None,
                 connect_name = None,
+                filter_topics_list = [],
                 selected_topic = "None",
                 auto_select_enabled = True,
                 show_selector = True,
@@ -165,7 +167,7 @@ class ConnectNodeIF:
         self.show_controls = show_controls
         self.show_data = show_data
 
-                   
+        self.filter_topics_list = filter_topics_list          
         ##############################   
         ## Node Setup
 
@@ -517,7 +519,12 @@ class ConnectNodeIF:
         topics = nepi_sdk.find_topics_by_msg(self.connect_status_msg, topics_list = self.active_topics, types_list = self.active_topic_types)
         available_topics = []
         for topic in topics:
-            available_topics.append(topic.replace('/status',''))
+            valid = True
+            for filter in self.filter_topics_list:
+                if filter in topic:
+                    valid = False
+            if valid == True:
+                available_topics.append(topic.replace('/status',''))
         if available_topics != last_available:
             self.available_topics = available_topics
             needs_publish = True
