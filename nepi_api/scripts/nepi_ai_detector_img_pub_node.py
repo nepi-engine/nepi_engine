@@ -517,6 +517,7 @@ class AiDetectorImgPub:
                                        
                                         }   
         self.img_node_lock.release()
+        nepi_sdk.sleep(1)
         img_if.set_live_adjust_enable(False)
 
         ####################
