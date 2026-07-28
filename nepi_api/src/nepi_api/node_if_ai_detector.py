@@ -2330,7 +2330,8 @@ class AiDetectorIF:
         
         # Check if for all topic subscribers
         topic_names = []
-        for data_product in self.data_products:
+        filters = ['detections','targets']
+        for data_product in filters:
             namespace = os.path.join(self.node_namespace, data_product)
             topic_names.append(namespace)
     
@@ -2359,7 +2360,7 @@ class AiDetectorIF:
                 if source_topic not in active_topics:
                     self.imgs_has_subs_dict[source_topic] = False
                 else:
-                    filters = [self.IMAGE_DATA_PRODUCT]
+                    filters = ['detection_image']
                     topic_names = []      
                     if source_topic in self.imgs_info_dict.keys():
                         topic_names.append(self.imgs_info_dict[source_topic]['img_pub_topic'])
