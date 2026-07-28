@@ -150,7 +150,6 @@ class AiDetectorIF:
     pointcloud_dict_lock = threading.Lock()
 
 
-    has_img_tiling = False
 
     msg_str = 'Loading'
 
@@ -303,7 +302,6 @@ class AiDetectorIF:
 
 
         self.enable_image_pub = enable_image_pub
-        self.has_img_tiling = has_img_tiling
 
         
         ## Init Status Messages
