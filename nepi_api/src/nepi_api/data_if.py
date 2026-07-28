@@ -2651,7 +2651,7 @@ class BaseImageIF:
                 #self.msg_if.pub_warn("Got Image size: " + str([height,width]), log_name_list = self.log_name_list)
 
 
-                if process_data == True:
+                if process_data == True and  cv2_img is not None:
                     cv2_img = self.process_cv2_img(cv2_img)
                 if cv2_img is not None:
                     
@@ -2747,7 +2747,7 @@ class BaseImageIF:
 
 
 
-                        if process_data == True:
+                        if process_data == True and  cv2_img is not None:
                             cv2_img = self._liveAdjust(cv2_img)         
                         
                         if self.node_if is not None and self.needs_data == True and cv2_img is not None:
@@ -4771,7 +4771,7 @@ class ColorImageIF(BaseImageIF):
         # Also rotate at angle 0 when the Free Cam box is swapped, so the upright
         # image is re-canvased (centered, black-filled) into the swapped box.
         if degrees != 0 or (keep_size == True and swap_box == True):
-           cv2_img = nepi_img.rotate_degrees(cv2_img, degrees, keep_size=keep_size, swap_dims=swap_box)
+           cv2_img = nepi_img.rotate_degrees(cv2_img, degrees) #, keep_size=keep_size, swap_dims=swap_box)
 
         if fliph == True:
             cv2_img = nepi_img.flip_horz(cv2_img)
@@ -5874,7 +5874,7 @@ class DepthMapImageIF(BaseImageIF):
         # Also rotate at angle 0 when the Free Cam box is swapped, so the upright
         # image is re-canvased (centered, black-filled) into the swapped box.
         if degrees != 0 or (keep_size == True and swap_box == True):
-           cv2_img = nepi_img.rotate_degrees(cv2_img, degrees, keep_size=keep_size, swap_dims=swap_box)
+           cv2_img = nepi_img.rotate_degrees(cv2_img, degrees) #, keep_size=keep_size, swap_dims=swap_box)
 
         if fliph == True:
             cv2_img = nepi_img.flip_horz(cv2_img)
