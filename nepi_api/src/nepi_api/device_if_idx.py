@@ -176,7 +176,7 @@ class IDXDeviceIF:
     data_source_description = 'imaging_sensor'
     data_ref_description = 'sensor'
 
-    disabled = False
+    device_disabled = False
 
     #######################
     ### IF Initialization
@@ -985,8 +985,8 @@ class IDXDeviceIF:
         Args:
             enabled (bool): True to enable data, False to disable.
         """
-        #self.msg_if.pub_warn("Setting Saving Disabled to: " + str(enabled))  
-        self.disabled = enabled
+        self.msg_if.pub_warn("Setting Saving Disabled to: " + str(enabled))  
+        self.device_disabled = enabled
         self.publish_status()   
 
 
@@ -1271,7 +1271,7 @@ class IDXDeviceIF:
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = dp_if.needs_data_check()
-                if get_data == True and self.disabled == False:
+                if get_data == True and self.device_disabled == False:
                     acquiring = True
                     status, msg, cv2_img, timestamp, encoding = dp_get_data()
 
@@ -1377,7 +1377,7 @@ class IDXDeviceIF:
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = dp_if.needs_data_check()
-                if get_data == True and self.disabled == False:
+                if get_data == True and self.device_disabled == False:
                     #self.msg_if.pub_warn("Got Depth Map Needs Data", log_name_list = self.log_name_list)
 
                     acquiring = True
@@ -1494,7 +1494,7 @@ class IDXDeviceIF:
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = dp_if.needs_data_check()
-                if get_data == True and self.disabled == False:
+                if get_data == True and self.device_disabled == False:
                     acquiring = True
                     status, msg, o3d_pc, timestamp, pc_frame = dp_get_data()
                     if (status is False or o3d_pc is None):
@@ -1648,7 +1648,7 @@ class IDXDeviceIF:
         """
         self.status_msg.device_name = self.device_name
 
-        self.status_msg.device_disabled = self.disabled
+        self.status_msg.device_disabled = self.device_disabled 
         self.status_msg.width_deg = self.width_deg
         self.status_msg.height_deg = self.height_deg
         self.status_msg.perspective = self.perspective
