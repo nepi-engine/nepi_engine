@@ -109,6 +109,7 @@ WATCHDOG_TIMEOUT=3
 
 class AiDetectorImgPub:
 
+    DATA_PRODUCTS = ['detections','detections_image','targets','targets_image']
     DETECTIONS_IMG_DATA_PRODUCT = 'detections_image'
     TARGETS_IMG_DATA_PRODUCT = 'targets_image'
 
@@ -157,7 +158,7 @@ class AiDetectorImgPub:
     
     last_status_time=None
 
-    data_products = [DETECTIONS_IMG_DATA_PRODUCT , TARGETS_IMG_DATA_PRODUCT]
+    data_products = DATA_PRODUCTS
 
 
     DEFAULT_NODE_NAME = "detector_img_pub" # Can be overwitten by luanch command
