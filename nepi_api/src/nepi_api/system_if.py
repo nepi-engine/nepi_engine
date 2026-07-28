@@ -1768,14 +1768,17 @@ class SaveDataIF:
                 reflecting the current naming settings.
         """
         fn_msg = FilenameConfig()
-        fn_dict = self.filename_dict
-        fn_msg.save_prefix = fn_dict['prefix']
-        fn_msg.save_subfolder = fn_dict['subfolder']
-        fn_msg.add_timestamp = fn_dict['add_timestamp']
-        fn_msg.use_utc_tz = fn_dict['use_utc_tz']
-        fn_msg.add_ms = fn_dict['add_ms']
-        fn_msg.add_us = fn_dict['add_us']
-        fn_msg.add_tz = fn_dict['add_tz']
+        try:
+            fn_dict = self.filename_dict
+            fn_msg.save_prefix = fn_dict['prefix']
+            fn_msg.save_subfolder = fn_dict['subfolder']
+            fn_msg.add_timestamp = fn_dict['add_timestamp']
+            fn_msg.use_utc_tz = fn_dict['use_utc_tz']
+            fn_msg.add_ms = fn_dict['add_ms']
+            fn_msg.add_us = fn_dict['add_us']
+            fn_msg.add_tz = fn_dict['add_tz']
+        except:
+            pass
         return fn_msg
 
 
