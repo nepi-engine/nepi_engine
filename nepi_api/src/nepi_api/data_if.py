@@ -3939,9 +3939,10 @@ class BaseImageIF:
             self.crosshairs_size_ratio = self.node_if.get_param('crosshairs_size_ratio')
             self.crosshairs_color_rgb = self.node_if.get_param('crosshairs_color_rgb')
             overlays_dict = self.node_if.get_param('overlays_dict')
-            for key in self.overlays_dict.keys():
-                if key in overlays_dict.keys():
-                    self.overlays_dict[key] = overlays_dict[key]
+            if overlays_dict is not None:
+                for key in self.overlays_dict.keys():
+                    if key in overlays_dict.keys():
+                        self.overlays_dict[key] = overlays_dict[key]
 
         if do_updates == True:
             pass

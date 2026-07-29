@@ -1423,7 +1423,8 @@ class SaveDataIF:
                 keys to update (prefix, subfolder, add_timestamp, use_utc_tz,
                 add_ms, add_us, add_tz, add_node_name).
         """
-        if self.filename_dict != filename_dict:
+
+        if self.filename_dict != filename_dict and filename_dict is not None:
             if 'prefix' in filename_dict.keys():
                new_prefix = filename_dict['prefix']
                self.filename_dict['prefix'] = nepi_utils.get_clean_name(new_prefix)
@@ -1459,9 +1460,9 @@ class SaveDataIF:
                     self.filename_dict[key] = filename_dict[key]  
 
             self.publish_status()
-            if self.read_write_if is not None:
+            if self.read_write_if is not None and self.filename_dict is not None:
                 self.read_write_if.set_filename_dict(filename_dict)
-            if self.node_if is not None:
+            if self.node_if is not None and self.filename_dict is not None:
                 self.node_if.set_param('filename_dict',self.filename_dict)
                 self.node_if.save_config()
 
@@ -1742,7 +1743,7 @@ class SaveDataIF:
             self.data_product_snapshot_reset(data_product)
             return ''
         else:
-            if self.disabled == False:
+            if self.disabled == False and self.filename_dict is not None:
                 should_save = self.data_product_should_save(data_product)
                 snapshot_enabled = self.data_product_snapshot_enabled(data_product)
                 # Save data if enabled
@@ -1812,14 +1813,15 @@ class SaveDataIF:
             status_msg.save_data_topic = self.namespace
             status_msg.filename_config = self.create_filename_msg()
             status_msg.data_dir = self.save_path
-            filename_dict = copy.deepcopy(self.filename_dict)
-            try:
-                status_msg.filename_prefix = ['prefix']
-                status_msg.save_subfolder = filename_dict['subfolder']
-                status_msg.save_data_utc = filename_dict['use_utc_tz']
-            except Exception as e:
-                 self.msg_if.pub_warn("Failed to Publish filename dict: " + str(e), log_name_list = self.log_name_list, throttle_s = 5)
-            #self.msg_if.pub_warn("Publishing filename dict: " + str(filename_dict), log_name_list = self.log_name_list, throttle_s = 5)
+            if self.filename_dict is not None:
+                filename_dict = copy.deepcopy(self.filename_dict)
+                try:
+                    status_msg.filename_prefix = ['prefix']
+                    status_msg.save_subfolder = filename_dict['subfolder']
+                    status_msg.save_data_utc = filename_dict['use_utc_tz']
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to Publish filename dict: " + str(e), log_name_list = self.log_name_list, throttle_s = 5)
+                #self.msg_if.pub_warn("Publishing filename dict: " + str(filename_dict), log_name_list = self.log_name_list, throttle_s = 5)
 
             status_msg.timezone = self.timezone
             status_msg.data_products = list(save_rate_dict.keys())
@@ -1838,10 +1840,11 @@ class SaveDataIF:
             if self.save_data_root_directory is not None:
                 status_msg.data_dir = self.save_data_root_directory
 
-            if self.filename_dict['use_utc_tz'] == False:
-                timezone = self.timezone
-            else:
-                timezone = 'UTC'
+            timezone = 'UTC'
+            if self.filename_dict is not None:
+                if self.filename_dict['use_utc_tz'] == False:
+                    timezone = self.timezone
+
             #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
             exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
             status_msg.example_filename = exp_filename
@@ -1966,27 +1969,31 @@ class SaveDataIF:
     def _setPrefixCb(self, msg):
         prefix = msg.data
         filename_dict = copy.deepcopy(self.filename_dict)
-        filename_dict['prefix'] = prefix
-        self.update_filename_dict(filename_dict)
+        if filename_dict is not None:
+            filename_dict['prefix'] = prefix
+            self.update_filename_dict(filename_dict)
 
 
     def _setSubfolderCb(self, msg):
         subfolder = msg.data
         filename_dict = copy.deepcopy(self.filename_dict)
-        filename_dict['subfolder'] = subfolder
-        self.update_filename_dict(filename_dict)
+        if filename_dict is not None:
+            filename_dict['subfolder'] = subfolder
+            self.update_filename_dict(filename_dict)
 
 
     def _setLocalTzCb(self, msg):
         use_utc = msg.data
         filename_dict = copy.deepcopy(self.filename_dict)
-        filename_dict['use_utc_tz'] = use_utc
-        self.update_filename_dict(filename_dict)
+        if filename_dict is not None:
+            filename_dict['use_utc_tz'] = use_utc
+            self.update_filename_dict(filename_dict)
 
 
     def _setFilenameCb(self, msg):
         filename_dict = nepi_utils.convert_msg2dict(msg)
-        self.update_filename_dict(filename_dict)
+        if self.filename_dict is not None:
+            self.update_filename_dict(filename_dict)
 
 
 

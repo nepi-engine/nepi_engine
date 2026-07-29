@@ -567,25 +567,6 @@ class IDXDeviceIF:
 
         nepi_sdk.sleep(2)
 
-        ###############################
-        # Setup Settings IF Class ####################
-        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = self.namespace
-
-        self.SETTINGS_DICT = {
-                    'capSettings': capSettings, 
-                    'factorySettings': factorySettings,
-                    'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction
-                    
-        }
-
-        self.settings_if = SettingsIF(namespace = settings_ns,
-                        settings_dict = self.SETTINGS_DICT,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if)
-
 
         start_delay = nepi_utils.get_time() - self.start_time
         self.msg_if.pub_warn("", log_name_list = self.log_name_list)
@@ -597,7 +578,7 @@ class IDXDeviceIF:
         ##############################
         # Update vals from param server
         self.initCb(do_updates = True)
-        self.publish_status()
+        # self.publish_status()
 
 
         # Start the data producers
@@ -662,6 +643,27 @@ class IDXDeviceIF:
             self.caps_report.has_pointcloud = False
 
 
+
+        ###############################
+        # Setup Settings IF Class ####################
+        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+        settings_ns = self.namespace
+
+        self.SETTINGS_DICT = {
+                    'capSettings': capSettings, 
+                    'factorySettings': factorySettings,
+                    'setSettingFunction': settingUpdateFunction, 
+                    'getSettingsFunction': getSettingsFunction
+                    
+        }
+
+        self.settings_if = SettingsIF(namespace = settings_ns,
+                        settings_dict = self.SETTINGS_DICT,
+                        log_name_list = self.log_name_list,
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
 
 
         ##################################
