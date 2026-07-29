@@ -5212,7 +5212,13 @@ class DepthMapIF:
                         live_adjust_enabled = self.live_adjust_enabled,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if,
-                        node_if = self.node_if
+                        # NOTE: intentionally NOT sharing self.node_if. DepthMapImageIF
+                        # (via BaseImageIF) registers the generic 'data_pub'/'status_pub'
+                        # keys, which would clobber DepthMapIF's own entries on a shared
+                        # node_if and cross-publish raw 32FC1 (grayscale) and jet-colorized
+                        # bgr8 frames onto the same topic (the depth_map flashing bug).
+                        # Passing None makes it build its own node_if. See CLAUDE.md decision log.
+                        node_if = None
                         )
 
         self.msg_if.pub_warn("Staring updater process", log_name_list = self.log_name_list)

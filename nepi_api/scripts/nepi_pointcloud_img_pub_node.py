@@ -67,6 +67,13 @@ class PointcloudImgPub:
     connected = False
     publishing = False
 
+    # Decoupled render worker state. pointcloudCb only stashes the newest cloud
+    # (fast, so the subscriber socket keeps draining); _renderWorker does the
+    # expensive rospc->o3d conversion + Open3D render on the most recent cloud.
+    latest_msg = None
+    render_lock = threading.Lock()
+    render_thread = None
+
     last_status_time = None
     watchdog_timeout = None
 
@@ -179,6 +186,11 @@ class PointcloudImgPub:
         nepi_sdk.start_timer_process(1, self.watchdogCb, oneshot = True)
         nepi_sdk.on_shutdown(self.shutdownCb)
 
+        # Start the decoupled render worker (see pointcloudCb / _renderWorker)
+        self.render_thread = threading.Thread(target = self._renderWorker)
+        self.render_thread.daemon = True
+        self.render_thread.start()
+
         #########################################################
         ## Initiation Complete
         self.msg_if.pub_info("Initialization Complete")
@@ -234,8 +246,30 @@ class PointcloudImgPub:
 
 
     def pointcloudCb(self, msg):
+        # Keep this callback FAST. Rendering here would stall the subscriber
+        # socket during each (~1 s) Open3D render; rospy's publisher fans out to
+        # all subscribers from a single dispatch thread, so a slow read here
+        # back-pressures delivery of the large PointCloud2 to EVERY subscriber
+        # (including plain rostopic consumers), dragging the whole topic down to
+        # the render rate. Instead just stash the newest cloud and let the render
+        # worker process it; stale clouds are simply overwritten (dropped).
         self.connected = True
+        with self.render_lock:
+            self.latest_msg = msg
 
+    def _renderWorker(self):
+        # Continuously render the most recent pointcloud. Decoupled from the
+        # subscriber callback so a slow render never back-pressures the topic.
+        while not nepi_sdk.is_shutdown():
+            with self.render_lock:
+                msg = self.latest_msg
+                self.latest_msg = None
+            if msg is None:
+                time.sleep(0.005)
+                continue
+            self._renderPointcloudMsg(msg)
+
+    def _renderPointcloudMsg(self, msg):
         if self.image_if is None:
             return
         if self.img_pub_enabled == False or self.render_enable == False:
@@ -260,9 +294,6 @@ class PointcloudImgPub:
             return
         self.last_img_time = current_time
 
-        if self.publishing == True:
-            return
-        self.publishing = True
         try:
             timestamp = msg.header.stamp
             frame_id = msg.header.frame_id
@@ -275,7 +306,6 @@ class PointcloudImgPub:
                                     )
         except Exception as e:
             self.msg_if.pub_warn("Failed to render pointcloud image: " + str(e))
-        self.publishing = False
 
 
     def shutdownCb(self):
