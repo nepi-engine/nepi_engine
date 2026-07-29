@@ -50,7 +50,8 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 
 
-DEFAULT_FRAMEWORK = 'yolov8'
+DELAY_STARTUP_SEC = 60
+
 
 
 class AIDetectorManager:   
@@ -277,8 +278,8 @@ class AIDetectorManager:
 
         #ready = self.node_if.wait_for_ready()
         nepi_sdk.wait()
-
-
+        self.msg_if.pub_info("Delaying Startup Secs: " + str(DELAY_STARTUP_SEC))
+        nepi_sdk.sleep(DELAY_STARTUP_SEC)
         ###########################
 
         success = self.initCb(do_updates = True)
