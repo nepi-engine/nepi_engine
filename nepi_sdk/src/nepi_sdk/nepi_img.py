@@ -605,7 +605,7 @@ def rotate_degrees(cv2_img, deg=0):
     elif deg_str in ROTATE_DICT.keys():
         if ROTATE_DICT[deg_str] != '0':
             cv2_img = cv2.rotate(cv2_img, ROTATE_DICT[deg_str])   
-    elif abs(deg) > 1:     
+    elif abs(deg) > 0.01:     
         # Rotate about the image center while keeping the OUTPUT size identical to the
         # input (same width and height) so the display box never changes dimensions or
         # aspect ratio. Uncovered corners are filled with solid black (borderValue=0,
