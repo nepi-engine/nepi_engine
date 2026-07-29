@@ -979,13 +979,18 @@ class SaveDataIF:
 
         # Setup System IF Classes
         # Initialize with empty dict, then call update function
+
         self.read_write_if = ReadWriteIF(
                             filename_dict = dict(),
                             node_name = self.node_name
                             )
+        nepi_sdk.sleep(1)
+        self.msg_if.pub_debug("Got starting filename dict: " + str(self.filename_dict), log_name_list = self.log_name_list)
         if factory_filename_dict is not None:
             self.update_filename_dict(factory_filename_dict)
+        self.msg_if.pub_debug("Got Updated filename dict: " + str(self.filename_dict), log_name_list = self.log_name_list)
 
+        
         # Config initial data products dict
         self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^", log_name_list = self.log_name_list)
         self.msg_if.pub_debug("Starting Save_Data_IF with data products: " + str(data_products), log_name_list = self.log_name_list)
@@ -1793,7 +1798,7 @@ class SaveDataIF:
             save_rates_msg = []
             save_rate_dict = self.save_rate_dict
 
-            self.msg_if.pub_debug("Status pub save_rate_dict " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
+            #self.msg_if.pub_debug("Status pub save_rate_dict " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
             for name in save_rate_dict.keys():
                 save_rate_msg = SaveDataRate()
                 save_rate_msg.data_product = name
@@ -1801,15 +1806,21 @@ class SaveDataIF:
                 if self.disabled == False:
                     save_rate_msg.save_rate_hz = save_rate_dict[name][0]
                 save_rates_msg.append(save_rate_msg)
-                self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg), log_name_list = self.log_name_list, throttle_s = 5)
+                #self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg), log_name_list = self.log_name_list, throttle_s = 5)
             status_msg = SaveDataStatus()
             status_msg.node_name = self.node_name
             status_msg.save_data_topic = self.namespace
             status_msg.filename_config = self.create_filename_msg()
             status_msg.data_dir = self.save_path
-            status_msg.filename_prefix = self.filename_dict['prefix']
-            status_msg.save_subfolder = self.filename_dict['subfolder']
-            status_msg.save_data_utc = self.filename_dict['use_utc_tz']
+            filename_dict = copy.deepcopy(self.filename_dict)
+            try:
+                status_msg.filename_prefix = ['prefix']
+                status_msg.save_subfolder = filename_dict['subfolder']
+                status_msg.save_data_utc = filename_dict['use_utc_tz']
+            except Exception as e:
+                 self.msg_if.pub_warn("Failed to Publish filename dict: " + str(e), log_name_list = self.log_name_list, throttle_s = 5)
+            #self.msg_if.pub_warn("Publishing filename dict: " + str(filename_dict), log_name_list = self.log_name_list, throttle_s = 5)
+
             status_msg.timezone = self.timezone
             status_msg.data_products = list(save_rate_dict.keys())
             status_msg.save_data_rates = save_rates_msg
@@ -1831,7 +1842,7 @@ class SaveDataIF:
                 timezone = self.timezone
             else:
                 timezone = 'UTC'
-            self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
+            #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
             exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
             status_msg.example_filename = exp_filename
             if self.node_if is not None:
