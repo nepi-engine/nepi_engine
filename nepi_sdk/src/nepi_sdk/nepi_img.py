@@ -637,8 +637,8 @@ def translate_pixels(cv2_img, shift_x, shift_y):
 
     if abs(shift_x) > width:
        shift_x = np.sign(shift_x) * width
-    if abs(shift_y) > width:
-       shift_y = np.sign(shift_y) * width
+    if abs(shift_y) > height:
+       shift_y = np.sign(shift_y) * height
     
     # Create the 2x3 translation matrix
     # [1, 0, shift_x]

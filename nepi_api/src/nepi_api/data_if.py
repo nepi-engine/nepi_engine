@@ -4075,7 +4075,7 @@ class BaseImageIF:
         shift_x_pixels = math.floor((shift_x_scaler * width))
         shift_y_ratio = nepi_utils.check_ratio(self.live_adjust_y_ratio)
         shift_y_scaler = (shift_y_ratio - 0.5) * 2
-        shift_y_pixels = math.floor((shift_y_scaler * width))
+        shift_y_pixels = math.floor((shift_y_scaler * height))
 
 
 
