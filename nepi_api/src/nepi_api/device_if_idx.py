@@ -178,6 +178,8 @@ class IDXDeviceIF:
 
     device_disabled = False
 
+    start_time = 0
+
     #######################
     ### IF Initialization
     def __init__(self, device_info, 
@@ -210,6 +212,7 @@ class IDXDeviceIF:
         self.node_namespace = nepi_sdk.get_node_namespace()
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
 
+        self.start_time = nepi_utils.get_time()
         ##############################  
         # Create Msg Class
         if msg_if is not None:
@@ -564,6 +567,33 @@ class IDXDeviceIF:
 
         nepi_sdk.sleep(2)
 
+        ###############################
+        # Setup Settings IF Class ####################
+        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+        settings_ns = self.namespace
+
+        self.SETTINGS_DICT = {
+                    'capSettings': capSettings, 
+                    'factorySettings': factorySettings,
+                    'setSettingFunction': settingUpdateFunction, 
+                    'getSettingsFunction': getSettingsFunction
+                    
+        }
+
+        self.settings_if = SettingsIF(namespace = settings_ns,
+                        settings_dict = self.SETTINGS_DICT,
+                        log_name_list = self.log_name_list,
+                            msg_if = self.msg_if,
+                            node_if = self.node_if)
+
+
+        start_delay = nepi_utils.get_time() - self.start_time
+        self.msg_if.pub_warn("", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("##########################", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Settings IF Initialization Complete: : " + str(start_delay), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("##########################", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("", log_name_list = self.log_name_list)
+
         ##############################
         # Update vals from param server
         self.initCb(do_updates = True)
@@ -630,28 +660,6 @@ class IDXDeviceIF:
             self.caps_report.has_pointcloud = True
         else:
             self.caps_report.has_pointcloud = False
-
-
-        ###############################
-        # Setup Settings IF Class ####################
-        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = self.namespace
-
-        self.SETTINGS_DICT = {
-                    'capSettings': capSettings, 
-                    'factorySettings': factorySettings,
-                    'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction
-                    
-        }
-
-        self.settings_if = SettingsIF(namespace = settings_ns,
-                        settings_dict = self.SETTINGS_DICT,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
 
 
 
@@ -789,29 +797,34 @@ class IDXDeviceIF:
 
         nepi_sdk.start_timer_process(1, self.publishStatusCb)
 
-        if self.getNavPoseCb is not None:
-            ###############################
-            # Create a NPX Device IF
-            self.msg_if.pub_warn("Starting NPX Class Initialization")
+        # if self.getNavPoseCb is not None:
+        #     ###############################
+        #     # Create a NPX Device IF
+        #     self.msg_if.pub_warn("Starting NPX Class Initialization")
 
-            if self.getNavPoseCb is not None:
-                self.msg_if.pub_warn("Starting NPX Device IF Initialization")
-                self.npx_if = NPXDeviceIF(device_info = self.device_info_dict,
-                    node_namespace = self.node_namespace,
-                    data_source_description = self.data_source_description,
-                    data_ref_description = self.data_ref_description,
-                    getNavPoseCb = self.getNavPoseCb,
-                    max_navpose_update_rate = self.navpose_update_rate,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+        #     if self.getNavPoseCb is not None:
+        #         self.msg_if.pub_warn("Starting NPX Device IF Initialization")
+        #         self.npx_if = NPXDeviceIF(device_info = self.device_info_dict,
+        #             node_namespace = self.node_namespace,
+        #             data_source_description = self.data_source_description,
+        #             data_ref_description = self.data_ref_description,
+        #             getNavPoseCb = self.getNavPoseCb,
+        #             max_navpose_update_rate = self.navpose_update_rate,
+        #                     msg_if = self.msg_if)
+        #                     # msg_if = self.msg_if,
+        #                     # node_if = self.node_if
+        #                     # )
 
 
     
         ####################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        start_delay = nepi_utils.get_time() - self.start_time
+        self.msg_if.pub_warn("", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("##########################", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("IF Initialization Complete: " + str(start_delay), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("##########################", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("", log_name_list = self.log_name_list)
         ####################################
 
         
