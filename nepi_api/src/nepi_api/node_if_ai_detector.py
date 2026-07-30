@@ -48,7 +48,7 @@ from nepi_sdk import nepi_img
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
-# from nepi_api.processes_if import DetectionsIF, TargetsIF
+# from nepi_api.process_if import DetectionsIF, DetectionsImageIF, TargetsIF, TargetsImageIF
 
 
 SYSTEM_ALL_TOPIC = 'all'
