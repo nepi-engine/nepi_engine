@@ -860,11 +860,26 @@ def overlay_contours(cv2_img,contours3, color_rgb = (0, 255, 0)):
     cv2_img_out = copy.deepcopy(cv2_img)
     cv2.drawContours(cv2_img_out, contours3, -1, color_rgb, 2, cv2.LINE_AA)
     return cv2_img_out
-  
-def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None, thickness = None, background_rgb = None, apply_shadow = False):
+
+
+def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3):
+    shape = cv2_img.shape
+    h=shape[0]
+    w=shape[1]
+    font_scale = min(w, h) * font_scale
+    thickness = math.ceil(min(w, h) * thickness_scale)
+    return font_scale, thickness  
+
+def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None, thickness = None, background_rgb = None, apply_shadow = True):
     # Add text overlay
     if scale is None or thickness is None:
-        scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+        new_scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+        if scale is None:
+           scale = new_scale
+        else:
+           thickness = thickness * (2 * scale)
+
+       
     font = cv2.FONT_HERSHEY_SIMPLEX
     fontColor              = color_rgb
     lineType               = 1
@@ -888,7 +903,7 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
       top_right_box = (x_px + line_width + x_padding, y_px - line_height - y_padding )
 
       try:
-          cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, background_rgb , -1)
+          cv2.rectangle(cv2_img, bot_left_box, top_right_box, background_rgb , -1)
       except Exception as e:
            logger.log_warn("Failed to add text background box: " + str(e), throttle_s = 5)
 
@@ -920,7 +935,7 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
     return cv2_img
  
 def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0),
-    scale = None, thickness = None, size_ratio = 0.5, background_rgb = None, apply_shadow = False):
+    scale = None, thickness = None, size_ratio = 0.5, background_rgb = None, apply_shadow = True):
     # Add text overlay
     x_px = int(x_px)
     y_px = int(y_px)
@@ -945,42 +960,44 @@ def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0,
     return cv2_img
 
     
-def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3):
-    shape = cv2_img.shape
-    h=shape[0]
-    w=shape[1]
-    font_scale = min(w, h) * font_scale
-    thickness = math.ceil(min(w, h) * thickness_scale)
-    return font_scale, thickness
-    
 def overlay_rectangle(cv2_img,bot_left_px, top_right_px, color=(255,0,0), alpha = 0.4):
       overlay = cv2_img.copy()
       cv2.rectangle(overlay, bot_left_px, top_right_px, color, -1)
       cv2_img = cv2.addWeighted(overlay, alpha, cv2_img, 1 - alpha, 0)
       return cv2_img
 
-def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size=10, thickness=2, size_ratio = 0.5, overlay_text_list = []):
+def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5, thickness_ratio = 0.5, size=None, thickness=None,  text_list = [], text_ratio = 0.5):
     """Draws a crosshair on an image at a given (x_px, y_px) position."""
     # Draw vertical line
     # if size is None or thickness is None:
     #     size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    shape = cv2_img.shape
+    h=shape[0]
+    w=shape[1]  
+    hw_min = min(h,w)
+    hw_size = math.ceil((0.05 * hw_min))  
+    hw_thickness = math.ceil((0.004 * hw_min))
     if size is None:
-       size = 10
-    if size == 0:
-       size = 10
+       size = hw_size
+
     if thickness is None:
-       thickness = 2
-    if thickness == 0:
-       thickness = 2    
-    size = int(size * (0.5 + size_ratio))
-    thickness = int(thickness * (0.5 + size_ratio))
+       thickness = hw_thickness
+   
+    size = int(size * (size_ratio * 2) )
+    thickness = int(thickness * (thickness_ratio * 2))
+    if size < 5:
+       size = 5
+    if thickness < 1:
+       thickness = 1 
     size_ratio = nepi_utils.check_ratio(size_ratio)
     cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color_rgb, thickness)
     # Draw horizontal line
     cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color_rgb, thickness)
-    if len(overlay_text_list) > 0:
-        pass
-
+    if len(text_list) > 0:
+        x_px = x_px
+        y_padding = math.ceil((0.02 * h) + size / 2 ) 
+        y_px = y_px + y_padding
+        cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio)
     return cv2_img
 
 def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px = 20, h_px = 20):

@@ -1070,6 +1070,13 @@ class BaseImageIF:
         frame_updated_callback = None
     )
 
+    BLANK_CROSSHAIR_DICT = dict(
+        x_ratio = 0.5,
+        y_ratio = 0.5,
+        color_rgb = (0,255,0),
+        msg_str = ''
+    )
+
     DEFAULT_OVERLAYS_DICT = dict(
             overlay_img_name = False,
             overlay_date_time = False,
@@ -1081,6 +1088,7 @@ class BaseImageIF:
             overlay_crosshair_names = False,
             overlay_crosshair_pixels = False,
             overlay_crosshair_degrees = False,
+            overlay_crosshair_messages = False,
             crosshairs_dict = dict()
     )
 
@@ -1126,6 +1134,8 @@ class BaseImageIF:
 
     overlay_size_ratio = 0.5
     crosshairs_size_ratio = 0.5
+    crosshairs_thickness_ratio = 0.5
+    crosshairs_text_ratio = 0.5
     click_crosshair_enabled = False
     crosshairs_color_rgb = (0,255,0)
     overlays_dict = copy.deepcopy(DEFAULT_OVERLAYS_DICT) 
@@ -1431,6 +1441,14 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.crosshairs_size_ratio
             },
+            'crosshairs_thickness_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.crosshairs_thickness_ratio
+            },
+            'crosshairs_text_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.crosshairs_text_ratio
+            },
             'crosshairs_color_rgb': {
                 'namespace': self.namespace,
                 'factory_val': self.crosshairs_color_rgb
@@ -1624,12 +1642,26 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._clearOverlayListCb
             },
-            'crosshairs_size_ration': {
+            'crosshairs_size_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_crosshairs_size_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsSizeRatioCb
+            },
+            'crosshairs_thickness_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_crosshairs_thickness_ratio',
+                'qsize': 5,
+                'callback': self._setCrosshairsThicknessRatioCb
+            },
+            'crosshairs_text_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_crosshairs_text_ratio',
+                'qsize': 5,
+                'callback': self._setCrosshairsTextRatioCb
             },
             'crosshairs_color_rgb': {
                 'msg': ColorBGR,
@@ -1665,6 +1697,13 @@ class BaseImageIF:
                 'topic': 'overlay_crosshair_degrees',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairDegreesCb
+            },
+            'overlay_crosshair_messages': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_crosshair_messages',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairMessagesCb
             },
             'click_crosshair_enable': {
                 'msg': Bool,
@@ -1830,12 +1869,26 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._clearOverlayListCb
             },
-            'all_crosshairs_size_ration': {
+            'all_crosshairs_size_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_crosshairs_size_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsSizeRatioCb
+            },
+            'all_crosshairs_thickness_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_thickness_ratio',
+                'qsize': 5,
+                'callback': self._setCrosshairsThicknessRatioCb
+            },
+            'all_crosshairs_text_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_text_ratio',
+                'qsize': 5,
+                'callback': self._setCrosshairsTextRatioCb
             },
             'all_crosshairs_color_rgb': {
                 'msg': ColorBGR,
@@ -1865,12 +1918,12 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairPixelsCb
             },
-            'all_overlay_crosshair_degrees': {
+            'all_overlay_crosshair_messages': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
-                'topic': 'overlay_crosshair_degrees',
+                'topic': 'overlay_crosshair_messages',
                 'qsize': 5,
-                'callback': self._setrOverlayCrosshairDegreesCb
+                'callback': self._setrOverlayCrosshairMessagesCb
             },
             'all_click_crosshair_enable': {
                 'msg': Bool,
@@ -2240,7 +2293,7 @@ class BaseImageIF:
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
 
 
-        ####################
+        # ###################
         # if navpose_if is not None:
         #     self.navpose_if = navpose_if
         # else:
@@ -2717,36 +2770,44 @@ class BaseImageIF:
                         overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
                         overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
                         overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
+                        overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
                         if crosshair_len > 0 and overlay_crosshairs == True:
                             
                             for crosshair_name in crosshairs_dict.keys():
-                                crosshair = crosshairs_dict[crosshair_name]
-                                #self.msg_if.pub_warn("Rendering image with crosshair: " + str(crosshair) , log_name_list = self.log_name_list)
-                                
-                                x_ratio = crosshair[0]
+                                crosshair_dict = crosshairs_dict[crosshair_name]
+                                #self.msg_if.pub_warn("Rendering image with crosshair_dict: " + str(crosshair_dict) , log_name_list = self.log_name_list)
+        
+
+                                x_ratio = crosshair_dict['x_ratio']
                                 crosshair_x = int(x_ratio * width)
-                                y_ratio = crosshair[1]
+                                crosshair_x_deg = round(width_deg/2 + ((x_ratio - 0.5) * width_deg/2))
+                                y_ratio = crosshair_dict['y_ratio']
                                 crosshair_y = int(y_ratio * height)
-                                try:
-                                    crosshair_rbg = (crosshair[2],crosshair[3],crosshair[4])
-                                except:
-                                    crosshair_rbg = (0,255,0)
+                                crosshair_y_deg = round(height_deg/2 + ((y_ratio - 0.5) * height_deg/2))
+                                crosshair_rbg = crosshair_dict['color_rgb']
+                                crosshair_msg = crosshair_dict['msg_str']
 
                                 overlay_text = []
                                 if overlay_crosshair_names == True:
                                     overlay_text.append(crosshair_name)
                                 if overlay_crosshair_pixels == True:
-                                    overlay_text.append(str(crosshairs_dict['x_pixel']) + ',' + str(crosshairs_dict['y_pixel']))
+                                    overlay_text.append(str(crosshair_x) + ',' + str(crosshair_y))
                                 if overlay_crosshair_degrees == True:
-                                    overlay_text.append(str(crosshairs_dict['x_offset_deg']) + ',' + str(crosshairs_dict['y_offset_deg']))
+                                    overlay_text.append(str(crosshair_x_deg) + ',' + str(crosshair_y_deg))
+                                if overlay_crosshair_messages == True and len(crosshair_msg) > 0:
+                                    overlay_text.append(str(crosshair_msg))
 
                                 crosshairs_size_ratio = self.crosshairs_size_ratio
+                                crosshairs_thickness_ratio = self.crosshairs_thickness_ratio
+                                crosshairs_text_ratio = self.crosshairs_text_ratio
                                 #self.msg_if.pub_warn("Rendering image crosshair: " + str([crosshair_x,crosshair_y]) , log_name_list = self.log_name_list)
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
                                                         x_px = crosshair_x , y_px = crosshair_y, 
                                                         color_rgb = crosshair_rbg, 
                                                         size_ratio =  crosshairs_size_ratio,
-                                                        overlay_text_list = overlay_text)
+                                                        thickness_ratio = crosshairs_thickness_ratio,
+                                                        text_list = overlay_text,
+                                                        text_ratio = crosshairs_text_ratio)
                                 
 
 
@@ -3511,6 +3572,32 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param('crosshairs_size_ratio', ratio)
 
+    def set_crosshairs_thickness_ratio(self, ratio):
+        """Set the relative thickness of text overlays on the image.
+
+        Args:
+            ratio (float): Text thickness ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.crosshairs_thickness_ratio = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('crosshairs_thickness_ratio', ratio)
+
+    def set_crosshairs_text_ratio(self, ratio):
+        """Set the relative text of text overlays on the image.
+
+        Args:
+            ratio (float): Text text ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.crosshairs_text_ratio = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('crosshairs_text_ratio', ratio)
+
     def set_crosshairs_color_rgb(self, r = 0, g = 255, b = 0):
         self.crosshairs_color_rgb = (r,g,b)
         self.publish_status()
@@ -3532,10 +3619,10 @@ class BaseImageIF:
 
 
     def set_overlay_crosshair_names(self,enabled):
-        """Enable or disable the crosshair overlays.
+        """Enable or disable the crosshair names overlays.
 
         Args:
-            enabled (bool): True to show crosshairs data, False to hide it.
+            enabled (bool): True to show crosshairs name data, False to hide it.
         """
         self.overlays_dict['overlay_crosshair_names'] = enabled
         self.publish_status()
@@ -3544,10 +3631,10 @@ class BaseImageIF:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_crosshair_pixels(self,enabled):
-        """Enable or disable the crosshair overlays.
+        """Enable or disable the crosshair pixels overlays.
 
         Args:
-            enabled (bool): True to show crosshairs data, False to hide it.
+            enabled (bool): True to show crosshairs pixel data, False to hide it.
         """
         self.overlays_dict['overlay_crosshair_pixels'] = enabled
         self.publish_status()
@@ -3556,12 +3643,24 @@ class BaseImageIF:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_overlay_crosshair_degrees(self,enabled):
-        """Enable or disable the crosshair overlays.
+        """Enable or disable the crosshair degrees overlays.
 
         Args:
-            enabled (bool): True to show crosshairs data, False to hide it.
+            enabled (bool): True to show crosshairs degrees data, False to hide it.
         """
         self.overlays_dict['overlay_crosshair_degrees'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_crosshair_messages(self,enabled):
+        """Enable or disable the crosshair messages overlays.
+
+        Args:
+            enabled (bool): True to show crosshairs messages, False to hide it.
+        """
+        self.overlays_dict['overlay_crosshair_messages'] = enabled
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
@@ -3577,7 +3676,7 @@ class BaseImageIF:
         self.publish_status()
 
 
-    def add_crosshair(self, x_ratio, y_ratio, name = None, color_rgb = None):
+    def add_crosshair(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
         """Append a crosshair overlay at pixel location.
 
         Args:
@@ -3593,9 +3692,14 @@ class BaseImageIF:
             if name != '':
                 ch_name = name
         if color_rgb is None:
-            color_rgb = (0,255,0)
-        crosshairs_dict[ch_name] = [x_ratio, y_ratio,color_rgb]
-        self.overlays_dict['crosshairs_dict'] = crosshairs_dict
+            color_rgb = self.crosshairs_color_rgb
+        crosshair_dict = copy.deepcopy(self.BLANK_CROSSHAIR_DICT)
+        crosshair_dict['x_ratio'] = x_ratio
+        crosshair_dict['y_ratio'] = y_ratio
+        crosshair_dict['color_rgb'] = color_rgb
+        crosshair_dict['msg_str'] = msg_str
+
+        self.overlays_dict['crosshairs_dict'][ch_name] = crosshair_dict
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
@@ -3860,38 +3964,46 @@ class BaseImageIF:
 
             
             crosshairs_dict = self.overlays_dict['crosshairs_dict']
-
+            #self.msg_if.pub_info("Publishing crosshairs_dict: " + str(crosshairs_dict), log_name_list = self.log_name_list)
             crosshairs_msg_list = []
             for crosshair_name in crosshairs_dict.keys():
                 crosshair_msg = ImageCrosshair()
                 crosshair_msg.name = crosshair_name
-                crosshairs = crosshairs_dict[crosshair_name]
-                xor = crosshairs[0]
-                crosshair_msg.x_ratio = xor
-                crosshair_msg.x_offset_deg = round((xor - 0.5)*2 * self.width_deg/2, 2)
-                crosshair_msg.x_offset_pixel = int((xor - 0.5)*2 * self.width_org/2)
-                crosshair_msg.x_pixel = int(round(self.width_org/2 + crosshair_msg.x_offset_pixel))
-                yor = crosshairs[1]
-                crosshair_msg.y_ratio = yor
-                crosshair_msg.y_offset_deg = round((yor - 0.5)*2 * self.height_deg/2, 2)
-                crosshair_msg.y_offset_pixel = int((yor - 0.5)*2 * self.height_org/2)
-                crosshair_msg.y_pixel = int(round(self.height_org/2 + crosshair_msg.y_offset_pixel))
+                crosshair_dict = crosshairs_dict[crosshair_name]
                 try:
-                    crosshair_msg.r = crosshairs[2]
-                    crosshair_msg.g = crosshairs[3]
-                    crosshair_msg.b = crosshairs[4]
+                    xor = crosshair_dict['x_ratio']
+                    crosshair_msg.x_ratio = xor
+                    crosshair_msg.x_offset_deg = round((xor - 0.5)*2 * self.width_deg/2, 2)
+                    crosshair_msg.x_offset_pixel = int((xor - 0.5)*2 * self.width_org/2)
+                    crosshair_msg.x_pixel = int(round(self.width_org/2 + crosshair_msg.x_offset_pixel))
+                    yor = crosshair_dict['y_ratio']
+                    crosshair_msg.y_ratio = yor
+                    crosshair_msg.y_offset_deg = round((yor - 0.5)*2 * self.height_deg/2, 2)
+                    crosshair_msg.y_offset_pixel = int((yor - 0.5)*2 * self.height_org/2)
+                    crosshair_msg.y_pixel = int(round(self.height_org/2 + crosshair_msg.y_offset_pixel))
+
+                    crosshair_msg.r = crosshair_dict['color_rgb'][0]
+                    crosshair_msg.g = crosshair_dict['color_rgb'][1]
+                    crosshair_msg.b = crosshair_dict['color_rgb'][2]
+
+
+                    crosshair_msg.msg_str = str(crosshair_dict['msg_str'])
+                    crosshairs_msg_list.append(crosshair_msg)
                 except:
-                    crosshair_msg.r = 0
-                    crosshair_msg.g = 255
-                    crosshair_msg.b = 0
-                crosshairs_msg_list.append(crosshair_msg)
+                    pass
+                    
+
+                
             self.status_msg.overlay_crosshairs = self.overlays_dict['overlay_crosshairs']
             self.status_msg.overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
             self.status_msg.overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
             self.status_msg.overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
+            self.status_msg.overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
             self.status_msg.num_crosshairs = len(list(crosshairs_dict.keys()))
             self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
             self.status_msg.crosshairs_size_ratio = self.crosshairs_size_ratio
+            self.status_msg.crosshairs_thickness_ratio = self.crosshairs_thickness_ratio
+            self.status_msg.crosshairs_text_ratio = self.crosshairs_text_ratio
             self.status_msg.crosshairs_color_r = self.crosshairs_color_rgb[0]
             self.status_msg.crosshairs_color_g = self.crosshairs_color_rgb[1]
             self.status_msg.crosshairs_color_b = self.crosshairs_color_rgb[2]
@@ -3905,7 +4017,7 @@ class BaseImageIF:
                 if avg_time > .01:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
-            #self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg), log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg), log_name_list = self.log_name_list, throttle_s = 5)
             self.node_if.publish_pub('status_pub',self.status_msg)
 
 
@@ -3943,8 +4055,22 @@ class BaseImageIF:
                 self.filter_dict = dict()
             self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
             self.crosshairs_size_ratio = self.node_if.get_param('crosshairs_size_ratio')
+            self.crosshairs_thickness_ratio = self.node_if.get_param('crosshairs_thickness_ratio')
+            self.crosshairs_text_ratio = self.node_if.get_param('crosshairs_text_ratio')
             self.crosshairs_color_rgb = self.node_if.get_param('crosshairs_color_rgb')
             overlays_dict = self.node_if.get_param('overlays_dict')
+            crosshairs_dict = dict()
+            if 'crosshairs_dict' in overlays_dict.keys():
+                for name in overlays_dict['crosshairs_dict'].keys():
+                    try:
+                        crosshair_dict = overlays_dict['crosshairs_dict'][name]
+                        for key in self.BLANK_CROSSHAIR_DICT.keys():
+                            if key not in crosshair_dict.keys():
+                                crosshair_dict[key] = self.BLANK_CROSSHAIR_DICT[key]
+                        crosshairs_dict[name] = crosshair_dict
+                    except:
+                        pass
+            overlays_dict['crosshairs_dict'] = crosshairs_dict
             if overlays_dict is not None:
                 for key in self.overlays_dict.keys():
                     if key in overlays_dict.keys():
@@ -4114,17 +4240,16 @@ class BaseImageIF:
                 pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
             angles = [pixel_vert_angle_deg,pixel_vert_angle_deg]
             #self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enabled), log_name_list = self.log_name_list)
-            if self.click_crosshair_enabled == True and click_count == 1:
-                            self.click_crosshair_enabled = False
-                            color_rgb = self.crosshairs_color_rgb
-                            x_ratio = float(pixel[0] / image_width)
-                            y_ratio = float(pixel[1] / image_height)
-                            self.add_crosshair(x_ratio,y_ratio, name = None, color_rgb = color_rgb)
-            elif self.callback_dict['click_pixel_callback'] is not None:
+            if self.callback_dict['click_pixel_callback'] is not None:
                     try:
                         self.callback_dict['click_pixel_callback'](pixel,color_bgr,click_count,angles)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to call mouse click_pixel_callback: " + str(e), log_name_list = self.log_name_list)
+            elif self.click_crosshair_enabled == True and click_count == 1:
+                            self.click_crosshair_enabled = False
+                            x_ratio = float(pixel[0] / image_width)
+                            y_ratio = float(pixel[1] / image_height)
+                            self.add_crosshair(x_ratio,y_ratio, name = None)
             else:
                     if click_count == 1:
                         #self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
@@ -4388,6 +4513,14 @@ class BaseImageIF:
         ratio = msg.data
         self.set_crosshairs_size_ratio(ratio)
 
+    def _setCrosshairsThicknessRatioCb(self,msg):
+        ratio = msg.data
+        self.set_crosshairs_thickness_ratio(ratio)
+
+    def _setCrosshairsTextRatioCb(self,msg):
+        ratio = msg.data
+        self.set_crosshairs_text_ratio(ratio)
+
     def _setCrosshairsColorRGBCb(self,msg):
         r = msg.r
         g = msg.g
@@ -4406,10 +4539,15 @@ class BaseImageIF:
     def _setrOverlayCrosshairPixelsCb(self,msg):
         enabled = msg.data
         self.set_overlay_crosshair_pixels(enabled)
+        
 
     def _setrOverlayCrosshairDegreesCb(self,msg):
         enabled = msg.data
         self.set_overlay_crosshair_degrees(enabled)
+
+    def _setrOverlayCrosshairMessagesCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_crosshair_messages(enabled)
 
     def _clickCrosshairEnableCb(self,msg):
         enbled = msg.data
@@ -4426,7 +4564,9 @@ class BaseImageIF:
         r = msg.r
         g = msg.g
         b = msg.b
-        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b))
+        msg_str = msg.msg_str
+        self.click_crosshair_enabled = False
+        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
     def _addCrosshairRatiosCb(self,msg):
         name = msg.name
@@ -4435,7 +4575,9 @@ class BaseImageIF:
         r = msg.r
         g = msg.g
         b = msg.b
-        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b))
+        msg_str = msg.msg_str
+        self.click_crosshair_enabled = False
+        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
 
     def _addCrosshairDegreesCb(self,msg):
@@ -4449,14 +4591,18 @@ class BaseImageIF:
         r = msg.r
         g = msg.g
         b = msg.b
-        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b))
+        msg_str = msg.msg_str
+        self.click_crosshair_enabled = False
+        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
     def _removeCrosshairCb(self,msg):
         name = msg.data
+        self.click_crosshair_enabled = False
         self.remove_crosshair(name)
 
 
     def _clearCrosshairsCb(self,msg):
+        self.click_crosshair_enabled = False
         self.clear_crosshairs()
 
 
@@ -5417,7 +5563,7 @@ class DepthMapIF:
         """Publish a NumPy depth map array as a ROS Image message.
 
         Also forwards the depth map to the DepthMapImageIF for colorized image
-        generation (if pub_image was True at construction) and saves to disk via
+        generatio (if pub_image was True at construction) and saves to disk via
         SaveDataIF if registered.
 
         Args:
@@ -6888,7 +7034,7 @@ class PointcloudIF:
                         add_pubs = []):
         """Publish an Open3D pointcloud as a ROS PointCloud2 message.
 
-        Also forwards the pointcloud to the PointcloudImageIF for image generation
+        Also forwards the pointcloud to the PointcloudImageIF for image generatio
         (if pub_image was True at construction) and saves to disk via SaveDataIF
         if registered.
 

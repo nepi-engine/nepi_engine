@@ -181,6 +181,12 @@ class ConnectImagesAllIF:
                 'msg': Bool,
                 'qsize': 1,
             },
+            'all_overlay_crosshair_messages': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_crosshair_messages',
+                'msg': Bool,
+                'qsize': 1,
+            },
             'all_click_crosshair_enable': {
                 'namespace': self.all_namespace,
                 'topic': 'click_crosshair_enable',
@@ -456,6 +462,16 @@ class ConnectImagesAllIF:
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
+    def set_overlay_crosshair_messages(self, enable):
+        """Enable or disable crosshair messages coordinate labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay crosshair messages coordinates, False to hide them.
+        """
+        pub_name = 'all_overlay_crosshair_messages'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
     def set_click_crosshair_enable(self, enable):
         """Enable or disable adding a crosshair at the clicked location on every IDX image.
 
@@ -466,7 +482,7 @@ class ConnectImagesAllIF:
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
-    def add_crosshair_pixel(self, name, x_pixel, y_pixel, color_rgb = (0,255,0)):
+    def add_crosshair_pixel(self, name, x_pixel, y_pixel, color_rgb = (0,255,0), msg_str = ''):
         """Add a named crosshair at a pixel location on every IDX image output.
 
         Args:
@@ -482,6 +498,7 @@ class ConnectImagesAllIF:
         msg.r = color_rgb[0]
         msg.g = color_rgb[1]
         msg.b = color_rgb[2]
+        msg.msg_str = msg_str
         self.node_if.publish_pub(pub_name, msg)
 
     def add_crosshair_ratios(self, name, x_ratio, y_ratio, color_rgb = (0,255,0)):
