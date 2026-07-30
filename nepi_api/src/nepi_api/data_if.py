@@ -2780,10 +2780,10 @@ class BaseImageIF:
 
                                 x_ratio = crosshair_dict['x_ratio']
                                 crosshair_x = int(x_ratio * width)
-                                crosshair_x_deg = round(width_deg/2 + ((x_ratio - 0.5) * width_deg/2))
+                                crosshair_x_deg = round( -1 * ((x_ratio - 0.5) * width_deg/2),2)
                                 y_ratio = crosshair_dict['y_ratio']
                                 crosshair_y = int(y_ratio * height)
-                                crosshair_y_deg = round(height_deg/2 + ((y_ratio - 0.5) * height_deg/2))
+                                crosshair_y_deg = round(((y_ratio - 0.5) * height_deg/2),2)
                                 crosshair_rbg = crosshair_dict['color_rgb']
                                 crosshair_msg = crosshair_dict['msg_str']
 
