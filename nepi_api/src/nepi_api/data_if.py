@@ -70,7 +70,7 @@ from sensor_msgs.msg import PointCloud2
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF, Transform3DIF
-#from nepi_api.connect_data_if import ConnectNavPosesIF
+from nepi_api.connect_data_if import ConnectNavPoseIF
 
 
 SYSTEM_ALL_TOPIC = 'all'
@@ -2293,26 +2293,25 @@ class BaseImageIF:
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
 
 
-        # ###################
-        # if navpose_if is not None:
-        #     self.navpose_if = navpose_if
-        # else:
-        #     # Setup NavPose IF Class 
-        #     self.msg_if.pub_info("Starting NavPose IF Initialization")
-        #     np_namespace = self.namespace
-        #     if navpose_namespace is not None:
-        #         np_namespace = navpose_namespace
-            
-        #     self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
-        #                                 save_data_if = self.save_data_if,
-        #                                 log_name_list = self.log_name_list,
-        #                                 msg_if = self.msg_if,
-        #                                node_if = self.node_if)
-            
-        # if self.navpose_if is not None:
-        #     navpose_topic = self.navpose_if.get_namespace()
-        #     self.status_msg.navpose_topic = navpose_topic
-        #     self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+        ####################
+        if navpose_if is not None:
+            self.navpose_if = navpose_if
+        else:
+            # Setup NavPose Connect IF Class
+            self.msg_if.pub_info("Starting NavPose IF Initialization")
+            np_namespace = self.namespace
+            if navpose_namespace is not None:
+                np_namespace = navpose_namespace
+
+            self.navpose_if = ConnectNavPoseIF(namespace = np_namespace,
+                                        msg_if = self.msg_if,
+                                        node_if = self.node_if)
+
+        if self.navpose_if is not None:
+            navpose_topic = self.navpose_if.get_namespace()
+            navpose_namespace = navpose_topic
+            self.status_msg.navpose_topic = navpose_topic
+            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
 
         ##############################
         # Start Node Processes
@@ -5328,27 +5327,25 @@ class DepthMapIF:
 
 
         ####################
-        self.navpose_if = navpose_if
-        # if navpose_if is not None:
-        #     self.navpose_if = navpose_if
-        # else:
-        #     # Setup NavPose IF Class 
-        #     self.msg_if.pub_info("Starting NavPose IF Initialization")
-        #     np_namespace = self.namespace
-        #     if navpose_namespace is not None:
-        #         np_namespace = navpose_namespace
-            
-        #     self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
-        #                                 save_data_if = self.save_data_if,
-        #                                 log_name_list = self.log_name_list,
-        #                                 msg_if = self.msg_if,
-        #                                node_if = self.node_if)
-            
-        # if self.navpose_if is not None:
-        #     navpose_topic = self.navpose_if.get_namespace()
-        #      navpose_namespace = navpose_topic
-        #     self.status_msg.navpose_topic = navpose_topic
-        #     self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+        ####################
+        if navpose_if is not None:
+            self.navpose_if = navpose_if
+        else:
+            # Setup NavPose Connect IF Class
+            self.msg_if.pub_info("Starting NavPose IF Initialization")
+            np_namespace = self.namespace
+            if navpose_namespace is not None:
+                np_namespace = navpose_namespace
+
+            self.navpose_if = ConnectNavPoseIF(namespace = np_namespace,
+                                        msg_if = self.msg_if,
+                                        node_if = self.node_if)
+
+        if self.navpose_if is not None:
+            navpose_topic = self.navpose_if.get_namespace()
+            navpose_namespace = navpose_topic
+            self.status_msg.navpose_topic = navpose_topic
+            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
 
             
 
@@ -6744,27 +6741,25 @@ class PointcloudIF:
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
 
         ####################
-        self.navpose_if = navpose_if
-        # if navpose_if is not None:
-        #     self.navpose_if = navpose_if
-        # else:
-        #     # Setup NavPose IF Class 
-        #     self.msg_if.pub_info("Starting NavPose IF Initialization")
-        #     np_namespace = self.namespace
-        #     if navpose_namespace is not None:
-        #         np_namespace = navpose_namespace
-            
-        #     self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,   
-        #                                 save_data_if = self.save_data_if,
-        #                                 log_name_list = self.log_name_list,
-        #                                 msg_if = self.msg_if,
-        #                               node_if = self.node_if)
-            
-        # if self.navpose_if is not None:
-        #     navpose_topic = self.navpose_if.get_namespace()
-        #      navpose_namespace = navpose_topic
-        #     self.status_msg.navpose_topic = navpose_topic
-        #     self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+        ####################
+        if navpose_if is not None:
+            self.navpose_if = navpose_if
+        else:
+            # Setup NavPose Connect IF Class
+            self.msg_if.pub_info("Starting NavPose IF Initialization")
+            np_namespace = self.namespace
+            if navpose_namespace is not None:
+                np_namespace = navpose_namespace
+
+            self.navpose_if = ConnectNavPoseIF(namespace = np_namespace,
+                                        msg_if = self.msg_if,
+                                        node_if = self.node_if)
+
+        if self.navpose_if is not None:
+            navpose_topic = self.navpose_if.get_namespace()
+            navpose_namespace = navpose_topic
+            self.status_msg.navpose_topic = navpose_topic
+            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
 
         ####################
         self.pub_image = pub_image
