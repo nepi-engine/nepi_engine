@@ -218,15 +218,15 @@ class ProcessIF:
         self.selected_sources = clean_sources
 
         if has_imaging == True and imaging_if_api is not None and imaging_if_class is not None:
-            self.has_imaging = has_imaging,
-            self.max_image_pub_rate_hz = max_image_pub_rate_hz,
-            self.imaging_if_api = imaging_if_api,
-            self.imaging_if_class = imaging_if_class,
+            self.has_imaging = has_imaging
+            self.max_image_pub_rate_hz = max_image_pub_rate_hz
+            self.imaging_if_api = imaging_if_api
+            self.imaging_if_class = imaging_if_class
 
-        
-        self.show_selector = show_selector,
-        self.show_controls = show_controls,
-        self.show_data = show_data,
+
+        self.show_selector = show_selector
+        self.show_controls = show_controls
+        self.show_data = show_data
 
                    
         ##############################   
@@ -385,9 +385,9 @@ class ProcessIF:
                 'add_node_name': True
                 }
 
-            sd_namespace = self.namespace
+            sd_namespace = self.process_namespace
             self.save_data_if = SaveDataIF(namespace = sd_namespace,
-                                    data_products = [self.data_product],
+                                    data_products = list(self.process_data_products),
                                     factory_rate_dict = factory_data_rates,
                                     factory_filename_dict = factory_filename_dict,
                                     log_name_list = self.log_name_list,
@@ -396,8 +396,8 @@ class ProcessIF:
             nepi_sdk.sleep(1)
 
         if self.save_data_if is not None:
-            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_warn("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
+            self.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_warn("Using save_data namespace: " + str(self.save_data_topic), log_name_list = self.log_name_list)
 
 
 
@@ -507,7 +507,8 @@ class ProcessIF:
                 False otherwise.
         """
         connected = False
-        if source_topic in self.sources_connected_topics
+        if source_topic in self.sources_connected_topics:
+            connected = True
         return self.sources_connected
 
     def wait_for_connection(self, timeout = float('inf') ):
