@@ -40,9 +40,14 @@ from nepi_sdk import nepi_triggers
 from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_controls
 
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+
+from nepi_interfaces.msg import UpdateOrder, UpdateRangeWindow, UpdateFloat, UpdateFloats, UpdateInt, UpdateBool, UpdateString, UpdateStringArray, UpdateTrigger
+
+from nepi_interfaces.msg import Controls, ControlsStatus, MgrSystemStatus
 
 from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
@@ -60,6 +65,654 @@ from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest,
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import  NodeClassIF
+
+
+
+
+
+
+#########################################
+# Controls IF Class
+#########################################
+
+
+class ControlsIF:
+    
+    msg_if = None
+    node_if = None
+    node_if_shared = False
+    node_if_prefix = 'controls_'
+   
+    controls_name = 'controls'
+    controls_namespace = ''
+    controls_display_name = ''
+    controls_description = ''
+    controls_dict = dict()
+    controls_status_msg = ControlsStatus()
+
+    controls_node_pubs_dict = None
+    controls_node_subs_dict = None
+    controls_ready = False
+
+    active_nodes = []
+    active_topics = []
+    active_topic_types =  []
+    active_services =  []  
+
+    status_has_published = False
+
+    controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
+    controls_updater_max_rate = 1,
+    controls_updater_callback = None, # if not None: Calls function at the begining of each loop
+
+    #######################
+    ### IF Initialization
+    def __init__(self, 
+                controls_name = 'controls',
+                controls_display_name = 'Controls',
+                controls_description = 'Controls',
+                controls_init_dict = dict(),
+                controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
+                controls_updater_max_rate = 1,# set to -1 to disable updater thread
+                controls_updater_callback = None, # if not None: Calls function at the begining of each loop
+                show_controls = True,
+                has_show_control = False, 
+                log_name = None,
+                log_name_list = [],
+                msg_if = None,
+                node_if = None,
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            log_name = nepi_utils.get_clean_name(log_name)
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Controlses", log_name_list = self.log_name_list)
+
+        # Create Namespace
+        self.controls_name = nepi_utils.get_clean_name(controls_name)
+        if self.controls_name is None or self.controls_name == '':
+            self.msg_if.pub_warn("Controls Name Not Valid: " + str(controls_name)) 
+            return
+        self.msg_if.pub_info("Using Controls Name: " + self.controls_name)
+        self.controls_namespace = nepi_sdk.create_namespace(self.node_name,self.controls_name)
+
+        self.node_if_prefix = controls_name + '_'
+
+        ##############################    
+        # Initialize Class Variables
+
+        self.controls_display_name = str(controls_display_name)
+        self.controls_description = str(controls_description)
+        self.controls_dict = nepi_controls.create_controls_dict(controls_init_dict)
+        self.controls_status_msg = nepi_controls.create_status_msg(self.controls_name, self.controls_display_name, self.controls_description, 
+                                                                    show_controls, has_show_control)
+
+        self.controls_updated_callback = controls_updated_callback
+        self.controls_updater_max_rate = controls_updater_max_rate
+        self.controls_updater_callback = controls_updater_callback
+    
+
+        # if source_callback_dict is not None:
+        #     for key in source_callback_dict.keys():
+        #         self.source_callback_dict[key] = source_callback_dict[key]
+      
+
+
+        ##############################   
+        ## Node Setup
+
+        # Configs Config Dict ####################
+        self.CONFIGS_DICT = {
+            'init_callback': self._initCb,
+            'reset_callback': self._resetCb,
+            'factory_reset_callback': self._factoryResetCb,
+            'init_configs': True,
+            'namespace': self.namespace
+        }
+
+        # Params Config Dict ####################
+        # Persist the selected topic under the connect namespace so the
+        # selection survives node restarts (via the config manager). Passing a
+        # params_dict is what enables config management on NodeClassIF.
+        PARAMS_DICT = {
+            self.node_if_prefix + 'controls_dict': {
+                'namespace': self.controls_namespace,
+                'factory_val': self.controls_dict
+            }
+        }
+
+
+        # Publishers Config Dict ####################
+        self.controls_node_pubs_dict = {
+             self.node_if_prefix + 'status_pub': {
+                'namespace': self.controls_namespace,
+                'topic': 'status',
+                'msg': self.controls_status_msg,
+                'qsize': 1,
+                'latch': True
+            }
+        }
+
+
+
+        # Subscribers Config Dict ####################
+        self.controls_node_subs_dict = {
+            #####################
+            # Control Subs
+            ####################
+             self.node_if_prefix + 'set_menu_control_value': {
+                'msg': UpdateInt,
+                'namespace': self.controls_namespace,
+                'topic': 'set_menu_control_value',
+                'qsize': 5,
+                'callback': self._setMenuValueCb
+            },
+             self.node_if_prefix + 'set_selection_control_value': {
+                'msg': UpdateString,
+                'namespace': self.controls_namespace,
+                'topic': 'set_selection_control_value',
+                'qsize': 5,
+                'callback': self._setSelectonValueCb
+            },
+             self.node_if_prefix + 'set_selections_control_value': {
+                'msg': UpdateStringArray,
+                'namespace': self.controls_namespace,
+                'topic': 'set_selections_control_value',
+                'qsize': 5,
+                'callback': self._setSelectonsValueCb
+            },
+             self.node_if_prefix + 'set_int_control_value': {
+                'msg': UpdateInt,
+                'namespace': self.controls_namespace,
+                'topic': 'set_int_control_value',
+                'qsize': 5,
+                'callback': self._setIntValueCb
+            },
+             self.node_if_prefix + 'set_float_control_value': {
+                'msg': UpdateFloat,
+                'namespace': self.controls_namespace,
+                'topic': 'set_float_control_value',
+                'qsize': 5,
+                'callback': self._setFloatValueCb
+            },
+             self.node_if_prefix + 'set_floatslider_control_value': {
+                'msg': UpdateFloat,
+                'namespace': self.controls_namespace,
+                'topic': 'set_floatslider_control_value',
+                'qsize': 5,
+                'callback': self._setFloatSliderValueCb
+            },
+             self.node_if_prefix + 'set_floatsliders_control_value': {
+                'msg': UpdateRangeWindow,
+                'namespace': self.controls_namespace,
+                'topic': 'set_floatsliders_control_value',
+                'qsize': 5,
+                'callback': self._setFloatSlidersValueCb
+            },
+             self.node_if_prefix + 'set_trigger_control_value': {
+                'msg': UpdateTrigger,
+                'namespace': self.controls_namespace,
+                'topic': 'set_trigger_control_value',
+                'qsize': 5,
+                'callback': self._setTriggerValueCb
+            },
+             self.node_if_prefix + 'set_bool_control_value': {
+                'msg': UpdateBool,
+                'namespace': self.controls_namespace,
+                'topic': 'set_bool_control_value',
+                'qsize': 5,
+                'callback': self._setBoolValueCb
+            },
+             self.node_if_prefix + 'set_string_control_value': {
+                'msg': UpdateString,
+                'namespace': self.controls_namespace,
+                'topic': 'set_string_control_value',
+                'qsize': 5,
+                'callback': self._setStringValueCb
+            },
+            #####################
+            # Display Subs
+            #####################
+             self.node_if_prefix + 'set_control_hidden': {
+                'msg': UpdateBool,
+                'namespace': self.controls_namespace,
+                'topic': 'set_control_hidden',
+                'qsize': 5,
+                'callback': self._setHiddenValueCb
+            },
+             self.node_if_prefix + 'set_control_order': {
+                'msg': UpdateInt,
+                'namespace': self.controls_namespace,
+                'topic': 'set_control_order',
+                'qsize': 5,
+                'callback': self._setOrderValueCb
+            },
+             self.node_if_prefix + 'set_control_up': {
+                'msg': UpdateTrigger,
+                'namespace': self.controls_namespace,
+                'topic': 'set_control_up',
+                'qsize': 5,
+                'callback': self._setOrderTopCb
+            },
+             self.node_if_prefix + 'set_control_down': {
+                'msg': UpdateTrigger,
+                'namespace': self.controls_namespace,
+                'topic': 'set_control_down',
+                'qsize': 5,
+                'callback': self._setOrderDownCb
+            },
+             self.node_if_prefix + 'set_control_top': {
+                'msg': UpdateTrigger,
+                'namespace': self.controls_namespace,
+                'topic': 'set_control_top',
+                'qsize': 5,
+                'callback': self._setOrderTopCb
+            },
+             self.node_if_prefix + 'set_control_bottom': {
+                'msg': UpdateTrigger,
+                'namespace': self.controls_namespace,
+                'topic': 'set_control_bottom',
+                'qsize': 5,
+                'callback': self._setOrderBottomCb
+            },
+
+            #####################
+            # Misc Subs
+            #####################
+             self.node_if_prefix + 'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self._systemStatusCb
+            },
+        }
+
+    
+        
+        if node_if is None:
+            self.node_if = NodeClassIF(
+                            configs_dict = self.CFGS_DICT,
+                            params_dict = PARAMS_DICT,
+                            services_dict = None,
+                            pubs_dict = self.controls_node_pubs_dict,
+                            subs_dict = self.controls_node_subs_dict,
+                            log_name_list = [],
+                            msg_if = self.msg_if
+            )
+            self.node_if.wait_for_ready()
+        else:
+            self.node_if_shared = True
+            try:
+                self.node_if = node_if
+                self.node_if.register_pubs(self.controls_node_pubs_dict)
+                self.node_if.register_subs(self.controls_node_subs_dict)
+                # Register the persisted selection param on the shared node_if too.
+                self.node_if.add_param('selected_sources', self.controls_namespace, self.selected_sources)
+                nepi_sdk.sleep(1)
+            except Exception as e:
+                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
+                return
+
+
+        ##############################
+        # Start updater controls
+        if self.controls_updater_max_rate != -1:
+            nepi_sdk.start_timer_controls(1.0, self._updaterCb, oneshot = True)
+        nepi_sdk.start_timer_controls(1.0, self._publishStatusCb)
+
+        ##############################
+        # Complete Initialization
+        self.controls_ready = True
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
+        ###############################
+    
+
+    #######################
+    # Class Public Methods
+    #######################
+
+
+    def get_controls_ready_state(self):
+        """Return the ready state of the interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
+        return self.controls_ready
+
+    def wait_for_controls_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
+        success = False
+        if self.controls_ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_sdk.get_time()
+            while self.controls_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
+            if self.controls_ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.controls_ready  
+
+    def get_namespace(self):
+        """Return the fully-resolved ROS namespace for the sources_connected PTX device.
+
+        Returns:
+            str: The fully-qualified namespace string used for topic and service resolution.
+        """
+        return self.controls_namespace
+    
+    def unregister(self):
+        success = False
+        self.unsubscribe_topic()
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.sleep(1)
+            else:
+                self.unsubscribe_topic()
+
+                if self.node_if is not None:
+                    if self.controls_node_subs_dict is not None:
+                        for sub_name in self.controls_node_subs_dict.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.controls_node_subs_dict = None
+
+                if self.node_if is not None:
+                    if self.controls_node_pubs_dict is not None:
+                        for pub_name in self.controls_node_pubs_dict.keys():
+                            self.node_if.unregister_pub(pub_name)
+                self.controls_node_pubs_dict = None
+                
+        time.sleep(1)
+        try:
+            self.node_if = None
+            self.selected_sources = 'None'
+            self.connecting = False 
+            self.sources_connected = False 
+            self.sources_connected_topics = 'None'
+            success = True
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to unregister:  " + str(e))
+        return success
+
+
+    ##################
+    # Controls Functions
+    def get_controls_dict(self):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        return controls_dict
+
+    def get_control_value(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        value = nepi_controls.get_control_value(controls_dict, control_name)
+        return value
+
+    def set_control_value(self, control_name, update_value):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_value(controls_dict, control_name, update_value)
+        self.controls_dict = controls_dict
+
+    def get_control_default_value(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        value = nepi_controls.get_control_default_value(controls_dict, control_name)
+        return value
+
+    def set_control_default_value(self, control_name, update_value):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_default_value(controls_dict, control_name, update_value)
+        self.controls_dict = controls_dict
+
+    def get_control_factory_value(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        value = nepi_controls.get_control_factory_value(controls_dict, control_name)
+        return value
+
+    def set_control_factory_value(self, control_name, update_value):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_factory_value(controls_dict, control_name, update_value)
+        self.controls_dict = controls_dict
+
+    def reset_control_value(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.reset_control_value(controls_dict, control_name)
+        self.controls_dict = controls_dict
+
+    def reset_control_values(self):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.reset_control_values(controls_dict)
+        self.controls_dict = controls_dict
+
+    def factory_reset_control_value(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.reset_control_factory_value(controls_dict, control_name)
+        self.controls_dict = controls_dict
+
+    def factory_reset_control_values(self):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.reset_control_factory_values(controls_dict)
+        self.controls_dict = controls_dict
+
+    def get_control_options(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        options = nepi_controls.get_control_options(controls_dict, control_name)
+        return options
+
+    def set_control_options(self, control_name, options):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_options(controls_dict, control_name, options)
+        self.controls_dict = controls_dict
+
+    def get_control_bounds(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        bounds = nepi_controls.get_control_bounds(controls_dict, control_name)
+        return bounds
+
+    def set_control_bounds(self, control_name, bounds = []):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_options(controls_dict, control_name, bounds)
+        self.controls_dict = controls_dict
+
+
+
+    ##################
+    # Display Functions
+
+    def get_control_display_name(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        display_name = nepi_controls.get_control_display_name(controls_dict, control_name)
+        return display_name
+
+    def set_control_display_name(self, control_name, display_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_display_name(controls_dict, control_name, display_name)
+        self.controls_dict = controls_dict
+
+
+    def get_control_description(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        description = nepi_controls.get_control_description(controls_dict, control_name)
+        return description
+
+    def set_control_description(self, control_name, description):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_description(controls_dict, control_name, description)
+        self.controls_dict = controls_dict
+
+    def get_control_hidden(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        hidden = nepi_controls.get_control_hidden(controls_dict, control_name)
+        return hidden
+
+    def set_control_hidden(self, control_name, hidden):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_hidden(controls_dict, control_name, hidden)
+        self.controls_dict = controls_dict
+
+    def get_control_display_order(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        order = nepi_controls.get_control_order(controls_dict, control_name)
+        return order
+
+    def set_control_display_order(self, control_name, update_order = 0):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_order(controls_dict, control_name, update_order)
+        self.controls_dict = controls_dict
+
+    def move_control_display_top(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_order_top(controls_dict, control_name)
+        self.controls_dict = controls_dict
+
+    def move_control_display_bottom(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_order_bottom(controls_dict, control_name)
+        self.controls_dict = controls_dict
+
+    def move_control_display_up(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_order_up(controls_dict, control_name)
+        self.controls_dict = controls_dict
+
+    def move_control_display_down(self, control_name):
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.set_control_order_down(controls_dict, control_name)
+        self.controls_dict = controls_dict
+
+
+    ##################
+    # Misc Functions
+
+    def publish_status(self, status_msg):
+        ###########
+        controls_dict = copy.deepcopy(self.controls_dict)
+        self.controls_status_msg = nepi_controls.update_status_msg(self.controls_status_msg, controls_dict)
+        if self.node_if is not None:
+            if self.status_has_published == False:
+                self.msg_if.pub_warn("Publishing Status: " + str(self.controls_status_msg))
+                self.status_has_published = True
+            self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.controls_status_msg) 
+        return status_msg
+
+    def init(self, do_updates = False):
+        """Initialize or re-initialize controls from the parameter server and publish status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+        """
+        if self.node_if is not None:
+            self.controls_dict = self.node_if.get_param('controls_dict')
+
+        if do_updates == True:
+            pass
+        self.publish_status()
+
+    def reset(self):
+        """Reset the image interface to its initialized state."""
+        if self.node_if is not None:
+            pass
+        self.init()
+
+    def factory_reset(self):
+        """Reset the image interface to factory defaults."""
+        if self.node_if is not None:
+            pass
+        self.init()
+
+    ###############################
+    # Class Private Methods
+    ###############################
+    def _initCb(self, do_updates = False):
+        self.init(do_updates = do_updates)
+
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
+
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
+
+    # ROS callback for the system status msg. Populates the active topic/type
+    # lists that discovery searches. NOTE: this MUST NOT share a name with the
+    # discovery timer below -- a duplicate name silently shadows this method, so
+    # active_topics never gets populated and discovery finds nothing.
+    def _systemStatusCb(self,msg):
+            self.active_nodes = msg.active_nodes
+            self.active_topics = msg.active_topics
+            self.active_topic_types = msg.active_topic_types
+            self.active_services = msg.active_services
+
+
+    # Discovery/connection timer. Finds available topics of the connect status
+    # msg type among the active topics, auto-selects, and subscribes.
+    def _updaterCb(self,timer):
+        needs_publish = False
+        start_time = nepi_utils.get_time()
+        ##############
+        if self.controls_updater_callback is not None:
+            needs_update = self.controls_updater_callback()
+        ##################
+        # Get settings from param server
+        if needs_publish == True:
+          self.publish_status()
+
+        ##################
+        # Setup Next Update
+        delay_time = float(1) / self.controls_updater_max_rate
+        update_time = nepi_utils.get_time() - start_time
+        next_time = delay_time - update_time
+        if next_time < 0.01:
+            next_time = 0.01
+        nepi_sdk.start_timer_controls(next_time, self._updaterCb, oneshot = True)
+
+
+    def _setMenuValueCb(self,msg):
+            control_name = msg.name
+            control_value = msg.value
+            self.set_control_value(control_name, control_value)
+            self.publish_status
+            if self.controls_updated_callback is not None:
+                self.controls_updated_callback(control_name)
+            if self.node_if is not None:
+                param_name = self.node_if_prefix + 'controls_dict'
+                self.node_if.set_param(param_name, self.controls_dict)
+
+
+    def _setTriggerValueCb(self,msg):
+            control_name = msg.name
+            control_value = nepi_utils.get_time()
+            self.set_control_value(control_name, control_value)
+            self.publish_status
+            if self.controls_updated_callback is not None:
+                self.controls_updated_callback(control_name)
+            if self.node_if is not None:
+                param_name = self.node_if_prefix + 'controls_dict'
+                self.node_if.set_param(param_name, self.controls_dict)
+           
 
 
 ################################################
