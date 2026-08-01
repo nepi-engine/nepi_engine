@@ -42,7 +42,7 @@ logger = Logger(log_name = log_name)
 
 
 
-CONTROL_TYPES = ["Menu","String","StringArray","Trigger","Bool","Int","Float","FloatSlider","FloatsSlider"]
+CONTROL_TYPES = ["Menu","Selection","Selections","Trigger","Bool", "String", "Int","Float","FloatSlider","FloatsSlider"]
 
 BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(Control())
 

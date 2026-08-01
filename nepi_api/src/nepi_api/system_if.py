@@ -151,6 +151,7 @@ class ControlsIF:
         self.msg_if.pub_info("Using Controls Name: " + self.controls_name)
         self.controls_namespace = nepi_sdk.create_namespace(self.node_name,self.controls_name)
 
+    
         self.node_if_prefix = controls_name + '_'
 
         ##############################    
@@ -674,7 +675,7 @@ class ControlsIF:
         start_time = nepi_utils.get_time()
         ##############
         if self.controls_updater_callback is not None:
-            needs_update = self.controls_updater_callback()
+            needs_publish = self.controls_updater_callback()
         ##################
         # Get settings from param server
         if needs_publish == True:
