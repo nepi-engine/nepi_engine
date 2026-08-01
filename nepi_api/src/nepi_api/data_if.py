@@ -102,6 +102,522 @@ EXAMPLE_FILENAME_DICT = {
 
 
 
+from nepi_sdk import nepi_data
+from nepi_interfaces.msg import Datum, DataStatus
+
+from nepi_interfaces.msg import UpdateOrder, UpdateFloat, UpdateFloats, UpdateInt, UpdateInts, UpdateBool, UpdateBools, UpdateString, UpdateStringArray, UpdateTrigger
+
+
+
+#########################################
+# Data IF Class
+#########################################
+
+
+class DataIF:
+    
+    msg_if = None
+    node_if = None
+    node_if_shared = False
+    node_if_prefix = 'data_'
+   
+    data_name = 'data'
+    data_namespace = ''
+    data_display_name = ''
+    data_description = ''
+    data_dict = dict()
+    data_status_msg = DataStatus()
+
+    data_node_pubs_dict = None
+    data_node_subs_dict = None
+    data_ready = False
+
+    active_nodes = []
+    active_topics = []
+    active_topic_types =  []
+    active_services =  []  
+
+    status_has_published = False
+
+    #######################
+    ### IF Initialization
+    def __init__(self, 
+                data_name = 'data',
+                data_display_name = 'Data',
+                data_description = 'Data',
+                data_init_dict = dict(),
+                show_data = True,
+                has_show_datum = False, 
+                log_name = None,
+                log_name_list = [],
+                msg_if = None,
+                node_if = None,
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            log_name = nepi_utils.get_clean_name(log_name)
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Dataes", log_name_list = self.log_name_list)
+
+        # Create Namespace
+        self.data_name = nepi_utils.get_clean_name(data_name)
+        if self.data_name is None or self.data_name == '':
+            self.msg_if.pub_warn("Data Name Not Valid: " + str(data_name)) 
+            return
+        self.msg_if.pub_info("Using Data Name: " + self.data_name)
+        self.data_namespace = nepi_sdk.create_namespace(self.node_name,self.data_name)
+
+    
+        self.node_if_prefix = data_name + '_'
+
+        ##############################    
+        # Initialize Class Variables
+
+        self.data_display_name = str(data_display_name)
+        self.data_description = str(data_description)
+        self.data_dict = nepi_data.create_data_dict(data_init_dict)
+        self.data_status_msg = nepi_data.create_status_msg(self.data_name, self.data_display_name, self.data_description, 
+                                                                    show_data, has_show_datum)
+
+    
+
+        ##############################   
+        ## Node Setup
+
+
+        # Publishers Config Dict ####################
+        self.data_node_pubs_dict = {
+             self.node_if_prefix + 'status_pub': {
+                'namespace': self.data_namespace,
+                'topic': 'status',
+                'msg': self.data_status_msg,
+                'qsize': 1,
+                'latch': True
+            }
+        }
+
+
+
+        # Subscribers Config Dict ####################
+        self.data_node_subs_dict = {
+            #####################
+            # Data Subs
+            ####################
+             self.node_if_prefix + 'set_bool_datum_value': {
+                'msg': UpdateBool,
+                'namespace': self.data_namespace,
+                'topic': 'set_bool_datum_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
+             self.node_if_prefix + 'set_bools_datum_value': {
+                'msg': UpdateBools,
+                'namespace': self.data_namespace,
+                'topic': 'set_bools_datum_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
+             self.node_if_prefix + 'set_string_datum_value': {
+                'msg': UpdateString,
+                'namespace': self.data_namespace,
+                'topic': 'set_string_datum_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
+             self.node_if_prefix + 'set_strings_datum_value': {
+                'msg': UpdateStringArray,
+                'namespace': self.data_namespace,
+                'topic': 'set_strings_datum_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
+             self.node_if_prefix + 'set_int_datum_value': {
+                'msg': UpdateInt,
+                'namespace': self.data_namespace,
+                'topic': 'set_int_datum_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
+             self.node_if_prefix + 'set_ints_datum_value': {
+                'msg': UpdateInts,
+                'namespace': self.data_namespace,
+                'topic': 'set_ints_datum_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
+           
+             self.node_if_prefix + 'set_float_datum_value': {
+                'msg': UpdateFloat,
+                'namespace': self.data_namespace,
+                'topic': 'set_float_datum_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
+             self.node_if_prefix + 'set_floats_datum_value': {
+                'msg': UpdateFloat,
+                'namespace': self.data_namespace,
+                'topic': 'set_floats_datum_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
+           
+            #####################
+            # Display Subs
+            #####################
+             self.node_if_prefix + 'set_datum_hidden': {
+                'msg': UpdateBool,
+                'namespace': self.data_namespace,
+                'topic': 'set_datum_hidden',
+                'qsize': 5,
+                'callback': self._setHiddenValueCb
+            },
+             self.node_if_prefix + 'set_datum_order': {
+                'msg': UpdateInt,
+                'namespace': self.data_namespace,
+                'topic': 'set_datum_order',
+                'qsize': 5,
+                'callback': self._setOrderValueCb
+            },
+             self.node_if_prefix + 'set_datum_up': {
+                'msg': UpdateTrigger,
+                'namespace': self.data_namespace,
+                'topic': 'set_datum_up',
+                'qsize': 5,
+                'callback': self._setOrderTopCb
+            },
+             self.node_if_prefix + 'set_datum_down': {
+                'msg': UpdateTrigger,
+                'namespace': self.data_namespace,
+                'topic': 'set_datum_down',
+                'qsize': 5,
+                'callback': self._setOrderDownCb
+            },
+             self.node_if_prefix + 'set_datum_top': {
+                'msg': UpdateTrigger,
+                'namespace': self.data_namespace,
+                'topic': 'set_datum_top',
+                'qsize': 5,
+                'callback': self._setOrderTopCb
+            },
+             self.node_if_prefix + 'set_datum_bottom': {
+                'msg': UpdateTrigger,
+                'namespace': self.data_namespace,
+                'topic': 'set_datum_bottom',
+                'qsize': 5,
+                'callback': self._setOrderBottomCb
+            },
+        }
+
+    
+        
+        if node_if is None:
+            self.node_if = NodeClassIF(
+                            pubs_dict = self.data_node_pubs_dict,
+                            subs_dict = self.data_node_subs_dict,
+                            log_name_list = [],
+                            msg_if = self.msg_if
+            )
+            self.node_if.wait_for_ready()
+        else:
+            self.node_if_shared = True
+            try:
+                self.node_if = node_if
+                self.node_if.register_pubs(self.data_node_pubs_dict)
+                self.node_if.register_subs(self.data_node_subs_dict)
+                # Register the persisted selection param on the shared node_if too.
+                self.node_if.add_param('selected_sources', self.data_namespace, self.selected_sources)
+                nepi_sdk.sleep(1)
+            except Exception as e:
+                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
+                return
+
+
+        ##############################
+        # Start updater data
+        nepi_sdk.start_timer_data(1.0, self._publishStatusCb)
+
+        ##############################
+        # Complete Initialization
+        self.data_ready = True
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
+        ###############################
+    
+
+    #######################
+    # Class Public Methods
+    #######################
+
+
+    def get_data_ready_state(self):
+        """Return the ready state of the interface.
+
+        Returns:
+            bool: True if the interface has completed initialization, False otherwise.
+        """
+        return self.data_ready
+
+    def wait_for_data_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+
+        Returns:
+            bool: True if the interface became ready, False if the timeout was reached.
+        """
+        success = False
+        if self.data_ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_sdk.get_time()
+            while self.data_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
+            if self.data_ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.data_ready  
+
+    def get_namespace(self):
+        """Return the fully-resolved ROS namespace for the sources_connected PTX device.
+
+        Returns:
+            str: The fully-qualified namespace string used for topic and service resolution.
+        """
+        return self.data_namespace
+    
+    def unregister(self):
+        success = False
+        self.unsubscribe_topic()
+        if self.node_if is not None:
+            if self.node_if_shared == False:
+                self.node_if.unregister_class()
+                nepi_sdk.sleep(1)
+            else:
+                self.unsubscribe_topic()
+
+                if self.node_if is not None:
+                    if self.data_node_subs_dict is not None:
+                        for sub_name in self.data_node_subs_dict.keys():
+                            self.node_if.unregister_sub(sub_name)
+                self.data_node_subs_dict = None
+
+                if self.node_if is not None:
+                    if self.data_node_pubs_dict is not None:
+                        for pub_name in self.data_node_pubs_dict.keys():
+                            self.node_if.unregister_pub(pub_name)
+                self.data_node_pubs_dict = None
+                
+        time.sleep(1)
+        try:
+            self.node_if = None
+            self.selected_sources = 'None'
+            self.connecting = False 
+            self.sources_connected = False 
+            self.sources_connected_topics = 'None'
+            success = True
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to unregister:  " + str(e))
+        return success
+
+
+    ##################
+    # Data Functions
+    def get_data_dict(self):
+        data_dict = copy.deepcopy(self.data_dict)
+        return data_dict
+
+    def get_datum_value(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        value = nepi_data.get_datum_value(data_dict, datum_name)
+        return value
+
+    def set_datum_value(self, datum_name, update_value):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_value(data_dict, datum_name, update_value)
+        self.data_dict = data_dict
+        self.publish_status
+        if self.data_updated_callback is not None:
+            self.data_updated_callback(datum_name)
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'data_dict'
+            self.node_if.set_param(param_name, self.data_dict)
+
+    ##################
+    # Display Functions
+
+    def get_datum_display_name(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        display_name = nepi_data.get_datum_display_name(data_dict, datum_name)
+        return display_name
+
+    def set_datum_display_name(self, datum_name, display_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_display_name(data_dict, datum_name, display_name)
+        self.data_dict = data_dict
+
+
+    def get_datum_description(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        description = nepi_data.get_datum_description(data_dict, datum_name)
+        return description
+
+    def set_datum_description(self, datum_name, description):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_description(data_dict, datum_name, description)
+        self.data_dict = data_dict
+
+    def get_datum_hidden(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        hidden = nepi_data.get_datum_hidden(data_dict, datum_name)
+        return hidden
+
+    def set_datum_hidden(self, datum_name, hidden):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_hidden(data_dict, datum_name, hidden)
+        self.data_dict = data_dict
+
+    def get_datum_display_order(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        order = nepi_data.get_datum_order(data_dict, datum_name)
+        return order
+
+    def set_datum_display_order(self, datum_name, update_order = 0):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_order(data_dict, datum_name, update_order)
+        self.data_dict = data_dict
+
+    def move_datum_display_top(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_order_top(data_dict, datum_name)
+        self.data_dict = data_dict
+
+    def move_datum_display_bottom(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_order_bottom(data_dict, datum_name)
+        self.data_dict = data_dict
+
+    def move_datum_display_up(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_order_up(data_dict, datum_name)
+        self.data_dict = data_dict
+
+    def move_datum_display_down(self, datum_name):
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.set_datum_order_down(data_dict, datum_name)
+        self.data_dict = data_dict
+
+
+    ##################
+    # Misc Functions
+
+    def publish_status(self, status_msg):
+        ###########
+        data_dict = copy.deepcopy(self.data_dict)
+        self.data_status_msg = nepi_data.update_status_msg(self.data_status_msg, data_dict)
+        if self.node_if is not None:
+            if self.status_has_published == False:
+                self.msg_if.pub_warn("Publishing Status: " + str(self.data_status_msg))
+                self.status_has_published = True
+            self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.data_status_msg) 
+        return status_msg
+
+    def init(self, do_updates = False):
+        """Initialize or re-initialize data from the parameter server and publish status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+        """
+        if self.node_if is not None:
+            self.data_dict = self.node_if.get_param('data_dict')
+
+        if do_updates == True:
+            pass
+        self.publish_status()
+
+    def reset(self):
+        """Reset the image interface to its initialized state."""
+        if self.node_if is not None:
+            pass
+        self.init()
+
+    def factory_reset(self):
+        """Reset the image interface to factory defaults."""
+        if self.node_if is not None:
+            pass
+        self.init()
+
+    ###############################
+    # Class Private Methods
+    ###############################
+    def _initCb(self, do_updates = False):
+        self.init(do_updates = do_updates)
+
+    def _resetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
+
+    def _factoryResetCb(self, do_updates = True):
+        self.init(do_updates = do_updates)
+
+    # ROS callback for the system status msg. Populates the active topic/type
+    # lists that discovery searches. NOTE: this MUST NOT share a name with the
+    # discovery timer below -- a duplicate name silently shadows this method, so
+    # active_topics never gets populated and discovery finds nothing.
+    def _systemStatusCb(self,msg):
+            self.active_nodes = msg.active_nodes
+            self.active_topics = msg.active_topics
+            self.active_topic_types = msg.active_topic_types
+            self.active_services = msg.active_services
+
+
+    # Discovery/connection timer. Finds available topics of the connect status
+    # msg type among the active topics, auto-selects, and subscribes.
+    def _updaterCb(self,timer):
+        needs_publish = False
+        start_time = nepi_utils.get_time()
+        ##############
+        if self.data_updater_callback is not None:
+            needs_publish = self.data_updater_callback()
+        ##################
+        # Get settings from param server
+        if needs_publish == True:
+          self.publish_status()
+
+        ##################
+        # Setup Next Update
+        delay_time = float(1) / self.data_updater_max_rate
+        update_time = nepi_utils.get_time() - start_time
+        next_time = delay_time - update_time
+        if next_time < 0.01:
+            next_time = 0.01
+        nepi_sdk.start_timer_data(next_time, self._updaterCb, oneshot = True)
+
+
+    def _setValueCb(self,msg):
+            datum_name = msg.name
+            datum_value = msg.value
+            self.set_datum_value(datum_name, datum_value)
+
+
+
+           
+
 
 ##################################################
 ## NavPoseIF

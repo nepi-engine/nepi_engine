@@ -221,70 +221,70 @@ class ControlsIF:
                 'namespace': self.controls_namespace,
                 'topic': 'set_menu_control_value',
                 'qsize': 5,
-                'callback': self._setMenuValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_selection_control_value': {
                 'msg': UpdateString,
                 'namespace': self.controls_namespace,
                 'topic': 'set_selection_control_value',
                 'qsize': 5,
-                'callback': self._setSelectonValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_selections_control_value': {
                 'msg': UpdateStringArray,
                 'namespace': self.controls_namespace,
                 'topic': 'set_selections_control_value',
                 'qsize': 5,
-                'callback': self._setSelectonsValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_int_control_value': {
                 'msg': UpdateInt,
                 'namespace': self.controls_namespace,
                 'topic': 'set_int_control_value',
                 'qsize': 5,
-                'callback': self._setIntValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_float_control_value': {
                 'msg': UpdateFloat,
                 'namespace': self.controls_namespace,
                 'topic': 'set_float_control_value',
                 'qsize': 5,
-                'callback': self._setFloatValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_floatslider_control_value': {
                 'msg': UpdateFloat,
                 'namespace': self.controls_namespace,
                 'topic': 'set_floatslider_control_value',
                 'qsize': 5,
-                'callback': self._setFloatSliderValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_floatsliders_control_value': {
                 'msg': UpdateRangeWindow,
                 'namespace': self.controls_namespace,
                 'topic': 'set_floatsliders_control_value',
                 'qsize': 5,
-                'callback': self._setFloatSlidersValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_trigger_control_value': {
                 'msg': UpdateTrigger,
                 'namespace': self.controls_namespace,
                 'topic': 'set_trigger_control_value',
                 'qsize': 5,
-                'callback': self._setTriggerValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_bool_control_value': {
                 'msg': UpdateBool,
                 'namespace': self.controls_namespace,
                 'topic': 'set_bool_control_value',
                 'qsize': 5,
-                'callback': self._setBoolValueCb
+                'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_string_control_value': {
                 'msg': UpdateString,
                 'namespace': self.controls_namespace,
                 'topic': 'set_string_control_value',
                 'qsize': 5,
-                'callback': self._setStringValueCb
+                'callback': self._setValueCb
             },
             #####################
             # Display Subs
@@ -478,6 +478,12 @@ class ControlsIF:
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.set_control_value(controls_dict, control_name, update_value)
         self.controls_dict = controls_dict
+        self.publish_status
+        if self.controls_updated_callback is not None:
+            self.controls_updated_callback(control_name)
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
     def get_control_default_value(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
@@ -528,6 +534,10 @@ class ControlsIF:
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.set_control_options(controls_dict, control_name, options)
         self.controls_dict = controls_dict
+        self.publish_status
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
     def get_control_bounds(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
@@ -538,6 +548,10 @@ class ControlsIF:
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.set_control_options(controls_dict, control_name, bounds)
         self.controls_dict = controls_dict
+        self.publish_status
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
 
 
@@ -691,28 +705,13 @@ class ControlsIF:
         nepi_sdk.start_timer_controls(next_time, self._updaterCb, oneshot = True)
 
 
-    def _setMenuValueCb(self,msg):
+    def _setValueCb(self,msg):
             control_name = msg.name
             control_value = msg.value
             self.set_control_value(control_name, control_value)
-            self.publish_status
-            if self.controls_updated_callback is not None:
-                self.controls_updated_callback(control_name)
-            if self.node_if is not None:
-                param_name = self.node_if_prefix + 'controls_dict'
-                self.node_if.set_param(param_name, self.controls_dict)
 
 
-    def _setTriggerValueCb(self,msg):
-            control_name = msg.name
-            control_value = nepi_utils.get_time()
-            self.set_control_value(control_name, control_value)
-            self.publish_status
-            if self.controls_updated_callback is not None:
-                self.controls_updated_callback(control_name)
-            if self.node_if is not None:
-                param_name = self.node_if_prefix + 'controls_dict'
-                self.node_if.set_param(param_name, self.controls_dict)
+
            
 
 
