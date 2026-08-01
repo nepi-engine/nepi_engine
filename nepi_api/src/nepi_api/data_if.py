@@ -2646,7 +2646,12 @@ class BaseImageIF:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
-       
+        # get_navpose_dict() consumes and clears its data, so it returns None
+        # until the next navpose arrives; fall back to the blank dict so the
+        # unguarded navpose_dict['navpose_frame'] lookup below can't crash.
+        if navpose_dict is None:
+            navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+
 
         if self.publishing == False:
             self.publishing = True

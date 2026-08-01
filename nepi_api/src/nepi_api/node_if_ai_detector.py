@@ -48,7 +48,7 @@ from nepi_sdk import nepi_img
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
-# from nepi_api.process_if import DetectionsIF, DetectionsImageIF, TargetsIF, TargetsImageIF
+from nepi_api.process_if import DetectionsIF, TargetsIF
 
 
 SYSTEM_ALL_TOPIC = 'all'
@@ -99,6 +99,11 @@ class AiDetectorIF:
     TARGETS_DATA_PRODUCTS = ['targets','targets_image']
                                 
     IMAGE_FILTERS = ['color_image']
+
+    # A detector must never consume its own overlay outputs as an input image
+    # source; skip these product basenames even if a stale/explicit selection
+    # lists them (they now resolve as real topics under the image namespace).
+    OUTPUT_IMG_PRODUCTS = ['detections_image', 'targets_image']
 
     BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
     BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
@@ -400,26 +405,16 @@ class AiDetectorIF:
 
 
         # Pubs Config Dict ####################
+        # NOTE: The per-detector detections/targets data products and their
+        # status messages are owned by DetectionsIF/TargetsIF (constructed
+        # below), which reproduce the same wire topics
+        # (<node_ns>/detections[/status], <node_ns>/targets[/status]). Only the
+        # collective 'all' fan-out publishers remain inline here, since the
+        # per-data-product IFs do not cover the shared /all/* namespaces.
         self.PUBS_DICT = {
             #######################
-            # Detections
-            #######################
-            'detector_status': {
-                'msg': DetectorStatus,
-                'namespace': self.detector_namespace,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': False
-            },
-            'detections': {
-                'msg': Detections,
-                'namespace': self.node_namespace,
-                'topic': 'detections',
-                'qsize': 1,
-                'latch': False
-            },
-            #######################
             # All Detections
+            #######################
             'all_detections': {
                 'msg': Detections,
                 'namespace': self.all_namespace,
@@ -429,24 +424,8 @@ class AiDetectorIF:
             },
 
             #######################
-            # Targets
+            # All Targets
             #######################
-            'targeting_status': {
-                'msg': TargetingStatus,
-                'namespace': self.targeting_namespace,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': False
-            },
-            'targets': {
-                'msg': Targets,
-                'namespace': self.node_namespace,
-                'topic': 'targets',
-                'qsize': 1,
-                'latch': False
-            },
-            #######################
-            # All Targetss
             'all_targets': {
                 'msg': Targets,
                 'namespace': self.all_namespace,
@@ -871,7 +850,29 @@ class AiDetectorIF:
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-        
+
+
+        ###############################
+        # Create Per-Data-Product IFs
+        # DetectionsIF/TargetsIF own the detections/targets data products and
+        # their per-product status messages. Given the detector node namespace
+        # they publish on <node_ns>/detections[/status] and
+        # <node_ns>/targets[/status] -- the same wire topics/types the removed
+        # inline PUBS_DICT entries used. They share the detector's SaveDataIF so
+        # detections/targets saving stays centralized (and rate-gated), and
+        # follow the file convention of building their own node_if.
+        self.detections_if = DetectionsIF(namespace = self.namespace,
+                        data_product = 'detections',
+                        save_data_if = self.save_data_if,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if)
+
+        self.targets_if = TargetsIF(namespace = self.namespace,
+                        data_product = 'targets',
+                        save_data_if = self.save_data_if,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if)
+        nepi_sdk.sleep(1)
 
 
         ##########################
@@ -1408,12 +1409,14 @@ class AiDetectorIF:
         # Update Image subscribers
         found_source_topics = []
         for source_topic in selected_sources:
+            if os.path.basename(source_topic) in self.OUTPUT_IMG_PRODUCTS:
+                continue
             source_topic = nepi_sdk.find_topic(source_topic, exact = True)
             if source_topic != '':
                 found_source_topics.append(source_topic)
                 if source_topic not in active_source_topics:
                     self.msg_if.pub_warn('Will subscribe to image topic: ' + source_topic)
-                    success = self.subscribeImgTopic(source_topic)              
+                    success = self.subscribeImgTopic(source_topic)
         # Update Image Subs purge list
         for source_topic in active_source_topics:
             if source_topic not in found_source_topics or source_topic not in selected_sources:
@@ -2243,9 +2246,11 @@ class AiDetectorIF:
             detections_msg.source_timestamp = float(img_dict['timestamp'])
             detections_msg.detections = detection_msg_list
             #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
-            self.publishData('detections',detections_msg)
-            self.publishData('all_detections',detections_msg)
-    
+            # detections data product (publish + rate-gated save) is owned by
+            # DetectionsIF; the collective 'all' fan-out stays inline.
+            self.detections_if.publish_data(detections_msg, timestamp = detect_timestamp)
+            self.node_if.publish_pub('all_detections', detections_msg)
+
             if det_count > 0:
                 if 'detections_trigger' in self.triggers_dict.keys():
                     trigger_dict = self.triggers_dict['detections_trigger']
@@ -2286,9 +2291,11 @@ class AiDetectorIF:
             targets_msg.targets = targets_msg_list
 
             #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
-            self.publishData('targets',targets_msg)
-            self.publishData('all_targets',targets_msg)
-    
+            # targets data product (publish + rate-gated save) is owned by
+            # TargetsIF; the collective 'all' fan-out stays inline.
+            self.targets_if.publish_data(targets_msg, timestamp = detect_timestamp)
+            self.node_if.publish_pub('all_targets', targets_msg)
+
             if det_count > 0:
                 if 'targeting_trigger' in self.triggers_dict.keys():
                     trigger_dict = self.triggers_dict['targeting_trigger']
@@ -2296,18 +2303,11 @@ class AiDetectorIF:
                     self.triggers_if.publish_trigger(trigger_dict)
 
                 self.targeting_state = True
-             
 
-            # Save Data if needed
-            image_text = source_topic.replace(self.base_namespace,"")
-            image_text = image_text.replace('/','_')
-            if len(detect_dict_list) > 0 and self.save_data_if is not None:
-                data_product = 'detections'
-                detections_dict = nepi_sdk.convert_msg2dict(detections_msg)
-                self.save_data_if.save(data_product,detections_dict,timestamp = detect_timestamp)
-                data_product = 'targets'
-                targets_dict = nepi_sdk.convert_msg2dict(targets_msg)
-                self.save_data_if.save(data_product,targets_dict,timestamp = detect_timestamp)
+            # NOTE: detections/targets saving is now handled inside
+            # DetectionsIF.publish_data / TargetsIF.publish_data (rate-gated via
+            # the shared SaveDataIF), so the previous unconditional inline save
+            # of the detections/targets messages has been removed here.
 
     def publishData(self,pub_name, msg):
         #self.msg_if.pub_warn("Publishing topic: " + str(pub_name) + " with msg " + str(msg))
@@ -2502,12 +2502,12 @@ class AiDetectorIF:
 
         #self.msg_if.pub_warn("Ending Detector Status Pub")
         #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.status_msg), throttle_s = 5)
-        if self.node_if is not None:
-            # if self.detections_has_published == False:
-            #     self.msg_if.pub_warn("Publishing Detection Status Msg: " + str(self.status_msg))
-            # self.detections_has_published = True
-            self.node_if.publish_pub('status_pub',detector_status_msg)
-            self.node_if.publish_pub('detector_status',detector_status_msg)
+        # DetectorStatus is published on <node_ns>/detections/status by
+        # DetectionsIF (same wire topic/type as the removed 'detector_status'
+        # inline pub).
+        detections_if = getattr(self, 'detections_if', None)
+        if detections_if is not None:
+            detections_if.publish_status(detector_status_msg)
 
 
         # ################
@@ -2521,10 +2521,10 @@ class AiDetectorIF:
         targeting_status_msg.threshold_filter = self.threshold
         
         #self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(self.targeting_status_msg), throttle_s = 5)
-        if self.node_if is not None:
-            # if self.targeting_has_published == False:
-            #     self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(self.targeting_status_msg))
-            # self.targeting_has_published = True
-            self.node_if.publish_pub('targeting_status',targeting_status_msg)
+        # TargetingStatus is published on <node_ns>/targets/status by TargetsIF
+        # (same wire topic/type as the removed 'targeting_status' inline pub).
+        targets_if = getattr(self, 'targets_if', None)
+        if targets_if is not None:
+            targets_if.publish_status(targeting_status_msg)
 
 
