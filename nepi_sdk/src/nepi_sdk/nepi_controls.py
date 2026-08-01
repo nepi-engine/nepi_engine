@@ -254,10 +254,47 @@ def create_controls_dict(init_dict):
 def get_control_value(controls_dict, control_name, value_key = 'set'):
   if value_key != 'factory' or value_key != 'default' or value_key != 'set':
     value_key = 'set'
-  value_str = value_key + '_value'
-  value = None
-  if control_name in controls_dict.keys(): 
-    value = controls_dict[control_name][value_str]
+  if control_name in controls_dict.keys():
+      control_dict = controls_dict[control_name]
+      control_type = control_dict['type']
+      
+      if control_type == "Menu": ###########################################################
+        value_str = value_key + '_index'  
+        value = control_dict[value_str]     
+    
+      elif control_type == "Selection": ###########################################################
+        value_str = value_key + '_string'
+        value = control_dict[value_str] 
+
+        
+      elif control_type == "Selections": ###########################################################
+        value_str = value_key + '_strings'
+        value = control_dict[value_str]
+
+      if control_type == "Int":  ###########################################################
+        value_str = value_key + '_int'
+        value = control_dict[value_str] 
+
+      elif control_type == "Float" or control_type == "FloatSlider": ###########################################################
+        value_str = value_key + '_float'   
+        value = control_dict[value_str] 
+
+      elif control_type == "FloatSliders": ###########################################################      
+        value_str = value_key + '_floats'
+        value = control_dict[value_str]
+
+      elif control_type == "Trigger": ###########################################################
+          value_str = value_key + '_float'
+          value = control_dict[value_str]
+
+      elif control_type == "Bool": ###########################################################
+          value_str = value_key + '_bool'
+          value = control_dict[value_str]
+          
+      elif control_type == "String": ###########################################################
+        value_str = value_key + '_string'
+        value = control_dict[value_str]
+    
   return value
 
 
