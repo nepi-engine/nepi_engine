@@ -39,8 +39,8 @@ NONE_CAP_SETTINGS = {"None":{"name":"None","type":"None","optons":[]}}
 NONE_SETTINGS = {"None":{"name":"None","type":"None","value":"None"}}
 
 
-def get_settings_publisher_namespaces():
-    topics_list = nepi_sdk.find_topics_by_msg('nepi_interfaces.msg/Settings')
+def get_settings_publisher_namespaces(topics_list = None, types_list = None):
+    topics_list = nepi_sdk.find_topics_by_msg('Settings', topics_list = topics_list, types_list = types_list)
     namespaces_list = []
     for topic in topics_list:
         namespaces_list.append(os.path.dirname(topic))

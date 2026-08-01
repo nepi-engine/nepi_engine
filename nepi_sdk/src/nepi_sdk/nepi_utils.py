@@ -300,7 +300,11 @@ def clear_end_slash(str_2_check):
     return str_2_check
 
 def get_clean_name(name, invalid_chars = r'[<>:"/\\|?*\x00-\x1F]', replacement='_'):
-    return re.sub(invalid_chars, replacement, name)
+    if name is None:
+        name = ''
+    elif name != '':
+        name = re.sub(invalid_chars, replacement, name)
+    return name
   
 
 def get_folder_list(search_path):

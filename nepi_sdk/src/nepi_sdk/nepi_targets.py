@@ -42,10 +42,9 @@ logger = Logger(log_name = log_name)
 
 ########################
 ## Misc AI Helper Functions
-def get_targeting_source_publisher_namespaces():
+def get_targeting_source_publisher_namespaces(topics_list = None, types_list = None):
     namespace = []
-    msg_type = 'nepi_interfaces/TargetingStatus'
-    namespaces = nepi_sdk.find_topics_by_msg(msg_type)
+    namespaces = nepi_sdk.find_topics_by_msg('TargetingStatus', topics_list = topics_list, types_list = types_list)
     for i, namespace in enumerate(namespaces):
         namespaces[i] = os.path.dirname(namespaces[i])
     return namespaces 
