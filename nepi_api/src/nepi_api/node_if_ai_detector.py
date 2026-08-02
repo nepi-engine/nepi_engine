@@ -2480,7 +2480,7 @@ class AiDetectorIF:
 
         self.process_status_msg.available_source_topics = self.available_source_topics
         self.process_status_msg.auto_select_enabled = self.auto_select_enabled
-        if self.auto_select_enable == False:
+        if self.auto_select_enabled == False:
             self.auto_select_active = False
         self.process_status_msg.auto_select_active = self.auto_select_active
         self.process_status_msg.selected_sources = self.selected_sources
