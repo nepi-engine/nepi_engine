@@ -183,7 +183,7 @@ class ControlsIF:
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
             'init_configs': True,
-            'namespace': self.namespace
+            'namespace': self.controls_namespace
         }
 
         # Params Config Dict ####################
@@ -348,7 +348,7 @@ class ControlsIF:
         
         if node_if is None:
             self.node_if = NodeClassIF(
-                            configs_dict = self.CFGS_DICT,
+                            configs_dict = self.CONFIGS_DICT,
                             params_dict = PARAMS_DICT,
                             services_dict = None,
                             pubs_dict = self.controls_node_pubs_dict,
@@ -374,8 +374,8 @@ class ControlsIF:
         ##############################
         # Start updater controls
         if self.controls_updater_max_rate != -1:
-            nepi_sdk.start_timer_controls(1.0, self._updaterCb, oneshot = True)
-        nepi_sdk.start_timer_controls(1.0, self._publishStatusCb)
+            nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
         # Complete Initialization
@@ -517,12 +517,12 @@ class ControlsIF:
 
     def factory_reset_control_value(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.reset_control_factory_value(controls_dict, control_name)
+        controls_dict = nepi_controls.factory_reset_control_value(controls_dict, control_name)
         self.controls_dict = controls_dict
 
     def factory_reset_control_values(self):
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.reset_control_factory_values(controls_dict)
+        controls_dict = nepi_controls.factory_reset_control_values(controls_dict)
         self.controls_dict = controls_dict
 
     def get_control_options(self, control_name):
@@ -591,39 +591,39 @@ class ControlsIF:
 
     def get_control_display_order(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
-        order = nepi_controls.get_control_order(controls_dict, control_name)
+        order = nepi_controls.get_control_display_order(controls_dict, control_name)
         return order
 
     def set_control_display_order(self, control_name, update_order = 0):
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_order(controls_dict, control_name, update_order)
+        controls_dict = nepi_controls.set_control_display_order(controls_dict, control_name, update_order)
         self.controls_dict = controls_dict
 
     def move_control_display_top(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_order_top(controls_dict, control_name)
+        controls_dict = nepi_controls.move_control_display_top(controls_dict, control_name)
         self.controls_dict = controls_dict
 
     def move_control_display_bottom(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_order_bottom(controls_dict, control_name)
+        controls_dict = nepi_controls.move_control_display_bottom(controls_dict, control_name)
         self.controls_dict = controls_dict
 
     def move_control_display_up(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_order_up(controls_dict, control_name)
+        controls_dict = nepi_controls.move_control_display_up(controls_dict, control_name)
         self.controls_dict = controls_dict
 
     def move_control_display_down(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_order_down(controls_dict, control_name)
+        controls_dict = nepi_controls.move_control_display_down(controls_dict, control_name)
         self.controls_dict = controls_dict
 
 
     ##################
     # Misc Functions
 
-    def publish_status(self, status_msg):
+    def publish_status(self, status_msg = None):
         ###########
         controls_dict = copy.deepcopy(self.controls_dict)
         self.controls_status_msg = nepi_controls.update_status_msg(self.controls_status_msg, controls_dict)
@@ -702,13 +702,39 @@ class ControlsIF:
         next_time = delay_time - update_time
         if next_time < 0.01:
             next_time = 0.01
-        nepi_sdk.start_timer_controls(next_time, self._updaterCb, oneshot = True)
+        nepi_sdk.start_timer_process(next_time, self._updaterCb, oneshot = True)
 
 
     def _setValueCb(self,msg):
             control_name = msg.name
-            control_value = msg.value
+            # The value setters share this single callback. Most Update* msgs carry
+            # a 'value' field; UpdateRangeWindow (FloatSliders) carries start/stop_range
+            # and UpdateTrigger (Trigger) carries no value at all.
+            if hasattr(msg, 'value'):
+                control_value = msg.value
+            elif hasattr(msg, 'start_range'):
+                control_value = [msg.start_range, msg.stop_range]
+            else:
+                control_value = nepi_utils.get_time()
             self.set_control_value(control_name, control_value)
+
+    def _setHiddenValueCb(self,msg):
+            self.set_control_hidden(msg.name, msg.value)
+
+    def _setOrderValueCb(self,msg):
+            self.set_control_display_order(msg.name, msg.value)
+
+    def _setOrderTopCb(self,msg):
+            self.move_control_display_top(msg.name)
+
+    def _setOrderBottomCb(self,msg):
+            self.move_control_display_bottom(msg.name)
+
+    def _setOrderDownCb(self,msg):
+            self.move_control_display_down(msg.name)
+
+    def _publishStatusCb(self,timer):
+            self.publish_status()
 
 
 
