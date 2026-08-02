@@ -25,7 +25,7 @@ from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty
 
-from nepi_interfaces.msg import Targets, TargetingStatus
+from nepi_interfaces.msg import Detections, DetectorStatus
 
 from nepi_api.messages_if import MsgIF
 
@@ -36,26 +36,26 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 
 
 #########################################
-# Connect Targets IF Class
+# Connect Detections IF Class
 #########################################
-# Client-side connect class mirroring process_if.TargetsIF. The connected
-# source publishes a nepi_interfaces/Targets message on its base namespace and a
-# nepi_interfaces/TargetingStatus message on <namespace>/status. This connect
-# class subclasses ConnectNodeIF directly and follows the ConnectNavPoseIF
-# pattern: retrieved Targets messages are converted to targets dictionaries and
-# cached (thread-safe) for polling consumers, or handed straight to
-# callback_function when one is provided.
+# Client-side connect class mirroring process_if.DetectionsIF. The connected
+# source publishes a nepi_interfaces/Detections message on its base namespace
+# and a nepi_interfaces/DetectorStatus message on <namespace>/status. This
+# connect class subclasses ConnectNodeIF directly and follows the
+# ConnectNavPoseIF / ConnectTargetsIF pattern: retrieved Detections messages are
+# converted to detections dictionaries and cached (thread-safe) for polling
+# consumers, or handed straight to callback_function when one is provided.
 
 
-TARGETS_CONNECT_ID = 'TARGETS'
-TARGETS_CONNECT_STATUS_MSG = 'TargetingStatus'
-TARGETS_CONNECT_NAME = 'targets_connect'
+DETECTIONS_CONNECT_ID = 'DETECTIONS'
+DETECTIONS_CONNECT_STATUS_MSG = 'DetectorStatus'
+DETECTIONS_CONNECT_NAME = 'detections_connect'
 
 
 CONNECTED_TIMEOUT = 2
 
 
-class ConnectTargetsIF(ConnectNodeIF):
+class ConnectDetectionsIF(ConnectNodeIF):
 
     # ADD Additional Connect Callback Functions
 
@@ -86,7 +86,7 @@ class ConnectTargetsIF(ConnectNodeIF):
     #######################
     ### IF Initialization
     def __init__(self,
-                connect_name = TARGETS_CONNECT_NAME,
+                connect_name = DETECTIONS_CONNECT_NAME,
                 namespace = None,
                 statusCb = None,
                 preprocess_function = None,
@@ -101,8 +101,8 @@ class ConnectTargetsIF(ConnectNodeIF):
         self.msg_if = msg_if
         self.node_if = node_if
         super().__init__(
-                connect_id = TARGETS_CONNECT_ID,
-                connect_status_msg = TARGETS_CONNECT_STATUS_MSG,
+                connect_id = DETECTIONS_CONNECT_ID,
+                connect_status_msg = DETECTIONS_CONNECT_STATUS_MSG,
                 connect_name = connect_name,
                 selected_topic = namespace,
                 auto_select_enabled = True,
@@ -175,7 +175,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         return self.ready
 
     def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected targets source.
+        """Return the fully-resolved ROS namespace for the connected detections source.
 
         Returns:
             str: The fully-qualified namespace string used for topic and service resolution.
@@ -183,7 +183,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         return self.selected_topic
 
     def check_connection(self):
-        """Check whether the targets source is currently connected.
+        """Check whether the detections source is currently connected.
 
         Returns:
             bool: True if a status message has been received within the connection timeout window,
@@ -192,7 +192,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         return self.connected
 
     def wait_for_connection(self, timeout = float('inf') ):
-        """Block until the targets source is connected or the timeout expires.
+        """Block until the detections source is connected or the timeout expires.
 
         Args:
             timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
@@ -215,7 +215,7 @@ class ConnectTargetsIF(ConnectNodeIF):
 
 
     def check_status_connection(self):
-        """Check whether the status topic from the targets source is currently connected.
+        """Check whether the status topic from the detections source is currently connected.
 
         Returns:
             bool: True if status messages are being received, False otherwise.
@@ -223,7 +223,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         return self.connected
 
     def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until the targets source status topic is connected or the timeout expires.
+        """Block until the detections source status topic is connected or the timeout expires.
 
         Args:
             timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
@@ -245,10 +245,10 @@ class ConnectTargetsIF(ConnectNodeIF):
         return self.connected
 
     def get_status_dict(self):
-        """Return the latest targets source status as a dictionary.
+        """Return the latest detections source status as a dictionary.
 
         Returns:
-            dict: A dictionary representation of the most recent TargetingStatus message,
+            dict: A dictionary representation of the most recent DetectorStatus message,
                 or None if no status has been received yet.
         """
         status_dict = None
@@ -257,25 +257,25 @@ class ConnectTargetsIF(ConnectNodeIF):
         return status_dict
 
     def get_status_msg(self):
-        """Return the latest targets source status as a msg.
+        """Return the latest detections source status as a msg.
 
         Returns:
-            TargetingStatus: The most recent TargetingStatus message,
+            DetectorStatus: The most recent DetectorStatus message,
                 or None if no status has been received yet.
         """
         return self.status_msg
 
     def get_data_topic(self):
-        """Return the targets data topic of the connected data source.
+        """Return the detections data topic of the connected data source.
 
         Returns:
-            str: The selected data source namespace, which is also the Targets topic
+            str: The selected data source namespace, which is also the Detections topic
                 the source publishes on, or 'None' if no source is selected.
         """
         return self.selected_topic
 
     def set_get_data(self, state):
-        """Set the flag requesting capture of the next available targets message.
+        """Set the flag requesting capture of the next available detections message.
 
         Args:
             state (bool): True to request the next message, False to clear the request.
@@ -291,20 +291,20 @@ class ConnectTargetsIF(ConnectNodeIF):
 
         Returns:
             list: A two-element list [get_data, got_data] where get_data indicates
-                whether a targets message has been requested and got_data indicates
-                whether a targets message is waiting to be retrieved.
+                whether a detections message has been requested and got_data indicates
+                whether a detections message is waiting to be retrieved.
         """
         return [self.get_data, self.got_data]
 
-    def get_targets_dict(self):
-        """Retrieve and consume the latest captured targets data dictionary.
+    def get_detections_dict(self):
+        """Retrieve and consume the latest captured detections data dictionary.
 
         Thread-safe. Clears the stored data after retrieval so subsequent calls
-        return None until a new targets message arrives.
+        return None until a new detections message arrives.
 
         Returns:
-            dict: The targets data dictionary containing the targets values,
-                namespace, and timestamp, or None if no targets are available.
+            dict: The detections data dictionary containing the detections values,
+                namespace, and timestamp, or None if no detections are available.
         """
         self.data_dict_lock.acquire()
         data_dict = copy.deepcopy(self.data_dict)
@@ -355,14 +355,14 @@ class ConnectTargetsIF(ConnectNodeIF):
             'status_sub': {
                 'namespace': self.selected_topic,
                 'topic': 'status',
-                'msg': TargetingStatus,
+                'msg': DetectorStatus,
                 'qsize': 10,
                 'callback': self._statusCb
             },
             'data_sub': {
                 'namespace': self.selected_topic,
                 'topic': '',
-                'msg': Targets,
+                'msg': Detections,
                 'qsize': 1,
                 'callback': self._dataCb
             }
@@ -437,7 +437,7 @@ class ConnectTargetsIF(ConnectNodeIF):
     def _statusCb(self,status_msg):
         self.last_status_time = nepi_utils.get_time()
         if self.connected == False:
-            self.msg_if.pub_warn("Connected to TARGETS Status:  " + str(self.selected_topic))
+            self.msg_if.pub_warn("Connected to DETECTIONS Status:  " + str(self.selected_topic))
             self.connecting = False
             self.connected_topic = self.selected_topic
         self.connected = True
@@ -449,10 +449,10 @@ class ConnectTargetsIF(ConnectNodeIF):
 
 
     def _dataCb(self,data_msg):
-        # Only build a targets dict when a consumer has asked for one (get_data
+        # Only build a detections dict when a consumer has asked for one (get_data
         # flag) or a callback_function is registered; otherwise the incoming
-        # Targets message is dropped cheaply. Connection state is driven by the
-        # status callback. Targets carries a float64 timestamp field (no
+        # Detections message is dropped cheaply. Connection state is driven by the
+        # status callback. Detections carries a float64 timestamp field (no
         # std_msgs Header), so latency is not computed here.
         get_data = (self.callbackFunction is not None or self.get_data == True)
         if get_data == False:
@@ -463,14 +463,14 @@ class ConnectTargetsIF(ConnectNodeIF):
         self.get_data = False
 
         ##############################
-        ### Preprocess Targets
+        ### Preprocess Detections
         data = nepi_sdk.convert_msg2dict(data_msg)
 
         if self.preprocessFunction is not None:
             try:
                 data = self.preprocessFunction(data)
             except Exception as e:
-                self.msg_if.pub_warn("Provided Targets Preprocess Function failed:  " + str(e))
+                self.msg_if.pub_warn("Provided Detections Preprocess Function failed:  " + str(e))
 
         data_dict = dict()
         data_dict['namespace'] = self.selected_topic

@@ -342,6 +342,7 @@ class RBXRobotIF:
           axis_controls.roll = False
           axis_controls.pitch = False
           axis_controls.yaw = False
+          axisControls = axis_controls
         self.caps_report.control_support = axisControls
         
         self.caps_report.state_options = states

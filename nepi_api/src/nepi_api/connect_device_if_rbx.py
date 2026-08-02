@@ -78,6 +78,8 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     infoCb = None # Backwards Compatibility
     motorStatusCb = None # Backwards Compatibility
 
+    callbackFunction = None
+
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
     #######################
@@ -88,6 +90,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 statusCb = None,
                 infoCb = None,
                 motorStatusCb = None,
+                callback_function = None,
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
@@ -122,6 +125,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         self.statusCb = statusCb
         self.infoCb = infoCb
         self.motorStatusCb = motorStatusCb
+        self.callbackFunction = callback_function
 
 
         ##############################
@@ -990,9 +994,11 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         self.connected = True
         self.status_msg = status_msg
 
+        status_dict = self.get_status_dict()
         if self.statusCb is not None:
-            status_dict = self.get_status_dict()
             self.statusCb(status_dict)
+        if self.callbackFunction is not None:
+            self.callbackFunction(status_dict)
 
     def _infoCb(self,info_msg):
         self.info_msg = info_msg
