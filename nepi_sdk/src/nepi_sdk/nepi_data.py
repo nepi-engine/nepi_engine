@@ -24,7 +24,7 @@ import copy
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from std_msgs.msg import Empty, Int8, UInt32, Int32, Bool, String, StringArray, Float32, Float64
+from std_msgs.msg import Empty, Int8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import Datum, DataStatus
 
