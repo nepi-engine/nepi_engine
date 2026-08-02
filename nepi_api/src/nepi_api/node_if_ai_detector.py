@@ -115,7 +115,7 @@ class AiDetectorIF:
     all_detections_namespace = None
     all_targets_namespace = None
 
-    status_msg = ProcessStatus()
+    process_status_msg = ProcessStatus()
 
     states_dict = None
     triggers_dict = dict()
@@ -212,6 +212,9 @@ class AiDetectorIF:
     max_process_rate_hz = DEFAULT_MAX_PROC_RATE
     max_image_pub_rate_hz = DEFAULT_MAX_IMG_RATE
     use_last_image = DEFAULT_USE_LAST_IMAGE
+
+    auto_select_enabled = True
+    auto_select_active = True
     selected_sources = []
 
     imaging_enabled=True
@@ -230,6 +233,7 @@ class AiDetectorIF:
     active_topics = []
     active_topic_types = []
     active_services = []
+
 
     save_config_enabled = True
 
@@ -310,8 +314,8 @@ class AiDetectorIF:
 
         
         ## Init Status Messages
-        self.status_msg.node_name = self.node_name
-        self.status_msg.namespace = self.namespace
+        self.process_status_msg.node_name = self.node_name
+        self.process_status_msg.namespace = self.namespace
 
 
         self.model_name = model_name
@@ -354,6 +358,10 @@ class AiDetectorIF:
             'enabled': {
                 'namespace': self.node_namespace,
                 'factory_val': self.enabled
+            },
+            'auto_select_enabled': {
+                'namespace': self.node_namespace,
+                'factory_val': self.auto_select_enabled
             },
             'selected_sources': {
                 'namespace': self.node_namespace,
@@ -447,6 +455,14 @@ class AiDetectorIF:
                 'msg': Bool,
                 'qsize': 10,
                 'callback': self.setEnableCb, 
+                'callback_args': ()
+            },
+            'detector_set_auto_select_enable': {
+                'namespace': self.detector_namespace,
+                'topic': 'set_auto_select_enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setAutoSelectEnableCb, 
                 'callback_args': ()
             },
             'detector_set_source_topic': {
@@ -602,6 +618,14 @@ class AiDetectorIF:
                 'msg': Bool,
                 'qsize': 10,
                 'callback': self.setEnableCb, 
+                'callback_args': ()
+            },
+            'targeting_set_auto_select_enable': {
+                'namespace': self.targeting_namespace,
+                'topic': 'set_auto_select_enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setAutoSelectEnableCb, 
                 'callback_args': ()
             },
             'targeting_set_source_topic': {
@@ -848,8 +872,8 @@ class AiDetectorIF:
                             # )
         nepi_sdk.sleep(1)
         if self.save_data_if is not None:
-            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+            self.process_status_msg.save_data_topic = self.save_data_if.get_namespace()
+            self.msg_if.pub_info("Using save_data namespace: " + str(self.process_status_msg.save_data_topic))
 
 
         ###############################
@@ -978,7 +1002,10 @@ class AiDetectorIF:
             self.max_process_rate_hz = self.node_if.get_param('max_process_rate_hz')
             self.max_image_pub_rate_hz = self.node_if.get_param('max_image_pub_rate_hz')
             self.use_last_image = self.node_if.get_param('use_last_image')
+
             self.selected_sources = self.node_if.get_param('selected_sources')
+            auto_select_enabled = self.node_if.get_param('auto_select_enabled')
+            self.setAutoSelectEnable(auto_select_enabled)
             self.msg_if.pub_info("Init selected images: " + str(self.selected_sources), log_name_list = self.log_name_list)
 
             self.save_config()
@@ -1009,6 +1036,8 @@ class AiDetectorIF:
         enabled = msg.data
         self.setEnable(enabled)
 
+
+
     def setEnable(self,enabled, save_config = True):
         last_val = copy.deepcopy(self.enabled)
         self.enabled = enabled
@@ -1019,6 +1048,23 @@ class AiDetectorIF:
         if enabled == False and not nepi_sdk.is_shutdown():
             self.next_source_topic = "None"
 
+            
+
+    def setAutoSelectEnableCb(self,msg):
+        #self.msg_if.pub_warn("Received AI auto select source topic msg: " + str(msg))
+        enabled = msg.data
+        self.setAutoSelectEnable(enabled)
+
+
+    def setAutoSelectEnable(self, enabled):
+        self.selected_sources = []
+        self.auto_select_active = enabled
+        self.auto_select_enabled = enabled
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('auto_select_enabled',self.auto_select_enabled)
+            self.save_config()
+       
 
     def setImageTopicCb(self,msg):
         #self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
@@ -1029,6 +1075,7 @@ class AiDetectorIF:
     def setImageTopic(self, source_topic, save_config = True):
         #self.msg_if.pub_info("Set Image Topic: " + source_topic)         
         self.selected_sources = [source_topic]
+        self.auto_select_active = False
         self.publish_status()
         if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_sources',self.selected_sources)
@@ -1043,6 +1090,7 @@ class AiDetectorIF:
     def setImageTopics(self, source_topics, save_config = True):
         #self.msg_if.pub_info("Set Image Topics: " + str(source_topics))         
         self.selected_sources = source_topics
+        self.auto_select_active = False
         self.publish_status()
         if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_sources',self.selected_sources)
@@ -1070,6 +1118,7 @@ class AiDetectorIF:
         else:
             self.msg_if.pub_warn('Image topic allready selected')
         self.selected_sources = source_topics
+        self.auto_select_active = False
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param('selected_sources',self.selected_sources)
@@ -1096,6 +1145,7 @@ class AiDetectorIF:
         if source_topic in source_topics:
             source_topics.remove(source_topic)
         self.selected_sources = source_topics
+        self.auto_select_active = False
         self.publish_status()
         if self.node_if is not None and save_config == True:
             self.node_if.set_param('selected_sources',self.selected_sources)
@@ -1408,6 +1458,10 @@ class AiDetectorIF:
         purge_list = []
         # Update Image subscribers
         found_source_topics = []
+        if len(selected_sources) == 0 and len(available_source_topics) > 0 and self.auto_select_enabled == True and self.auto_select_active == True:
+            selected_sources = [available_source_topics[0]]
+            self.selected_sources = selected_sources
+        
         for source_topic in selected_sources:
             if os.path.basename(source_topic) in self.OUTPUT_IMG_PRODUCTS:
                 continue
@@ -2389,7 +2443,7 @@ class AiDetectorIF:
         nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
 
     def handleStatusRequest(self,_):
-        resp = self.status_msg
+        resp = self.process_status_msg
         #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
         return resp
     
@@ -2411,21 +2465,25 @@ class AiDetectorIF:
         """
         #self.msg_if.pub_warn("Starting Detector Status Pub")
 
-        self.status_msg.name = self.model_name
-        self.status_msg.group = self.model_framework
-        self.status_msg.description = self.model_description
+        self.process_status_msg.name = self.model_name
+        self.process_status_msg.group = self.model_framework
+        self.process_status_msg.description = self.model_description
 
-        self.status_msg.node_name = self.node_name
-        self.status_msg.namespace = self.namespace
+        self.process_status_msg.node_name = self.node_name
+        self.process_status_msg.namespace = self.namespace
 
-        self.status_msg.save_data_topic = self.save_data_namespace
+        self.process_status_msg.save_data_topic = self.save_data_namespace
 
 
 
-        self.status_msg.max_process_rate_hz = self.max_process_rate_hz
+        self.process_status_msg.max_process_rate_hz = self.max_process_rate_hz
 
-        self.status_msg.available_source_topics = self.available_source_topics
-        self.status_msg.selected_sources = self.selected_sources
+        self.process_status_msg.available_source_topics = self.available_source_topics
+        self.process_status_msg.auto_select_enabled = self.auto_select_enabled
+        if self.auto_select_enable == False:
+            self.auto_select_active = False
+        self.process_status_msg.auto_select_active = self.auto_select_active
+        self.process_status_msg.selected_sources = self.selected_sources
 
 
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
@@ -2441,16 +2499,16 @@ class AiDetectorIF:
             img_has_ranges.append(imgs_info_dict[source_topic]['has_range'])
             img_hfovs.append(imgs_info_dict[source_topic]['width_deg'])
             img_vfovs.append(imgs_info_dict[source_topic]['height_deg'])
-        self.status_msg.sources_connected = img_connects
+        self.process_status_msg.sources_connected = img_connects
         img_selected = len(img_connects) > 0 or self.source_file_processing
-        self.status_msg.source_selected = img_selected 
+        self.process_status_msg.source_selected = img_selected 
         img_connected = True in img_connects or self.source_file_processing
-        self.status_msg.source_connected = img_connected 
+        self.process_status_msg.source_connected = img_connected 
 
-        self.status_msg.has_imaging = True
-        self.status_msg.imaging_enabled = self.imaging_enabled
-        self.status_msg.max_image_pub_rate_hz = self.max_image_pub_rate_hz
-        self.status_msg.use_last_image = self.use_last_image
+        self.process_status_msg.has_imaging = True
+        self.process_status_msg.imaging_enabled = self.imaging_enabled
+        self.process_status_msg.max_image_pub_rate_hz = self.max_image_pub_rate_hz
+        self.process_status_msg.use_last_image = self.use_last_image
         img_source_topics = []
         img_det_namespaces = []
         img_pub_topics = []
@@ -2459,30 +2517,30 @@ class AiDetectorIF:
                 if state == True:
                     img_source_topics.append(source_topic)
                     img_pub_topics.append(imgs_info_dict[source_topic]['img_pub_topic'])
-        self.status_msg.imaging_source_topics = img_source_topics
-        self.status_msg.imaging_pub_topics = img_pub_topics
+        self.process_status_msg.imaging_source_topics = img_source_topics
+        self.process_status_msg.imaging_pub_topics = img_pub_topics
 
 
         #################
 
-        self.status_msg.enabled = self.enabled
+        self.process_status_msg.enabled = self.enabled
         running = self.enabled and img_selected and img_connected and self.sleep_state == False
-        self.status_msg.running = running
+        self.process_status_msg.running = running
         detecting = False
         if self.states_dict is not None:
             detecting = copy.deepcopy(self.states_dict['detections']['value']) == 'True'
-        self.status_msg.state = detecting
-        self.status_msg.msg_str = self.msg_str
+        self.process_status_msg.state = detecting
+        self.process_status_msg.msg_str = self.msg_str
 
         #################
-        self.status_msg.avg_source_latency = sum(self.source_receive_latencies) / len(self.source_receive_latencies)
-        self.status_msg.avg_source_rate = sum(self.source_receive_rates) / len(self.source_receive_rates)
+        self.process_status_msg.avg_source_latency = sum(self.source_receive_latencies) / len(self.source_receive_latencies)
+        self.process_status_msg.avg_source_rate = sum(self.source_receive_rates) / len(self.source_receive_rates)
 
-        self.status_msg.avg_preprocess_latency = sum(self.preprocess_latencies) / len(self.preprocess_latencies)
-        self.status_msg.avg_preprocess_rate = sum(self.preprocess_rates) / len(self.preprocess_rates)
+        self.process_status_msg.avg_preprocess_latency = sum(self.preprocess_latencies) / len(self.preprocess_latencies)
+        self.process_status_msg.avg_preprocess_rate = sum(self.preprocess_rates) / len(self.preprocess_rates)
         
-        self.status_msg.avg_process_latency = sum(self.process_latencies) / len(self.process_latencies)
-        self.status_msg.avg_process_rate = sum(self.process_rates) / len(self.process_rates)
+        self.process_status_msg.avg_process_latency = sum(self.process_latencies) / len(self.process_latencies)
+        self.process_status_msg.avg_process_rate = sum(self.process_rates) / len(self.process_rates)
 
 
         avg_process_time = sum(self.process_times) / len(self.process_times)
@@ -2490,10 +2548,10 @@ class AiDetectorIF:
             max_process_rate= 1.0 / avg_process_time
         else:
             max_process_rate= 0
-        self.status_msg.max_process_rate = max_process_rate
+        self.process_status_msg.max_process_rate = max_process_rate
     
         detector_status_msg = DetectorStatus()
-        detector_status_msg.process_status = self.status_msg
+        detector_status_msg.process_status = self.process_status_msg
         detector_status_msg.process_status.namespace = self.detector_namespace
         detector_status_msg.available_classes = self.classes
         detector_status_msg.selected_classes = self.selected_classes
@@ -2501,7 +2559,7 @@ class AiDetectorIF:
 
 
         #self.msg_if.pub_warn("Ending Detector Status Pub")
-        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.status_msg), throttle_s = 5)
+        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.process_status_msg), throttle_s = 5)
         # DetectorStatus is published on <node_ns>/detections/status by
         # DetectionsIF (same wire topic/type as the removed 'detector_status'
         # inline pub).
@@ -2514,7 +2572,7 @@ class AiDetectorIF:
         # # Targeting Status
 
         targeting_status_msg = TargetingStatus()
-        targeting_status_msg.process_status = self.status_msg
+        targeting_status_msg.process_status = self.process_status_msg
         targeting_status_msg.process_status.namespace = self.targeting_namespace
         targeting_status_msg.available_classes = self.classes
         targeting_status_msg.selected_classes = self.selected_classes

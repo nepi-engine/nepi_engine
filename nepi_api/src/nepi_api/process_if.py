@@ -85,6 +85,7 @@ class ProcessIF:
     available_names = []
 
     auto_select_enabled = True
+    auto_select_active = True
     multi_source_enabled = True
     exclude_source_filters = []
 
@@ -587,8 +588,8 @@ class ProcessIF:
 
         selected_name = 'None'
         if selected_sources not in available_sources:
-            if len(available_sources) > 0 and self.auto_select_enabled == True:
-                selected_sources = available_sources[0]
+            if len(available_sources) > 0 and self.auto_select_enabled == True and self.auto_select_active == True:
+                selected_sources = [available_sources[0]]
                 self.selected_sources = selected_sources
             else:
                 selected_sources = 'None' 
