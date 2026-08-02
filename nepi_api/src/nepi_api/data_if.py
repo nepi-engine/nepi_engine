@@ -180,7 +180,7 @@ class DataIF:
             self.msg_if.pub_warn("Data Name Not Valid: " + str(data_name)) 
             return
         self.msg_if.pub_info("Using Data Name: " + self.data_name)
-        self.data_namespace = nepi_sdk.create_namespace(self.node_name,self.data_name)
+        self.data_namespace = nepi_sdk.create_namespace(self.node_namespace,self.data_name)
 
     
         self.node_if_prefix = data_name + '_'
@@ -205,7 +205,7 @@ class DataIF:
              self.node_if_prefix + 'status_pub': {
                 'namespace': self.data_namespace,
                 'topic': 'status',
-                'msg': self.data_status_msg,
+                'msg': DataStatus,
                 'qsize': 1,
                 'latch': True
             }

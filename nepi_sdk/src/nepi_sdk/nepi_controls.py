@@ -310,7 +310,7 @@ def set_control_value(controls_dict, control_name, update_value, value_key = 'se
         string_options = control_dict['string_options']
         try:
           value  = int(update_value)
-          if value > len(string_options):
+          if 0 <= value < len(string_options):
             control_dict[value_str] = value
           else:
             logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Index out of range" + str(len(string_options)))
@@ -323,7 +323,7 @@ def set_control_value(controls_dict, control_name, update_value, value_key = 'se
         try:
           value  = str(update_value)
           if value in string_options:
-            control_dict['default_string'] = value
+            control_dict[value_str] = value
           else:
             logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Not in options" + str(string_options))
         except Exception as e:
@@ -334,14 +334,15 @@ def set_control_value(controls_dict, control_name, update_value, value_key = 'se
         value_str = value_key + '_strings'
         string_options = control_dict['string_options']
         try:
-          check_values  = [str(item) for item in update_value]
+          # Declarative full-selection update: the message carries the complete
+          # desired list of selected options. Keep only valid options.
           values = []
-          for value in check_values:
+          for value in [str(item) for item in update_value]:
             if value in string_options:
               values.append(value)
             else:
               logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Not in options" + str(string_options))
-          control_dict[value_str] = value
+          control_dict[value_str] = values
         except Exception as e:
           logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e)) 
 

@@ -47,7 +47,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 
 from nepi_interfaces.msg import UpdateOrder, UpdateRangeWindow, UpdateFloat, UpdateFloats, UpdateInt, UpdateBool, UpdateString, UpdateStringArray, UpdateTrigger
 
-from nepi_interfaces.msg import Controls, ControlsStatus, MgrSystemStatus
+from nepi_interfaces.msg import ControlsStatus, MgrSystemStatus
 
 from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
@@ -88,6 +88,7 @@ class ControlsIF:
     controls_display_name = ''
     controls_description = ''
     controls_dict = dict()
+    controls_hidden = False
     controls_status_msg = ControlsStatus()
 
     controls_node_pubs_dict = None
@@ -116,7 +117,8 @@ class ControlsIF:
                 controls_updater_max_rate = 1,# set to -1 to disable updater thread
                 controls_updater_callback = None, # if not None: Calls function at the begining of each loop
                 show_controls = True,
-                has_show_control = False, 
+                has_show_control = False,
+                hidden = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -149,7 +151,7 @@ class ControlsIF:
             self.msg_if.pub_warn("Controls Name Not Valid: " + str(controls_name)) 
             return
         self.msg_if.pub_info("Using Controls Name: " + self.controls_name)
-        self.controls_namespace = nepi_sdk.create_namespace(self.node_name,self.controls_name)
+        self.controls_namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
 
     
         self.node_if_prefix = controls_name + '_'
@@ -160,8 +162,9 @@ class ControlsIF:
         self.controls_display_name = str(controls_display_name)
         self.controls_description = str(controls_description)
         self.controls_dict = nepi_controls.create_controls_dict(controls_init_dict)
-        self.controls_status_msg = nepi_controls.create_status_msg(self.controls_name, self.controls_display_name, self.controls_description, 
+        self.controls_status_msg = nepi_controls.create_status_msg(self.controls_name, self.controls_display_name, self.controls_description,
                                                                     show_controls, has_show_control)
+        self.controls_hidden = hidden
 
         self.controls_updated_callback = controls_updated_callback
         self.controls_updater_max_rate = controls_updater_max_rate
@@ -203,7 +206,7 @@ class ControlsIF:
              self.node_if_prefix + 'status_pub': {
                 'namespace': self.controls_namespace,
                 'topic': 'status',
-                'msg': self.controls_status_msg,
+                'msg': ControlsStatus,
                 'qsize': 1,
                 'latch': True
             }
@@ -266,7 +269,7 @@ class ControlsIF:
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_trigger_control_value': {
-                'msg': UpdateTrigger,
+                'msg': UpdateString,
                 'namespace': self.controls_namespace,
                 'topic': 'set_trigger_control_value',
                 'qsize': 5,
@@ -295,6 +298,13 @@ class ControlsIF:
                 'topic': 'set_control_hidden',
                 'qsize': 5,
                 'callback': self._setHiddenValueCb
+            },
+             self.node_if_prefix + 'set_controls_hidden': {
+                'msg': UpdateBool,
+                'namespace': self.controls_namespace,
+                'topic': 'set_controls_hidden',
+                'qsize': 5,
+                'callback': self._setControlsHiddenCb
             },
              self.node_if_prefix + 'set_control_order': {
                 'msg': UpdateInt,
@@ -589,6 +599,12 @@ class ControlsIF:
         controls_dict = nepi_controls.set_control_hidden(controls_dict, control_name, hidden)
         self.controls_dict = controls_dict
 
+    def get_controls_hidden(self):
+        return self.controls_hidden
+
+    def set_controls_hidden(self, hidden):
+        self.controls_hidden = bool(hidden)
+
     def get_control_display_order(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
         order = nepi_controls.get_control_display_order(controls_dict, control_name)
@@ -626,7 +642,7 @@ class ControlsIF:
     def publish_status(self, status_msg = None):
         ###########
         controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_status_msg = nepi_controls.update_status_msg(self.controls_status_msg, controls_dict)
+        self.controls_status_msg = nepi_controls.update_status_msg(self.controls_status_msg, controls_dict, self.controls_hidden)
         if self.node_if is not None:
             if self.status_has_published == False:
                 self.msg_if.pub_warn("Publishing Status: " + str(self.controls_status_msg))
@@ -720,6 +736,9 @@ class ControlsIF:
 
     def _setHiddenValueCb(self,msg):
             self.set_control_hidden(msg.name, msg.value)
+
+    def _setControlsHiddenCb(self,msg):
+            self.set_controls_hidden(msg.value)
 
     def _setOrderValueCb(self,msg):
             self.set_control_display_order(msg.name, msg.value)
