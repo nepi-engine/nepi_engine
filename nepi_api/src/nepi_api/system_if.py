@@ -47,11 +47,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 
 from nepi_interfaces.msg import UpdateOrder, UpdateRangeWindow, UpdateFloat, UpdateFloats, UpdateInt, UpdateBool, UpdateString, UpdateStringArray, UpdateTrigger
 
-<<<<<<< HEAD
-from nepi_interfaces.msg import ControlsStatus, MgrSystemStatus
-=======
 from nepi_interfaces.msg import Control, ControlsStatus, MgrSystemStatus
->>>>>>> 088f00016452ae255476a45b9b8f7ef1cd2fddf0
 
 from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
