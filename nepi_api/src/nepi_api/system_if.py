@@ -151,15 +151,8 @@ class ControlsIF:
             self.msg_if.pub_warn("Controls Name Not Valid: " + str(controls_name)) 
             return
         self.msg_if.pub_info("Using Controls Name: " + self.controls_name)
-<<<<<<< HEAD
         self.namespace = nepi_sdk.create_namespace(self.node_name,controls_name)
         self.node_if_prefix = '/' + controls_name + '_'
-=======
-        self.controls_namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
-
-    
-        self.node_if_prefix = controls_name + '_'
->>>>>>> d26726358a7b27e33a35ca405c662bd0669c01a7
 
         ##############################    
         # Initialize Class Variables
@@ -274,13 +267,8 @@ class ControlsIF:
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_trigger_control_value': {
-<<<<<<< HEAD
                 'msg': UpdateTrigger,
                 'namespace': self.namespace,
-=======
-                'msg': UpdateString,
-                'namespace': self.controls_namespace,
->>>>>>> d26726358a7b27e33a35ca405c662bd0669c01a7
                 'topic': 'set_trigger_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
