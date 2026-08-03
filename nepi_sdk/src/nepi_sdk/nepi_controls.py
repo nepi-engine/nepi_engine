@@ -42,7 +42,7 @@ logger = Logger(log_name = log_name)
 
 
 
-CONTROL_TYPES = ["Menu","Selection","Selections","Trigger","Bool", "String", "Int","Float","FloatSlider","FloatsSlider"]
+CONTROL_TYPES = ["Menu","Selection","Selections","Trigger","Bool", "String", "Int","Float","FloatSlider","FloatSliders"]
 
 BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(Control())
 
@@ -82,7 +82,6 @@ def get_controls_publisher_namespaces(topics_list = None, types_list = None):
 def create_controls_dict(init_dict):
   controls_dict = dict()
 
-  names
   try:
     names = list(init_dict.keys())
   except:
@@ -254,13 +253,14 @@ def create_controls_dict(init_dict):
 def get_control_value(controls_dict, control_name, value_key = 'set'):
   if value_key != 'factory' or value_key != 'default' or value_key != 'set':
     value_key = 'set'
+  value = None
   if control_name in controls_dict.keys():
       control_dict = controls_dict[control_name]
       control_type = control_dict['type']
-      
+
       if control_type == "Menu": ###########################################################
-        value_str = value_key + '_index'  
-        value = control_dict[value_str]     
+        value_str = value_key + '_index'
+        value = control_dict[value_str]
     
       elif control_type == "Selection": ###########################################################
         value_str = value_key + '_string'
@@ -307,10 +307,10 @@ def set_control_value(controls_dict, control_name, update_value, value_key = 'se
       
       if control_type == "Menu": ###########################################################
         value_str = value_key + '_index'  
-        string_options = control_dict['options']
+        string_options = control_dict['string_options']
         try:
           value  = int(update_value)
-          if value > len(string_options):
+          if 0 <= value < len(string_options):
             control_dict[value_str] = value
           else:
             logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Index out of range" + str(len(string_options)))
@@ -319,11 +319,11 @@ def set_control_value(controls_dict, control_name, update_value, value_key = 'se
     
       elif control_type == "Selection": ###########################################################
         value_str = value_key + '_string'
-        string_options = control_dict['options']
+        string_options = control_dict['string_options']
         try:
           value  = str(update_value)
           if value in string_options:
-            control_dict['default_string'] = value
+            control_dict[value_str] = value
           else:
             logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Not in options" + str(string_options))
         except Exception as e:
@@ -332,16 +332,17 @@ def set_control_value(controls_dict, control_name, update_value, value_key = 'se
         
       elif control_type == "Selections": ###########################################################
         value_str = value_key + '_strings'
-        string_options = control_dict['options']
+        string_options = control_dict['string_options']
         try:
-          check_values  = [str(item) for item in update_value]
+          # Declarative full-selection update: the message carries the complete
+          # desired list of selected options. Keep only valid options.
           values = []
-          for value in check_values:
+          for value in [str(item) for item in update_value]:
             if value in string_options:
               values.append(value)
             else:
               logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Not in options" + str(string_options))
-          control_dict[value_str] = value
+          control_dict[value_str] = values
         except Exception as e:
           logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e)) 
 
@@ -523,8 +524,8 @@ def reset_control_value(controls_dict, control_name, value_key = 'default'):
 
       elif control_type == "String": ###########################################################
         update_str = update_str + '_string'
-        reset_str = reset_str + '_in_stringdex'  
-        control_dict[update_str] = control_dict[reset_str] 
+        reset_str = reset_str + '_string'
+        control_dict[update_str] = control_dict[reset_str]
 
       ###########################################################
       controls_dict[control_name] = control_dict
@@ -893,10 +894,10 @@ def update_status_msg( status_msg, controls_dict, hidden = False):
       if control_type in CONTROL_TYPES:
         msg_type = 'nepi_interfaces/Control'
         control_msg = nepi_sdk.convert_dict2msg(msg_type,control_dict)
-        names_list.appned(name)
-        types_list.appned(control_type)
-        msgs_list.appned(control_msg)
-        hidden_list.appned(control_msg.hidden)
+        names_list.append(name)
+        types_list.append(control_type)
+        msgs_list.append(control_msg)
+        hidden_list.append(control_msg.hidden)
     except:
       pass
     status_msg.controls_name_list = names_list

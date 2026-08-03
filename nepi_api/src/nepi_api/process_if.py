@@ -177,7 +177,7 @@ class ProcessIF:
             self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name)) 
             return
         self.msg_if.pub_info("Using Process Name: " + self.process_name)
-        self.process_namespace = nepi_sdk.create_namespace(self.node_name,self.process_name)
+        self.process_namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
 
 
 
