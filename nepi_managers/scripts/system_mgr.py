@@ -41,7 +41,6 @@ from nepi_sdk import nepi_settings
 # System         
 
 from nepi_sdk import nepi_states
-from nepi_sdk import nepi_triggers
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
@@ -50,10 +49,8 @@ from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, St
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
 
-from nepi_interfaces.msg import SystemTrigger, SystemTriggersStatus
-from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
-from nepi_interfaces.msg import SystemState, SystemStatesStatus
+from nepi_interfaces.msg import SystemState, SystemStates
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
 
@@ -174,7 +171,7 @@ class SystemMgrNode():
     triggers_list = []
     triggers_status_interval = 1.0
 
-    states_status_interval = 1.0
+    states_pub_interval = 1.0
 
     current_throttle_ratio = 1.0
 
@@ -208,7 +205,11 @@ class SystemMgrNode():
 
     space_available = True
 
+    topics_name_list = []
+    topics_types_list = []
 
+    services_name_list = []
+    services_type_list = []
 
 
     init_complete = False
@@ -552,24 +553,10 @@ class SystemMgrNode():
                 'qsize': 1,
                 'latch': True
             },
-            'system_triggers': {
+            'states_pub': {
                 'namespace': self.base_namespace,
-                'topic': 'system_triggers',
-                'msg': SystemTrigger,
-                'qsize': 1,
-                'latch': True
-            },
-            'triggers_status_pub': {
-                'namespace': self.base_namespace,
-                'topic': 'system_triggers_status',
-                'msg': SystemTriggersStatus,
-                'qsize': 1,
-                'latch': True
-            },
-            'states_status_pub': {
-                'namespace': self.base_namespace,
-                'topic': 'system_states_status',
-                'msg': SystemStatesStatus,
+                'topic': 'states',
+                'msg': SystemStates,
                 'qsize': 1,
                 'latch': True
             }
@@ -707,14 +694,6 @@ class SystemMgrNode():
                 'callback': self.systemErrorCb, 
                 'callback_args': ()
             },
-            'system_triggers': {
-                'namespace': self.base_namespace,
-                'topic': 'system_triggers',
-                'msg': SystemTrigger,
-                'qsize': None,
-                'callback': self.systemTriggersCb, 
-                'callback_args': ()
-            },
             'set_system_configs': {
                 'namespace': self.base_namespace,
                 'topic': 'set_system_configs',
@@ -810,14 +789,6 @@ class SystemMgrNode():
         
         # Setup States IF
         self.STATES_DICT = {
-                        "in_container": {
-                            "name":"in_container",
-                            "node_name": self.node_name,
-                            "description": "NEPI running in container",
-                            "type":"Bool",
-                            "options": [],
-                            "value": str(self.in_container)
-                            }
         }
         self.states_if = StatesIF(self.getStatesDictCb,
                         msg_if = self.msg_if)
@@ -829,19 +800,11 @@ class SystemMgrNode():
         # Complete Initialization
 
 
-               
-
-        # Create Triggers Status Pub Processes
-        self.triggers_status_interval = 1.0
-
-        self.msg_if.pub_info(":" + self.class_name + ": Starting triggers status pub service: ")
-        #nepi_sdk.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
-
         # Create States Status Pub Processes
-        self.states_status_interval = 1.0
+        self.states_pub_interval = 1.0
 
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
-        #nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
+        nepi_sdk.start_timer_process(self.states_pub_interval, self.systemStatesPubCb)
 
     
         # Want to update the op_environment (from param server) through the whole system once at
@@ -1319,14 +1282,14 @@ class SystemMgrNode():
             active_nodes.append(os.path.basename(node))
     
         self.status_msg.active_nodes = active_nodes
-        [topics_list,types_list] = nepi_sdk.get_topics_data_list()
-        #self.msg_if.pub_warn("Got Topics List: " + str(topics_list))
-        self.status_msg.active_topics = topics_list
-        self.status_msg.active_topic_types = types_list
+        [self.topics_name_list,self.topics_types_list] = nepi_sdk.get_topics_data_list()
+        #self.msg_if.pub_warn("Got Topics List: " + str(topics_name_list))
+        self.status_msg.active_topics = self.topics_name_list
+        self.status_msg.active_topic_types = self.topics_types_list
 
-        services_list = nepi_sdk.get_service_list()
-        #self.msg_if.pub_warn("Got Services List: " + str(servicess_list))
-        self.status_msg.active_services = services_list
+        self.services_name_list = nepi_sdk.get_service_list()
+        #self.msg_if.pub_warn("Got Services List: " + str(self.services_name_list))
+        self.status_msg.active_services = self.services_name_list
         nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
 
 
@@ -1355,47 +1318,11 @@ class SystemMgrNode():
         if trigger_name not in self.triggers_list:
             self.triggers_list.append(trigger_name)
 
-    def triggersStatusPubCb(self,timer):
-        triggers_name_list = []
-        has_triggered_list = []
-        msg = SystemTriggersStatus()
-        namespaces = nepi_triggers.get_triggers_publisher_namespaces()
-        if namespaces is not None:
-            for namespace in namespaces:
-                topic = os.path.join(namespace,'system_triggers_query')
-                if topic not in self.service_dict.keys():
-                    service = nepi_sdk.create_service(topic,SystemTrigger)
-                    if service is not None:
-                        self.service_dict[topic] = service
-                        time.sleep(1)
-                if topic in self.service_dict.keys():
-                    service = self.service_dict[topic]
-                    req = SystemTriggersQueryRequest()
-                    try:
-                        resp = nepi_sdk.call_service(service, req)
-                        triggers_list = resp.triggers_list
-                        for trigger in triggers_list:
-                            trigger_name = trigger.name
-                            if trigger_name not in triggers_name_list:
-                                triggers_name_list.append(trigger_name) 
-                    except:
-                        self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
 
-            for trigger_name in triggers_name_list:
-                has_triggered = trigger_name in self.triggers_list
-                has_triggered_list.append(has_triggered)
-            self.triggers_list = [] # Clear List
-            msg = nepi_triggers.create_triggers_status_msg(triggers_name_list,has_triggered_list)
-            if self.node_if is not None:
-                self.node_if.publish_pub('triggers_status_pub', msg)
-        nepi_sdk.start_timer_process(self.triggers_status_interval, self.triggersStatusPubCb, oneshot = True)
-
-
-
-    def statesStatusPubCb(self,timer):
-        states_list = []
-        msg = SystemStatesStatus()
-        namespaces = nepi_states.get_states_publisher_namespaces()
+    def systemStatesPubCb(self,timer):
+        states_dict = dict()
+        msg = SystemStates()
+        namespaces = nepi_states.get_states_publisher_namespaces(self.topics_name_list, self.topics_types_list)
         if namespaces is not None:
             for namespace in namespaces:
                 topic = os.path.join(namespace,'system_states_query')
@@ -1403,24 +1330,28 @@ class SystemMgrNode():
                     service = nepi_sdk.create_service(topic,SystemState)
                     if service is not None:
                         self.service_dict[topic] = service
-                        time.sleep(1)
-                if topic in self.service_dict.keys():
+                elif topic in self.service_dict.keys():
                     service = self.service_dict[topic]
                     req = SystemStatesQueryRequest()
                     try:
                         resp = nepi_sdk.call_service(service, req)
-                        for state in resp.states_list:
-                            states_list.append(state)
+                        state_names = resp.state_names
+                        states_msg_list = resp.states_msg_list
+                        for i, state_name in enumerate(state_names):
+                            state = states_msg_list[i].state
+                            if state_name not in states_dict.keys() or state == True:
+                                states_dict[state_name] = state
                     except:
                         self.msg_if.pub_info(":" + self.class_name + ": Failed to call service: " + str(e))
 
+            states_status_msg = None
             try:
-                msg = nepi_states.create_states_status_msg(states_list)
+                states_status_msg = nepi_states.create_states_msg(states_dict)
             except Exception as e:
                 self.msg_if.pub_info(":" + self.class_name + ": Failed to create status msg: " + str(e))
-            if self.node_if is not None:
-                self.node_if.publish_pub('states_status_pub', msg)
-        nepi_sdk.start_timer_process(self.states_status_interval, self.statesStatusPubCb, oneshot = True)
+            if self.node_if is not None and states_status_msg is not None:
+                self.node_if.publish_pub('states_pub', states_status_msg)
+        #nepi_sdk.start_timer_process(self.states_pub_interval, self.systemStatesPubCb)
 
 
     #######################

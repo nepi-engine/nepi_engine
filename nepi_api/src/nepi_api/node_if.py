@@ -484,6 +484,7 @@ class NodeParamsIF:
                 if namespace in self.params_ns_dict.keys():
                     value = self.params_ns_dict[namespace]
 
+                fallback = None
                 if 'init_val' in param_dict.keys():
                     fallback = param_dict['init_val']
                 

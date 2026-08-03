@@ -4579,22 +4579,23 @@ class BaseImageIF:
             self.crosshairs_text_ratio = self.node_if.get_param('crosshairs_text_ratio')
             self.crosshairs_color_rgb = self.node_if.get_param('crosshairs_color_rgb')
             overlays_dict = self.node_if.get_param('overlays_dict')
-            crosshairs_dict = dict()
-            if 'crosshairs_dict' in overlays_dict.keys():
-                for name in overlays_dict['crosshairs_dict'].keys():
-                    try:
-                        crosshair_dict = overlays_dict['crosshairs_dict'][name]
-                        for key in self.BLANK_CROSSHAIR_DICT.keys():
-                            if key not in crosshair_dict.keys():
-                                crosshair_dict[key] = self.BLANK_CROSSHAIR_DICT[key]
-                        crosshairs_dict[name] = crosshair_dict
-                    except:
-                        pass
-            overlays_dict['crosshairs_dict'] = crosshairs_dict
             if overlays_dict is not None:
-                for key in self.overlays_dict.keys():
-                    if key in overlays_dict.keys():
-                        self.overlays_dict[key] = overlays_dict[key]
+                crosshairs_dict = dict()
+                if 'crosshairs_dict' in overlays_dict.keys():
+                    for name in overlays_dict['crosshairs_dict'].keys():
+                        try:
+                            crosshair_dict = overlays_dict['crosshairs_dict'][name]
+                            for key in self.BLANK_CROSSHAIR_DICT.keys():
+                                if key not in crosshair_dict.keys():
+                                    crosshair_dict[key] = self.BLANK_CROSSHAIR_DICT[key]
+                            crosshairs_dict[name] = crosshair_dict
+                        except:
+                            pass
+                overlays_dict['crosshairs_dict'] = crosshairs_dict
+                if overlays_dict is not None:
+                    for key in self.overlays_dict.keys():
+                        if key in overlays_dict.keys():
+                            self.overlays_dict[key] = overlays_dict[key]
 
         if do_updates == True:
             pass

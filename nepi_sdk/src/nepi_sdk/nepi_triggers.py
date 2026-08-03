@@ -25,9 +25,9 @@
 import os
 import time
 
-from nepi_interfaces.msg import SystemTrigger, SystemTriggersStatus
-from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryResponse
+from nepi_interfaces.msg import SystemTrigger
 
+from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from nepi_sdk.nepi_sdk import sec_from_msg_stamp, get_msg_stamp
@@ -51,12 +51,12 @@ EXAMPLE_TRIGGERS_DICT = {"None":EXAMPLE_TRIGGER_DICT}
 
 
 
-def get_triggers_publisher_namespaces():
-    topics_list = find_topics_by_msg('nepi_interfaces.msg/SystemTrigger')
-    namespaces_list = []
-    for topic in topics_list:
-        namespaces_list.append(os.path.dirname(topic))
-        return namespaces_list
+def get_triggers_publisher_namespaces(topics_list = None, types_list = None):
+    namespace = []
+    namespaces = nepi_sdk.find_topics_by_msg('SystemTrigger', topics_list = topics_list, types_list = types_list)
+    for i, namespace in enumerate(namespaces):
+        namespaces[i] = os.path.dirname(namespaces[i])
+    return namespaces 
 
 def parse_trigger_msg(trigger_msg):
     trigger_dict = dict()
@@ -86,30 +86,6 @@ def parse_triggers_query_resp(triggers_query_resp):
   for trigger in triggers:
     triggers_dict[trigger.name] = nepi_sdk.convert_msg2dict(trigger)
   return triggers_dict
-
-
-def create_query_resp(triggers_dict):
-  triggers_query_resp = SystemTriggersQueryResponse()
-  triggers_list = []
-  for trigger_name in triggers_dict.keys():
-    trigger_dict = triggers_dict[trigger_name]
-    trigger_msg = create_trigger_msg_from_trigger_dict(trigger_dict)
-    triggers_list.append(trigger_msg)
-  triggers_query_resp.triggers_list = triggers_list
-  return triggers_query_resp
-
-def parse_triggers_status_msg(msg):
-  return msg.triggers_name_list, msg.has_triggered_list
-  
-
-def create_triggers_status_msg(node_name, triggers_name_list, has_triggered_list):
-  triggers_status_msg = SystemTriggersStatus()
-  if len(triggers_name_list) == len(has_triggered_list):
-    triggers_status_msg.triggers_names_list = triggers_names_list
-    triggers_status_msg.has_triggered_list = has_triggered_list
-  else:
-    self.logger.log_error("triggers_name_list and has_triggered_list different lengths")
-  return triggers_status_msg
 
 
 
