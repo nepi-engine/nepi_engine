@@ -837,7 +837,7 @@ class AiDetectorIF:
         
         self.states_if_detections = StatesIF(
                         states_name = 'detectons',
-                        get_detections_states = self.get_detections_states,
+                        get_states_dict_function = self.get_detections_states,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if)
                             # msg_if = self.msg_if,
@@ -846,7 +846,7 @@ class AiDetectorIF:
 
         self.states_if_targets = StatesIF(
                         states_name = 'targets',
-                        get_detections_states = self.get_targets_states,
+                        get_states_dict_function = self.get_targets_states,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if)
                             # msg_if = self.msg_if,

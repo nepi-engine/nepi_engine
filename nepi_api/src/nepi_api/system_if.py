@@ -4071,7 +4071,7 @@ class TriggersIF:
 
         # Create Namespace
         triggers_name = nepi_utils.get_clean_name(triggers_name)
-        if self.triggers_name is None or self.triggers_name == '':
+        if triggers_name is None or triggers_name == '':
             self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
             return
         self.node_if_prefix = '/' + triggers_name + '_'
