@@ -148,9 +148,9 @@ class ControlsIF:
         # Create Namespace
         self.controls_name = nepi_utils.get_clean_name(controls_name)
         if controls_name is None or controls_name == '':
-            self.msg_if.pub_warn("Controls Name Not Valid: " + str(controls_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(controls_name)) 
             return
-        self.msg_if.pub_info("Using Controls Name: " + self.controls_name)
+        self.msg_if.pub_info("Using Name: " + self.controls_name)
         self.namespace = nepi_sdk.create_namespace(self.node_name,controls_name)
         self.node_if_prefix = '/' + controls_name + '_'
 
@@ -1634,7 +1634,7 @@ class SaveDataIF:
         # Create Namespace
         save_data_name = nepi_utils.get_clean_name(save_data_name)
         if save_data_name is None or save_data_name == '':
-            self.msg_if.pub_warn("Controls Name Not Valid: " + str(save_data_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(save_data_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + save_data_name)
         self.namespace = nepi_sdk.create_namespace(self.node_name,save_data_name)
@@ -2784,7 +2784,7 @@ class Transform3DIF:
         # Initialize Class Variables
         transform_name = nepi_utils.get_clean_name(transform_name)
         if transform_name is None or transform_name == '':
-            self.msg_if.pub_warn("Controls Name Not Valid: " + str(transform_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(transform_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + transform_name)
         self.namespace = nepi_sdk.create_namespace(self.node_name,transform_name)
@@ -3317,7 +3317,7 @@ class SettingsIF:
         # Create Namespace
         settings_name = nepi_utils.get_clean_name(settings_name)
         if settings_name is None or settings_name == '':
-            self.msg_if.pub_warn("Controls Name Not Valid: " + str(settings_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(settings_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + settings_name)
         self.namespace = nepi_sdk.create_namespace(self.node_name,settings_name)
@@ -3817,8 +3817,8 @@ class StatesIF:
     #######################
     ### IF Initialization
     def __init__(self,
-                get_states_dict_function, 
                 states_name = 'states',
+                get_states_dict_function = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -3846,12 +3846,15 @@ class StatesIF:
         #############################
         # Initialize Class Variables
 
+        if get_states_dict_function is None:
+            self.msg_if.pub_warn("get_states_dict_function can not be None") 
+            return
         self.get_states_dict_function = get_states_dict_function
 
         # Create Namespace
         states_name = nepi_utils.get_clean_name(states_name)
         if states_name is None or states_name == '':
-            self.msg_if.pub_warn("Controls Name Not Valid: " + str(states_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(states_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + states_name)
         self.namespace = nepi_sdk.create_namespace(self.node_name,states_name)
@@ -4069,7 +4072,7 @@ class TriggersIF:
         # Create Namespace
         triggers_name = nepi_utils.get_clean_name(triggers_name)
         if self.triggers_name is None or self.triggers_name == '':
-            self.msg_if.pub_warn("Controls Name Not Valid: " + str(triggers_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
             return
         self.node_if_prefix = '/' + triggers_name + '_'
         ##############################  

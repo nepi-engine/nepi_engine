@@ -835,7 +835,8 @@ class AiDetectorIF:
 
 
         
-        self.states_if_detections = StatesIF(namespace = self.detector_namespace,
+        self.states_if_detections = StatesIF(
+                        states_name = 'detectons',
                         get_detections_states = self.get_detections_states,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if)
@@ -843,7 +844,8 @@ class AiDetectorIF:
                             # node_if = self.node_if
                             # )
 
-        self.states_if_targets = StatesIF(namespace = self.targeting_namespace,
+        self.states_if_targets = StatesIF(
+                        states_name = 'targets',
                         get_detections_states = self.get_targets_states,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if)
