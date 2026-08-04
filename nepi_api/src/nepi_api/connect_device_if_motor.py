@@ -78,7 +78,7 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
 
     statusCb = None  # Backwards Compatibility
 
-    callbackFunction = None
+    dataCB = None
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
@@ -89,7 +89,7 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
                 connect_name = CONNECT_NAME,
                 namespace = None,
                 statusCb = None,
-                callback_function = None,
+                dataCB = None,
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
@@ -118,7 +118,7 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
         # Initialize Class Variables
 
         self.statusCb = statusCb
-        self.callbackFunction = callback_function
+        self.dataCB = dataCB
 
         ##############################
         # Complete Initialization
@@ -545,5 +545,5 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
         status_dict = self.get_status_dict()
         if self.statusCb is not None:
             self.statusCb(status_dict)
-        if self.callbackFunction is not None:
-            self.callbackFunction(status_dict)
+        if self.dataCB is not None:
+            self.dataCB(status_dict)

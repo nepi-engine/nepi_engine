@@ -44,7 +44,7 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 # connect class subclasses ConnectNodeIF directly and follows the
 # ConnectNavPoseIF / ConnectTargetsIF pattern: retrieved Detections messages are
 # converted to detections dictionaries and cached (thread-safe) for polling
-# consumers, or handed straight to callback_function when one is provided.
+# consumers, or handed straight to dataCB when one is provided.
 
 
 DETECTIONS_CONNECT_ID = 'DETECTIONS'
@@ -79,7 +79,7 @@ class ConnectDetectionsIF(ConnectNodeIF):
     got_data = False
 
     preprocessFunction = None
-    callbackFunction = None
+    dataCB = None
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
@@ -90,7 +90,7 @@ class ConnectDetectionsIF(ConnectNodeIF):
                 namespace = None,
                 statusCb = None,
                 preprocess_function = None,
-                callback_function = None,
+                dataCB = None,
                 filter_topic_list = [],
                 show_selector = True,
                 show_controls = True,
@@ -124,7 +124,7 @@ class ConnectDetectionsIF(ConnectNodeIF):
 
         self.statusCb = statusCb
         self.preprocessFunction = preprocess_function
-        self.callbackFunction = callback_function
+        self.dataCB = dataCB
 
 
         ##############################
@@ -450,11 +450,11 @@ class ConnectDetectionsIF(ConnectNodeIF):
 
     def _dataCb(self,data_msg):
         # Only build a detections dict when a consumer has asked for one (get_data
-        # flag) or a callback_function is registered; otherwise the incoming
+        # flag) or a dataCB is registered; otherwise the incoming
         # Detections message is dropped cheaply. Connection state is driven by the
         # status callback. Detections carries a float64 timestamp field (no
         # std_msgs Header), so latency is not computed here.
-        get_data = (self.callbackFunction is not None or self.get_data == True)
+        get_data = (self.dataCB is not None or self.get_data == True)
         if get_data == False:
             return
 
@@ -481,8 +481,8 @@ class ConnectDetectionsIF(ConnectNodeIF):
         process_time = round( (nepi_sdk.get_time() - start_time) , 3)
         data_dict['process_time'] = process_time
 
-        if self.callbackFunction is not None:
-            self.callbackFunction(data_dict)
+        if self.dataCB is not None:
+            self.dataCB(data_dict)
         else:
             self.data_dict_lock.acquire()
             self.data_dict = data_dict
