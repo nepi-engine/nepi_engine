@@ -339,7 +339,7 @@ def rosimg_to_cv2img(ros_img_msg, encoding = 'passthrough'):
       cv2_img (cv2.mat): OpenCV Mat Image
   """
   bridge = CvBridge()
-  cv2_img = bridge.imgmsg_to_cv2(ros_img_msg, desired_encoding = encoding)
+  cv2_img = bridge.imgmsg_to_cv2(ros_img_msg, encoding = 'passthrough')
   return cv2_img
     
     
@@ -354,7 +354,7 @@ def cv2img_to_rosimg(cv2_img, encoding="bgr8"): # "bgr8", "rgb8", or "mono8"
   """
 
   bridge = CvBridge()
-  ros_img_msg = bridge.cv2_to_imgmsg(cv2_img, encoding = encoding)
+  ros_img_msg = bridge.cv2_to_imgmsg(cv2_img, encoding = 'passthrough')
   return ros_img_msg
 
 
