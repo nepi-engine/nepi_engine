@@ -130,6 +130,7 @@ class ProcessIF:
                 process_status_msg = ProcessStatus,
                 process_data_products = [],
                 max_process_rate_hz = 10,
+                updater_process_enabled = True,
                 source_status_msg_type = None,
                 source_data_msg_type = None,       
                 source_callback_dict = None,       
@@ -405,7 +406,8 @@ class ProcessIF:
 
         ##############################
         # Start updater process
-        nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
+        if updater_process_enabled == True:
+            nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
