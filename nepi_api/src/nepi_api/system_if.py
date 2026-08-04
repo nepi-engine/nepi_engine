@@ -58,10 +58,10 @@ from nepi_interfaces.msg import Transform, TransformStatus
 from nepi_interfaces.msg import Setting, Settings, SettingsStatus, SettingCap
 from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
+from nepi_interfaces.msg import SystemState, SystemStates, SystemStatesStatus
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
 from nepi_interfaces.msg import SystemTrigger
-from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import  NodeClassIF
@@ -82,9 +82,9 @@ class ControlsIF:
     node_if = None
     node_if_shared = False
     node_if_prefix = 'controls_'
-   
+    namespace = ''
+
     controls_name = 'controls'
-    controls_namespace = ''
     controls_display_name = ''
     controls_description = ''
     controls_dict = dict()
@@ -147,14 +147,12 @@ class ControlsIF:
 
         # Create Namespace
         self.controls_name = nepi_utils.get_clean_name(controls_name)
-        if self.controls_name is None or self.controls_name == '':
-            self.msg_if.pub_warn("Controls Name Not Valid: " + str(controls_name)) 
+        if controls_name is None or controls_name == '':
+            self.msg_if.pub_warn("Name Not Valid: " + str(controls_name)) 
             return
-        self.msg_if.pub_info("Using Controls Name: " + self.controls_name)
-        self.controls_namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
-
-    
-        self.node_if_prefix = controls_name + '_'
+        self.msg_if.pub_info("Using Name: " + self.controls_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_name,controls_name)
+        self.node_if_prefix = '/' + controls_name + '_'
 
         ##############################    
         # Initialize Class Variables
@@ -195,7 +193,7 @@ class ControlsIF:
         # params_dict is what enables config management on NodeClassIF.
         PARAMS_DICT = {
             self.node_if_prefix + 'controls_dict': {
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.controls_dict
             }
         }
@@ -204,7 +202,7 @@ class ControlsIF:
         # Publishers Config Dict ####################
         self.controls_node_pubs_dict = {
              self.node_if_prefix + 'status_pub': {
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'status',
                 'msg': ControlsStatus,
                 'qsize': 1,
@@ -221,70 +219,70 @@ class ControlsIF:
             ####################
              self.node_if_prefix + 'set_menu_control_value': {
                 'msg': UpdateInt,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_menu_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_selection_control_value': {
                 'msg': UpdateString,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_selection_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_selections_control_value': {
                 'msg': UpdateStringArray,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_selections_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_int_control_value': {
                 'msg': UpdateInt,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_int_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_float_control_value': {
                 'msg': UpdateFloat,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_float_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_floatslider_control_value': {
                 'msg': UpdateFloat,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_floatslider_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_floatsliders_control_value': {
                 'msg': UpdateRangeWindow,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_floatsliders_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_trigger_control_value': {
-                'msg': UpdateString,
-                'namespace': self.controls_namespace,
+                'msg': UpdateTrigger,
+                'namespace': self.namespace,
                 'topic': 'set_trigger_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_bool_control_value': {
                 'msg': UpdateBool,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_bool_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_string_control_value': {
                 'msg': UpdateString,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_string_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
@@ -294,7 +292,7 @@ class ControlsIF:
             #####################
              self.node_if_prefix + 'set_control_hidden': {
                 'msg': UpdateBool,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_control_hidden',
                 'qsize': 5,
                 'callback': self._setHiddenValueCb
@@ -308,35 +306,35 @@ class ControlsIF:
             },
              self.node_if_prefix + 'set_control_order': {
                 'msg': UpdateInt,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_control_order',
                 'qsize': 5,
                 'callback': self._setOrderValueCb
             },
              self.node_if_prefix + 'set_control_up': {
                 'msg': UpdateTrigger,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_control_up',
                 'qsize': 5,
                 'callback': self._setOrderTopCb
             },
              self.node_if_prefix + 'set_control_down': {
                 'msg': UpdateTrigger,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_control_down',
                 'qsize': 5,
                 'callback': self._setOrderDownCb
             },
              self.node_if_prefix + 'set_control_top': {
                 'msg': UpdateTrigger,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_control_top',
                 'qsize': 5,
                 'callback': self._setOrderTopCb
             },
              self.node_if_prefix + 'set_control_bottom': {
                 'msg': UpdateTrigger,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_control_bottom',
                 'qsize': 5,
                 'callback': self._setOrderBottomCb
@@ -374,7 +372,7 @@ class ControlsIF:
                 self.node_if.register_pubs(self.controls_node_pubs_dict)
                 self.node_if.register_subs(self.controls_node_subs_dict)
                 # Register the persisted selection param on the shared node_if too.
-                self.node_if.add_param('selected_sources', self.controls_namespace, self.selected_sources)
+                self.node_if.add_param('selected_sources', self.namespace, self.selected_sources)
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -436,7 +434,7 @@ class ControlsIF:
         Returns:
             str: The fully-qualified namespace string used for topic and service resolution.
         """
-        return self.controls_namespace
+        return self.namespace
     
     def unregister(self):
         success = False
@@ -781,7 +779,8 @@ class ReadWriteIF:
         }
 
     node_if = None
-    node_if_shared = True
+    node_if_shared = False
+    node_if_prefix = 'read_write_'
 
 
     #######################
@@ -1557,7 +1556,8 @@ class SaveDataIF:
     all_save_namespace = None
     status_msg = SaveDataStatus
     node_if = None
-    node_if_shared = True
+    node_if_shared = False
+    node_if_prefix = 'save_data'
     read_write_if = None
  
     snapshot_dict = dict()
@@ -1599,6 +1599,7 @@ class SaveDataIF:
     ### IF Initialization
     def __init__(self, 
                 namespace = None,
+                save_data_name = 'save_data',
                 data_products = [], 
                 pub_status = True,
                 factory_rate_dict = None, 
@@ -1630,11 +1631,14 @@ class SaveDataIF:
         self.msg_if.pub_info("Starting SaveData IF Initialization Processes", log_name_list = self.log_name_list)
         ############################## 
         # Initialize Class Variables
-        if namespace is None:
-            namespace = self.node_namespace
-        self.node_name = os.path.basename(namespace)
-        namespace = nepi_sdk.create_namespace(namespace,'save_data')
-        self.namespace = nepi_sdk.get_full_namespace(namespace)
+        # Create Namespace
+        save_data_name = nepi_utils.get_clean_name(save_data_name)
+        if save_data_name is None or save_data_name == '':
+            self.msg_if.pub_warn("Name Not Valid: " + str(save_data_name)) 
+            return
+        self.msg_if.pub_info("Using States Name: " + save_data_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_name,save_data_name)
+        self.node_if_prefix = '/' + save_data_name + '_'
         
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
@@ -1731,11 +1735,11 @@ class SaveDataIF:
             #     'namespace': self.namespace,
             #     'factory_val': self.disabled
             # },
-            'save_rate_dict': {
+            self.node_if_prefix + 'save_rate_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.save_rate_dict
             },
-            'filename_dict': {
+            self.node_if_prefix + 'filename_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.filename_dict
             }
@@ -1745,7 +1749,7 @@ class SaveDataIF:
         # Services Config Dict ####################
         if self.namespace == self.namespace:
             self.SRVS_DICT = {
-                'save_data_capabilities_query': {
+                self.node_if_prefix + 'save_data_capabilities_query': {
                     'namespace': self.namespace,
                     'topic': 'capabilities_query',
                     'srv': SaveDataCapabilitiesQuery,
@@ -1762,7 +1766,7 @@ class SaveDataIF:
         self.PUBS_DICT = dict()
 
         if self.pub_status == True:
-            self.PUBS_DICT['save_data_status_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'save_data_status_pub'] = {
                 'namespace': self.namespace,
                 'msg': SaveDataStatus,
                 'topic': 'status',
@@ -1774,7 +1778,7 @@ class SaveDataIF:
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'save_data_disable': {
+            self.node_if_prefix + 'save_data_disable': {
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'disable',
@@ -1782,7 +1786,7 @@ class SaveDataIF:
                 'callback': self._disableCb, 
                 'callback_args': ()
             }, 
-            'save': {
+            self.node_if_prefix + 'save': {
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'save_data_enable',
@@ -1790,7 +1794,7 @@ class SaveDataIF:
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },  
-            'prefix': {
+            self.node_if_prefix + 'prefix': {
                 'namespace': self.namespace,
                 'msg': String,
                 'topic': 'save_data_prefix',
@@ -1798,7 +1802,7 @@ class SaveDataIF:
                 'callback': self._setPrefixCb, 
                 'callback_args': ()
             },
-            'subfolder': {
+            self.node_if_prefix + 'subfolder': {
                 'namespace': self.namespace,
                 'msg': String,
                 'topic': 'save_data_subfolder',
@@ -1806,7 +1810,7 @@ class SaveDataIF:
                 'callback': self._setSubfolderCb, 
                 'callback_args': ()
             },
-            'save_data_utc': {
+            self.node_if_prefix + 'save_data_utc': {
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'save_data_utc',
@@ -1814,7 +1818,7 @@ class SaveDataIF:
                 'callback': self._setLocalTzCb, 
                 'callback_args': ()
             },
-            'filename': {
+            self.node_if_prefix + 'filename': {
                 'namespace': self.namespace,
                 'msg': FilenameConfig,
                 'topic': 'filename_config',
@@ -1822,7 +1826,7 @@ class SaveDataIF:
                 'callback': self._setFilenameCb, 
                 'callback_args': ()
             },
-            'rate': {
+            self.node_if_prefix + 'rate': {
                 'namespace': self.namespace,
                 'msg': SaveDataRate,
                 'topic': 'save_data_rate',
@@ -1830,7 +1834,7 @@ class SaveDataIF:
                 'callback': self._saveRateCb, 
                 'callback_args': ()
             },          
-            'snapshot': {
+            self.node_if_prefix + 'snapshot': {
                 'namespace': self.namespace,
                 'msg': Empty,
                 'topic': 'snapshot_trigger',
@@ -1838,7 +1842,7 @@ class SaveDataIF:
                 'callback': self._snapshotCb,  
                 'callback_args': ()
             },
-            'save_data_reset': {
+            self.node_if_prefix + 'save_data_reset': {
                 'namespace': self.namespace,
                 'msg': Empty,
                 'topic': 'reset_save_data',
@@ -1851,7 +1855,7 @@ class SaveDataIF:
 
         if self.all_save_namespace is not None:
             ALL_SUBS_DICT =  {
-                'disable_all': {
+                self.node_if_prefix + 'disable_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'saving_disable',
@@ -1859,7 +1863,7 @@ class SaveDataIF:
                     'callback': self._disableCb, 
                     'callback_args': ()
                 },
-                'save_all': {
+                self.node_if_prefix + 'save_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'save_data_enable',
@@ -1867,7 +1871,7 @@ class SaveDataIF:
                     'callback': self._saveEnableCb, 
                     'callback_args': ()
                 },
-                'prefix_all': {
+                self.node_if_prefix + 'prefix_all': {
                     'namespace': self.all_save_namespace,
                     'msg': String,
                     'topic': 'save_data_prefix',
@@ -1875,7 +1879,7 @@ class SaveDataIF:
                     'callback': self._setPrefixCb, 
                     'callback_args': ()
                 },
-                'subfolder_all': {
+                self.node_if_prefix + 'subfolder_all': {
                     'namespace': self.all_save_namespace,
                     'msg': String,
                     'topic': 'save_data_subfolder',
@@ -1883,7 +1887,7 @@ class SaveDataIF:
                     'callback': self._setSubfolderCb, 
                     'callback_args': ()
                 },
-                'use_local_tz_all': {
+                self.node_if_prefix + 'use_local_tz_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'save_data_utc',
@@ -1891,7 +1895,7 @@ class SaveDataIF:
                     'callback': self._setLocalTzCb, 
                     'callback_args': ()
                 },
-                'filename_all': {
+                self.node_if_prefix + 'filename_all': {
                     'namespace': self.all_save_namespace,
                     'msg': FilenameConfig,
                     'topic': 'filename_config',
@@ -1899,7 +1903,7 @@ class SaveDataIF:
                     'callback': self._setFilenameCb,
                     'callback_args': ()
                 },
-                'snapshot_all': {
+                self.node_if_prefix + 'snapshot_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Empty,
                     'topic': 'snapshot_trigger',
@@ -1907,7 +1911,7 @@ class SaveDataIF:
                     'callback': self._snapshotCb, 
                     'callback_args': ()
                 },
-                'save_all_config': {
+                self.node_if_prefix + 'save_all_config': {
                     'namespace': self.all_save_namespace,
                     'msg': Empty,
                     'topic': 'save_config',
@@ -1915,7 +1919,7 @@ class SaveDataIF:
                     'callback': self._saveConfigCb, 
                     'callback_args': ()
                 },
-                'all_save_sub': {
+                self.node_if_prefix + 'all_save_sub': {
                     'namespace': self.all_save_namespace,
                     'msg': SaveDataStatus,
                     'topic': 'status',
@@ -1925,7 +1929,7 @@ class SaveDataIF:
                 }
             }
             if ignore_global_rate_updates == False:
-                ALL_SUBS_DICT['rate_all'] = {
+                ALL_SUBS_DICT[self.node_if_prefix + 'rate_all'] = {
                         'namespace': self.all_save_namespace,
                         'msg': SaveDataRate,
                         'topic': 'save_data_rate',
@@ -2547,7 +2551,7 @@ class SaveDataIF:
             exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
             status_msg.example_filename = exp_filename
             if self.node_if is not None:
-                self.node_if.publish_pub('save_data_status_pub', status_msg)
+                self.node_if.publish_pub(self.node_if_prefix +  'save_data_status_pub', status_msg)
 
     def init(self, do_updates = False):
         """Load save rate and filename parameters from the ROS param server and publish status.
@@ -2720,11 +2724,11 @@ class SaveDataIF:
 
 # Transform_List = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
 
-ZERO_TRANSFORM = [0,0,0,0,0,0,0]
+
 
 class Transform3DIF:
 
-
+    ZERO_TRANSFORM = [0,0,0,0,0,0,0]
     # Class Vars ####################
 
     msg_if = None
@@ -2732,9 +2736,10 @@ class Transform3DIF:
     namespace = '~'
 
     node_if = None
-    node_if_shared = True
+    node_if_shared = False
+    node_if_prefix = 'transform_'
 
-    transform = ZERO_TRANSFORM
+    transform = copy.deepcopy(ZERO_TRANSFORM)
     source = ''
     end = ''
     has_transform = True
@@ -2746,6 +2751,7 @@ class Transform3DIF:
     ### IF Initialization
     def __init__(self, 
                 namespace = None,
+                transform_name = 'transform',
                 source_ref_description = '',
                 end_ref_description = '',
                 get_3d_transform_function = None,
@@ -2776,10 +2782,13 @@ class Transform3DIF:
 
         #############################
         # Initialize Class Variables
-        if namespace is None:
-            namespace = self.node_namespace
-        namespace = nepi_sdk.create_namespace(namespace,'navpose_frame_transform')
-        self.namespace = nepi_sdk.get_full_namespace(namespace)
+        transform_name = nepi_utils.get_clean_name(transform_name)
+        if transform_name is None or transform_name == '':
+            self.msg_if.pub_warn("Name Not Valid: " + str(transform_name)) 
+            return
+        self.msg_if.pub_info("Using States Name: " + transform_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_name,transform_name)
+        self.node_if_prefix = '/' + transform_name + '_'
 
         self.source = source_ref_description
         self.end = end_ref_description
@@ -2802,15 +2811,15 @@ class Transform3DIF:
         
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'transform': {
+            self.node_if_prefix + 'transform': {
                 'namespace': self.namespace,
                 'factory_val': self.transform
             },
-            'source': {
+            self.node_if_prefix + 'source': {
                 'namespace': self.namespace,
                 'factory_val': self.source
             },
-            'end': {
+            self.node_if_prefix + 'end': {
                 'namespace': self.namespace,
                 'factory_val': self.end
             }
@@ -2822,14 +2831,14 @@ class Transform3DIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'transform_status_pub': {
+            self.node_if_prefix + 'transform_status_pub': {
                 'namespace': self.namespace,
                 'msg': TransformStatus,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
             },
-            'transform_pub': {
+            self.node_if_prefix + 'transform_pub': {
                 'namespace': self.namespace,
                 'msg': Transform,
                 'topic': '',
@@ -2844,7 +2853,7 @@ class Transform3DIF:
             self.SUBS_DICT = None
         else:
             self.SUBS_DICT = {
-                'clear_navpose_frame_transform': {
+                self.node_if_prefix + 'clear_navpose_frame_transform': {
                     'namespace': self.namespace,
                     'topic': 'clear_3d_transform',
                     'msg': Empty,
@@ -2852,7 +2861,7 @@ class Transform3DIF:
                     'callback': self._clearFrame3dTransformCb, 
                     'callback_args': ()
                 },
-                'set_navpose_frame_transform': {
+                self.node_if_prefix + 'set_navpose_frame_transform': {
                     'namespace': self.namespace,
                     'topic': 'set_3d_transform',
                     'msg': Transform,
@@ -2860,7 +2869,7 @@ class Transform3DIF:
                     'callback': self._setFrame3dTransformCb,
                     'callback_args': ()
                 },
-                'set_source_ref_description': {
+                self.node_if_prefix + 'set_source_ref_description': {
                     'namespace': self.namespace,
                     'topic': 'set_source_ref',
                     'msg': String,
@@ -2982,7 +2991,7 @@ class Transform3DIF:
         Returns:
             list: Seven-element list of zeros [x, y, z, roll, pitch, yaw, heading].
         """
-        return ZERO_TRANSFORM
+        return copy.deepcopy(self.ZERO_TRANSFORM)
 
     def get_3d_transform(self):
         """Return the current 3D transform as a seven-element list.
@@ -3008,11 +3017,11 @@ class Transform3DIF:
             nepi_interfaces.msg.Transform: Transform message populated with the
                 current transform values and source/end reference descriptions.
         """
-        tr = self.get_3d_transform()
-        tr_msg = nepi_nav.convert_transform_list2msg(tr,
+        transform = self.get_3d_transform()
+        transform_msg = nepi_nav.convert_transform_list2msg(transform,
                 source_ref_description = self.source,
                 end_ref_description = self.end)
-        return tr_msg
+        return transform_msg
 
     def get_3d_transform_dict(self):
         """Return the current 3D transform as a nepi_nav transform dict.
@@ -3049,10 +3058,10 @@ class Transform3DIF:
         supplied at construction).
         """
         if self.supports_updates == True:
-            self.transform = ZERO_TRANSFORM
+            self.transform = copy.deepcopy(self.ZERO_TRANSFORM)
             self.publish_transform()
             if self.node_if is not None:
-                self.node_if.set_param('transform',ZERO_TRANSFORM)
+                self.node_if.set_param('transform',self.transform)
 
     def set_has_transform(self,has_transform):
         """Set whether this interface reports having a valid transform.
@@ -3121,7 +3130,7 @@ class Transform3DIF:
                                                 source_ref_description = self.source,
                                                 end_ref_description = self.end)
         if self.node_if is not None:
-            self.node_if.publish_pub('transform_pub',transform_msg)
+            self.node_if.publish_pub(self.node_if_prefix +  'transform_pub',transform_msg)
 
     def publish_status(self):
         """Publish the current TransformStatus message on the 'transform_status_pub' topic.
@@ -3257,7 +3266,8 @@ class SettingsIF:
     namespace = '~'
 
     node_if = None
-    node_if_shared = True
+    node_if_shared = False
+    node_if_prefix = 'settings_'
     
    
     caps_settings = nepi_settings.NONE_CAP_SETTINGS
@@ -3273,6 +3283,7 @@ class SettingsIF:
     ### IF Initialization
     def __init__(self, 
                 namespace = None,
+                settings_name = 'settings',
                 settings_dict = None,
                 allow_cap_updates = False,
                 save_params = True,
@@ -3302,11 +3313,15 @@ class SettingsIF:
         
 
         #############################
-        # Initialize Class Variables
-        if namespace is None:
-            namespace = self.node_namespace
-        namespace = nepi_sdk.create_namespace(namespace,'settings')
-        self.namespace = nepi_sdk.get_full_namespace(namespace)
+
+        # Create Namespace
+        settings_name = nepi_utils.get_clean_name(settings_name)
+        if settings_name is None or settings_name == '':
+            self.msg_if.pub_warn("Name Not Valid: " + str(settings_name)) 
+            return
+        self.msg_if.pub_info("Using States Name: " + settings_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_name,settings_name)
+        self.node_if_prefix = '' # '/' + settings_name + '_'
 
         self.allow_cap_updates = allow_cap_updates
         self.msg_if.pub_warn("Initialize Class Variables: " + str(settings_dict))
@@ -3378,7 +3393,7 @@ class SettingsIF:
         # Params Config Dict ####################
         if self.save_params == True:
             self.PARAMS_DICT = {
-                'settings': {
+                self.node_if_prefix + 'settings': {
                     'namespace': self.namespace,
                     'factory_val': self.init_settings
                 }
@@ -3388,7 +3403,7 @@ class SettingsIF:
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'settings_capabilities_query': {
+            self.node_if_prefix + 'settings_capabilities_query': {
                 'namespace': self.namespace,
                 'topic': 'capabilities_query',
                 'srv': SettingsCapabilitiesQuery,
@@ -3400,7 +3415,7 @@ class SettingsIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'settings_status_pub': {
+            self.node_if_prefix + 'settings_status_pub': {
                 'namespace': self.namespace,
                 'msg': SettingsStatus,
                 'topic': 'status',
@@ -3411,7 +3426,7 @@ class SettingsIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'update_setting': {
+            self.node_if_prefix + 'update_setting': {
                 'msg': Setting,
                 'namespace': self.namespace,
                 'topic': 'update_setting',
@@ -3419,7 +3434,7 @@ class SettingsIF:
                 'callback': self._updateSettingCb,
                 'callback_args': None
             },
-            'update_settings': {
+            self.node_if_prefix + 'update_settings': {
                 'msg': Settings,
                 'namespace': self.namespace,
                 'topic': 'update_settings',
@@ -3427,7 +3442,7 @@ class SettingsIF:
                 'callback': self._updateSettingsCb,
                 'callback_args': None
             },
-            'reset_settings': {
+            self.node_if_prefix + 'reset_settings': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'reset_settings',
@@ -3438,7 +3453,7 @@ class SettingsIF:
         }
 
         if self.allow_cap_updates == True:
-            self.SUBS_DICT['update_cap_setting'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'update_cap_setting'] = {
                     'msg': SettingCap,
                     'namespace': self.namespace,
                     'topic': 'update_cap_setting',
@@ -3570,7 +3585,7 @@ class SettingsIF:
             status_msg.node_name = self.node_name
             status_msg.settings_topic = self.namespace
             #self.msg_if.pub_debug("Publishing settings status msg: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
-            self.node_if.publish_pub('settings_status_pub', status_msg)
+            self.node_if.publish_pub(self.node_if_prefix +  'settings_status_pub', status_msg)
 
     def update_cap_setting(self,cap_setting):
         """Update a capability setting entry if cap updates are enabled.
@@ -3779,12 +3794,7 @@ STATE_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
 
 EXAMPLE_STATES_DICT = {
                     "state_name": {
-                        "name": "None",
-                        "node_name": "Node",
-                        "description": "None",
-                        "type":"Bool",
-                        "options": [],
-                        "value":"False"
+                        "value": False
                     }
 }
 
@@ -3792,7 +3802,9 @@ EXAMPLE_STATES_DICT = {
 class StatesIF:
 
     node_if = None
-    node_if_shared = True
+    node_if_shared = False
+    node_if_prefix = 'states_'
+    
 
     ready = False
     msg_if = None
@@ -3804,9 +3816,9 @@ class StatesIF:
 
     #######################
     ### IF Initialization
-    def __init__(self, 
-                get_states_dict_function, 
-                namespace = None,
+    def __init__(self,
+                states_name = 'states',
+                get_states_dict_function = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -3833,25 +3845,44 @@ class StatesIF:
         
         #############################
         # Initialize Class Variables
-        if namespace is None:
-            namespace = self.node_namespace
-        self.namespace = nepi_sdk.get_full_namespace(namespace)
 
+        if get_states_dict_function is None:
+            self.msg_if.pub_warn("get_states_dict_function can not be None") 
+            return
         self.get_states_dict_function = get_states_dict_function
 
+        # Create Namespace
+        states_name = nepi_utils.get_clean_name(states_name)
+        if states_name is None or states_name == '':
+            self.msg_if.pub_warn("Name Not Valid: " + str(states_name)) 
+            return
+        self.msg_if.pub_info("Using States Name: " + states_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_name,states_name)
+        self.node_if_prefix = '/' + states_name + '_'
 
         ##############################  
         # Create NodeClassIF Class  
 
         # Services Config Dict ####################
         self.SRVS_DICT = {
-            'states_query': {
+            self.node_if_prefix + 'states_query': {
                 'namespace': self.namespace,
                 'topic': 'system_states_query',
                 'srv': SystemStatesQuery,
                 'req': SystemStatesQueryRequest(),
                 'resp': SystemStatesQueryResponse(),                
                 'callback': self._statesQueryHandler
+            }
+        }
+
+        # Pubs Config Dict ####################
+        self.PUBS_DICT = {
+            self.node_if_prefix + 'states_status_pub': {
+                'namespace': self.namespace,
+                'msg': SystemStatesStatus,
+                'topic': 'status',
+                'qsize': 1,
+                'latch': True
             }
         }
 
@@ -3870,7 +3901,10 @@ class StatesIF:
 
 
         success = nepi_sdk.wait()
-
+        states_dict = self.get_states_dict_function()
+        status_msg = SystemStatesStatus()
+        status_msg.state_names = list(states_dict.keys())
+        self.node_if.publish_pub(self.node_if_prefix + 'states_status_pub', status_msg)
 
         ##############################
         # Complete Initialization
@@ -3955,7 +3989,7 @@ class StatesIF:
         resp = SystemStatesQueryResponse()
         try:
             states_dict = self.get_states_dict_function()
-            resp = nepi_states.create_query_resp(states_dict)
+            resp = nepi_states.create_states_msg(states_dict)
         except Exception as e:
             self.msg_if.pub_warn("Failed to create resp msg: " + str(e), log_name_list = self.log_name_list)
         return resp
@@ -3989,7 +4023,8 @@ EXAMPLE_TRIGGERS_DICT = {
 class TriggersIF:
 
     node_if = None
-    node_if_shared = True
+    node_if_shared = False
+    node_if_prefix = 'triggers_'
 
     msg_if = None
     ready = False
@@ -4001,6 +4036,7 @@ class TriggersIF:
     ### IF Initialization
     def __init__(self, 
                 triggers_dict = None,
+                triggers_name = 'triggers',
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -4032,25 +4068,20 @@ class TriggersIF:
             self.triggers_dict = dict()
         else:
             self.triggers_dict = triggers_dict
+
+        # Create Namespace
+        triggers_name = nepi_utils.get_clean_name(triggers_name)
+        if triggers_name is None or triggers_name == '':
+            self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
+            return
+        self.node_if_prefix = '/' + triggers_name + '_'
         ##############################  
         # Create NodeClassIF Class  
 
 
-        # Services Config Dict ####################
-        self.SRVS_DICT = {
-            'trigger_query': {
-                'namespace': self.base_namespace,
-                'topic': 'system_triggers_query',
-                'srv': SystemTriggersQuery,
-                'req': SystemTriggersQueryRequest(),
-                'resp': SystemTriggersQueryResponse(),
-                'callback': self._triggersQueryHandler
-            }
-        }
-
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'trigger_pub': {
+            self.node_if_prefix + 'trigger_pub': {
                 'msg': SystemTrigger,
                 'namespace': self.base_namespace,
                 'topic': 'system_triggers',
@@ -4067,7 +4098,6 @@ class TriggersIF:
         else:
             self.node_if_shared = False
             self.node_if = NodeClassIF(
-                            services_dict = self.SRVS_DICT,
                             pubs_dict = self.PUBS_DICT,
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if
@@ -4166,19 +4196,12 @@ class TriggersIF:
         """
         trig_msg = nepi_triggers.create_trigger_msg(self.namespace, trigger_dict)
         if self.node_if is not None:
-            self.node_if.publish_pub('trigger_pub',trig_msg)
+            self.node_if.publish_pub(self.node_if_prefix +  'trigger_pub',trig_msg)
 
 
     ###############################
     # Class Private Methods
     ###############################
 
-    def _triggersQueryHandler(self, req):
-        resp = SystemTriggersQueryResponse()
-        try:
-            resp = nepi_triggers.create_query_resp(self.triggers_dict)
-        except:
-            self.msg_if.pub_warn("Failed to create resp msg: " + str(e), log_name_list = self.log_name_list)
-        return resp
 
 

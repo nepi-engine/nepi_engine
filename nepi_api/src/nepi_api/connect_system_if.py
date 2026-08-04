@@ -40,11 +40,11 @@ from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQ
 from nepi_interfaces.msg import Setting, SettingsStatus
 from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
 
-from nepi_interfaces.msg import SystemState
+from nepi_interfaces.msg import SystemState, SystemStates
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
 from nepi_interfaces.msg import SystemTrigger
-from nepi_interfaces.srv import SystemTriggersQuery, SystemTriggersQueryRequest, SystemTriggersQueryResponse
+
 
 
 from nepi_api.messages_if import MsgIF
@@ -630,7 +630,7 @@ class ConnectStatesIF:
         self.SUBS_DICT = {
             'status_sub': {
                 'namespace': self.base_namespace,
-                'msg': SystemStatesStatus,
+                'msg': SystemStates,
                 'topic': 'system_states_status',
                 'qsize': 1,
                 'callback': self._statusSubCb,
@@ -799,14 +799,6 @@ class ConnectTriggersIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'status_sub': {
-                'namespace': self.base_namespace,
-                'msg': SystemTriggersStatus,
-                'topic': 'system_triggers_status',
-                'qsize': 1,
-                'callback': self._statusSubCb,
-                'callback_args': ()
-            },
             'trigger_sub': {
                 'namespace': self.base_namespace,
                 'msg': SystemTrigger,
@@ -864,7 +856,7 @@ class ConnectTriggersIF:
         return self.ready
 
 
-    def get_triggers_names(self):
+    def get_trigger_names(self):
         """Return the list of trigger names from the most recent system triggers status message.
 
         Returns:
@@ -876,23 +868,6 @@ class ConnectTriggersIF:
         else:
             self.msg_if.pub_warn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ", log_name_list = self.log_name_list)
         return trigger_names
-
-
-    def get_triggers_status_dict(self):
-        """Return the current trigger states as a dictionary mapping trigger name to triggered flag.
-
-        Returns:
-            dict: Mapping of trigger name to its triggered boolean, or None if no status
-                has been received.
-        """
-        triggers_dict = None
-        if self.status_msg is not None:
-            [name_list, triggered_list] = nepi_triggers.parse_trigger_status_msg(self.status_msg)
-            for i, name in enumerate(name_list):
-                triggers_dict[name] = triggered_list[i]
-        else:
-            self.msg_if.pub_warn(self,":" + self.class_name + ": Trigger Status listener has not received any data yet: ", log_name_list = self.log_name_list)
-        return triggers_dict
 
 
     def get_registered_triggers(self):
@@ -982,7 +957,3 @@ class ConnectTriggersIF:
             except:
                 self.msg_if.pub_warn("Failed to call trigger handler function: " + str(e))
 
-    # Update System Status
-    def _statusCb(self,msg):
-        self.status_msg = msg
-        self.ready = True

@@ -116,6 +116,8 @@ class AiDetectorIF:
     all_targets_namespace = None
 
     process_status_msg = ProcessStatus()
+    detector_status_msg = DetectorStatus()
+    targeting_status_msg = TargetingStatus()
 
     states_dict = None
     triggers_dict = dict()
@@ -172,7 +174,7 @@ class AiDetectorIF:
 
     detections_has_published = False
     first_detect_complete = False
-    detecting = False
+    detecting_state = False
 
     targeting_topic = 'targets'
     targeting_state = False
@@ -191,6 +193,7 @@ class AiDetectorIF:
     process_rates = [0,0,0,0,0,0,0,0,0,0]
 
     is_processing = False
+    process_state = False
     last_receive_source_time = nepi_sdk.get_time()
     last_process_detect_time = nepi_sdk.get_time()
 
@@ -830,7 +833,20 @@ class AiDetectorIF:
                             }
         }
 
-        self.states_if = StatesIF(get_states_dict_function = self.get_states_dict_function,
+
+        
+        self.states_if_detections = StatesIF(
+                        states_name = 'detectons',
+                        get_states_dict_function = self.get_detections_states,
+                        log_name_list = self.log_name_list,
+                            msg_if = self.msg_if)
+                            # msg_if = self.msg_if,
+                            # node_if = self.node_if
+                            # )
+
+        self.states_if_targets = StatesIF(
+                        states_name = 'targets',
+                        get_states_dict_function = self.get_targets_states,
                         log_name_list = self.log_name_list,
                             msg_if = self.msg_if)
                             # msg_if = self.msg_if,
@@ -904,7 +920,6 @@ class AiDetectorIF:
 
         # Start Timer Processes
         nepi_sdk.start_timer_process((1.0), self.publishStatusCb)
-        nepi_sdk.start_timer_process((1.0), self.updateStatesCb)
         nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
         nepi_sdk.start_timer_process((0.1), self.updateDetectCb, oneshot = True)
@@ -973,7 +988,7 @@ class AiDetectorIF:
                 self.msg_if.pub_warn("Failed to Kill Node")
 
 
-    def get_states_dict_function(self):
+    def get_detections_states(self):
         """Returns the current states dictionary.
 
         Used as a callback by the StatesIF to retrieve live state values.
@@ -982,8 +997,29 @@ class AiDetectorIF:
             dict: The states dictionary containing running and detections state
                 entries.
         """
+        states_dict = dict()
+        
+        states_dict['detections'] = self.detecting_state
+        states_dict[self.node_name + '/detections'] = self.detecting_state
+        self.detecting_state = False
         return self.states_dict
 
+    def get_targets_states(self):
+        """Returns the current states dictionary.
+
+        Used as a callback by the StatesIF to retrieve live state values.
+
+        Returns:
+            dict: The states dictionary containing running and detections state
+                entries.
+        """
+        states_dict = dict()
+        
+        states_dict['targets'] = self.targeting_state
+        states_dict[self.node_name + '/targets'] = self.targeting_state
+        self.targeting_state = False
+       
+        return states_dict
 
     def save_config(self):
         if self.save_config_enabled == True:
@@ -1188,7 +1224,7 @@ class AiDetectorIF:
         self.addAllClasses()
 
     def addAllClasses(self):
-        self.publish_status(do_updates = False) # Updated Here
+        self.publish_status() # Updated Here
         self.selected_classes = self.classes
         self.publish_status()
         if self.node_if is not None:
@@ -1199,7 +1235,7 @@ class AiDetectorIF:
     def removeAllClassesCb(self,msg):
         #self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
         self.selected_classes = []
-        self.publish_status(do_updates = False) # Updated Here
+        self.publish_status() # Updated Here
         if self.node_if is not None:
             self.node_if.set_param('selected_classes',[])
             self.save_config()
@@ -1213,7 +1249,7 @@ class AiDetectorIF:
             if class_name not in sel_classes:
                 sel_classes.append(class_name)
             self.selected_classes = sel_classes
-            self.publish_status(do_updates = False) # Updated Here
+            self.publish_status() # Updated Here
             if self.node_if is not None:
                 self.node_if.set_param('selected_classes', sel_classes)
                 self.save_config()
@@ -1226,7 +1262,7 @@ class AiDetectorIF:
         if class_name in sel_classes:
             sel_classes.remove(class_name)
         self.selected_classes = sel_classes
-        self.publish_status(do_updates = False) # Updated Here
+        self.publish_status() # Updated Here
         if self.node_if is not None:
             self.node_if.set_param('selected_classes', sel_classes)
             self.save_config()
@@ -1287,7 +1323,7 @@ class AiDetectorIF:
         self.addAllClassesTargeting()
 
     def addAllClassesTargeting(self):
-        self.publish_status(do_updates = False) # Updated Here
+        self.publish_status() # Updated Here
         self.selected_classes = self.classes
         self.publish_status()
         if self.node_if is not None:
@@ -1298,7 +1334,7 @@ class AiDetectorIF:
     def removeAllClassesTargetingCb(self,msg):
         #self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
         self.selected_classes = []
-        self.publish_status(do_updates = False) # Updated Here
+        self.publish_status() # Updated Here
         if self.node_if is not None:
             self.node_if.set_param('selected_classes',[])
             self.save_config()
@@ -1312,7 +1348,7 @@ class AiDetectorIF:
             if class_name not in sel_classes:
                 sel_classes.append(class_name)
             self.selected_classes = sel_classes
-            self.publish_status(do_updates = False) # Updated Here
+            self.publish_status() # Updated Here
             if self.node_if is not None:
                 self.node_if.set_param('selected_classes', sel_classes)
                 self.save_config()
@@ -1325,7 +1361,7 @@ class AiDetectorIF:
         if class_name in sel_classes:
             sel_classes.remove(class_name)
         self.selected_classes = sel_classes
-        self.publish_status(do_updates = False) # Updated Here
+        self.publish_status() # Updated Here
         if self.node_if is not None:
             self.node_if.set_param('selected_classes', sel_classes)
             self.save_config()
@@ -1688,7 +1724,6 @@ class AiDetectorIF:
                 img_dict = dict()
                 img_dict['cv2_img'] = None
                 img_dict['topic'] = source_topic
-                img_dict['msg_header'] = 'None'
                 img_dict['timestamp'] = nepi_utils.get_time()
                 
 
@@ -1739,7 +1774,6 @@ class AiDetectorIF:
         img_dict = dict()
         self.cv2_img = None
         img_dict['topic'] = source_topic
-        img_dict['msg_header'] = 'None'
         img_dict['timestamp'] = nepi_utils.get_time()
         self.imgs_dict[source_topic] = img_dict
 
@@ -1917,7 +1951,6 @@ class AiDetectorIF:
             # Update img_dict
             img_dict = dict()
             img_dict['topic'] = source_topic
-            img_dict['msg_header'] = img_msg.header.stamp
             img_dict['timestamp'] = timestamp     
 
             
@@ -1954,7 +1987,6 @@ class AiDetectorIF:
         img_dict = dict()
         img_dict['topic'] = source_file
         img_dict['timestamp'] = timestamp
-        img_dict['msg_header'] = msg_header
         
         self.processDetections(img_dict, source_file = source_file)
         source_file_processing = False
@@ -2045,7 +2077,7 @@ class AiDetectorIF:
                 self.msg_if.pub_warn("Failed to process detections img with exception: " + str(e))
             self.is_processing = False
             #self.msg_if.pub_warn("Processed Image Topic " + source_topic) 
-
+            timestamp = nepi_utils.get_time()
             self.last_detect_time = nepi_sdk.get_time()
             ##############################
             # Publish Detections
@@ -2069,7 +2101,8 @@ class AiDetectorIF:
             #####################################
 
             ##################################
-            self.publishDetectionData(source_topic, img_dict, detect_dict_list, np_depth_map = np_depth_map)
+            self.publishDetectionsData(source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = np_depth_map)
+            self.publishTargetsData(source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = np_depth_map)
             ##################################
 
             ###############################
@@ -2150,13 +2183,10 @@ class AiDetectorIF:
         return clean_boxes
 
             
-           
-        
-
             
 
 
-    def publishDetectionData(self, source_topic, img_dict, detect_dict_list, np_depth_map = None):
+    def publishDetectionsData(self, source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = None):
         detect_dict_list = self.cleanBoxes(detect_dict_list)
         #self.msg_if.pub_warn("Publisher got img_dict: " + str(img_dict))
         det_count = len(detect_dict_list)
@@ -2184,8 +2214,8 @@ class AiDetectorIF:
                 object_loc_x_pix = float(detect_dict['xmin'] + ((detect_dict['xmax'] - detect_dict['xmin']))  / 2)
                 object_loc_y_ratio_from_center = float(object_loc_y_pix - img_dict['image_height']/2) / float(img_dict['image_height']/2)
                 object_loc_x_ratio_from_center = float(object_loc_x_pix - img_dict['image_width']/2) / float(img_dict['image_width']/2)
-                target_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
-                target_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
+                vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
+                horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
 
 
                 target_range_m = -999
@@ -2202,7 +2232,7 @@ class AiDetectorIF:
                 #self.msg_if.pub_warn("")
                 #self.msg_if.pub_warn(target_label)
                 #self.msg_if.pub_warn(str(depth_box_adj.shape) + " detections box size")
-                #self.msg_if.pub_warn("%.2f" % target_range_m + "m : " + "%.2f" % target_horz_angle_deg + "d : " + "%.2f" % target_vert_angle_deg + "d : ")
+                #self.msg_if.pub_warn("%.2f" % target_range_m + "m : " + "%.2f" % horz_angle_deg + "d : " + "%.2f" % vert_angle_deg + "d : ")
                 #self.msg_if.pub_warn("")
 
                 ################
@@ -2232,10 +2262,89 @@ class AiDetectorIF:
                 try:
                     # Ranl Bearing, Nav, and Pose Data ENU Reference Frame
                     detection_msg.range_m = target_range_m
-                    detection_msg.azimuth_deg = target_horz_angle_deg
-                    detection_msg.elevation_deg = target_vert_angle_deg
+                    detection_msg.azimuth_deg = horz_angle_deg
+                    detection_msg.elevation_deg = vert_angle_deg
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e))
+
+
+
+                    area_pixels = (detect_dict['xmax'] - detect_dict['xmin']) * (detect_dict['ymax'] - detect_dict['ymin'])
+                    img_area = img_dict['prc_width']* img_dict['prc_height']
+                    if img_area > 1:
+                        area_ratio = area_pixels / img_area
+                    else:
+                        area_ratio = -999
+
+            detections_msg = Detections()
+            detections_msg.timestamp = float(timestamp)
+
+            detections_msg.process_name = self.node_name
+            detections_msg.process_namespace = self.node_namespace
+
+            detections_msg.source_topic = source_topic
+            detections_msg.source_timestamp = float(img_dict['timestamp'])
+            detections_msg.detections = detection_msg_list
+            #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
+            # detections data product (publish + rate-gated save) is owned by
+            # DetectionsIF; the collective 'all' fan-out stays inline.
+            self.detections_if.publish_data(detections_msg, timestamp = timestamp)
+            self.node_if.publish_pub('all_detections', detections_msg)
+
+            if det_count > 0:
+                if 'detections_trigger' in self.triggers_dict.keys():
+                    trigger_dict = self.triggers_dict['detections_trigger']
+                    trigger_dict['time']=nepi_utils.get_time()
+                    try:
+                        self.triggers_if.publish_trigger(trigger_dict)
+                    except:
+                        pass
+                self.detecting_state = True
+                self.process_state = True
+
+            # NOTE: detections/targets saving is now handled inside
+            # DetectionsIF.publish_data / TargetsIF.publish_data (rate-gated via
+            # the shared SaveDataIF), so the previous unconditional inline save
+            # of the detections/targets messages has been removed here.
+
+
+    def publishTargetsData(self, source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = None):
+        detect_dict_list = self.cleanBoxes(detect_dict_list)
+        #self.msg_if.pub_warn("Publisher got img_dict: " + str(img_dict))
+        det_count = len(detect_dict_list)
+        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
+        source_topic = source_topic
+        if True: #imgs_info_dict[source_topic]['active'] == True:
+
+            ###############################
+            # Calculate Localization Data
+
+            targets_msg_list = []
+            for detect_dict in detect_dict_list:
+
+                # Calculate target bearings
+                if source_topic in self.imgs_info_dict.keys():
+                    image_fov_vert = self.imgs_info_dict[source_topic]['height_deg']
+                    image_fov_horz = self.imgs_info_dict[source_topic]['width_deg']
+                else:
+                    image_fov_vert = 70
+                    image_fov_horz = 100
+
+                object_loc_y_pix = float(detect_dict['ymin'] + ((detect_dict['ymax'] - detect_dict['ymin']))  / 2) 
+                object_loc_x_pix = float(detect_dict['xmin'] + ((detect_dict['xmax'] - detect_dict['xmin']))  / 2)
+                object_loc_y_ratio_from_center = float(object_loc_y_pix - img_dict['image_height']/2) / float(img_dict['image_height']/2)
+                object_loc_x_ratio_from_center = float(object_loc_x_pix - img_dict['image_width']/2) / float(img_dict['image_width']/2)
+                vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
+                horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
+
+
+                target_range_m = -999
+                if np_depth_map is not None:
+                    self.imgs_info_dict[source_topic]['has_range'] = True
+                    try:
+                        target_range_m = nepi_img.get_range_from_npDepthMap(np_depth_map, detect_dict)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to get target depth from np_depth_map: " + str(e))
 
 
                 ########################
@@ -2282,46 +2391,18 @@ class AiDetectorIF:
 
                     # Range, Bearing, Nav, and Pose Data ENU Reference Frame
                     target_msg.range_m = target_range_m
-                    target_msg.azimuth_deg = target_horz_angle_deg
-                    target_msg.elevation_deg = target_vert_angle_deg   
+                    target_msg.azimuth_deg = horz_angle_deg
+                    target_msg.elevation_deg = vert_angle_deg   
                     targets_msg_list.append(target_msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e)) 
-
-            
-            detect_timestamp = nepi_utils.get_time()
-            detections_msg = Detections()
-            detections_msg.timestamp = float(detect_timestamp)
-
-            detections_msg.process_name = self.node_name
-            detections_msg.process_namespace = self.node_namespace
-
-            detections_msg.source_topic = source_topic
-            detections_msg.source_timestamp = float(img_dict['timestamp'])
-            detections_msg.detections = detection_msg_list
-            #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
-            # detections data product (publish + rate-gated save) is owned by
-            # DetectionsIF; the collective 'all' fan-out stays inline.
-            self.detections_if.publish_data(detections_msg, timestamp = detect_timestamp)
-            self.node_if.publish_pub('all_detections', detections_msg)
-
-            if det_count > 0:
-                if 'detections_trigger' in self.triggers_dict.keys():
-                    trigger_dict = self.triggers_dict['detections_trigger']
-                    trigger_dict['time']=nepi_utils.get_time()
-                    try:
-                        self.triggers_if.publish_trigger(trigger_dict)
-                    except:
-                        pass
-
-                self.detecting = True
 
 
 
             targets_msg = Targets()
 
             
-            targets_msg.timestamp = float(detect_timestamp)
+            targets_msg.timestamp = float(timestamp)
 
             targets_msg.process_name = self.node_name
             targets_msg.process_namespace = self.node_namespace
@@ -2347,35 +2428,24 @@ class AiDetectorIF:
             #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
             # targets data product (publish + rate-gated save) is owned by
             # TargetsIF; the collective 'all' fan-out stays inline.
-            self.targets_if.publish_data(targets_msg, timestamp = detect_timestamp)
+            self.targets_if.publish_data(targets_msg, timestamp = timestamp)
             self.node_if.publish_pub('all_targets', targets_msg)
 
             if det_count > 0:
                 if 'targeting_trigger' in self.triggers_dict.keys():
-                    trigger_dict = self.triggers_dict['targeting_trigger']
+                    trigger_dict = self.triggers_dict['targets_trigger']
                     trigger_dict['time']=nepi_utils.get_time()
                     self.triggers_if.publish_trigger(trigger_dict)
-
                 self.targeting_state = True
+                self.process_state = True
+                
 
             # NOTE: detections/targets saving is now handled inside
             # DetectionsIF.publish_data / TargetsIF.publish_data (rate-gated via
             # the shared SaveDataIF), so the previous unconditional inline save
             # of the detections/targets messages has been removed here.
 
-    def publishData(self,pub_name, msg):
-        #self.msg_if.pub_warn("Publishing topic: " + str(pub_name) + " with msg " + str(msg))
-        self.node_if.publish_pub(pub_name,msg)
-        pub_name_all = pub_name + "_all"
-        self.node_if.publish_pub(pub_name_all,msg)
 
-
-    def updateStatesCb(self,timer):
-        # Update and clear detections state every second
-        self.states_dict['detections']['value'] = str(self.detecting) or self.source_file_processing
-        self.source_file_processing = False
-        self.detecting = False
-        
     def updateImgSubsCb(self,timer):
         # Check for data subscribers every second
         has_subs_list = []
@@ -2446,25 +2516,9 @@ class AiDetectorIF:
         resp = self.process_status_msg
         #self.msg_if.pub_warn("Returning Detector Info Response: " + str(resp))
         return resp
-    
 
-    def publishStatusCb(self,timer):
-        self.publish_status()
 
-    def publish_status(self, do_updates = True):
-        """Assembles and publishes the AI detector status message.
-
-        Populates all fields of the DetectorStatus message from current
-        internal state — including model metadata, class selections, sleep
-        configuration, overlay flags, rate limits, image topic lists, and
-        performance metrics — then publishes it on the status topic.
-
-        Args:
-            do_updates (bool, optional): Reserved for future use. Defaults to
-                True.
-        """
-        #self.msg_if.pub_warn("Starting Detector Status Pub")
-
+    def getProcessStatus(self):
         self.process_status_msg.name = self.model_name
         self.process_status_msg.group = self.model_framework
         self.process_status_msg.description = self.model_description
@@ -2526,10 +2580,9 @@ class AiDetectorIF:
         self.process_status_msg.enabled = self.enabled
         running = self.enabled and img_selected and img_connected and self.sleep_state == False
         self.process_status_msg.running = running
-        detecting = False
-        if self.states_dict is not None:
-            detecting = copy.deepcopy(self.states_dict['detections']['value']) == 'True'
-        self.process_status_msg.state = detecting
+        state = False
+        state = self.process_state
+        self.process_status_msg.state = state
         self.process_status_msg.msg_str = self.msg_str
 
         #################
@@ -2549,13 +2602,39 @@ class AiDetectorIF:
         else:
             max_process_rate= 0
         self.process_status_msg.max_process_rate = max_process_rate
+        return self.process_status_msg
     
-        detector_status_msg = DetectorStatus()
-        detector_status_msg.process_status = self.process_status_msg
-        detector_status_msg.process_status.namespace = self.detector_namespace
-        detector_status_msg.available_classes = self.classes
-        detector_status_msg.selected_classes = self.selected_classes
-        detector_status_msg.threshold_filter = self.threshold
+
+    def publishStatusCb(self,timer):
+        self.publish_status()
+        self.process_state = False
+
+    def publish_status(self):
+        self.publish_detector_status()
+        self.publish_targeting_status()
+
+
+    def publish_detector_status(self):
+        """Assembles and publishes the AI detector status message.
+
+        Populates all fields of the DetectorStatus message from current
+        internal state — including model metadata, class selections, sleep
+        configuration, overlay flags, rate limits, image topic lists, and
+        performance metrics — then publishes it on the status topic.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to
+                True.
+        """
+        #self.msg_if.pub_warn("Starting Detector Status Pub")
+
+        process_status_msg = self.getProcessStatus()
+    
+        self.detector_status_msg.process_status = process_status_msg
+        self.detector_status_msg.process_status.namespace = self.detector_namespace
+        self.detector_status_msg.available_classes = self.classes
+        self.detector_status_msg.selected_classes = self.selected_classes
+        self.detector_status_msg.threshold_filter = self.threshold
 
 
         #self.msg_if.pub_warn("Ending Detector Status Pub")
@@ -2565,24 +2644,36 @@ class AiDetectorIF:
         # inline pub).
         detections_if = getattr(self, 'detections_if', None)
         if detections_if is not None:
-            detections_if.publish_status(detector_status_msg)
+            detections_if.publish_status(self.detector_status_msg)
 
 
-        # ################
-        # # Targeting Status
 
-        targeting_status_msg = TargetingStatus()
-        targeting_status_msg.process_status = self.process_status_msg
-        targeting_status_msg.process_status.namespace = self.targeting_namespace
-        targeting_status_msg.available_classes = self.classes
-        targeting_status_msg.selected_classes = self.selected_classes
-        targeting_status_msg.threshold_filter = self.threshold
+    def publish_targeting_status(self, do_updates = True):
+        """Assembles and publishes the AI detector status message.
+
+        Populates all fields of the DetectorStatus message from current
+        internal state — including model metadata, class selections, sleep
+        configuration, overlay flags, rate limits, image topic lists, and
+        performance metrics — then publishes it on the status topic.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to
+                True.
+        """
+        #self.msg_if.pub_warn("Starting Detector Status Pub")
+
+        process_status_msg = self.getProcessStatus()
+    
+        self.targeting_status_msg = TargetingStatus()
+        self.targeting_status_msg.process_status = process_status_msg
+        self.targeting_status_msg.process_status.namespace = self.targeting_namespace
+        self.targeting_status_msg.available_classes = self.classes
+        self.targeting_status_msg.selected_classes = self.selected_classes
+        self.targeting_status_msg.threshold_filter = self.threshold
         
         #self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(self.targeting_status_msg), throttle_s = 5)
         # TargetingStatus is published on <node_ns>/targets/status by TargetsIF
         # (same wire topic/type as the removed 'targeting_status' inline pub).
         targets_if = getattr(self, 'targets_if', None)
         if targets_if is not None:
-            targets_if.publish_status(targeting_status_msg)
-
-
+            targets_if.publish_status(self.targeting_status_msg)
