@@ -56,6 +56,17 @@ from nepi_api.node_if import NodeConfigsIF, NodeParamsIF
 
 CONNECTED_TIMEOUT = 2
 
+# Interface tokens that appear between a node namespace and its data products,
+# i.e. the namespace each device_if_*.py class creates under its node namespace
+# ('idx', 'ptx', 'lsx', 'npx', 'rbx', 'motors') plus the AI namespace. These are
+# structural, not something an operator chooses between, so
+# get_available_path_names() drops them from selector labels. The RUI strips the
+# same set in Utilities.js createShortValuesFromNamespaces/
+# createShortImagesFromNamespaces. Deliberately not nepi_system's
+# NEPI_ALL_CONFIG_IDS -- that list identifies config domains, omits 'motors' and
+# 'ai', and would silently change these labels if a config domain were added.
+IF_NAMESPACE_TOKENS = ['idx','ptx','lsx','npx','rbx','motors','ai']
+
 class ConnectNodeIF:
     
     msg_if = None
@@ -425,6 +436,55 @@ class ConnectNodeIF:
             available_names.append(name)
         return available_names
 
+    def get_available_path_names(self, available_topics = []):
+        """Label each available topic with its node name AND its data product.
+
+        Returns the topic path below the device namespace -- the node name plus
+        everything under it -- with the interface tokens in IF_NAMESPACE_TOKENS
+        removed. Topics are ``/<prefix>/<device_id>/<node>/<if>/<data_product>``,
+        so ``/nepi/device/zed2_14/idx/depth_map`` labels as
+        ``zed2_14/depth_map`` and ``/nepi/device/zed2_14/npx/navpose`` as
+        ``zed2_14/navpose``.
+
+        This is what get_available_names() cannot do: that method returns only
+        the node name, so every data product of one device shares a single label.
+        A device offering several products of the same type -- a stereo camera
+        publishing color_image, bw_image and depth_map_image, all ImageStatus and
+        so all discovered by one ConnectColorImageIF -- yields a selector of
+        identically labelled, indistinguishable entries.
+
+        Device connect classes are unaffected. A device topic ends at its
+        interface token (``/nepi/device/zed2_14/idx``, and ``.../motors`` for
+        ConnectMotorIF, whose _updaterCb strips '/motor_status' rather than
+        '/status'), so stripping that token leaves the node name alone and the
+        label is byte-identical to get_available_names(). That is why this can
+        replace the label source for every connect class at once.
+
+        get_available_names() is left in place and unchanged for callers that
+        want the owning node name on its own.
+
+        Args:
+            available_topics (list): Fully-qualified topic namespaces to label.
+
+        Returns:
+            list: One label per entry in available_topics, in the same order.
+                Falls back to the full topic for a namespace too shallow to hold
+                a node name.
+        """
+        available_names = []
+        for topic in available_topics:
+            name = topic
+            topic_split = topic[1:].split('/')
+            if len(topic_split) > 2:
+                path_tokens = []
+                for token in topic_split[2:]:
+                    if token not in IF_NAMESPACE_TOKENS:
+                        path_tokens.append(token)
+                if len(path_tokens) > 0:
+                    name = '/'.join(path_tokens)
+            available_names.append(name)
+        return available_names
+
     def _publishStatusCb(self,timer):
         self.publish_status()
 
@@ -441,7 +501,11 @@ class ConnectNodeIF:
         status_msg.status_msg_type = self.connect_status_msg
 
         status_msg.available_topics = available_topics
-        available_names = self.get_available_names(available_topics)
+        # Path names, not node names: a selector must distinguish one device's
+        # data products from each other. Device connect classes see no change --
+        # their topics reduce to the node name either way. See
+        # get_available_path_names().
+        available_names = self.get_available_path_names(available_topics)
         status_msg.available_names = available_names
 
         selected_name = 'None'

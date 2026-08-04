@@ -42,9 +42,9 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 # source publishes a nepi_interfaces/Targets message on its base namespace and a
 # nepi_interfaces/TargetingStatus message on <namespace>/status. This connect
 # class subclasses ConnectNodeIF directly and follows the ConnectNavPoseIF
-# pattern: retrieved Targets messages are converted to targets dictionaries and
-# cached (thread-safe) for polling consumers, or handed straight to
-# callback_function when one is provided.
+# pattern: every retrieved Targets message is converted to a targets dictionary,
+# handed to dataCB when one is provided, and cached (thread-safe) as the latest
+# targets dictionary for polling consumers.
 
 
 TARGETS_CONNECT_ID = 'TARGETS'
@@ -75,11 +75,7 @@ class ConnectTargetsIF(ConnectNodeIF):
     data_dict = None
     data_dict_lock = threading.Lock()
 
-    get_data = False
-    got_data = False
-
-    preprocessFunction = None
-    callbackFunction = None
+    dataCB = None
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
@@ -89,8 +85,7 @@ class ConnectTargetsIF(ConnectNodeIF):
                 connect_name = TARGETS_CONNECT_NAME,
                 namespace = None,
                 statusCb = None,
-                preprocess_function = None,
-                callback_function = None,
+                dataCB = None,
                 filter_topic_list = [],
                 show_selector = True,
                 show_controls = True,
@@ -123,8 +118,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         # Initialize Class Variables
 
         self.statusCb = statusCb
-        self.preprocessFunction = preprocess_function
-        self.callbackFunction = callback_function
+        self.dataCB = dataCB
 
 
         ##############################
@@ -274,41 +268,20 @@ class ConnectTargetsIF(ConnectNodeIF):
         """
         return self.selected_topic
 
-    def set_get_data(self, state):
-        """Set the flag requesting capture of the next available targets message.
-
-        Args:
-            state (bool): True to request the next message, False to clear the request.
-
-        Returns:
-            bool: Always True.
-        """
-        self.get_data = state
-        return True
-
-    def read_get_got_states(self):
-        """Return the current get and got data flags.
-
-        Returns:
-            list: A two-element list [get_data, got_data] where get_data indicates
-                whether a targets message has been requested and got_data indicates
-                whether a targets message is waiting to be retrieved.
-        """
-        return [self.get_data, self.got_data]
-
     def get_targets_dict(self):
-        """Retrieve and consume the latest captured targets data dictionary.
+        """Return the latest targets data dictionary.
 
-        Thread-safe. Clears the stored data after retrieval so subsequent calls
-        return None until a new targets message arrives.
+        Thread-safe. Every incoming targets message is captured, so this returns
+        the most recent targets dictionary and leaves it in place. Repeat calls
+        return the same dictionary until a newer targets message arrives.
 
         Returns:
             dict: The targets data dictionary containing the targets values,
-                namespace, and timestamp, or None if no targets are available.
+                namespace, and timestamp, or None if no targets message has been
+                received yet.
         """
         self.data_dict_lock.acquire()
         data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = None
         self.data_dict_lock.release()
         return data_dict
 
@@ -449,28 +422,16 @@ class ConnectTargetsIF(ConnectNodeIF):
 
 
     def _dataCb(self,data_msg):
-        # Only build a targets dict when a consumer has asked for one (get_data
-        # flag) or a callback_function is registered; otherwise the incoming
-        # Targets message is dropped cheaply. Connection state is driven by the
-        # status callback. Targets carries a float64 timestamp field (no
-        # std_msgs Header), so latency is not computed here.
-        get_data = (self.callbackFunction is not None or self.get_data == True)
-        if get_data == False:
-            return
-
+        # Every incoming Targets message is converted to a targets dict, handed
+        # to dataCB when one is registered, and cached as the latest targets
+        # dict for polling consumers. Connection state is driven by the status
+        # callback. Targets carries a float64 timestamp field (no std_msgs
+        # Header), so latency is not computed here.
         start_time = nepi_sdk.get_time()
 
-        self.get_data = False
-
         ##############################
-        ### Preprocess Targets
+        ### Convert Targets Msg
         data = nepi_sdk.convert_msg2dict(data_msg)
-
-        if self.preprocessFunction is not None:
-            try:
-                data = self.preprocessFunction(data)
-            except Exception as e:
-                self.msg_if.pub_warn("Provided Targets Preprocess Function failed:  " + str(e))
 
         data_dict = dict()
         data_dict['namespace'] = self.selected_topic
@@ -481,10 +442,8 @@ class ConnectTargetsIF(ConnectNodeIF):
         process_time = round( (nepi_sdk.get_time() - start_time) , 3)
         data_dict['process_time'] = process_time
 
-        if self.callbackFunction is not None:
-            self.callbackFunction(data_dict)
-        else:
-            self.data_dict_lock.acquire()
-            self.data_dict = data_dict
-            self.data_dict_lock.release()
-            self.got_data = True
+        if self.dataCB is not None:
+            self.dataCB(data_dict)
+        self.data_dict_lock.acquire()
+        self.data_dict = data_dict
+        self.data_dict_lock.release()

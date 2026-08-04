@@ -80,7 +80,7 @@ class ConnectDataIF(ConnectNodeIF):
     # Data pipeline state. The connected data source publishes an Image on its
     # base namespace and an ImageStatus on <namespace>/status. Retrieved image
     # frames are cached here (thread-safe) for polling consumers, or handed
-    # straight to callback_function when one is provided.
+    # straight to dataCB when one is provided.
     data_dict = None
     data_dict_lock = threading.Lock()
 
@@ -88,7 +88,7 @@ class ConnectDataIF(ConnectNodeIF):
     got_data = False
 
     preprocessFunction = None
-    callbackFunction = None
+    dataCB = None
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
@@ -99,7 +99,7 @@ class ConnectDataIF(ConnectNodeIF):
                 namespace = None,
                 statusCb = None,
                 preprocess_function = None,
-                callback_function = None,
+                dataCB = None,
                 filter_topic_list = [],
                 show_selector = True,
                 show_controls = True,
@@ -133,7 +133,7 @@ class ConnectDataIF(ConnectNodeIF):
 
         self.statusCb = statusCb
         self.preprocessFunction = preprocess_function
-        self.callbackFunction = callback_function
+        self.dataCB = dataCB
 
 
         ##############################
@@ -537,9 +537,9 @@ class ConnectDataIF(ConnectNodeIF):
 
     def _dataCb(self,data_msg):
         # Only build a frame when a consumer has asked for one (get_data flag) or
-        # a callback_function is registered; otherwise the incoming Image is
+        # a dataCB is registered; otherwise the incoming Image is
         # dropped cheaply. Connection state is driven by the status callback.
-        get_data = (self.callbackFunction is not None or self.get_data == True)
+        get_data = (self.dataCB is not None or self.get_data == True)
         if get_data == False:
             return
 
@@ -579,8 +579,8 @@ class ConnectDataIF(ConnectNodeIF):
         got_latency = (nepi_sdk.get_msg_stamp().to_sec() - msg_stamp.to_sec())
         data_dict['got_latency_time'] = got_latency
 
-        if self.callbackFunction is not None:
-            self.callbackFunction(data_dict)
+        if self.dataCB is not None:
+            self.dataCB(data_dict)
         else:
             self.data_dict_lock.acquire()
             self.data_dict = data_dict
@@ -599,7 +599,7 @@ class ConnectDataIF(ConnectNodeIF):
 # the connected source publishes a NavPose on its base namespace and a
 # NavPoseStatus on <namespace>/status. Retrieved NavPose messages are
 # converted to nav pose dictionaries and cached (thread-safe) for polling
-# consumers, or handed straight to callback_function when one is provided.
+# consumers, or handed straight to dataCB when one is provided.
 
 
 NAVPOSE_CONNECT_ID = 'NAVPOSE'
@@ -631,7 +631,7 @@ class ConnectNavPoseIF(ConnectNodeIF):
     got_data = False
 
     preprocessFunction = None
-    callbackFunction = None
+    dataCB = None
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
@@ -642,7 +642,7 @@ class ConnectNavPoseIF(ConnectNodeIF):
                 namespace = None,
                 statusCb = None,
                 preprocess_function = None,
-                callback_function = None,
+                dataCB = None,
                 filter_topic_list = [],
                 show_selector = True,
                 show_controls = True,
@@ -676,7 +676,7 @@ class ConnectNavPoseIF(ConnectNodeIF):
 
         self.statusCb = statusCb
         self.preprocessFunction = preprocess_function
-        self.callbackFunction = callback_function
+        self.dataCB = dataCB
 
 
         ##############################
@@ -1088,10 +1088,10 @@ class ConnectNavPoseIF(ConnectNodeIF):
 
     def _dataCb(self,data_msg):
         # Only build a nav pose dict when a consumer has asked for one (get_data
-        # flag) or a callback_function is registered; otherwise the incoming
+        # flag) or a dataCB is registered; otherwise the incoming
         # NavPose is dropped cheaply. Connection state is driven by the status
         # callback.
-        get_data = (self.callbackFunction is not None or self.get_data == True)
+        get_data = (self.dataCB is not None or self.get_data == True)
         if get_data == False:
             return
 
@@ -1128,8 +1128,8 @@ class ConnectNavPoseIF(ConnectNodeIF):
         got_latency = (nepi_sdk.get_msg_stamp().to_sec() - msg_stamp.to_sec())
         data_dict['got_latency_time'] = got_latency
 
-        if self.callbackFunction is not None:
-            self.callbackFunction(data_dict)
+        if self.dataCB is not None:
+            self.dataCB(data_dict)
         else:
             self.data_dict_lock.acquire()
             self.data_dict = data_dict
@@ -1232,7 +1232,7 @@ class ConnectDepthMapIF(ConnectNodeIF):
     got_data = False
 
     preprocessFunction = None
-    callbackFunction = None
+    dataCB = None
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
@@ -1243,7 +1243,7 @@ class ConnectDepthMapIF(ConnectNodeIF):
                 namespace = None,
                 statusCb = None,
                 preprocess_function = None,
-                callback_function = None,
+                dataCB = None,
                 filter_topic_list = [],
                 show_selector = True,
                 show_controls = True,
@@ -1277,7 +1277,7 @@ class ConnectDepthMapIF(ConnectNodeIF):
 
         self.statusCb = statusCb
         self.preprocessFunction = preprocess_function
-        self.callbackFunction = callback_function
+        self.dataCB = dataCB
 
 
         ##############################
@@ -1682,9 +1682,9 @@ class ConnectDepthMapIF(ConnectNodeIF):
 
     def _dataCb(self,data_msg):
         # Only build a frame when a consumer has asked for one (get_data flag) or
-        # a callback_function is registered; otherwise the incoming Image is
+        # a dataCB is registered; otherwise the incoming Image is
         # dropped cheaply. Connection state is driven by the status callback.
-        get_data = (self.callbackFunction is not None or self.get_data == True)
+        get_data = (self.dataCB is not None or self.get_data == True)
         if get_data == False:
             return
 
@@ -1724,8 +1724,8 @@ class ConnectDepthMapIF(ConnectNodeIF):
         got_latency = (nepi_sdk.get_msg_stamp().to_sec() - msg_stamp.to_sec())
         data_dict['got_latency_time'] = got_latency
 
-        if self.callbackFunction is not None:
-            self.callbackFunction(data_dict)
+        if self.dataCB is not None:
+            self.dataCB(data_dict)
         else:
             self.data_dict_lock.acquire()
             self.data_dict = data_dict
@@ -1790,7 +1790,7 @@ class ConnectPointcloudIF(ConnectNodeIF):
     got_data = False
 
     preprocessFunction = None
-    callbackFunction = None
+    dataCB = None
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
@@ -1801,7 +1801,7 @@ class ConnectPointcloudIF(ConnectNodeIF):
                 namespace = None,
                 statusCb = None,
                 preprocess_function = None,
-                callback_function = None,
+                dataCB = None,
                 filter_topic_list = [],
                 show_selector = True,
                 show_controls = True,
@@ -1835,7 +1835,7 @@ class ConnectPointcloudIF(ConnectNodeIF):
 
         self.statusCb = statusCb
         self.preprocessFunction = preprocess_function
-        self.callbackFunction = callback_function
+        self.dataCB = dataCB
 
 
         ##############################
@@ -2248,9 +2248,9 @@ class ConnectPointcloudIF(ConnectNodeIF):
 
     def _dataCb(self,data_msg):
         # Only build a frame when a consumer has asked for one (get_data flag) or
-        # a callback_function is registered; otherwise the incoming PointCloud2 is
+        # a dataCB is registered; otherwise the incoming PointCloud2 is
         # dropped cheaply. Connection state is driven by the status callback.
-        get_data = (self.callbackFunction is not None or self.get_data == True)
+        get_data = (self.dataCB is not None or self.get_data == True)
         if get_data == False:
             return
 
@@ -2288,8 +2288,8 @@ class ConnectPointcloudIF(ConnectNodeIF):
         got_latency = (nepi_sdk.get_msg_stamp().to_sec() - msg_stamp.to_sec())
         data_dict['got_latency_time'] = got_latency
 
-        if self.callbackFunction is not None:
-            self.callbackFunction(data_dict)
+        if self.dataCB is not None:
+            self.dataCB(data_dict)
         else:
             self.data_dict_lock.acquire()
             self.data_dict = data_dict
