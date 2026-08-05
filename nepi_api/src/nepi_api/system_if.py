@@ -151,7 +151,7 @@ class ControlsIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(controls_name)) 
             return
         self.msg_if.pub_info("Using Name: " + self.controls_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_name,controls_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,controls_name)
         self.node_if_prefix = '/' + controls_name + '_'
 
         ##############################    
@@ -1646,7 +1646,7 @@ class SaveDataIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(save_data_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + save_data_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_name,save_data_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,save_data_name)
         self.node_if_prefix = '/' + save_data_name + '_'
         
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
@@ -2796,7 +2796,7 @@ class Transform3DIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(transform_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + transform_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_name,transform_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,transform_name)
         self.node_if_prefix = '/' + transform_name + '_'
 
         self.source = source_ref_description
@@ -3329,7 +3329,7 @@ class SettingsIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(settings_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + settings_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_name,settings_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,settings_name)
         self.node_if_prefix = '' # '/' + settings_name + '_'
 
         self.allow_cap_updates = allow_cap_updates
@@ -3866,7 +3866,7 @@ class StatesIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(states_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + states_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_name,states_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,states_name)
         self.node_if_prefix = '/' + states_name + '_'
 
         ##############################  

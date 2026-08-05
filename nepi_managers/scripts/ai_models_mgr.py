@@ -50,7 +50,7 @@ from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 
 
-DELAY_STARTUP_SEC = 60
+DELAY_STARTUP_SEC = 10
 
 
 
