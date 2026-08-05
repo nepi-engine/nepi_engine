@@ -38,11 +38,8 @@ from nepi_interfaces.msg import Targets, TargetingStatus
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_system
-from nepi_sdk import nepi_aifs
-from nepi_sdk import nepi_ais
 from nepi_sdk import nepi_img
-from nepi_sdk import nepi_nav
+
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeParamsIF, NodeClassIF
