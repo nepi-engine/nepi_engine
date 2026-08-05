@@ -432,7 +432,7 @@ class ConnectDataIF(ConnectNodeIF):
 
 
     def subscribe_topic(self, topic):
-        self.msg_if.pub_warn("subscribe_data_topic Called")
+        self.msg_if.pub_debug("subscribe_data_topic Called")
 
         success = False
         success = self.unsubscribe_topic()
@@ -497,7 +497,7 @@ class ConnectDataIF(ConnectNodeIF):
     def unsubscribe_topic(self):
         success = False
         if self.connecting == True or self.connected == True:
-            self.msg_if.pub_warn("unsubscribe_topic Called")
+            self.msg_if.pub_debug("unsubscribe_topic Called")
 
             if self.node_if is not None:
                 if self.connect_topic_subs_dict is not None:
@@ -983,7 +983,7 @@ class ConnectNavPoseIF(ConnectNodeIF):
 
 
     def subscribe_topic(self, topic):
-        self.msg_if.pub_warn("subscribe_data_topic Called")
+        self.msg_if.pub_debug("subscribe_data_topic Called")
 
         success = False
         success = self.unsubscribe_topic()
@@ -1048,7 +1048,7 @@ class ConnectNavPoseIF(ConnectNodeIF):
     def unsubscribe_topic(self):
         success = False
         if self.connecting == True or self.connected == True:
-            self.msg_if.pub_warn("unsubscribe_topic Called")
+            self.msg_if.pub_debug("unsubscribe_topic Called")
 
             if self.node_if is not None:
                 if self.connect_topic_subs_dict is not None:
@@ -1577,7 +1577,7 @@ class ConnectDepthMapIF(ConnectNodeIF):
 
 
     def subscribe_topic(self, topic):
-        self.msg_if.pub_warn("subscribe_data_topic Called")
+        self.msg_if.pub_debug("subscribe_data_topic Called")
 
         success = False
         success = self.unsubscribe_topic()
@@ -1642,7 +1642,7 @@ class ConnectDepthMapIF(ConnectNodeIF):
     def unsubscribe_topic(self):
         success = False
         if self.connecting == True or self.connected == True:
-            self.msg_if.pub_warn("unsubscribe_topic Called")
+            self.msg_if.pub_debug("unsubscribe_topic Called")
 
             if self.node_if is not None:
                 if self.connect_topic_subs_dict is not None:
@@ -2143,7 +2143,7 @@ class ConnectPointcloudIF(ConnectNodeIF):
 
 
     def subscribe_topic(self, topic):
-        self.msg_if.pub_warn("subscribe_data_topic Called")
+        self.msg_if.pub_debug("subscribe_data_topic Called")
 
         success = False
         success = self.unsubscribe_topic()
@@ -2208,7 +2208,7 @@ class ConnectPointcloudIF(ConnectNodeIF):
     def unsubscribe_topic(self):
         success = False
         if self.connecting == True or self.connected == True:
-            self.msg_if.pub_warn("unsubscribe_topic Called")
+            self.msg_if.pub_debug("unsubscribe_topic Called")
 
             if self.node_if is not None:
                 if self.connect_topic_subs_dict is not None:

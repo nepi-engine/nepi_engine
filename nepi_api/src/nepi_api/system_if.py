@@ -184,7 +184,7 @@ class ControlsIF:
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
             'init_configs': True,
-            'namespace': self.controls_namespace
+            'namespace': self.namespace
         }
 
         # Params Config Dict ####################
@@ -299,7 +299,7 @@ class ControlsIF:
             },
              self.node_if_prefix + 'set_controls_hidden': {
                 'msg': UpdateBool,
-                'namespace': self.controls_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_controls_hidden',
                 'qsize': 5,
                 'callback': self._setControlsHiddenCb
@@ -655,7 +655,16 @@ class ControlsIF:
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
         if self.node_if is not None:
-            self.controls_dict = self.node_if.get_param('controls_dict')
+            # Prefixed key, matching how the param is registered and how
+            # set_control_value()/set_control_options()/set_control_bounds()
+            # write it back. get_param() returns None for a name it does not
+            # know, so the unprefixed name wiped the controls dict on every
+            # config init, reset and factory reset, leaving ControlsStatus with
+            # empty control lists and the RUI with an empty controls box.
+            param_name = self.node_if_prefix + 'controls_dict'
+            controls_dict = self.node_if.get_param(param_name)
+            if controls_dict is not None:
+                self.controls_dict = controls_dict
 
         if do_updates == True:
             pass

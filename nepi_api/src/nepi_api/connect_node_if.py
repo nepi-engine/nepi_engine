@@ -334,13 +334,27 @@ class ConnectNodeIF:
         return self.selected_topic
     
     def set_selected_topic(self, selected_topic):
-        if selected_topic in self.available_topics or selected_topic == "None":
-            self.selected_topic = selected_topic
+        # An undiscovered topic cannot be selected. Reject it WITHOUT persisting:
+        # the old code fell through and wrote the param plus save_config() even
+        # though self.selected_topic was left unchanged. Callers that re-assert a
+        # derived selection every cycle (applyDerivedTargetsImageSelection in the
+        # obstacles app) guard on get_selected_topic(), which never reports the
+        # rejected value, so each cycle re-entered here -- hammering the param
+        # server and rewriting the config file at 1 Hz, and filling the log with
+        # "Failed to set param ... Connection refused" whenever the master was
+        # down. Rejection must be cheap and quiet; the caller's re-assert loop is
+        # intentional and self-corrects once the topic is discovered.
+        if selected_topic not in self.available_topics and selected_topic != "None":
+            self.msg_if.pub_debug("Ignoring unavailable selected_topic: " + str(selected_topic),
+                                  throttle_s = 5.0)
+            self.publish_status()
+            return
+        self.selected_topic = selected_topic
         self.publish_status()
         # Persist the selection so it survives a node restart. set_param writes
         # the ROS param; save_config asks the config manager to save it to file.
         if self.node_if is not None:
-            self.msg_if.pub_warn("selected_topic: " + str(selected_topic))
+            self.msg_if.pub_debug("selected_topic: " + str(selected_topic))
             self.node_if.set_param('selected_topic', self.selected_topic)
             self.node_if.save_config()
     
