@@ -161,7 +161,7 @@ def unimportAIFClass(module_name):
 ##################
 
 
-def loadModelsDict(framework_name, pkg_name, models_folder_path):
+def loadModelsDict(framework_name, pkg_name, models_folder_path, strict_check = True):
     models_dict = dict()
     base_path = os.path.dirname(models_folder_path)
     if os.path.exists(base_path) == False:
@@ -169,7 +169,7 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path):
         return models_dict  
     if os.path.exists(models_folder_path) == False:
         logger.log_warn("Creating models folder: " + models_folder_path)
-        os.mkpath(models_folder_path)
+        os.makedirs(models_folder_path, exist_ok=True)
     if os.path.exists(models_folder_path) == False:
         logger.log_warn("Failed to find models folder: " + models_folder_path)
         return models_dict
@@ -237,11 +237,15 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path):
 
 
             framework = cfg_dict[model_key]["framework"]["name"]
-           
-
-            if framework != framework_name:
-                logger.log_warn("Model " + model_name + " not a MODEL_FRAMEWORK model" + framework + "... not adding this model")
-                continue
+            if strict_check == True:
+                if framework != framework_name:
+                    logger.log_warn("Model " + model_name + " framework " + framework + "... not supported")
+                    continue
+            else:
+                if framework_name not in framework:
+                    logger.log_warn("Model " + model_name + " framework " + framework + "... not supported")
+                    continue
+            cfg_dict[model_key]["framework"]["name"] = framework_name
 
 
             weight_file = cfg_dict[model_key]["weight_file"]["name"]
@@ -265,7 +269,7 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path):
             model_dict['model_name'] = model_name
             model_dict['node_name'] = node_name
             model_dict['param_file'] = param_file
-            model_dict['framework'] = framework
+            model_dict['framework'] = framework_name
             model_dict['display_name'] = display_name
             model_dict['path'] = models_folder_path
             model_dict['type'] = model_type

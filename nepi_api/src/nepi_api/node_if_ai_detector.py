@@ -1594,8 +1594,39 @@ class AiDetectorIF:
         ####################
         # Create Pubs and Subs IF Dict 
 
+        img_pubs_dict = {
+            source_topic + '/detections_pub': {
+                'msg': Detections,
+                'namespace': source_topic,
+                'topic': 'detections',
+                'qsize': 1,
+                'latch': False
+            },
+            source_topic + '/detections_status_pub': {
+                'msg': Targets,
+                'namespace': source_topic + '/detections',
+                'topic': 'status',
+                'qsize': 1,
+                'latch': False
+            },
+            source_topic + '/targets_pub': {
+                'msg': Targets,
+                'namespace': source_topic,
+                'topic': 'targets',
+                'qsize': 1,
+                'latch': False
+            },
+            source_topic + '/targets_status_pub': {
+                'msg': Targets,
+                'namespace': source_topic + '/targets',
+                'topic': 'status',
+                'qsize': 1,
+                'latch': False
+            }
+        }
+
         img_subs_dict = {
-            'image': {
+            source_topic + '/image_sub': {
                     'namespace': source_topic,
                     'msg': Image,
                     'topic': '',
@@ -1603,7 +1634,7 @@ class AiDetectorIF:
                     'callback': self.imageCb,
                     'callback_args': (source_topic)
             },
-            'status': {
+            source_topic + '/status_sub': {
                     'namespace': source_topic,
                     'msg': ImageStatus,
                     'topic': 'status',
@@ -1688,11 +1719,11 @@ class AiDetectorIF:
             
             ####################
             # Pubs Config Dict 
-            # img_pubs_if = NodePublishersIF(
-            #         pubs_dict = img_pubs_dict,
-            #         log_name_list = self.log_name_list,
-            #         msg_if = self.msg_if
-            #                             )
+            img_pubs_if = NodePublishersIF(
+                    pubs_dict = img_pubs_dict,
+                    log_name_list = self.log_name_list,
+                    msg_if = self.msg_if
+                                        )
 
             ####################
             # Subs Config Dict 
@@ -1712,7 +1743,7 @@ class AiDetectorIF:
             # Add Img Subs and Pubs IFs to Img IFs Dict
             self.img_ifs_lock.acquire()
             self.img_ifs_dict[source_topic] = {
-                                            #'pubs_if': img_pubs_if,
+                                            'pubs_if': img_pubs_if,
                                             'subs_if': img_subs_if
                                             }   
 
@@ -2140,7 +2171,7 @@ class AiDetectorIF:
 
         #####################################
         process_time = nepi_utils.get_time() - start_time
-        max_rate = self.max_process_rate_hz * 2 # Double until double buffering enabled
+        max_rate = self.max_process_rate_hz
         delay_time = (float(1) / max_rate) - process_time
         if delay_time < 0.01:
             delay_time = 0.01
@@ -2315,6 +2346,7 @@ class AiDetectorIF:
             # DetectionsIF; the collective 'all' fan-out stays inline.
             self.detections_if.publish_data(detections_msg, timestamp = timestamp)
             self.node_if.publish_pub('all_detections', detections_msg)
+            self.node_if.publish_pub(source_topic + '/detections_pub', detections_msg)
 
             if det_count > 0:
                 if 'detections_trigger' in self.triggers_dict.keys():
@@ -2456,6 +2488,7 @@ class AiDetectorIF:
             # TargetsIF; the collective 'all' fan-out stays inline.
             self.targets_if.publish_data(targets_msg, timestamp = timestamp)
             self.node_if.publish_pub('all_targets', targets_msg)
+            self.node_if.publish_pub(source_topic + '/targets_pub', targets_msg)
 
             if det_count > 0:
                 if 'targeting_trigger' in self.triggers_dict.keys():
@@ -2669,9 +2702,20 @@ class AiDetectorIF:
         # DetectorStatus is published on <node_ns>/detections/status by
         # DetectionsIF (same wire topic/type as the removed 'detector_status'
         # inline pub).
+
+
+
         detections_if = getattr(self, 'detections_if', None)
         if detections_if is not None:
             detections_if.publish_status(self.detector_status_msg)
+            # Publish for each connected image
+            sources_connected = []
+            for source_topic in self.imgs_info_dict.keys():
+                if self.imgs_info_dict[source_topic]['img_connected']:
+                    sources_connected.append(source_topic)
+            if self.node_if is not None:
+                for source_topic in sources_connected:
+                    self.node_if.publish_pub(source_topic + '/detections_statu_pub', self.detector_status_msg)
 
 
 
@@ -2704,3 +2748,11 @@ class AiDetectorIF:
         targets_if = getattr(self, 'targets_if', None)
         if targets_if is not None:
             targets_if.publish_status(self.targeting_status_msg)
+            # Publish for each connected image
+            sources_connected = []
+            for source_topic in self.imgs_info_dict.keys():
+                if self.imgs_info_dict[source_topic]['img_connected']:
+                    sources_connected.append(source_topic)
+            if self.node_if is not None:
+                for source_topic in sources_connected:
+                    self.node_if.publish_pub(source_topic + '/detections_statu_pub', self.targeting_status_msg)
