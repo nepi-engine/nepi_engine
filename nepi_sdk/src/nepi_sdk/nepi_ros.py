@@ -257,17 +257,69 @@ def init_node(name,disable_signals=False):
   rospy.init_node(name,disable_signals=disable_signals)
 
   
+# Maximum seconds get_base_namespace() waits for a namespaced 'nepi' node to
+# register before giving up. Long enough that a slow but healthy startup still
+# resolves, short enough that a misnamespaced node fails visibly rather than
+# looking hung.
+BASE_NAMESPACE_TIMEOUT_S = 10.0
+
 def get_base_namespace():
+  """Returns the NEPI device base namespace, e.g. '/nepi/device'.
+
+  Derives the namespace from the first registered ROS node whose name contains
+  'nepi', taking its first two namespace segments. The result is cached in the
+  BASE_NAMESPACE module global, so only the first call does any work.
+
+  If no such node is registered yet, waits up to BASE_NAMESPACE_TIMEOUT_S
+  seconds for one to appear, logging what it is waiting for. This call is made
+  very early in node startup (MsgIF.__init__ reaches it before any logging is
+  set up), so a silent wait here presents as a node that hangs with no output.
+
+  Returns:
+      str: The device base namespace, with no trailing slash.
+
+  Raises:
+      RuntimeError: If no namespaced 'nepi' node appears within
+          BASE_NAMESPACE_TIMEOUT_S seconds, or if ROS shuts down while waiting.
+          Raised rather than returning None because no caller in the tree checks
+          the return value -- a None would surface later as a TypeError inside an
+          unrelated os.path.join, or launch a node into the namespace 'None'.
+  """
   global BASE_NAMESPACE
   if BASE_NAMESPACE is None:
-    nepi_names = []
     nepi_node=find_node('nepi')
     nepi_names = nepi_node.split('/')
     if len(nepi_names) < 3:
-      while(len(nepi_names) < 3):
+      # Slow path. Log on entry, not just on expiry: this runs before the node
+      # has emitted anything, so silence here is indistinguishable from a hang.
+      log_msg_warn("nepi_sdk: get_base_namespace: no ROS node matching 'nepi' with a" + \
+        " /<rootname>/<device_id>/ namespace is registered yet. Waiting up to " + \
+        str(BASE_NAMESPACE_TIMEOUT_S) + "s. Nodes must run under the device namespace" + \
+        " set by the ROOTNAME and DEVICE_ID environment variables.")
+      start_time = get_time()
+      timer = 0
+      while len(nepi_names) < 3 and timer < BASE_NAMESPACE_TIMEOUT_S and not rospy.is_shutdown():
+        sleep(.01)
         nepi_node=find_node('nepi')
         nepi_names = nepi_node.split('/')
-        sleep(.01)
+        timer = get_time() - start_time
+        if len(nepi_names) < 3:
+          log_msg_warn("nepi_sdk: get_base_namespace: still waiting for a namespaced" + \
+            " 'nepi' node ({:.1f}s".format(timer) + " elapsed of " + \
+            str(BASE_NAMESPACE_TIMEOUT_S) + "s). Closest match so far: '" + \
+            str(nepi_node) + "'", throttle_s = 2.0)
+      if len(nepi_names) < 3:
+        if rospy.is_shutdown():
+          msg = ("nepi_sdk: get_base_namespace: ROS shutdown requested after" + \
+            " {:.1f}s".format(timer) + " while waiting for a namespaced 'nepi' node.")
+        else:
+          msg = ("nepi_sdk: get_base_namespace: gave up after {:.1f}s".format(timer) + \
+            " waiting for a ROS node matching 'nepi' under a /<rootname>/<device_id>/" + \
+            " namespace. Closest match found: '" + str(nepi_node) + "'. Run this node" + \
+            " under a device namespace, for example" + \
+            " 'rosrun <pkg> <node> __ns:=/nepi/device', or start it from nepi_base.launch.")
+        log_msg_error(msg)
+        raise RuntimeError(msg)
     base_namespace = ('/' + nepi_names[1] + '/' + nepi_names[2])
     BASE_NAMESPACE = base_namespace
   return BASE_NAMESPACE

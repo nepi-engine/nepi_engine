@@ -140,6 +140,12 @@ class NPXDeviceIF:
   getNavPoseCb = None
   supports_updates = True
 
+  # True once the has_* flags have been derived from the telemetry source (or once
+  # it is known there is no source to derive them from). The NavPose IF is created
+  # at the moment this becomes True, so its publisher set and the reported flags are
+  # always decided together, from the same data.
+  navpose_caps_known = False
+
   #######################
   ### IF Initialization
   def __init__(self, 
@@ -226,26 +232,30 @@ class NPXDeviceIF:
           self.frame_depth = frame_depth
        
 
+        # Probe the telemetry source once for its capability flags. The callback is
+        # retained either way: a source that is not connected yet is not a broken
+        # source, and disabling it here is what made a device whose bridge or link
+        # comes up later report has_position = False for the life of the node.
+        self.getNavPoseCb = getNavPoseCb
         if getNavPoseCb is not None:
             navpose_dict = None
             try:
                 navpose_dict = getNavPoseCb()
-
-            except:
-                print("ERROR in getNavPoseCb():", e)
+            except Exception as e:
+                self.msg_if.pub_warn("getNavPoseCb failed during initialization: " + str(e), log_name_list = self.log_name_list)
 
             if navpose_dict is None:
-                self.getNavPoseCb = None
+                # Source not up yet. Defer the NavPose IF to _updateNavPoseDictCb so
+                # its capability flags get derived from real telemetry rather than
+                # frozen at all-False here. See createNavPoseIf below.
+                self.msg_if.pub_info("NavPose source not ready during initialization, deferring NavPose IF until first telemetry", log_name_list = self.log_name_list)
             else:
-                self.getNavPoseCb = getNavPoseCb
-                self.has_location = navpose_dict['has_location'] 
-                self.has_heading = navpose_dict['has_heading'] 
-                self.has_orientation = navpose_dict['has_orientation'] 
-                self.has_position = navpose_dict['has_position'] 
-                self.has_altitude = navpose_dict['has_altitude'] 
-                self.has_depth = navpose_dict['has_depth'] 
-                self.has_pan_tilt = navpose_dict['has_pan_tilt']
-        
+                self.deriveNavPoseCaps(navpose_dict)
+        else:
+            # No telemetry callback at all. Nothing to learn later, so the flags are
+            # already final and the NavPose IF is created inline as it always was.
+            self.navpose_caps_known = True
+
 
         # Create capabilities report
         self.caps_report.has_heading = self.has_heading
@@ -458,27 +468,14 @@ class NPXDeviceIF:
                             # node_if = self.node_if
                             # )
 
-        # Create a NavPose IF
-        np_namespace = self.namespace
-        self.navpose_if = NavPoseIF(namespace = np_namespace,
-                            data_source_description = self.data_source_description,
-                            data_ref_description = self.data_ref_description,
-                            pub_navpose = True,
-                            pub_location = self.has_location,
-                            pub_heading = self.has_heading,
-                            pub_orientation =  self.has_orientation,
-                            pub_position = self.has_position,
-                            pub_altitude = self.has_altitude,
-                            pub_depth = self.has_depth,
-                            pub_pan_tilt = self.has_pan_tilt,
-                            save_data_if = self.save_data_if,
-                            transform_namespace = self.transform_if.get_namespace(),
-                            log_name = 'navpose',
-                            log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+        # Create a NavPose IF, but only if the capability flags are actually known.
+        # NavPoseIF decides its publisher set from these flags once, at construction,
+        # and has no way to add a component later, so creating it before the telemetry
+        # source has reported would lock in an all-False publisher set permanently.
+        # When the source is not up yet, _updateNavPoseDictCb creates it on the first
+        # successful read instead.
+        if self.navpose_caps_known == True:
+            self.createNavPoseIf()
 
 
         #####################
@@ -559,6 +556,63 @@ class NPXDeviceIF:
     # Class Private Methods
     ###############################
 
+
+  def deriveNavPoseCaps(self,navpose_dict):
+    # Derive the has_* capability flags from a telemetry dict and mirror them into
+    # the caps report and the status message. Called exactly once per node life --
+    # either from __init__ when the source answers immediately, or from
+    # _updateNavPoseDictCb on the first successful read when it does not. The flags
+    # cannot move after that, because NavPoseIF is created from them in the same
+    # breath and its publisher set is fixed at its construction.
+    self.has_location = navpose_dict['has_location']
+    self.has_heading = navpose_dict['has_heading']
+    self.has_orientation = navpose_dict['has_orientation']
+    self.has_position = navpose_dict['has_position']
+    self.has_altitude = navpose_dict['has_altitude']
+    self.has_depth = navpose_dict['has_depth']
+    self.has_pan_tilt = navpose_dict['has_pan_tilt']
+
+    self.caps_report.has_location = self.has_location
+    self.caps_report.has_heading = self.has_heading
+    self.caps_report.has_orientation = self.has_orientation
+    self.caps_report.has_position = self.has_position
+    self.caps_report.has_altitude = self.has_altitude
+    self.caps_report.has_depth = self.has_depth
+    self.caps_report.has_pan_tilt = self.has_pan_tilt
+
+    self.status_msg.has_location = self.has_location
+    self.status_msg.has_heading = self.has_heading
+    self.status_msg.has_orientation = self.has_orientation
+    self.status_msg.has_position = self.has_position
+    self.status_msg.has_altitude = self.has_altitude
+    self.status_msg.has_depth = self.has_depth
+    self.status_msg.has_pan_tilt = self.has_pan_tilt
+
+    self.navpose_caps_known = True
+
+
+  def createNavPoseIf(self):
+    # Create the NavPose IF from the current has_* flags. Split out of __init__ so
+    # the deferred path uses the same construction, with the same namespace and the
+    # same arguments, as the immediate one.
+    np_namespace = self.namespace
+    self.navpose_if = NavPoseIF(namespace = np_namespace,
+                        data_source_description = self.data_source_description,
+                        data_ref_description = self.data_ref_description,
+                        pub_navpose = True,
+                        pub_location = self.has_location,
+                        pub_heading = self.has_heading,
+                        pub_orientation =  self.has_orientation,
+                        pub_position = self.has_position,
+                        pub_altitude = self.has_altitude,
+                        pub_depth = self.has_depth,
+                        pub_pan_tilt = self.has_pan_tilt,
+                        save_data_if = self.save_data_if,
+                        transform_namespace = self.transform_if.get_namespace(),
+                        log_name = 'navpose',
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if)
+    self.status_msg.navpose_topic = self.navpose_if.get_namespace()
 
 
   def _setUpdateMaxRateCb(self,msg):
@@ -649,13 +703,39 @@ class NPXDeviceIF:
     return self.caps_report
 
 
-  def _updateNavPoseDictCb(self,timer):    
-    navpose_dict = None 
+  def _updateNavPoseDictCb(self,timer):
+    navpose_dict = None
     if self.getNavPoseCb is not None:
         try:
             navpose_dict = self.getNavPoseCb()
-        except:
-            pass
+        except Exception as e:
+            self.msg_if.pub_warn("getNavPoseCb failed: " + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)
+
+    if self.navpose_caps_known == False:
+        # The telemetry source was not up when this IF was constructed, so the
+        # capability flags were never derived and the NavPose IF was not created.
+        # Do both now, off the first read that returns something.
+        if navpose_dict is None:
+            self.msg_if.pub_warn("Waiting on NavPose source before creating NavPose IF", throttle_s = 10.0, log_name_list = self.log_name_list)
+            nepi_sdk.start_timer_process(1.0, self._updateNavPoseDictCb, oneshot = True)
+            return
+        try:
+            self.deriveNavPoseCaps(navpose_dict)
+            self.createNavPoseIf()
+        except Exception as e:
+            # A source mid-handshake can return a partial dict. Stay unresolved and
+            # retry on the next read rather than locking in half-derived flags or
+            # letting the exception kill this timer loop for good.
+            self.navpose_caps_known = False
+            self.msg_if.pub_warn("Failed to create NavPose IF from telemetry, will retry: " + str(e), throttle_s = 10.0, log_name_list = self.log_name_list)
+            nepi_sdk.start_timer_process(1.0, self._updateNavPoseDictCb, oneshot = True)
+            return
+        self.msg_if.pub_info("Created NavPose IF from first telemetry at " + str(self.status_msg.navpose_topic) + \
+            " with has_location: " + str(self.has_location) + " has_heading: " + str(self.has_heading) + \
+            " has_orientation: " + str(self.has_orientation) + " has_position: " + str(self.has_position) + \
+            " has_altitude: " + str(self.has_altitude) + " has_depth: " + str(self.has_depth) + \
+            " has_pan_tilt: " + str(self.has_pan_tilt), log_name_list = self.log_name_list)
+        self.publish_status()
 
     if navpose_dict is None:
         navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)

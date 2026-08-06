@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -24,9 +24,7 @@ import copy
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from std_msgs.msg import Empty, Int8, UInt32, Int32, Bool, String, Float32, Float64
-
-from nepi_interfaces.msg import Datum, DataStatus, StringArray
+from nepi_interfaces.msg import Datum, DataStatus
 
 
 
@@ -39,52 +37,54 @@ logger = Logger(log_name = log_name)
 #########################
 ### Data Helper Functions
 
-
-
+# A datum is read-only from the RUI's point of view: it carries a current value
+# and the time that value was last written. There are no bounds, options,
+# factory values or default values here -- those are control concepts and live
+# in nepi_controls.
 
 DATUM_TYPES = ["Bool", "Bools", "String", "Strings", "Int", "Ints","Float","Floats"]
 
 BLANK_DATUM_DICT = nepi_sdk.convert_msg2dict(Datum())
 
-BLANK_CNTROLS_DICT = dict()
+BLANK_DATA_DICT = dict()
 
 EXAMPLE_INIT_DICT = dict(
 
 
-      exp_bool_data = {"type":"Bool", "value": True, 
+      exp_bool_data = {"type":"Bool", "value": True,
                    # OPTIONAL
-                   'display_name':'Example Bool Data', 'description':'Set example bool data', 'hidden':False}, 
+                   'display_name':'Example Bool Data', 'description':'Example bool data', 'hidden':False},
 
-      exp_bools_data = {"type":"Bools", "value":[True,False], 
+      exp_bools_data = {"type":"Bools", "value":[True,False],
                    # OPTIONAL
-                   'display_name':'Example Bools Data', 'description':'Set example bools data', 'hidden':False}, 
+                   'display_name':'Example Bools Data', 'description':'Example bools data', 'hidden':False},
 
 
-      exp_string_data = {"type":"String", "value":'string1', 
+      exp_string_data = {"type":"String", "value":'string1',
                    # OPTIONAL
-                   'display_name':'Example String Data', 'description':'Set example string data', 'hidden':False}, 
+                   'display_name':'Example String Data', 'description':'Example string data', 'hidden':False},
 
-      exp_strings_data = {"type":"Strings", "value":['string1','string2'], 
+      exp_strings_data = {"type":"Strings", "value":['string1','string2'],
                    # OPTIONAL
-                   'display_name':'Example Strings Data', 'description':'Set example strings data', 'hidden':False}, 
+                   'display_name':'Example Strings Data', 'description':'Example strings data', 'hidden':False},
 
 
-      exp_int_data = {"type":"Int", "value":2, 'value_round': 2,
+      exp_int_data = {"type":"Int", "value":2,
                   # OPTIONAL
-                  'display_name':'Example Int Data', 'description':'Set example int data', 'hidden':False, 'display_round': 2,}, 
+                  'display_name':'Example Int Data', 'description':'Example int data', 'hidden':False},
 
-      exp_ints_data = {"type":"Ints", "value":[2,2], 'value_round': 2,
+      exp_ints_data = {"type":"Ints", "value":[2,2],
                   # OPTIONAL
-                  'display_name':'Example Ints Data', 'description':'Set example ints data', 'hidden':False, 'display_round': 2,}, 
+                  'display_name':'Example Ints Data', 'description':'Example ints data', 'hidden':False},
 
 
-      exp_float_data = {"type":"Float", "value":2.0, 'value_round': 2,
+      exp_float_data = {"type":"Float", "value":2.0, 'round_value': 2,
                   # OPTIONAL
-                  'display_name':'Example Float Data', 'description':'Set example float data', 'hidden':False, 'display_round': 2,}, 
+                  'display_name':'Example Float Data', 'description':'Example float data', 'hidden':False, 'round_display': 2,},
 
-      exp_floats_data = {"type":"Floats", "value":[2.0,2.0], 'value_round': 2,
+      exp_floats_data = {"type":"Floats", "value":[2.0,2.0], 'round_value': 2,
                   # OPTIONAL
-                  'display_name':'Example Floats Data', 'description':'Set example floats data', 'hidden':False, 'display_round': 2,}, 
+                  'display_name':'Example Floats Data', 'description':'Example floats data', 'hidden':False, 'round_display': 2,},
     )
 
 
@@ -99,7 +99,6 @@ def get_data_publisher_namespaces(topics_list = None, types_list = None):
 def create_data_dict(init_dict):
   data_dict = dict()
 
-  names
   try:
     names = list(init_dict.keys())
   except:
@@ -111,11 +110,19 @@ def create_data_dict(init_dict):
       input_type = input_dict['type']
       if input_type in DATUM_TYPES:
         datum_dict = copy.deepcopy(BLANK_DATUM_DICT)
+        datum_dict['name'] = name
         datum_dict['round_value'] = -1
         datum_dict['round_display'] = 2
         for key in datum_dict.keys():
           if key in input_dict.keys():
             datum_dict[key] = input_dict[key]
+
+        # round_value applies to Float and Floats only. -1 means no rounding.
+        round_value = -1
+        try:
+          round_value = int(datum_dict['round_value'])
+        except:
+          round_value = -1
 
         if input_type == "Bool": ###########################################################
             value = False
@@ -154,7 +161,7 @@ def create_data_dict(init_dict):
                 value = ''
               values.append(value)
             datum_dict['value_strings'] = values
-     
+
         elif input_type == "Int": ###########################################################
             try:
               value  = int(input_dict['value'])
@@ -169,14 +176,15 @@ def create_data_dict(init_dict):
               try:
                 value  = int(value)
               except:
-                value = ''
+                value = 0
               values.append(value)
             datum_dict['value_ints'] = values
 
         elif input_type == "Float": ###########################################################
-            round_value = datum_dict['round_value']
             try:
-              value  = round(float(input_dict['value']),round_value)
+              value  = float(input_dict['value'])
+              if round_value >= 0:
+                value = round(value,round_value)
             except:
               value = 0.0
             datum_dict['value_float'] = value
@@ -186,18 +194,22 @@ def create_data_dict(init_dict):
             input_values = input_dict['value']
             for value in input_values:
               try:
-                value  = round(value,round_value)
+                value  = float(value)
+                if round_value >= 0:
+                  value = round(value,round_value)
               except:
-                value = ''
+                value = 0.0
               values.append(value)
-            
+
             datum_dict['value_floats'] = values
+
+        datum_dict['timestamp'] = nepi_utils.get_time()
 
         # ADD TO DATA if try has not failed
         data_dict[name] = datum_dict
     except:
       pass
-    
+
   return data_dict
 
 ##################
@@ -219,7 +231,7 @@ def get_datum_value(data_dict, datum_name):
 
       elif datum_type == "Strings": ###########################################################
           value = datum_dict['value_strings']
-  
+
       elif datum_type == "Int": ###########################################################
           value = datum_dict['value_int']
 
@@ -240,23 +252,30 @@ def set_datum_value(data_dict, datum_name, update_value, timestamp = None):
       datum_type = datum_dict['type']
       if timestamp is None:
          timestamp = nepi_utils.get_time()
+
+      round_value = -1
+      try:
+        round_value = int(datum_dict['round_value'])
+      except:
+        round_value = -1
+
       if datum_type == "Bool": ###########################################################
           try:
               value  = (update_value == True)
               datum_dict['value_bool'] = value
               datum_dict['timestamp'] = timestamp
-          except:
-            pass
-          
+          except Exception as e:
+            logger.log_warn('Failed to update ' + str(datum_name) + " to " + str(update_value) + " : " + str(e))
+
       elif datum_type == "Bools": ###########################################################
           values = []
           valid = True
-          for value in update_value:
-            try:
-              value  = (value == True)
-              values.append(value)
-            except:
-              valid = False
+          try:
+            for value in update_value:
+              values.append(value == True)
+          except Exception as e:
+            valid = False
+            logger.log_warn('Failed to update ' + str(datum_name) + " to " + str(update_value) + " : " + str(e))
           if valid == True:
             datum_dict['value_bools'] = values
             datum_dict['timestamp'] = timestamp
@@ -264,68 +283,82 @@ def set_datum_value(data_dict, datum_name, update_value, timestamp = None):
       elif datum_type == "String": ###########################################################
           try:
               value  = str(update_value)
-              datum_dict['value_bool'] = value
+              datum_dict['value_string'] = value
               datum_dict['timestamp'] = timestamp
-          except:
-            pass
+          except Exception as e:
+            logger.log_warn('Failed to update ' + str(datum_name) + " to " + str(update_value) + " : " + str(e))
 
       elif datum_type == "Strings": ###########################################################
           values = []
           valid = True
-          for value in update_value:
-            try:
-              value  = str(value)
-              values.append(value)
-            except:
-              valid = False
+          try:
+            for value in update_value:
+              values.append(str(value))
+          except Exception as e:
+            valid = False
+            logger.log_warn('Failed to update ' + str(datum_name) + " to " + str(update_value) + " : " + str(e))
           if valid == True:
-            datum_dict['value_bools'] = values
+            datum_dict['value_strings'] = values
             datum_dict['timestamp'] = timestamp
-    
+
       elif datum_type == "Int": ###########################################################
           try:
               value  = int(update_value)
-              datum_dict['value_bool'] = value
+              datum_dict['value_int'] = value
               datum_dict['timestamp'] = timestamp
-          except:
-            pass
+          except Exception as e:
+            logger.log_warn('Failed to update ' + str(datum_name) + " to " + str(update_value) + " : " + str(e))
 
       elif datum_type == "Ints": ###########################################################
           values = []
           valid = True
-          for value in update_value:
-            try:
-              value  = int(value)
-              values.append(value)
-            except:
-              valid = False
+          try:
+            for value in update_value:
+              values.append(int(value))
+          except Exception as e:
+            valid = False
+            logger.log_warn('Failed to update ' + str(datum_name) + " to " + str(update_value) + " : " + str(e))
           if valid == True:
-            datum_dict['value_bools'] = values
+            datum_dict['value_ints'] = values
             datum_dict['timestamp'] = timestamp
 
       elif datum_type == "Float": ###########################################################
           try:
               value  = float(update_value)
-              datum_dict['value_bool'] = value
+              if round_value >= 0:
+                value = round(value,round_value)
+              datum_dict['value_float'] = value
               datum_dict['timestamp'] = timestamp
-          except:
-            pass
-          
+          except Exception as e:
+            logger.log_warn('Failed to update ' + str(datum_name) + " to " + str(update_value) + " : " + str(e))
+
 
       elif datum_type == "Floats": ###########################################################
           values = []
           valid = True
-          for value in update_value:
-            try:
-              value  = float(value)
+          try:
+            for value in update_value:
+              value = float(value)
+              if round_value >= 0:
+                value = round(value,round_value)
               values.append(value)
-            except:
-              valid = False
+          except Exception as e:
+            valid = False
+            logger.log_warn('Failed to update ' + str(datum_name) + " to " + str(update_value) + " : " + str(e))
           if valid == True:
-            datum_dict['value_bools'] = values
+            datum_dict['value_floats'] = values
             datum_dict['timestamp'] = timestamp
-                        
+
+      ###########################################################
+      data_dict[datum_name] = datum_dict
   return data_dict
+
+
+def get_datum_timestamp(data_dict, datum_name):
+  timestamp = 0.0
+  if datum_name in data_dict.keys():
+      timestamp = data_dict[datum_name]['timestamp']
+  return timestamp
 
 
 ##################
@@ -358,16 +391,12 @@ def set_datum_description(data_dict, datum_name, description):
 
 def get_datum_hidden(data_dict, datum_name):
   hidden = False
-  try:
-    hidden = (hidden == True)
-  except:
-    pass
   if datum_name in data_dict.keys():
-      hidden = data_dict[datum_name]['hidden']
+      hidden = (data_dict[datum_name]['hidden'] == True)
   return hidden
 
 def set_datum_hidden(data_dict, datum_name, hidden):
-  hidden = str(hidden)
+  hidden = (hidden == True)
   if datum_name in data_dict.keys():
       data_dict[datum_name]['hidden'] = hidden
   return data_dict
@@ -467,10 +496,10 @@ def update_status_msg( status_msg, data_dict, hidden = False):
   status_msg.hidden= hidden
 
 
-  names_list = [] 
-  types_list = [] 
-  msgs_list = [] 
-  hidden_list = [] 
+  names_list = []
+  types_list = []
+  msgs_list = []
+  hidden_list = []
 
   try:
     names = list(data_dict.keys())
@@ -483,15 +512,18 @@ def update_status_msg( status_msg, data_dict, hidden = False):
       if datum_type in DATUM_TYPES:
         msg_type = 'nepi_interfaces/Datum'
         datum_msg = nepi_sdk.convert_dict2msg(msg_type,datum_dict)
-        names_list.appned(name)
-        types_list.appned(datum_type)
-        msgs_list.appned(datum_msg)
-        hidden_list.appned(datum_msg.hidden)
+        # convert_dict2msg() swallows its own exception and returns None. A None
+        # in data_msg_list would fail the whole status publish, so skip it.
+        if datum_msg is not None:
+          names_list.append(name)
+          types_list.append(datum_type)
+          msgs_list.append(datum_msg)
+          hidden_list.append(datum_dict['hidden'] == True)
     except:
       pass
-    status_msg.data_name_list = names_list
-    status_msg.data_type_list = types_list
-    status_msg.data_msg_list = msgs_list
-    status_msg.data_hidden_list = hidden_list
-  return status_msg
 
+  status_msg.data_name_list = names_list
+  status_msg.data_type_list = types_list
+  status_msg.data_msg_list = msgs_list
+  status_msg.data_hidden_list = hidden_list
+  return status_msg
