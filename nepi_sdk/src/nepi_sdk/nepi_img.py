@@ -1000,6 +1000,41 @@ def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0
         cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio / 2)
     return cv2_img
 
+
+def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5, thickness_ratio = 0.5, size=None, thickness=None,  text_list = [], text_ratio = 0.5):
+    """Draws a crosshair on an image at a given (x_px, y_px) position."""
+    # Draw vertical line
+    # if size is None or thickness is None:
+    #     size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    shape = cv2_img.shape
+    h=shape[0]
+    w=shape[1]  
+    hw_min = min(h,w)
+    hw_size = math.ceil((0.05 * hw_min))  
+    hw_thickness = math.ceil((0.004 * hw_min))
+    if size is None:
+       size = hw_size
+
+    if thickness is None:
+       thickness = hw_thickness
+   
+    size = int(size * (size_ratio * 2) )
+    thickness = int(thickness * (thickness_ratio * 2))
+    if size < 5:
+       size = 5
+    if thickness < 1:
+       thickness = 1 
+    size_ratio = nepi_utils.check_ratio(size_ratio)
+    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color_rgb, thickness)
+    # Draw horizontal line
+    cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color_rgb, thickness)
+    if len(text_list) > 0:
+        x_px = x_px
+        y_padding = math.ceil((0.02 * h) + size / 2 ) 
+        y_px = y_px + y_padding
+        cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio / 2)
+    return cv2_img
+
 def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px = 20, h_px = 20):
     # Add status box overlay
     cv2_img_out = copy.deepcopy(cv2_img)

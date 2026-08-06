@@ -59,7 +59,7 @@ from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQue
 
 
 
-from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindow, RangeWindow, ImagePixel, ImageMouseEvent, ImageCrosshair
+from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindow, RangeWindow, ImagePixel, ImageMouseEvent, ImageCrosshair, ImageTarget
 from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import RangeWindow
@@ -1843,19 +1843,51 @@ class BaseImageIF:
         msg_str = ''
     )
 
+    BLANK_TARGET_DICT = dict(
+        x_ratio = 0.5,
+        y_ratio = 0.5,
+        color_rgb = (0,255,0),
+        msg_str = ''
+    )
+
     DEFAULT_OVERLAYS_DICT = dict(
-            overlay_img_name = False,
-            overlay_date_time = False,
-            overlay_nav = False,
-            overlay_pose = False, 
-            init_overlay_list = [],
-            add_overlay_list = [],
-            overlay_crosshairs = False,
+            overlay_text_enabled = False,
+            
+            overlay_text_size_ratio = 0.5,
+            overlay_text_horz_ratio = 0.0,
+            overlay_text_vert_ratio = 0.0,
+            overlay_text_transparency_ratio = 0.0,
+            overlay_text_color_rgb = (0,255,0),
+            overlay_text_img_name = False,
+            overlay_text_date_time = False,
+            overlay_text_nav = False,
+            overlay_text_pose = False, 
+            init_overlay_text_list = [],
+            add_overlay_text_list = [],
+
+            crosshairs_enabled = False,
+            crosshairs_size_ratio = 0.5,
+            crosshairs_thickness_ratio = 0.5,
+            crosshairs_text_ratio = 0.5,
+            crosshairs_text_transparency_ratio = 0.0,
+            crosshairs_color_rgb = (0,255,0),
             overlay_crosshair_names = False,
             overlay_crosshair_pixels = False,
             overlay_crosshair_degrees = False,
             overlay_crosshair_messages = False,
-            crosshairs_dict = dict()
+            crosshairs_dict = dict(),
+            
+            targets_enabled = False,
+            targets_size_ratio = 0.5,
+            targets_thickness_ratio = 0.5,
+            targets_text_ratio = 0.5,
+            targets_text_transparency_ratio = 0.0,
+            targets_color_rgb = (0,255,0),
+            overlay_target_names = False,
+            overlay_target_pixels = False,
+            overlay_target_degrees = False,
+            overlay_target_messages = False,
+            targets_dict = dict(),
     )
 
     callback_dict = copy.deepcopy(DEFAULT_CALLBACK_DICT)
@@ -1898,12 +1930,9 @@ class BaseImageIF:
     caps_report = ImageCapabilitiesQueryResponse()
 
 
-    overlay_size_ratio = 0.5
-    crosshairs_size_ratio = 0.5
-    crosshairs_thickness_ratio = 0.5
-    crosshairs_text_ratio = 0.5
+    click_text_enabled = False
     click_crosshair_enabled = False
-    crosshairs_color_rgb = (0,255,0)
+    click_target_enabled = False
     overlays_dict = copy.deepcopy(DEFAULT_OVERLAYS_DICT) 
 
     auto_adjust_controls = []
@@ -1965,11 +1994,22 @@ class BaseImageIF:
     active_topic_types = []
     active_services = []
 
-    live_adjust_enabled = True
-    live_adjust_rotate_ratio = 0.5
-    live_adjust_x_ratio = 0.5
-    live_adjust_y_ratio = 0.5
+    aspect_adjustment_disabled = False
+    aspect_adjust_enabled = False
+    aspect_ratio_options = ['Original']
+    aspect_ratio_selected = 'Original'
 
+    live_adjustments_disabled = False
+    live_adjust_enabled = True
+    live_adjust_dict = dict(
+        live_adjust_rotate_ratio = 0.5,
+        live_adjust_x_ratio = 0.5,
+        live_adjust_y_ratio = 0.5
+    )
+
+    stream_compression_enabled = False,
+    stream_compression_ratio = 0.5
+    
 
     def __init__(self, 
                 namespace , 
@@ -1988,8 +2028,9 @@ class BaseImageIF:
                 navpose_if,
                 navpose_namespace,
                 transform_namespace,
-                init_overlay_list,
-                live_adjust_enabled,
+                init_overlay_text_list,
+                live_adjustments_disabled,
+                aspect_adjustment_disabled,
                 log_name,
                 log_name_list,
                 msg_if,
@@ -2057,7 +2098,8 @@ class BaseImageIF:
             self.filter_dict = dict()
 
 
-        self.live_adjust_enabled = live_adjust_enabled
+        self.live_adjustments_disabled = live_adjustments_disabled
+        self.aspect_adjustment_disabled = aspect_adjustment_disabled
 
         # Create and update capabilities dictionary
         if caps_dict is not None:
@@ -2100,7 +2142,7 @@ class BaseImageIF:
         self.init_controls_dict = self.controls_dict
 
  
-        self.overlays_dict['init_overlay_list'] = init_overlay_list
+        self.overlays_dict['init_overlay_text_list'] = init_overlay_text_list
 
  
         # Initialize Status Msg.  Updated on each publish
@@ -2195,34 +2237,35 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["stop_range_ratio"]
             },
+            'live_adjust_enabled': {
+                'namespace': self.namespace,
+                'factory_val': self.live_adjust_enabled
+            },
+            'aspect_adjust_enabled': {
+                'namespace': self.namespace,
+                'factory_val': self.aspect_adjust_enabled
+            },
+            'aspect_ratio_selected': {
+                'namespace': self.namespace,
+                'factory_val': self.aspect_ratio_selected
+            },
             'filter_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.filter_dict
-            },
-            'overlay_size_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.overlay_size_ratio
-            },
-            'crosshairs_size_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.crosshairs_size_ratio
-            },
-            'crosshairs_thickness_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.crosshairs_thickness_ratio
-            },
-            'crosshairs_text_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.crosshairs_text_ratio
-            },
-            'crosshairs_color_rgb': {
-                'namespace': self.namespace,
-                'factory_val': self.crosshairs_color_rgb
             },
             'overlays_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.overlays_dict
             },
+            'stream_compression_enabled': {
+                'namespace': self.namespace,
+                'factory_val': self.stream_compression_enabled
+            },
+            'stream_compression_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.stream_compression_ratio
+            },
+
         }
 
         if params_dict is not None:
@@ -2295,9 +2338,9 @@ class BaseImageIF:
                 'callback': self._resetFiltersCb, 
                 'callback_args': ()
             },
-            'reset_overalys': {
+            'reset_overalays': {
                 'namespace': self.namespace,
-                'topic': 'reset_overalys',
+                'topic': 'reset_overalays',
                 'msg': Empty,
                 'qsize': 5,
                 'callback': self._resetOverlaysCb, 
@@ -2352,61 +2395,107 @@ class BaseImageIF:
                 'callback': self.resetRender3dPositionCb,
                 'callback_args': ()
             },
-            'overlay_size_ratio': {
+
+            ######################
+            'overlay_text_enable': {
                 'msg': Float32,
                 'namespace': self.namespace,
-                'topic': 'set_overlay_size_ratio',
+                'topic': 'set_overlay_text_enable',
+                'qsize': 5,
+                'callback': self._setOverlayTextEnableCb
+            },
+            'overlay_text_size_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_text_size_ratio',
                 'qsize': 5,
                 'callback': self._setOverlaySizeCb
             },
-            'overlay_img_name': {
+            'overlay_text_vert_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_text_vert_ratio',
+                'qsize': 5,
+                'callback': self._setOverlayVertCb
+            },
+            'overlay_text_horz_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_text_horz_ratio',
+                'qsize': 5,
+                'callback': self._setOverlayHorzCb
+            },
+            'overlay_text_transparency_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_text_transparency_ratio',
+                'qsize': 5,
+                'callback': self._setOverlayTransparencyCb
+            },
+            'overlay_text_color_rgb': {
+                'msg': ColorBGR,
+                'namespace': self.namespace,
+                'topic': 'set_overlay_text_color_rgb',
+                'qsize': 5,
+                'callback': self._setOverlayColorRGBCb
+            },
+            'overlay_text_img_name': {
                 'msg': Bool,
                 'namespace': self.namespace,
-                'topic': 'set_overlay_source_name',
+                'topic': 'set_overlay_text_source_name',
                 'qsize': 5,
                 'callback': self._setOverlayImgNameCb
             },
-            'overlay_date_time': {
+            'overlay_text_date_time': {
                 'msg': Bool,
                 'namespace': self.namespace,
-                'topic': 'set_overlay_date_time',
+                'topic': 'set_overlay_text_date_time',
                 'qsize': 5,
                 'callback': self._setOverlayDateTimeCb
             },
-            'overlay_nav': {
+            'overlay_text_nav': {
                 'msg': Bool,
                 'namespace': self.namespace,
-                'topic': 'set_overlay_nav',
+                'topic': 'set_overlay_text_nav',
                 'qsize': 5,
                 'callback': self._setOverlayNavCb
             },
-            'overlay_pose': {
+            'overlay_text_pose': {
                 'msg': Bool,
                 'namespace': self.namespace,
-                'topic': 'set_overlay_pose',
+                'topic': 'set_overlay_text_pose',
                 'qsize': 5,
                 'callback': self._setOverlayPoseCb
             },
-            'overlay_text': {
+            'add_overlay_text': {
                 'msg': String,
                 'namespace': self.namespace,
                 'topic': 'add_overlay_text',
                 'qsize': 5,
                 'callback': self._setOverlayTextCb
             },
-            'overlay_list': {
+            'set_overlay_text_list': {
                 'msg': StringArray,
                 'namespace': self.namespace,
-                'topic': 'set_overlay_list',
+                'topic': 'set_overlay_text_list',
                 'qsize': 5,
                 'callback': self._setOverlayListCb
             },
-            'overlay_clear': {
+            'overlay_text_clear': {
                 'msg': Empty,
                 'namespace': self.namespace,
-                'topic': 'clear_overlay_list',
+                'topic': 'clear_overlay_text_list',
                 'qsize': 5,
                 'callback': self._clearOverlayListCb
+            },
+
+            #######################################
+            'crosshairs_enable': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'crosshairs_enable',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairsCb
             },
             'crosshairs_size_ratio': {
                 'msg': Float32,
@@ -2429,6 +2518,13 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setCrosshairsTextRatioCb
             },
+            'crosshairs_transparency_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_crosshairs_transparency_ratio',
+                'qsize': 5,
+                'callback': self._setCrosshairsTransparencyRatioCb
+            },
             'crosshairs_color_rgb': {
                 'msg': ColorBGR,
                 'namespace': self.namespace,
@@ -2436,13 +2532,7 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setCrosshairsColorRGBCb
             },
-            'overlay_crosshairs': {
-                'msg': Bool,
-                'namespace': self.namespace,
-                'topic': 'overlay_crosshairs',
-                'qsize': 5,
-                'callback': self._setrOverlayCrosshairsCb
-            },
+
             'overlay_crosshair_names': {
                 'msg': Bool,
                 'namespace': self.namespace,
@@ -2578,62 +2668,329 @@ class BaseImageIF:
                 'callback_args': ()
             },
 
+            ############################
 
-            'all_overlay_size_ratio': {
+            'targets_enable': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'targets_enable',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetsCb
+            },
+            'targets_size_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_targets_size_ratio',
+                'qsize': 5,
+                'callback': self._setTargetsSizeRatioCb
+            },
+            'targets_thickness_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_targets_thickness_ratio',
+                'qsize': 5,
+                'callback': self._setTargetsThicknessRatioCb
+            },
+            'targets_text_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_targets_text_ratio',
+                'qsize': 5,
+                'callback': self._setTargetsTextRatioCb
+            },
+            'targets_transparency_ratio': {
+                'msg': Float32,
+                'namespace': self.namespace,
+                'topic': 'set_targets_transparency_ratio',
+                'qsize': 5,
+                'callback': self._setTargetsTransparencyRatioCb
+            },
+            'targets_color_rgb': {
+                'msg': ColorBGR,
+                'namespace': self.namespace,
+                'topic': 'set_targets_color_rgb',
+                'qsize': 5,
+                'callback': self._setTargetsColorRGBCb
+            },
+
+            'overlay_target_names': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_target_names',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetNamesCb
+            },
+            'overlay_target_pixels': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_target_pixels',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetPixelsCb
+            },
+            'overlay_target_degrees': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_target_degrees',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetDegreesCb
+            },
+            'overlay_target_messages': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'overlay_target_messages',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetMessagesCb
+            },
+            'click_target_enable': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'click_target_enable',
+                'qsize': 5,
+                'callback': self._clickTargetEnableCb
+            },
+            'add_target_pixel': {
+                'msg': ImageTarget,
+                'namespace': self.namespace,
+                'topic': 'add_target_pixel',
+                'qsize': 5,
+                'callback': self._addTargetPixelCb
+            },
+            'add_target_ratios': {
+                'msg': ImageTarget,
+                'namespace': self.namespace,
+                'topic': 'add_target_ratios',
+                'qsize': 5,
+                'callback': self._addTargetRatiosCb
+            },
+            'add_target_degree_offsets': {
+                'msg': ImageTarget,
+                'namespace': self.namespace,
+                'topic': 'add_target_degree_offsets',
+                'qsize': 5,
+                'callback': self._addTargetDegreesCb
+            },
+            'remove_target': {
+                'msg': String,
+                'namespace': self.namespace,
+                'topic': 'remove_target',
+                'qsize': 5,
+                'callback': self._removeTargetCb
+            },
+            'clear_targets': {
+                'msg': Empty,
+                'namespace': self.namespace,
+                'topic': 'clear_targets',
+                'qsize': 5,
+                'callback': self._clearTargetsCb
+            },
+
+            ####################################
+            'set_aspect_adjust_enable': {
+                'namespace': self.namespace,
+                'topic': 'set_aspect_adjust_enable',
+                'msg': Bool,
+                'qsize': 5,
+                'callback': self._setAspectAdjustEnableCb,
+                'callback_args': ()
+            },
+              'set_aspect_adjust_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_aspect_adjust_ratio',
+                'msg': String,
+                'qsize': 5,
+                'callback': self._setAspectAdjustRatioCb,
+                'callback_args': ()
+            },
+            ####################################
+            'set_stream_compression_enable': {
+                'namespace': self.namespace,
+                'topic': 'set_stream_compression_enable',
+                'msg': Bool,
+                'qsize': 5,
+                'callback': self._setStreamCompressionEnableCb,
+                'callback_args': ()
+            },
+            'set_stream_compression_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_stream_compression_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setStreamCompressionRatioCb,
+                'callback_args': ()
+            },
+            #########################
+            'set_live_adjust_enable': {
+                'namespace': self.namespace,
+                'topic': 'set_set_live_adjust_enable',
+                'msg': Bool,
+                'qsize': 5,
+                'callback': self._setLiveAdjustEnableCb,
+                'callback_args': ()
+            },
+            'set_live_adjust_rotate_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_live_adjust_rotate_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustRotateRatioCb,
+                'callback_args': ()
+            },
+            'set_live_adjust_rotate_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_live_adjust_rotate_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustRotateDegCb,
+                'callback_args': ()
+            },
+            'set_live_adjust_x_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_live_adjust_x_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXRatioCb,
+                'callback_args': ()
+            },
+            'set_live_adjust_x_pixel': {
+                'namespace': self.namespace,
+                'topic': 'set_live_adjust_x_pixel',
+                'msg': Int32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXPixelCb,
+                'callback_args': ()
+            },
+            'set_live_adjust_x_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_live_adjust_x_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranXDegCb,
+                'callback_args': ()
+            },
+            'set_live_adjust_y_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_live_adjust_y_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYRatioCb,
+                'callback_args': ()
+            },
+            'set_live_adjust_y_pixel': {
+                'namespace': self.namespace,
+                'topic': 'set_live_adjust_y_pixel',
+                'msg': Int32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYPixelCb,
+                'callback_args': ()
+            },
+            'set_live_adjust_y_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_live_adjust_y_deg',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setLiveAdjustTranYDegCb,
+                'callback_args': ()
+            },
+            ############################
+            'all_overlay_text_enable': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_size_ratio',
+                'topic': 'set_overlay_text_enable',
+                'qsize': 5,
+                'callback': self._setOverlayTextEnableCb
+            },
+
+            'all_overlay_text_size_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_size_ratio',
                 'qsize': 5,
                 'callback': self._setOverlaySizeCb
             },
-            'all_overlay_img_name': {
+            'all_overlay_text_vert_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_vert_ratio',
+                'qsize': 5,
+                'callback': self._setOverlayVertCb
+            },
+            'all_overlay_text_horz_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_horz_ratio',
+                'qsize': 5,
+                'callback': self._setOverlayHorzCb
+            },
+            'all_overlay_text_transparency_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_transparency_ratio',
+                'qsize': 5,
+                'callback': self._setOverlayTransparencyCb
+            },
+            'all_overlay_text_color_rgb': {
+                'msg': ColorBGR,
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_color_rgb',
+                'qsize': 5,
+                'callback': self._setOverlayColorRGBCb
+            },
+            'all_overlay_text_img_name': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_source_name',
+                'topic': 'set_overlay_text_source_name',
                 'qsize': 5,
                 'callback': self._setOverlayImgNameCb
             },
-            'all_overlay_date_time': {
+            'all_overlay_text_date_time': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_date_time',
+                'topic': 'set_overlay_text_date_time',
                 'qsize': 5,
                 'callback': self._setOverlayDateTimeCb
             },
-            'all_overlay_nav': {
+            'all_overlay_text_nav': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_nav',
+                'topic': 'set_overlay_text_nav',
                 'qsize': 5,
                 'callback': self._setOverlayNavCb
             },
-            'all_overlay_pose': {
+            'all_overlay_text_pose': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_pose',
+                'topic': 'set_overlay_text_pose',
                 'qsize': 5,
                 'callback': self._setOverlayPoseCb
             },
-            'all_overlay_text': {
+            'all_add_overlay_text': {
                 'msg': String,
                 'namespace': self.all_namespace,
                 'topic': 'add_overlay_text',
                 'qsize': 5,
                 'callback': self._setOverlayTextCb
             },
-            'all_overlay_list': {
+            'all_set_overlay_text_list': {
                 'msg': StringArray,
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_list',
+                'topic': 'set_overlay_text_list',
                 'qsize': 5,
                 'callback': self._setOverlayListCb
             },
-            'all_overlay_clear': {
+            'all_overlay_text_clear': {
                 'msg': Empty,
                 'namespace': self.all_namespace,
-                'topic': 'clear_overlay_list',
+                'topic': 'clear_overlay_text_list',
                 'qsize': 5,
                 'callback': self._clearOverlayListCb
+            },
+            #############################
+            'all_crosshairs_enable': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'crosshairs_enable',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairsCb
             },
             'all_crosshairs_size_ratio': {
                 'msg': Float32,
@@ -2656,19 +3013,19 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setCrosshairsTextRatioCb
             },
+            'all_crosshairs_transparency_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_transparency_ratio',
+                'qsize': 5,
+                'callback': self._setCrosshairsTransparencyRatioCb
+            },
             'all_crosshairs_color_rgb': {
                 'msg': ColorBGR,
                 'namespace': self.all_namespace,
                 'topic': 'set_crosshairs_color_rgb',
                 'qsize': 5,
                 'callback': self._setCrosshairsColorRGBCb
-            },
-            'all_overlay_crosshairs': {
-                'msg': Bool,
-                'namespace': self.all_namespace,
-                'topic': 'overlay_crosshairs',
-                'qsize': 5,
-                'callback': self._setrOverlayCrosshairsCb
             },
             'all_overlay_crosshair_names': {
                 'msg': Bool,
@@ -2732,6 +3089,155 @@ class BaseImageIF:
                 'topic': 'clear_crosshairs',
                 'qsize': 5,
                 'callback': self._clearCrosshairsCb
+            },
+            #############################
+            'all_targets_enable': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'targets_enable',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetsCb
+            },
+            'all_targets_size_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_size_ratio',
+                'qsize': 5,
+                'callback': self._setTargetsSizeRatioCb
+            },
+            'all_targets_thickness_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_thickness_ratio',
+                'qsize': 5,
+                'callback': self._setTargetsThicknessRatioCb
+            },
+            'all_targets_text_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_text_ratio',
+                'qsize': 5,
+                'callback': self._setTargetsTextRatioCb
+            },
+            'all_targets_transparency_ratio': {
+                'msg': Float32,
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_transparency_ratio',
+                'qsize': 5,
+                'callback': self._setTargetsTransparencyRatioCb
+            },
+            'all_targets_color_rgb': {
+                'msg': ColorBGR,
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_color_rgb',
+                'qsize': 5,
+                'callback': self._setTargetsColorRGBCb
+            },
+            'all_overlay_target_names': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_names',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetNamesCb
+            },
+            'all_overlay_target_pixels': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_pixels',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetPixelsCb
+            },
+            'all_overlay_target_messages': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_messages',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetMessagesCb
+            },
+            'all_click_target_enable': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'click_target_enable',
+                'qsize': 5,
+                'callback': self._clickTargetEnableCb
+            },
+            'all_add_target_pixel': {
+                'msg': ImageTarget,
+                'namespace': self.all_namespace,
+                'topic': 'add_target_pixel',
+                'qsize': 5,
+                'callback': self._addTargetPixelCb
+            },
+            'all_add_target_ratios': {
+                'msg': ImageTarget,
+                'namespace': self.all_namespace,
+                'topic': 'add_target_ratios',
+                'qsize': 5,
+                'callback': self._addTargetRatiosCb
+            },
+            'all_add_target_degree_offsets': {
+                'msg': ImageTarget,
+                'namespace': self.all_namespace,
+                'topic': 'add_target_degree_offsets',
+                'qsize': 5,
+                'callback': self._addTargetDegreesCb
+            },
+            'all_remove_target': {
+                'msg': String,
+                'namespace': self.all_namespace,
+                'topic': 'remove_target',
+                'qsize': 5,
+                'callback': self._removeTargetCb
+            },
+            'all_clear_targets': {
+                'msg': Empty,
+                'namespace': self.all_namespace,
+                'topic': 'clear_targets',
+                'qsize': 5,
+                'callback': self._clearTargetsCb
+            },
+            ####################################
+            'all_set_aspect_adjust_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_enable',
+                'msg': Bool,
+                'qsize': 5,
+                'callback': self._setAspectAdjustEnableCb,
+                'callback_args': ()
+            },
+              'all_set_aspect_adjust_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_ratio',
+                'msg': String,
+                'qsize': 5,
+                'callback': self._setAspectAdjustRatioCb,
+                'callback_args': ()
+            },
+            ####################################
+            'all_set_stream_compression_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_stream_compression_enable',
+                'msg': Bool,
+                'qsize': 5,
+                'callback': self._setStreamCompressionEnableCb,
+                'callback_args': ()
+            },
+            'all_set_stream_compression_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_stream_compression_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setStreamCompressionRatioCb,
+                'callback_args': ()
+            },
+            ####################################
+            'all_set_live_adjust_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_enable',
+                'msg': Bool,
+                'qsize': 5,
+                'callback': self._setLiveAdjustEnableCb,
+                'callback_args': ()
             },
             'all_set_live_adjust_rotate_ratio': {
                 'namespace': self.all_namespace,
@@ -3367,7 +3873,7 @@ class BaseImageIF:
                         height_deg = 70,
                         min_range_m = 0,
                         max_range_m = 0,
-                        add_overlay_list = [],
+                        add_overlay_text_list = [],
                         process_data = True,
                         pub_twice = False,
                         add_pubs = []
@@ -3392,7 +3898,7 @@ class BaseImageIF:
                 Defaults to 0.
             max_range_m (float, optional): Maximum sensor range in meters.
                 Defaults to 0.
-            add_overlay_list (list, optional): Additional text strings to overlay
+            add_overlay_text_list (list, optional): Additional text strings to overlay
                 on the image. Defaults to [].
             process_data (bool, optional): Whether to run process_cv2_img before
                 publishing. Defaults to True.
@@ -3499,49 +4005,60 @@ class BaseImageIF:
                         self.status_msg.resolution_current = res_str
 
                         
-                        # Apply Overlays
-                        overlay_list = []
-                        if self.status_msg.overlay_img_name == True:
-                            overlay = nepi_img.getImgShortName(self.namespace)
-                            overlay_list.append(overlay)
-                        
-                        if self.status_msg.overlay_date_time == True:
-                            overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
-                            overlay = overlay.replace('D','')
-                            overlay = overlay.replace('T',' T: ')
-                            overlay_list.append(overlay)
+                        # Apply Text Overlays
+                        overlay_text_list = []
+                        overlay_text_enabled = self.overlays_dict['overlay_text_enabled']
+                        overlay_text_size_ratio = self.overlays_dict['overlay_text_size_ratio']
+                        overlay_text_vert_ratio = self.overlays_dict['overlay_text_vert_ratio']
+                        overlay_text_horz_ratio = self.overlays_dict['overlay_text_horz_ratio']
+                        overlay_text_color_rgb = self.overlays_dict['overlay_text_color_rgb']
+                        overlay_text_img_name = self.overlays_dict['overlay_text_img_name']
+                        overlay_text_date_time = self.overlays_dict['overlay_text_date_time']
+                        overlay_text_nav = self.overlays_dict['overlay_text_nav']
+                        overlay_text_pose = self.overlays_dict['overlay_text_pose']
+                        if overlay_text_enabled == True:
+                            if overlay_text_img_name == True:
+                                overlay = nepi_img.getImgShortName(self.namespace)
+                                overlay_text_list.append(overlay)
+                            
+                            if overlay_text_date_time == True:
+                                overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+                                overlay = overlay.replace('D','')
+                                overlay = overlay.replace('T',' T: ')
+                                overlay_text_list.append(overlay)
 
-                        if self.status_msg.overlay_nav == True or self.status_msg.overlay_pose == True:
-                            if navpose_dict is not None:
-                                if self.status_msg.overlay_nav == True and navpose_dict is not None:
-                                    overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],0))
-                                    overlay_list.append(overlay)
+                            if overlay_text_nav == True or overlay_text_pose == True:
+                                if navpose_dict is not None:
+                                    if overlay_text_nav == True and navpose_dict is not None:
+                                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],0))
+                                        overlay_text_list.append(overlay)
 
-                                if self.status_msg.overlay_pose == True and navpose_dict is not None:
-                                    overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],0)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],0)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],0))
-                                    overlay_list.append(overlay)
+                                    if overlay_text_pose == True and navpose_dict is not None:
+                                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],0)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],0)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],0))
+                                        overlay_text_list.append(overlay)
 
-                        overlay_list = overlay_list + self.overlays_dict['init_overlay_list'] + self.overlays_dict['add_overlay_list'] + add_overlay_list
+                            overlay_text_list = overlay_text_list + self.overlays_dict['init_overlay_text_list'] + self.overlays_dict['add_overlay_text_list'] + add_overlay_text_list
 
-                        if len(overlay_list) > 0:
-                            start_y = (height * 0.01)
-                            cv2_img = nepi_img.overlay_text_list(cv2_img, 
-                                                    text_list = overlay_list, 
-                                                    x_px = 10 , y_px = start_y, 
-                                                    color_rgb = (0, 255, 0), 
-                                                    apply_shadow = True, 
-                                                    size_ratio = self.overlay_size_ratio )
+                            if len(overlay_text_list) > 0:
+                                start_x = (width * 0.01) + ((width * 0.99) * overlay_text_horz_ratio)
+                                start_y = (height * 0.01) + ((height * 0.90) * overlay_text_vert_ratio)
+                                cv2_img = nepi_img.overlay_text_list(cv2_img, 
+                                                        text_list = overlay_text_list, 
+                                                        x_px = start_x , y_px = start_y, 
+                                                        color_rgb = overlay_text_color_rgb, 
+                                                        apply_shadow = True, 
+                                                        size_ratio = overlay_text_size_ratio )
 
 
-                                                    
+                        ######################             
                         crosshairs_dict = self.overlays_dict['crosshairs_dict']
                         crosshair_len = len(list(crosshairs_dict.keys()))
-                        overlay_crosshairs = self.overlays_dict['overlay_crosshairs']
+                        crosshairs_enabled = self.overlays_dict['crosshairs_enabled']
                         overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
                         overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
                         overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
                         overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
-                        if crosshair_len > 0 and overlay_crosshairs == True:
+                        if crosshair_len > 0 and crosshairs_enabled == True:
                             
                             for crosshair_name in crosshairs_dict.keys():
                                 crosshair_dict = crosshairs_dict[crosshair_name]
@@ -3567,9 +4084,9 @@ class BaseImageIF:
                                 if overlay_crosshair_messages == True and len(crosshair_msg) > 0:
                                     overlay_text.append(str(crosshair_msg))
 
-                                crosshairs_size_ratio = self.crosshairs_size_ratio
-                                crosshairs_thickness_ratio = self.crosshairs_thickness_ratio
-                                crosshairs_text_ratio = self.crosshairs_text_ratio
+                                crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
+                                crosshairs_thickness_ratio = self.overlays_dict['crosshairs_thickness_ratio']
+                                crosshairs_text_ratio = self.overlays_dict['crosshairs_text_ratio']
                                 #self.msg_if.pub_warn("Rendering image crosshair: " + str([crosshair_x,crosshair_y]) , log_name_list = self.log_name_list)
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
                                                         x_px = crosshair_x , y_px = crosshair_y, 
@@ -3578,6 +4095,53 @@ class BaseImageIF:
                                                         thickness_ratio = crosshairs_thickness_ratio,
                                                         text_list = overlay_text,
                                                         text_ratio = crosshairs_text_ratio)
+
+
+                        ######################             
+                        targets_dict = self.overlays_dict['targets_dict']
+                        target_len = len(list(targets_dict.keys()))
+                        targets_enabled = self.overlays_dict['targets_enabled']
+                        overlay_target_names = self.overlays_dict['overlay_target_names']
+                        overlay_target_pixels = self.overlays_dict['overlay_target_pixels']
+                        overlay_target_degrees = self.overlays_dict['overlay_target_degrees']
+                        overlay_target_messages = self.overlays_dict['overlay_target_messages']
+                        if target_len > 0 and targets_enabled == True:
+                            
+                            for target_name in targets_dict.keys():
+                                target_dict = targets_dict[target_name]
+                                #self.msg_if.pub_warn("Rendering image with target_dict: " + str(target_dict) , log_name_list = self.log_name_list)
+        
+
+                                x_ratio = target_dict['x_ratio']
+                                target_x = int(x_ratio * width)
+                                target_x_deg = round( -1 * ((x_ratio - 0.5) * width_deg),1)
+                                y_ratio = target_dict['y_ratio']
+                                target_y = int(y_ratio * height)
+                                target_y_deg = round(((y_ratio - 0.5) * height_deg),1)
+                                target_rbg = target_dict['color_rgb']
+                                target_msg = target_dict['msg_str']
+
+                                overlay_text = []
+                                if overlay_target_names == True:
+                                    overlay_text.append(target_name)
+                                if overlay_target_pixels == True:
+                                    overlay_text.append(str(target_x) + ',' + str(target_y))
+                                if overlay_target_degrees == True:
+                                    overlay_text.append(str(target_x_deg) + ',' + str(target_y_deg))
+                                if overlay_target_messages == True and len(target_msg) > 0:
+                                    overlay_text.append(str(target_msg))
+
+                                targets_size_ratio = self.overlays_dict['targets_size_ratio']
+                                targets_thickness_ratio = self.overlays_dict['targets_thickness_ratio']
+                                targets_text_ratio = self.overlays_dict['targets_text_ratio']
+                                #self.msg_if.pub_warn("Rendering image target: " + str([target_x,target_y]) , log_name_list = self.log_name_list)
+                                cv2_img = nepi_img.overlay_target(cv2_img, 
+                                                        x_px = target_x , y_px = target_y, 
+                                                        color_rgb = target_rbg, 
+                                                        size_ratio =  targets_size_ratio,
+                                                        thickness_ratio = targets_thickness_ratio,
+                                                        text_list = overlay_text,
+                                                        text_ratio = targets_text_ratio)
                                 
 
 
@@ -3842,6 +4406,23 @@ class BaseImageIF:
 
     ########################
     # Res and Orientation Functions
+
+    def set_resolution_ratio(self, ratio):
+        """Set the output image resolution ratio, clamped to [0.2, 1.0].
+
+        Args:
+            ratio (float): Fraction of full resolution, where 1.0 is full resolution
+                and 0.2 is the minimum allowed.
+        """
+        if (ratio < 0.2):
+            ratio = 0.2
+        if (ratio > 1.0):
+            ratio = 1.0
+        self.controls_dict['resolution_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('resolution_ratio', ratio)
 
     def set_resolution_ratio(self, ratio):
         """Set the output image resolution ratio, clamped to [0.2, 1.0].
@@ -4228,79 +4809,166 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
 
+    ########################
+
+    def set_aspect_adjust_enable(self,enabled):
+        self.aspect_adjust_enabled = enabled and self.aspect_adjustment_disabled == False
+
+    def set_aspect_adjust_ratio(self,aspect_ratio):
+        if self.aspect_adjust_enabled == True and self.aspect_adjustment_disabled == False:
+            if aspect_ratio in self.aspect_ratio_options:
+                self.aspect_ratio_selected = aspect_ratio
+    ########################
+
+    def set_stream_compression_enable(self,enabled):
+        self.stream_compression_enabled = enabled 
+
+    def set_aspect_adjust_ratio(self,ratio):
+        self.stream_compression_ratio = nepi_utils.check_ratio(ratio)
+
 
 
     ########################
     # Overlay Functions
+    def set_overlay_text_enable(self,enabled):
+        """Enable or disable the text overlays.
 
-    def set_overlay_size_ratio(self, ratio):
+        Args:
+            enabled (bool): True to show text data, False to hide it.
+        """
+        self.overlays_dict['overlay_text_enabled'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+
+
+    def set_click_text(self,enabled):
+        """Enable or disable the click text enable.
+
+        Args:
+            enabled (bool): True to show text data, False to hide it.
+        """
+        self.click_text_enabled = enabled
+        self.click_crosshair_enabled = False
+        self.click_target_enabled = False
+        self.publish_status()
+
+    def set_overlay_text_size_ratio(self, ratio):
         """Set the relative size of text overlays on the image.
 
         Args:
             ratio (float): Text size ratio in [0.0, 1.0].
         """
         ratio = nepi_utils.check_ratio(ratio)
-        self.overlay_size_ratio = ratio
+        self.overlays_dict['overlay_text_size_ratio'] = ratio
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlay_size_ratio', ratio)
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
-    def set_overlay_image_name(self,enabled):
+    def set_overlay_text_vert_ratio(self, ratio):
+        """Set the relative size of text overlays on the image.
+
+        Args:
+            ratio (float): Text size ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlays_dict['overlay_text_vert_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_text_horz_ratio(self, ratio):
+        """Set the relative size of text overlays on the image.
+
+        Args:
+            ratio (float): Text size ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlays_dict['overlay_text_horz_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_text_transparency_ratio(self, ratio):
+        """Set the relative size of text overlays on the image.
+
+        Args:
+            ratio (float): Text size ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlays_dict['overlay_text_transparency_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_text_color_rgb(self, r = 0, g = 255, b = 0):
+        self.overlays_dict['overlay_text_color_rgb'] = (r,g,b)
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_text_image_name(self,enabled):
         """Enable or disable the image name text overlay.
 
         Args:
             enabled (bool): True to show the image source name, False to hide it.
         """
-        self.overlays_dict['overlay_img_name'] = enabled
+        self.overlays_dict['overlay_text_img_name'] = enabled
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
-    def set_overlay_date_time(self,enabled):
+    def set_overlay_text_date_time(self,enabled):
         """Enable or disable the date/time text overlay.
 
         Args:
             enabled (bool): True to show the timestamp, False to hide it.
         """
-        self.overlays_dict['overlay_date_time'] = enabled
+        self.overlays_dict['overlay_text_date_time'] = enabled
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
-    def set_overlay_nav(self,enabled):
+    def set_overlay_text_nav(self,enabled):
         """Enable or disable the GPS navigation (lat/lon/heading) text overlay.
 
         Args:
             enabled (bool): True to show navigation data, False to hide it.
         """
-        self.overlays_dict['overlay_nav'] = enabled
+        self.overlays_dict['overlay_text_nav'] = enabled
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
-    def set_overlay_pose(self,enabled):
+    def set_overlay_text_pose(self,enabled):
         """Enable or disable the roll/pitch/yaw pose text overlay.
 
         Args:
             enabled (bool): True to show pose data, False to hide it.
         """
-        self.overlays_dict['overlay_pose'] = enabled
+        self.overlays_dict['overlay_text_pose'] = enabled
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
-    def set_overlay_list(self,overlay_list):
+    def set_overlay_text_list(self,overlay_text_list):
         """Replace the additional text overlay list with the provided list.
 
         Args:
-            overlay_list (list): List of text strings to display as overlays.
+            overlay_text_list (list): List of text strings to display as overlays.
         """
-        self.overlays_dict['add_overlay_list'] = overlay_list
+        self.overlays_dict['add_overlay_text_list'] = overlay_text_list
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
@@ -4310,24 +4978,48 @@ class BaseImageIF:
         """Append a text string to the additional overlay list.
 
         Args:
-            overlay_text (str): Text string to add to the overlay list.
+            overlay_text_text (str): Text string to add to the overlay list.
         """
-        overlay_list = self.overlays_dict['add_overlay_list']
-        overlay_list.append(overlay_text)
-        self.overlays_dict['add_overlay_list'] = overlay_list
+        overlay_text_list = self.overlays_dict['add_overlay_text_list']
+        overlay_text_list.append(overlay_text_text)
+        self.overlays_dict['add_overlay_text_list'] = overlay_text_list
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
-    def clear_overlay_list(self):
+    def clear_overlay_text_list(self):
         """Clear all entries from the additional text overlay list."""
-        self.overlays_dict['add_overlay_list'] = []
+        self.overlays_dict['add_overlay_text_list'] = []
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
+
+    ###################################
+    def set_crosshairs_enable(self,enabled):
+        """Enable or disable the crosshair overlays.
+
+        Args:
+            enabled (bool): True to show crosshairs data, False to hide it.
+        """
+        self.overlays_dict['crosshairs_enabled'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_click_crosshair(self,enabled):
+        """Enable or disable the click crosshair enable.
+
+        Args:
+            enabled (bool): True to show crosshairs data, False to hide it.
+        """
+        self.click_text_enabled = False
+        self.click_crosshair_enabled = enabled
+        self.click_target_enabled = False
+        self.publish_status()
 
     def set_crosshairs_size_ratio(self, ratio):
         """Set the relative size of text overlays on the image.
@@ -4336,56 +5028,60 @@ class BaseImageIF:
             ratio (float): Text size ratio in [0.0, 1.0].
         """
         ratio = nepi_utils.check_ratio(ratio)
-        self.crosshairs_size_ratio = ratio
+        self.overlays_dict['crosshairs_size_ratio'] = ratio
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('crosshairs_size_ratio', ratio)
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_crosshairs_thickness_ratio(self, ratio):
-        """Set the relative thickness of text overlays on the image.
+        """Set the relative thickness of crosshairs overlays on the image.
 
         Args:
             ratio (float): Text thickness ratio in [0.0, 1.0].
         """
         ratio = nepi_utils.check_ratio(ratio)
-        self.crosshairs_thickness_ratio = ratio
+        self.overlays_dict['crosshairs_thickness_ratio'] = ratio
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('crosshairs_thickness_ratio', ratio)
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_crosshairs_text_ratio(self, ratio):
-        """Set the relative text of text overlays on the image.
+        """Set the relative text of crosshairs overlays on the image.
 
         Args:
             ratio (float): Text text ratio in [0.0, 1.0].
         """
         ratio = nepi_utils.check_ratio(ratio)
-        self.crosshairs_text_ratio = ratio
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('crosshairs_text_ratio', ratio)
-
-    def set_crosshairs_color_rgb(self, r = 0, g = 255, b = 0):
-        self.crosshairs_color_rgb = (r,g,b)
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('crosshairs_color_rgb', (r,g,b))
-      
-    def set_overlay_crosshairs(self,enabled):
-        """Enable or disable the crosshair overlays.
-
-        Args:
-            enabled (bool): True to show crosshairs data, False to hide it.
-        """
-        self.overlays_dict['overlay_crosshairs'] = enabled
+        self.overlays_dict['crosshairs_text_ratio'] = ratio
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_crosshairs_transparency_ratio(self, ratio):
+        """Set the relative size of crosshairs overlays on the image.
+
+        Args:
+            ratio (float): Text size ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlays_dict['crosshairs_transparency_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+
+    def set_crosshairs_color_rgb(self, r = 0, g = 255, b = 0):
+        self.overlays_dict['crosshairs_color_rgb'] = (r,g,b)
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+      
+
 
 
     def set_overlay_crosshair_names(self,enabled):
@@ -4436,14 +5132,6 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
-    def set_click_crosshair(self,enabled):
-        """Enable or disable the click crosshair enable.
-
-        Args:
-            enabled (bool): True to show crosshairs data, False to hide it.
-        """
-        self.click_crosshair_enabled = enabled
-        self.publish_status()
 
 
     def add_crosshair(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
@@ -4495,12 +5183,204 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
+
+    ###################################
+    def set_targets_enable(self,enabled):
+        """Enable or disable the target overlays.
+
+        Args:
+            enabled (bool): True to show targets data, False to hide it.
+        """
+        self.overlays_dict['targets_enabled'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_click_target(self,enabled):
+        """Enable or disable the click target enable.
+
+        Args:
+            enabled (bool): True to show targets data, False to hide it.
+        """
+        self.click_text_enabled = False
+        self.click_target_enabled = enabled
+        self.click_target_enabled = False
+        self.publish_status()
+
+    def set_targets_size_ratio(self, ratio):
+        """Set the relative size of text overlays on the image.
+
+        Args:
+            ratio (float): Text size ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlays_dict['targets_size_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_targets_thickness_ratio(self, ratio):
+        """Set the relative thickness of targets overlays on the image.
+
+        Args:
+            ratio (float): Text thickness ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlays_dict['targets_thickness_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_targets_text_ratio(self, ratio):
+        """Set the relative text of targets overlays on the image.
+
+        Args:
+            ratio (float): Text text ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlays_dict['targets_text_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_targets_transparency_ratio(self, ratio):
+        """Set the relative size of targets overlays on the image.
+
+        Args:
+            ratio (float): Text size ratio in [0.0, 1.0].
+        """
+        ratio = nepi_utils.check_ratio(ratio)
+        self.overlays_dict['targets_transparency_ratio'] = ratio
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+
+    def set_targets_color_rgb(self, r = 0, g = 255, b = 0):
+        self.overlays_dict['targets_color_rgb'] = (r,g,b)
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+      
+
+
+
+    def set_overlay_target_names(self,enabled):
+        """Enable or disable the target names overlays.
+
+        Args:
+            enabled (bool): True to show targets name data, False to hide it.
+        """
+        self.overlays_dict['overlay_target_names'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_target_pixels(self,enabled):
+        """Enable or disable the target pixels overlays.
+
+        Args:
+            enabled (bool): True to show targets pixel data, False to hide it.
+        """
+        self.overlays_dict['overlay_target_pixels'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_target_degrees(self,enabled):
+        """Enable or disable the target degrees overlays.
+
+        Args:
+            enabled (bool): True to show targets degrees data, False to hide it.
+        """
+        self.overlays_dict['overlay_target_degrees'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def set_overlay_target_messages(self,enabled):
+        """Enable or disable the target messages overlays.
+
+        Args:
+            enabled (bool): True to show targets messages, False to hide it.
+        """
+        self.overlays_dict['overlay_target_messages'] = enabled
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+
+
+    def add_target(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
+        """Append a target overlay at pixel location.
+
+        Args:
+            x pixel, y pixel, target name str.
+        """
+        targets_dict = self.overlays_dict['targets_dict']
+        target_names = list(targets_dict.keys())
+        num_targets = len(target_names)
+        x_ratio = nepi_utils.check_ratio(x_ratio)
+        y_ratio = nepi_utils.check_ratio(y_ratio)
+        ch_name = str(num_targets + 1)
+        if name is not None:
+            if name != '':
+                ch_name = name
+        if color_rgb is None:
+            color_rgb = self.targets_color_rgb
+        target_dict = copy.deepcopy(self.BLANK_TARGET_DICT)
+        target_dict['x_ratio'] = x_ratio
+        target_dict['y_ratio'] = y_ratio
+        target_dict['color_rgb'] = color_rgb
+        target_dict['msg_str'] = msg_str
+
+        self.overlays_dict['targets_dict'][ch_name] = target_dict
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def remove_target(self, name):
+        """Remove entry from targets overlay dict."""
+        try:
+            del self.overlays_dict['targets_dict'][name]
+        except:
+            pass
+        
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+    def clear_targets(self):
+        """Clear all entries from targets overlay dict."""
+        self.overlays_dict['targets_dict'] = dict()
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+
+
+
+    #############################
+
     def set_live_adjust_enable(self,enabled):
-        self.live_adjust_enabled = enabled
+        self.live_adjust_dict['live_adjust_enabled'] = enabled and self.live_adjustments_disabled == False
 
     def set_live_adjust_rotate_ratio(self,ratio):
-        if self.live_adjust_enabled == True:
-            self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
+            self.live_adjust_dict['live_adjust_rotate_ratio'] = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_rotate_deg(self,deg):
         #self.msg_if.pub_info("Received Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
@@ -4509,20 +5389,20 @@ class BaseImageIF:
         #self.msg_if.pub_info("Updated Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
         ratio = nepi_utils.check_ratio(0.5 + (deg / 180)/2)
         #self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio), log_name_list = self.log_name_list)
-        if self.live_adjust_enabled == True:
-            self.live_adjust_rotate_ratio = nepi_utils.check_ratio(ratio)
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
+            self.live_adjust_dict['live_adjust_rotate_ratio'] = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_ratio(self,ratio):
-        if self.live_adjust_enabled == True:
-            self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
+            self.live_adjust_dict['live_adjust_x_ratio'] = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_pixel(self,pixel):
         if abs(pixel) > self.width_org:
             pixel = np.sign(pixel) * self.width_org
         ratio = round(0.5 + (pixel / self.width_org)/2,4)
         ratio = nepi_utils.check_ratio(ratio)
-        if self.live_adjust_enabled == True:
-            self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
+            self.live_adjust_dict['live_adjust_x_ratio'] = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_x_deg(self,deg):
 
@@ -4530,30 +5410,30 @@ class BaseImageIF:
             deg = np.sign(deg) * self.width_deg
         ratio = round(0.5 - (deg / self.width_deg)/2,4) 
         ratio = nepi_utils.check_ratio(ratio)
-        if self.live_adjust_enabled == True:
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
             #self.msg_if.pub_info("Updating X Rotate Deg to Ratio: " + str(deg) + ":" + str(ratio), log_name_list = self.log_name_list, throttle_s = 5)   
-            self.live_adjust_x_ratio = nepi_utils.check_ratio(ratio)
+            self.live_adjust_dict['live_adjust_x_ratio'] = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_ratio(self,ratio):
-        if self.live_adjust_enabled == True:
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
             ratio = nepi_utils.check_ratio(ratio)
-            self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
+            self.live_adjust_dict['live_adjust_y_ratio'] = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_pixel(self,pixel):
         if abs(pixel) > self.height_org:
             pixel = np.sign(pixel) * self.height_org
         ratio = round(0.5 + (pixel / self.height_org)/2,4)
         ratio = nepi_utils.check_ratio(ratio)
-        if self.live_adjust_enabled == True:
-            self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
+            self.live_adjust_dict['live_adjust_y_ratio'] = nepi_utils.check_ratio(ratio)
 
     def set_live_adjust_y_deg(self,deg):
         if abs(deg) > self.height_deg:
             deg = np.sign(deg) * self.height_deg
         ratio = round(0.5 + (deg / self.height_deg)/2,4)    
         ratio = nepi_utils.check_ratio(ratio)
-        if self.live_adjust_enabled == True:
-            self.live_adjust_y_ratio = nepi_utils.check_ratio(ratio)
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
+            self.live_adjust_dict['live_adjust_y_ratio'] = nepi_utils.check_ratio(ratio)
 
 
     def reset_filters(self):
@@ -4644,9 +5524,9 @@ class BaseImageIF:
         self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
         self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
 
-        self.live_adjust_rotate_ratio = 0.5
-        self.live_adjust_x_ratio = 0.5
-        self.live_adjust_y_ratio = 0.5
+        self.live_adjust_dict['live_adjust_rotate_ratio'] = 0.5
+        self.live_adjust_dict['live_adjust_x_ratio'] = 0.5
+        self.live_adjust_dict['live_adjust_y_ratio'] = 0.5
 
 
         self.publish_status()  
@@ -4695,23 +5575,26 @@ class BaseImageIF:
             self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
             self.status_msg.render_3d_controls_enabled = self.render_3d_controls_enabled
 
-
-            live_adjust_rotate_ratio = copy.deepcopy(self.live_adjust_rotate_ratio)
+            live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
+            live_adjust_enabled = live_adjust_dict['live_adjust_enabled']
+            live_adjust_rotate_ratio = live_adjust_dict['live_adjust_rotate_ratio']
             rotate_deg = ((live_adjust_rotate_ratio - 0.5) * 2) * 180
             if abs(rotate_deg) > 180:
                 rotate_deg = np.sign(rotate_deg) * 180
             live_adjust_rotate_deg = rotate_deg
 
-            live_adjust_x_ratio = copy.deepcopy(self.live_adjust_x_ratio)
+            live_adjust_x_ratio = live_adjust_dict['live_adjust_x_ratio']
             shift_x_scaler = (live_adjust_x_ratio - 0.5) * 2
             live_adjust_x_pixels = math.floor((shift_x_scaler * self.width_org))
             live_adjust_x_degs = round(shift_x_scaler * self.width_deg,1)
 
-            live_adjust_y_ratio = copy.deepcopy(self.live_adjust_y_ratio)
+            live_adjust_y_ratio = live_adjust_dict['live_adjust_y_ratio']
             shift_y_scaler = (live_adjust_y_ratio - 0.5) * 2
             live_adjust_y_pixels = math.floor((shift_y_scaler * self.height_org))
             live_adjust_y_degs = round(shift_y_scaler * self.height_deg,1)
 
+            self.status_msg.live_adjustments_disabled = self.live_adjustments_disabled
+            self.status_msg.live_adjustments_enabled = live_adjust_enabled
             self.status_msg.live_adjust_rotate_ratio = live_adjust_rotate_ratio
             self.status_msg.live_adjust_rotate_deg = live_adjust_rotate_deg
             self.status_msg.live_adjust_x_ratio = live_adjust_x_ratio
@@ -4722,17 +5605,21 @@ class BaseImageIF:
             self.status_msg.live_adjust_y_degs = live_adjust_y_degs
 
 
-            self.status_msg.overlay_size_ratio = self.overlay_size_ratio
-            self.status_msg.overlay_img_name = self.overlays_dict['overlay_img_name']
-            self.status_msg.overlay_date_time =  self.overlays_dict['overlay_date_time']
-            self.status_msg.overlay_nav = self.overlays_dict['overlay_nav']
-            self.status_msg.overlay_pose = self.overlays_dict['overlay_pose']  
-            self.status_msg.base_overlay_list = self.overlays_dict['init_overlay_list']
-            self.status_msg.add_overlay_list = self.overlays_dict['add_overlay_list']
-            self.status_msg.add_overlay_list = self.overlays_dict['add_overlay_list']
+            self.status_msg.overlay_text_enabled = self.overlays_dict['overlay_text_enabled']
+            self.status_msg.click_text_enabled = self.click_text_enabled
+            self.status_msg.overlay_text_size_ratio = self.overlays_dict['overlay_text_size_ratio']
+            self.status_msg.overlay_text_vert_ratio = self.overlays_dict['overlay_text_vert_ratio']
+            self.status_msg.overlay_text_horz_ratio = self.overlays_dict['overlay_text_horz_ratio']
+            self.status_msg.overlay_text_img_name = self.overlays_dict['overlay_text_img_name']
+            self.status_msg.overlay_text_date_time =  self.overlays_dict['overlay_text_date_time']
+            self.status_msg.overlay_text_nav = self.overlays_dict['overlay_text_nav']
+            self.status_msg.overlay_text_pose = self.overlays_dict['overlay_text_pose']  
+            self.status_msg.base_overlay_text_list = self.overlays_dict['init_overlay_text_list']
+            self.status_msg.add_overlay_text_list = self.overlays_dict['add_overlay_text_list']
+            self.status_msg.add_overlay_text_list = self.overlays_dict['add_overlay_text_list']
             
 
-            
+            ################
             crosshairs_dict = self.overlays_dict['crosshairs_dict']
             #self.msg_if.pub_info("Publishing crosshairs_dict: " + str(crosshairs_dict), log_name_list = self.log_name_list)
             crosshairs_msg_list = []
@@ -4763,23 +5650,76 @@ class BaseImageIF:
                     pass
                     
 
-                
-            self.status_msg.overlay_crosshairs = self.overlays_dict['overlay_crosshairs']
+            self.status_msg.crosshairs_enabled = self.overlays_dict['crosshairs_enabled']
+            self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
+            self.status_msg.crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
+            self.status_msg.crosshairs_thickness_ratio = self.overlays_dict['crosshairs_thickness_ratio']
+            self.status_msg.crosshairs_text_ratio = self.overlays_dict['crosshairs_text_ratio']
+            crosshairs_color_rgb = self.overlays_dict['crosshairs_color_rgb']
+            self.status_msg.crosshairs_color_r = crosshairs_color_rgb[0]
+            self.status_msg.crosshairs_color_g = crosshairs_color_rgb[1]
+            self.status_msg.crosshairs_color_b = crosshairs_color_rgb[2]
             self.status_msg.overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
             self.status_msg.overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
             self.status_msg.overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
             self.status_msg.overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
             self.status_msg.num_crosshairs = len(list(crosshairs_dict.keys()))
-            self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
-            self.status_msg.crosshairs_size_ratio = self.crosshairs_size_ratio
-            self.status_msg.crosshairs_thickness_ratio = self.crosshairs_thickness_ratio
-            self.status_msg.crosshairs_text_ratio = self.crosshairs_text_ratio
-            self.status_msg.crosshairs_color_r = self.crosshairs_color_rgb[0]
-            self.status_msg.crosshairs_color_g = self.crosshairs_color_rgb[1]
-            self.status_msg.crosshairs_color_b = self.crosshairs_color_rgb[2]
             self.status_msg.crosshairs = crosshairs_msg_list
 
 
+            ################
+            targets_dict = self.overlays_dict['targets_dict']
+            #self.msg_if.pub_info("Publishing targets_dict: " + str(targets_dict), log_name_list = self.log_name_list)
+            targets_msg_list = []
+            for target_name in targets_dict.keys():
+                target_msg = ImageCrosshair()
+                target_msg.name = target_name
+                target_dict = targets_dict[target_name]
+                try:
+                    xor = target_dict['x_ratio']
+                    target_msg.x_ratio = xor
+                    target_msg.x_offset_deg = round((xor - 0.5)*2 * self.width_deg/2, 2)
+                    target_msg.x_offset_pixel = int((xor - 0.5)*2 * self.width_org/2)
+                    target_msg.x_pixel = int(round(self.width_org/2 + target_msg.x_offset_pixel))
+                    yor = target_dict['y_ratio']
+                    target_msg.y_ratio = yor
+                    target_msg.y_offset_deg = round((yor - 0.5)*2 * self.height_deg/2, 2)
+                    target_msg.y_offset_pixel = int((yor - 0.5)*2 * self.height_org/2)
+                    target_msg.y_pixel = int(round(self.height_org/2 + target_msg.y_offset_pixel))
+
+                    target_msg.r = target_dict['color_rgb'][0]
+                    target_msg.g = target_dict['color_rgb'][1]
+                    target_msg.b = target_dict['color_rgb'][2]
+
+
+                    target_msg.msg_str = str(target_dict['msg_str'])
+                    targets_msg_list.append(target_msg)
+                except:
+                    pass
+                    
+
+            self.status_msg.targets_enabled = self.overlays_dict['targets_enabled']
+            self.status_msg.click_target_enabled = self.click_target_enabled
+            self.status_msg.targets_size_ratio = self.overlays_dict['targets_size_ratio']
+            self.status_msg.targets_thickness_ratio = self.overlays_dict['targets_thickness_ratio']
+            self.status_msg.targets_text_ratio = self.overlays_dict['targets_text_ratio']
+            targets_color_rgb = self.overlays_dict['targets_color_rgb']
+            self.status_msg.targets_color_r = targets_color_rgb[0]
+            self.status_msg.targets_color_g = targets_color_rgb[1]
+            self.status_msg.targets_color_b = targets_color_rgb[2]
+            self.status_msg.overlay_target_names = self.overlays_dict['overlay_target_names']
+            self.status_msg.overlay_target_pixels = self.overlays_dict['overlay_target_pixels']
+            self.status_msg.overlay_target_degrees = self.overlays_dict['overlay_target_degrees']
+            self.status_msg.overlay_target_messages = self.overlays_dict['overlay_target_messages']
+            self.status_msg.num_targets = len(list(targets_dict.keys()))
+            self.status_msg.targets = targets_msg_list
+
+
+            self.status_msg.stream_compression_enabled  = self.stream_compression_enabled
+            stream_compression = 0
+            if self.stream_compression_enabled == True:
+                stream_compression_ratio = self.stream_compression_ratio
+            self.status_msg.stream_compression_ratio = stream_compression_ratio
 
             avg_rate = 0
             if len(self.time_list) > 0:
@@ -4817,19 +5757,24 @@ class BaseImageIF:
             self.controls_dict['start_range_ratio'] = 0
             self.controls_dict['stop_range_ratio'] = 1
 
+            self.live_adjust_enabled  = self.node_if.get_param('live_adjust_enabled') and self.live_adjustments_disabled == False
+
+            self.aspect_adjust_enabled  = self.node_if.get_param('aspect_adjust_enabled') and self.aspect_adjustment_disabled == False
+            self.aspect_ratio_selected = self.node_if.get_param('aspect_ratio_selected')
+
+            self.stream_compression_ratio  = self.node_if.get_param('stream_compression_enabled')
+            self.stream_compression_ratio = self.node_if.get_param('stream_compression_ratio')
+
 
             filter_dict = self.node_if.get_param('filter_dict')
             if filter_dict is not None:
                 self.filter_dict = filter_dict
             else:
                 self.filter_dict = dict()
-            self.overlay_size_ratio = self.node_if.get_param('overlay_size_ratio')
-            self.crosshairs_size_ratio = self.node_if.get_param('crosshairs_size_ratio')
-            self.crosshairs_thickness_ratio = self.node_if.get_param('crosshairs_thickness_ratio')
-            self.crosshairs_text_ratio = self.node_if.get_param('crosshairs_text_ratio')
-            self.crosshairs_color_rgb = self.node_if.get_param('crosshairs_color_rgb')
+
             overlays_dict = self.node_if.get_param('overlays_dict')
             if overlays_dict is not None:
+
                 crosshairs_dict = dict()
                 if 'crosshairs_dict' in overlays_dict.keys():
                     for name in overlays_dict['crosshairs_dict'].keys():
@@ -4842,6 +5787,20 @@ class BaseImageIF:
                         except:
                             pass
                 overlays_dict['crosshairs_dict'] = crosshairs_dict
+
+                targets_dict = dict()
+                if 'targets_dict' in overlays_dict.keys():
+                    for name in overlays_dict['targets_dict'].keys():
+                        try:
+                            target_dict = overlays_dict['targets_dict'][name]
+                            for key in self.BLANK_TARGET_DICT.keys():
+                                if key not in target_dict.keys():
+                                    target_dict[key] = self.BLANK_TARGET_DICT[key]
+                            targets_dict[name] = target_dict
+                        except:
+                            pass
+                overlays_dict['targets_dict'] = targets_dict
+
                 if overlays_dict is not None:
                     for key in self.overlays_dict.keys():
                         if key in overlays_dict.keys():
@@ -4956,28 +5915,35 @@ class BaseImageIF:
         # Get adjustment in pixels)
         height, width = cv2_img.shape[:2]
 
+
+        ########### Live Adjust
         ###### Rotation Update
-        rotate_ratio = nepi_utils.check_ratio(self.live_adjust_rotate_ratio)
-        rotate_deg = ((rotate_ratio - 0.5) * 2) * 180
-        if abs(rotate_deg) > 180:
-            rotate_deg = np.sign(rotate_deg) * 180
-        if abs(rotate_deg) > 0.01:
-            #self.msg_if.pub_warn("Live Adjusting Rotate with ratio and degrees: " + str([rotate_ratio,rotate_deg]), log_name_list = self.log_name_list, throttle_s = 5)
-            cv2_img = nepi_img.rotate_degrees(cv2_img,rotate_deg)
+        live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
+        live_adjust_enabled = live_adjust_dict['live_adjust_enabled'] and self.live_adjustments_disabled == False
+        if live_adjust_enabled:
+            live_adjust_rotate_ratio = live_adjust_dict['live_adjust_rotate_ratio']
+            live_adjust_x_ratio = live_adjust_dict['live_adjust_x_ratio']
+            live_adjust_y_ratio = live_adjust_dict['live_adjust_y_ratio']
+
+            rotate_deg = ((live_adjust_rotate_ratio - 0.5) * 2) * 180
+            if abs(rotate_deg) > 180:
+                rotate_deg = np.sign(rotate_deg) * 180
+            if abs(rotate_deg) > 0.01:
+                #self.msg_if.pub_warn("Live Adjusting Rotate with ratio and degrees: " + str([rotate_ratio,rotate_deg]), log_name_list = self.log_name_list, throttle_s = 5)
+                cv2_img = nepi_img.rotate_degrees(cv2_img,rotate_deg)
         
-
-        ###### Translation Update
-        shift_x_ratio = nepi_utils.check_ratio(self.live_adjust_x_ratio)
-        shift_x_scaler = (shift_x_ratio - 0.5) * 2
-        shift_x_pixels = math.floor((shift_x_scaler * width))
-        shift_y_ratio = nepi_utils.check_ratio(self.live_adjust_y_ratio)
-        shift_y_scaler = (shift_y_ratio - 0.5) * 2
-        shift_y_pixels = math.floor((shift_y_scaler * height))
-
+            ###### Translation Update
+            shift_x_ratio = nepi_utils.check_ratio(live_adjust_x_ratio)
+            shift_x_scaler = (shift_x_ratio - 0.5) * 2
+            shift_x_pixels = math.floor((shift_x_scaler * width))
+            shift_y_ratio = nepi_utils.check_ratio(live_adjust_y_ratio)
+            shift_y_scaler = (shift_y_ratio - 0.5) * 2
+            shift_y_pixels = math.floor((shift_y_scaler * height))
 
 
-        if abs(shift_x_pixels) > 0 or abs(shift_y_pixels) > 0:
-            cv2_img = nepi_img.translate_pixels(cv2_img,shift_x_pixels,shift_y_pixels)
+
+            if abs(shift_x_pixels) > 0 or abs(shift_y_pixels) > 0:
+                cv2_img = nepi_img.translate_pixels(cv2_img,shift_x_pixels,shift_y_pixels)
  
         
         return cv2_img
@@ -5016,11 +5982,27 @@ class BaseImageIF:
                         self.callback_dict['click_pixel_callback'](pixel,color_bgr,click_count,angles)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to call mouse click_pixel_callback: " + str(e), log_name_list = self.log_name_list)
+            elif self.click_text_enabled == True and click_count == 1:
+                            self.click_text_enabled = False
+                            x_ratio = float(pixel[0] / image_width) 
+                            y_ratio = float(pixel[1] / image_height)
+                            self.set_overlay_text_horz_ratio(x_ratio)
+                            self.set_overlay_text_vert_ratio(y_ratio)
+
             elif self.click_crosshair_enabled == True and click_count == 1:
                             self.click_crosshair_enabled = False
                             x_ratio = float(pixel[0] / image_width)
                             y_ratio = float(pixel[1] / image_height)
-                            self.add_crosshair(x_ratio,y_ratio, name = None)
+                            click_color_rgb = self.overlays_dict['crosshair_color_rgb']
+                            click_name = 'click'
+                            self.add_crosshair(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
+            elif self.click_target_enabled == True and click_count == 1:
+                            self.click_target_enabled = False
+                            x_ratio = float(pixel[0] / image_width)
+                            y_ratio = float(pixel[1] / image_height)
+                            click_color_rgb = self.overlays_dict['target_color_rgb']
+                            click_name = 'click'
+                            self.add_target(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
             else:
                     if click_count == 1:
                         #self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
@@ -5243,32 +6225,55 @@ class BaseImageIF:
 
 
     ########################
-    # Render Callbacks
+    # Overlay Callbacks
+    def _setrOverlayTextEnableCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_text_enable(enabled)
 
     def _setOverlaySizeCb(self,msg):
         ratio = msg.data
-        self.set_overlay_size_ratio(ratio)
+        self.set_overlay_text_size_ratio(ratio)
 
+
+    def _setOverlayVertCb(self,msg):
+        ratio = msg.data
+        self.set_overlay_text_vert_ratio(ratio)
+
+
+    def _setOverlayHorzCb(self,msg):
+        ratio = msg.data
+        self.set_overlay_text_horz_ratio(ratio)
+
+    def _setOverlayTransparencyCb(self,msg):
+        ratio = msg.data
+        self.set_overlay_text_transparency_ratio(ratio)
+
+
+    def _setOverlayColorRGBCb(self,msg):
+        r = msg.r
+        g = msg.g
+        b = msg.b
+        self.set_overlay_text_color_rgb(r,g,b)
 
     def _setOverlayImgNameCb(self,msg):
         enabled = msg.data
-        self.set_overlay_image_name(enabled)
+        self.set_overlay_text_image_name(enabled)
 
     def _setOverlayDateTimeCb(self,msg):
         enabled = msg.data
-        self.set_overlay_date_time(enabled)
+        self.set_overlay_text_date_time(enabled)
 
     def _setOverlayNavCb(self,msg):
         enabled = msg.data
-        self.set_overlay_nav(enabled)
+        self.set_overlay_text_nav(enabled)
 
     def _setOverlayPoseCb(self,msg):
         enabled = msg.data
-        self.set_overlay_pose(enabled)
+        self.set_overlay_text_pose(enabled)
 
     def _setOverlayListCb(self,msg):
-        overlay_list = msg.data
-        self.set_overlay_list(overlay_list)
+        overlay_text_list = msg.data
+        self.set_overlay_text_list(overlay_list)
 
 
     def _setOverlayTextCb(self,msg):
@@ -5277,7 +6282,13 @@ class BaseImageIF:
 
 
     def _clearOverlayListCb(self,msg):
-        self.clear_overlay_list()
+        self.clear_overlay_text_list()
+
+    ##############################
+
+    def _clickCrosshairEnableCb(self,msg):
+        enbled = msg.data
+        self.set_click_crosshair(enbled)
 
 
     def _setCrosshairsSizeRatioCb(self,msg):
@@ -5292,6 +6303,10 @@ class BaseImageIF:
         ratio = msg.data
         self.set_crosshairs_text_ratio(ratio)
 
+    def _setCrosshairsTransparencyRatioCb(self,msg):
+        ratio = msg.data
+        self.set_crosshairs_transparency_ratio(ratio)
+
     def _setCrosshairsColorRGBCb(self,msg):
         r = msg.r
         g = msg.g
@@ -5300,7 +6315,7 @@ class BaseImageIF:
 
     def _setrOverlayCrosshairsCb(self,msg):
         enabled = msg.data
-        self.set_overlay_crosshairs(enabled)
+        self.set_crosshairs_enable(enabled)
 
 
     def _setrOverlayCrosshairNamesCb(self,msg):
@@ -5320,9 +6335,6 @@ class BaseImageIF:
         enabled = msg.data
         self.set_overlay_crosshair_messages(enabled)
 
-    def _clickCrosshairEnableCb(self,msg):
-        enbled = msg.data
-        self.set_click_crosshair(enbled)
 
     def _addCrosshairPixelCb(self,msg):
         name = msg.name
@@ -5376,6 +6388,135 @@ class BaseImageIF:
         self.click_crosshair_enabled = False
         self.clear_crosshairs()
 
+    ########################################
+
+
+    def _clickTargetEnableCb(self,msg):
+        enbled = msg.data
+        self.set_click_target(enbled)
+
+
+    def _setTargetsSizeRatioCb(self,msg):
+        ratio = msg.data
+        self.set_targets_size_ratio(ratio)
+
+    def _setTargetsThicknessRatioCb(self,msg):
+        ratio = msg.data
+        self.set_targets_thickness_ratio(ratio)
+
+    def _setTargetsTextRatioCb(self,msg):
+        ratio = msg.data
+        self.set_targets_text_ratio(ratio)
+
+    def _setTargetsTransparencyRatioCb(self,msg):
+        ratio = msg.data
+        self.set_targets_transparency_ratio(ratio)
+
+    def _setTargetsColorRGBCb(self,msg):
+        r = msg.r
+        g = msg.g
+        b = msg.b
+        self.set_targets_color_rgb(r,g,b)
+
+    def _setrOverlayTargetsCb(self,msg):
+        enabled = msg.data
+        self.set_targets_enable(enabled)
+
+
+    def _setrOverlayTargetNamesCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_target_names(enabled)
+
+    def _setrOverlayTargetPixelsCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_target_pixels(enabled)
+        
+
+    def _setrOverlayTargetDegreesCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_target_degrees(enabled)
+
+    def _setrOverlayTargetMessagesCb(self,msg):
+        enabled = msg.data
+        self.set_overlay_target_messages(enabled)
+
+
+    def _addTargetPixelCb(self,msg):
+        name = msg.name
+        x_px = msg.x_pixel
+        x_ratio = nepi_utils.check_ratio(x_px/self.width_org)
+        y_px = msg.y_pixel
+        y_ratio = nepi_utils.check_ratio(y_px/self.height_org)
+        size = msg.size
+        thickness = msg.thickness
+        r = msg.r
+        g = msg.g
+        b = msg.b
+        msg_str = msg.msg_str
+        self.click_target_enabled = False
+        self.add_target(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+
+    def _addTargetRatiosCb(self,msg):
+        name = msg.name
+        x_ratio = msg.x_ratio
+        y_ratio = msg.y_ratio
+        r = msg.r
+        g = msg.g
+        b = msg.b
+        msg_str = msg.msg_str
+        self.click_target_enabled = False
+        self.add_target(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+
+
+    def _addTargetDegreesCb(self,msg):
+        name = msg.name
+        x_deg_offset = msg.x_offset_deg
+        x_ratio = ((self.width_deg/2) - x_deg_offset) / self.width_deg
+        x_ratio = nepi_utils.check_ratio(x_ratio)
+        y_deg_offset = msg.y_offset_deg
+        y_ratio = ((self.height_deg/2) + y_deg_offset) / self.height_deg
+        y_ratio = nepi_utils.check_ratio(y_ratio)
+        r = msg.r
+        g = msg.g
+        b = msg.b
+        msg_str = msg.msg_str
+        self.click_target_enabled = False
+        self.add_target(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+
+    def _removeTargetCb(self,msg):
+        name = msg.data
+        self.click_target_enabled = False
+        self.remove_target(name)
+
+
+    def _clearTargetsCb(self,msg):
+        self.click_target_enabled = False
+        self.clear_targets()
+
+    ########################################
+    def _setAspectAdjustEnableCb(self,msg):
+        enabled = msg.data
+        self.set_aspect_adjust_enable(enabled)
+
+    def _setAspectAdjustRatioCb(self,msg):
+        ratio = msg.data
+        self.set_aspect_adjust_ratio(ratio)
+
+
+    ########################################
+    def _setStreamCompressionEnableCb(self,msg):
+        enabled = msg.data
+        self.set_stream_compression_enable(enabled)
+
+    def _setStreamCompressionRatioCb(self,msg):
+        ratio = msg.data
+        self.set_stream_compression_ratio(ratio)
+
+
+    ########################################
+    def _setLiveAdjustEnableCb(self,msg):
+        enabled = msg.data
+        self.set_live_adjust_enable(enabled)
 
     def _setLiveAdjustRotateRatioCb(self,msg):
         ratio = msg.data
@@ -5491,12 +6632,13 @@ class ImageIF(BaseImageIF):
                 data_source_description = 'image',
                 data_ref_description = 'image',
                 perspective = 'pov',
-                init_overlay_list = [],
+                init_overlay_text_list = [],
                 navpose_if = None,
                 navpose_namespace = None,
                 transform_namespace = None,
                 save_data_if = None,
-                live_adjust_enabled = True,
+                live_adjustments_disabled = False,
+                aspect_adjustment_disabled = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -5527,8 +6669,9 @@ class ImageIF(BaseImageIF):
                 self.navpose_if,
                 navpose_namespace,
                 transform_namespace,
-                init_overlay_list,
-                live_adjust_enabled,
+                init_overlay_text_list,
+                live_adjustments_disabled,
+                aspect_adjustment_disabled,
                 log_name,
                 log_name_list,
                 msg_if,
@@ -5628,12 +6771,13 @@ class ColorImageIF(BaseImageIF):
                 data_source_description = 'imaging_sensor',
                 data_ref_description = 'sensor',
                 perspective = 'pov',
-                init_overlay_list = [],
+                init_overlay_text_list = [],
                 navpose_if = None,
                 navpose_namespace = None,
                 transform_namespace = None,
                 save_data_if = None,
-                live_adjust_enabled = True,
+                live_adjustments_disabled = False,
+                aspect_adjustment_disabled = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -5664,8 +6808,9 @@ class ColorImageIF(BaseImageIF):
                 self.navpose_if,
                 navpose_namespace,
                 transform_namespace,
-                init_overlay_list,
-                live_adjust_enabled,
+                init_overlay_text_list,
+                live_adjustments_disabled,
+                aspect_adjustment_disabled,
                 log_name,
                 log_name_list,
                 msg_if,
@@ -5695,6 +6840,18 @@ class ColorImageIF(BaseImageIF):
         Returns:
             numpy.ndarray: The fully-processed BGR image.
         """
+        ##########
+        # Apply Aspect Controls
+        cv2_shape_org = cv2_img.shape
+        img_width_org = cv2_shape[1]
+        img_height_org = cv2_shape[0]
+
+        aspect_ratio = self.aspect_ratio_selected
+        if aspect_ratio != 'Original' and aspect_ratio in self.aspect_ratio_options:
+            pass
+        # if res_ratio < 0.9:
+        #     [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
+
 
         ##########
         # Apply Resolution Controls
@@ -5883,7 +7040,9 @@ class DepthMapIF:
     active_topics = []
     active_topic_types = []
     active_services = []
-    live_adjust_enabled = True
+    live_adjustments_disabled = False
+    aspect_adjustment_disabled = False
+
     def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'depth_map_sensor',
@@ -5893,8 +7052,9 @@ class DepthMapIF:
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
-                init_overlay_list = [],
-                live_adjust_enabled = True,
+                init_overlay_text_list = [],
+                live_adjustments_disabled = False,
+                aspect_adjustment_disabled = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -5942,7 +7102,8 @@ class DepthMapIF:
         # Initialize Status Msg.  Updated on each publish
         self.perspective = perspective
 
-        self.live_adjust_enabled = live_adjust_enabled
+        self.live_adjustments_disabled = live_adjustments_disabled,
+        self.aspect_adjustment_disabled = aspect_adjustment_disabled,
 
         if data_source_description is None:
             data_source_description = self.data_source_description
@@ -6127,11 +7288,12 @@ class DepthMapIF:
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         perspective = self.perspective,
-                        init_overlay_list = init_overlay_list,
+                        init_overlay_text_list = init_overlay_text_list,
                         save_data_if = self.save_data_if,
                         navpose_if = self.navpose_if,
                         navpose_namespace = navpose_namespace,
-                        live_adjust_enabled = self.live_adjust_enabled,
+                        live_adjustments_disabled = self.live_adjustments_disabled,
+                        aspect_adjustment_disabled = self.aspect_adjustment_disabled,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if,
                         # NOTE: intentionally NOT sharing self.node_if. DepthMapImageIF
@@ -6676,12 +7838,13 @@ class DepthMapImageIF(BaseImageIF):
                 data_source_description = 'sensor',
                 data_ref_description = 'sensor',
                 perspective = 'pov',
-                init_overlay_list = [],
+                init_overlay_text_list = [],
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
                 transform_namespace = None,
-                live_adjust_enabled = True,
+                live_adjustments_disabled = False,
+                aspect_adjustment_disabled = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -6714,8 +7877,9 @@ class DepthMapImageIF(BaseImageIF):
                 self.navpose_if,
                 navpose_namespace,
                 transform_namespace,
-                init_overlay_list,
-                live_adjust_enabled,
+                init_overlay_text_list,
+                live_adjustments_disabled,
+                aspect_adjustment_disabled,
                 log_name,
                 log_name_list,
                 msg_if,
@@ -7036,7 +8200,10 @@ class PointcloudIF:
     active_topics = []
     active_topic_types = []
     active_services = []
-    live_adjust_enabled = True
+    live_adjustments_disabled = False
+    aspect_adjustment_disabled = False
+
+
     def __init__(self, namespace = None,
                 data_product = None,
                 data_source_description = 'sensor',
@@ -7046,8 +8213,9 @@ class PointcloudIF:
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
-                init_overlay_list = [],
-                live_adjust_enabled = True,
+                init_overlay_text_list = [],
+                live_adjustments_disabled = False,
+                aspect_adjustment_disabled = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -7101,7 +8269,7 @@ class PointcloudIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.init_overlay_list = init_overlay_list
+        self.init_overlay_text_list = init_overlay_text_list
 
 
         # Initialize Status Msg.  Updated on each publish
@@ -7116,7 +8284,8 @@ class PointcloudIF:
 
         self.perspective = perspective
 
-        self.live_adjust_enabled = live_adjust_enabled
+        self.live_adjustments_disabled = live_adjustments_disabled
+        self.aspect_adjustment_disabled = aspect_adjustment_disabled
 
         self.status_msg.node_name = self.node_name
 
@@ -8409,12 +9578,13 @@ class PointcloudImageIF(BaseImageIF):
                 data_source_description = 'sensor',
                 data_ref_description = 'sensor',
                 perspective = 'pov',
-                init_overlay_list = [],
+                init_overlay_text_list = [],
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
                 transform_namespace = None,
-                live_adjust_enabled = True,
+                live_adjustments_disabled = False,
+                aspect_adjustment_disabled = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -8446,8 +9616,9 @@ class PointcloudImageIF(BaseImageIF):
                 self.navpose_if,
                 navpose_namespace,
                 transform_namespace,
-                init_overlay_list,
-                live_adjust_enabled,
+                init_overlay_text_list,
+                live_adjustments_disabled,
+                aspect_adjustment_disabled,
                 log_name,
                 log_name_list,
                 msg_if,

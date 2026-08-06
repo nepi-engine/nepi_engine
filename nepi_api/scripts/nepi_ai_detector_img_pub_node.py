@@ -531,7 +531,8 @@ class AiDetectorImgPub:
                         perspective = 'pov',
                         save_data_if = self.save_data_if,
                         init_overlay_list = [],
-                        live_adjust_enabled = False,
+                        live_adjustments_disabled = True,
+                        aspect_adjustment_disabled = True,
                         log_name = 'detections_image',
                         log_name_list = [],
                             msg_if = self.msg_if)
@@ -548,7 +549,8 @@ class AiDetectorImgPub:
                         perspective = 'pov',
                         save_data_if = self.save_data_if,
                         init_overlay_list = [],
-                        live_adjust_enabled = False,
+                        live_adjustments_disabled = True,
+                        aspect_adjustment_disabled = True,
                         log_name = 'targets_image',
                         log_name_list = [],
                             msg_if = self.msg_if)
