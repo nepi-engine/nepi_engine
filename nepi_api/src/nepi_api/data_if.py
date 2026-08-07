@@ -1869,7 +1869,7 @@ class BaseImageIF:
             crosshairs_size_ratio = 0.5,
             crosshairs_thickness_ratio = 0.5,
             crosshairs_text_ratio = 0.5,
-            crosshairs_text_transparency_ratio = 0.0,
+            crosshairs_transparency_ratio = 0.0,
             crosshairs_color_rgb = (0,255,0),
             overlay_crosshair_names = False,
             overlay_crosshair_pixels = False,
@@ -1881,7 +1881,7 @@ class BaseImageIF:
             targets_size_ratio = 0.5,
             targets_thickness_ratio = 0.5,
             targets_text_ratio = 0.5,
-            targets_text_transparency_ratio = 0.0,
+            targets_transparency_ratio = 0.0,
             targets_color_rgb = (0,255,0),
             overlay_target_names = False,
             overlay_target_pixels = False,
@@ -2002,12 +2002,13 @@ class BaseImageIF:
     live_adjustments_disabled = False
     live_adjust_enabled = True
     live_adjust_dict = dict(
+        live_adjust_enabled = True,
         live_adjust_rotate_ratio = 0.5,
         live_adjust_x_ratio = 0.5,
         live_adjust_y_ratio = 0.5
     )
 
-    stream_compression_enabled = False,
+    stream_compression_enabled = False
     stream_compression_ratio = 0.5
     
 
@@ -2338,9 +2339,9 @@ class BaseImageIF:
                 'callback': self._resetFiltersCb, 
                 'callback_args': ()
             },
-            'reset_overalays': {
+            'reset_overlays': {
                 'namespace': self.namespace,
-                'topic': 'reset_overalays',
+                'topic': 'reset_overlays',
                 'msg': Empty,
                 'qsize': 5,
                 'callback': self._resetOverlaysCb, 
@@ -2398,11 +2399,18 @@ class BaseImageIF:
 
             ######################
             'overlay_text_enable': {
-                'msg': Float32,
+                'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_enable',
                 'qsize': 5,
-                'callback': self._setOverlayTextEnableCb
+                'callback': self._setrOverlayTextEnableCb
+            },
+            'click_text_enable': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'click_text_enable',
+                'qsize': 5,
+                'callback': self._clickTextEnableCb
             },
             'overlay_text_size_ratio': {
                 'msg': Float32,
@@ -2821,7 +2829,7 @@ class BaseImageIF:
             #########################
             'set_live_adjust_enable': {
                 'namespace': self.namespace,
-                'topic': 'set_set_live_adjust_enable',
+                'topic': 'set_live_adjust_enable',
                 'msg': Bool,
                 'qsize': 5,
                 'callback': self._setLiveAdjustEnableCb,
@@ -2893,11 +2901,18 @@ class BaseImageIF:
             },
             ############################
             'all_overlay_text_enable': {
-                'msg': Float32,
+                'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_enable',
                 'qsize': 5,
-                'callback': self._setOverlayTextEnableCb
+                'callback': self._setrOverlayTextEnableCb
+            },
+            'all_click_text_enable': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'click_text_enable',
+                'qsize': 5,
+                'callback': self._clickTextEnableCb
             },
 
             'all_overlay_text_size_ratio': {
@@ -3041,6 +3056,13 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairPixelsCb
             },
+            'all_overlay_crosshair_degrees': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'overlay_crosshair_degrees',
+                'qsize': 5,
+                'callback': self._setrOverlayCrosshairDegreesCb
+            },
             'all_overlay_crosshair_messages': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
@@ -3146,6 +3168,13 @@ class BaseImageIF:
                 'topic': 'overlay_target_pixels',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetPixelsCb
+            },
+            'all_overlay_target_degrees': {
+                'msg': Bool,
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_degrees',
+                'qsize': 5,
+                'callback': self._setrOverlayTargetDegreesCb
             },
             'all_overlay_target_messages': {
                 'msg': Bool,
@@ -3934,9 +3963,12 @@ class BaseImageIF:
             success = False
             if cv2_img is None and self.status_msg is not None:
                 self.msg_if.pub_warn("Can't publish None image", log_name_list = self.log_name_list)
+                # Clear the re-entrancy latch before the early return, or this IF
+                # never publishes another frame.
+                self.publishing = False
                 return cv2_img
 
-            # Process 
+            # Process
             try: # Catch for lost camera in middle of send
                 
         
@@ -4424,23 +4456,6 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param('resolution_ratio', ratio)
 
-    def set_resolution_ratio(self, ratio):
-        """Set the output image resolution ratio, clamped to [0.2, 1.0].
-
-        Args:
-            ratio (float): Fraction of full resolution, where 1.0 is full resolution
-                and 0.2 is the minimum allowed.
-        """
-        if (ratio < 0.2):
-            ratio = 0.2
-        if (ratio > 1.0):
-            ratio = 1.0
-        self.controls_dict['resolution_ratio'] = ratio
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('resolution_ratio', ratio)
-
     def set_rotate_2d_deg(self, deg):
         """Set the 2-D rotation angle, rounded to the nearest integer degree.
 
@@ -4784,8 +4799,8 @@ class BaseImageIF:
 
 
     def update_window_ratios(self):
-        """Update the vertical pan ratio and refresh status and update callbacks."""
-        self.y_ratio = nepi_utils.check_ratio(ratio)
+        """Republish status and request a new frame after a window ratio change."""
+        self.window_ratios = copy.deepcopy(self.controls_dict['window_ratios'])
         self.publish_status()
         self.needs_update()
 
@@ -4821,10 +4836,16 @@ class BaseImageIF:
     ########################
 
     def set_stream_compression_enable(self,enabled):
-        self.stream_compression_enabled = enabled 
+        self.stream_compression_enabled = enabled
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('stream_compression_enabled', self.stream_compression_enabled)
 
-    def set_aspect_adjust_ratio(self,ratio):
+    def set_stream_compression_ratio(self,ratio):
         self.stream_compression_ratio = nepi_utils.check_ratio(ratio)
+        self.publish_status()
+        if self.node_if is not None:
+            self.node_if.set_param('stream_compression_ratio', self.stream_compression_ratio)
 
 
 
@@ -4981,7 +5002,7 @@ class BaseImageIF:
             overlay_text_text (str): Text string to add to the overlay list.
         """
         overlay_text_list = self.overlays_dict['add_overlay_text_list']
-        overlay_text_list.append(overlay_text_text)
+        overlay_text_list.append(overlay_text)
         self.overlays_dict['add_overlay_text_list'] = overlay_text_list
         self.publish_status()
         self.needs_update()
@@ -5150,7 +5171,7 @@ class BaseImageIF:
             if name != '':
                 ch_name = name
         if color_rgb is None:
-            color_rgb = self.crosshairs_color_rgb
+            color_rgb = self.overlays_dict['crosshairs_color_rgb']
         crosshair_dict = copy.deepcopy(self.BLANK_CROSSHAIR_DICT)
         crosshair_dict['x_ratio'] = x_ratio
         crosshair_dict['y_ratio'] = y_ratio
@@ -5204,8 +5225,8 @@ class BaseImageIF:
             enabled (bool): True to show targets data, False to hide it.
         """
         self.click_text_enabled = False
+        self.click_crosshair_enabled = False
         self.click_target_enabled = enabled
-        self.click_target_enabled = False
         self.publish_status()
 
     def set_targets_size_ratio(self, ratio):
@@ -5337,7 +5358,7 @@ class BaseImageIF:
             if name != '':
                 ch_name = name
         if color_rgb is None:
-            color_rgb = self.targets_color_rgb
+            color_rgb = self.overlays_dict['targets_color_rgb']
         target_dict = copy.deepcopy(self.BLANK_TARGET_DICT)
         target_dict['x_ratio'] = x_ratio
         target_dict['y_ratio'] = y_ratio
@@ -5555,6 +5576,11 @@ class BaseImageIF:
             self.status_msg.filter_states = filter_states
             self.status_msg.filter_ratios = filter_ratios
 
+            self.status_msg.aspect_adjustment_disabled = self.aspect_adjustment_disabled
+            self.status_msg.aspect_adjust_enabled = self.aspect_adjust_enabled
+            self.status_msg.aspect_ratio_options = self.aspect_ratio_options
+            self.status_msg.aspect_ratio_selected = self.aspect_ratio_selected
+
             self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
             self.status_msg.rotate_2d_deg = self.controls_dict['rotate_2d_deg']
             self.status_msg.flip_horz = self.controls_dict['flip_horz'] 
@@ -5594,7 +5620,7 @@ class BaseImageIF:
             live_adjust_y_degs = round(shift_y_scaler * self.height_deg,1)
 
             self.status_msg.live_adjustments_disabled = self.live_adjustments_disabled
-            self.status_msg.live_adjustments_enabled = live_adjust_enabled
+            self.status_msg.live_adjust_enabled = live_adjust_enabled
             self.status_msg.live_adjust_rotate_ratio = live_adjust_rotate_ratio
             self.status_msg.live_adjust_rotate_deg = live_adjust_rotate_deg
             self.status_msg.live_adjust_x_ratio = live_adjust_x_ratio
@@ -5610,14 +5636,18 @@ class BaseImageIF:
             self.status_msg.overlay_text_size_ratio = self.overlays_dict['overlay_text_size_ratio']
             self.status_msg.overlay_text_vert_ratio = self.overlays_dict['overlay_text_vert_ratio']
             self.status_msg.overlay_text_horz_ratio = self.overlays_dict['overlay_text_horz_ratio']
-            self.status_msg.overlay_text_img_name = self.overlays_dict['overlay_text_img_name']
+            self.status_msg.overlay_text_transparency_ratio = self.overlays_dict['overlay_text_transparency_ratio']
+            overlay_text_color_rgb = self.overlays_dict['overlay_text_color_rgb']
+            self.status_msg.overlay_text_color_r = overlay_text_color_rgb[0]
+            self.status_msg.overlay_text_color_g = overlay_text_color_rgb[1]
+            self.status_msg.overlay_text_color_b = overlay_text_color_rgb[2]
+            self.status_msg.overlay_text_source_name = self.overlays_dict['overlay_text_img_name']
             self.status_msg.overlay_text_date_time =  self.overlays_dict['overlay_text_date_time']
             self.status_msg.overlay_text_nav = self.overlays_dict['overlay_text_nav']
-            self.status_msg.overlay_text_pose = self.overlays_dict['overlay_text_pose']  
+            self.status_msg.overlay_text_pose = self.overlays_dict['overlay_text_pose']
             self.status_msg.base_overlay_text_list = self.overlays_dict['init_overlay_text_list']
             self.status_msg.add_overlay_text_list = self.overlays_dict['add_overlay_text_list']
-            self.status_msg.add_overlay_text_list = self.overlays_dict['add_overlay_text_list']
-            
+
 
             ################
             crosshairs_dict = self.overlays_dict['crosshairs_dict']
@@ -5655,6 +5685,7 @@ class BaseImageIF:
             self.status_msg.crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
             self.status_msg.crosshairs_thickness_ratio = self.overlays_dict['crosshairs_thickness_ratio']
             self.status_msg.crosshairs_text_ratio = self.overlays_dict['crosshairs_text_ratio']
+            self.status_msg.crosshairs_transparency_ratio = self.overlays_dict['crosshairs_transparency_ratio']
             crosshairs_color_rgb = self.overlays_dict['crosshairs_color_rgb']
             self.status_msg.crosshairs_color_r = crosshairs_color_rgb[0]
             self.status_msg.crosshairs_color_g = crosshairs_color_rgb[1]
@@ -5672,7 +5703,7 @@ class BaseImageIF:
             #self.msg_if.pub_info("Publishing targets_dict: " + str(targets_dict), log_name_list = self.log_name_list)
             targets_msg_list = []
             for target_name in targets_dict.keys():
-                target_msg = ImageCrosshair()
+                target_msg = ImageTarget()
                 target_msg.name = target_name
                 target_dict = targets_dict[target_name]
                 try:
@@ -5703,6 +5734,7 @@ class BaseImageIF:
             self.status_msg.targets_size_ratio = self.overlays_dict['targets_size_ratio']
             self.status_msg.targets_thickness_ratio = self.overlays_dict['targets_thickness_ratio']
             self.status_msg.targets_text_ratio = self.overlays_dict['targets_text_ratio']
+            self.status_msg.targets_transparency_ratio = self.overlays_dict['targets_transparency_ratio']
             targets_color_rgb = self.overlays_dict['targets_color_rgb']
             self.status_msg.targets_color_r = targets_color_rgb[0]
             self.status_msg.targets_color_g = targets_color_rgb[1]
@@ -5716,10 +5748,12 @@ class BaseImageIF:
 
 
             self.status_msg.stream_compression_enabled  = self.stream_compression_enabled
-            stream_compression = 0
+            stream_compression_ratio = 0
             if self.stream_compression_enabled == True:
                 stream_compression_ratio = self.stream_compression_ratio
             self.status_msg.stream_compression_ratio = stream_compression_ratio
+
+            self.status_msg.publishing = self.needs_data
 
             avg_rate = 0
             if len(self.time_list) > 0:
@@ -5758,11 +5792,12 @@ class BaseImageIF:
             self.controls_dict['stop_range_ratio'] = 1
 
             self.live_adjust_enabled  = self.node_if.get_param('live_adjust_enabled') and self.live_adjustments_disabled == False
+            self.live_adjust_dict['live_adjust_enabled'] = self.live_adjust_enabled
 
             self.aspect_adjust_enabled  = self.node_if.get_param('aspect_adjust_enabled') and self.aspect_adjustment_disabled == False
             self.aspect_ratio_selected = self.node_if.get_param('aspect_ratio_selected')
 
-            self.stream_compression_ratio  = self.node_if.get_param('stream_compression_enabled')
+            self.stream_compression_enabled  = self.node_if.get_param('stream_compression_enabled')
             self.stream_compression_ratio = self.node_if.get_param('stream_compression_ratio')
 
 
@@ -5866,6 +5901,8 @@ class BaseImageIF:
 
     def _needsDataCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
+        needs_save = False
+        needs_snapshot = False
         if self.save_data_if is not None:
             needs_save = self.save_data_if.data_product_save_enabled(self.data_product)
             needs_snapshot = self.save_data_if.data_product_snapshot_enabled(self.data_product)
@@ -5993,14 +6030,14 @@ class BaseImageIF:
                             self.click_crosshair_enabled = False
                             x_ratio = float(pixel[0] / image_width)
                             y_ratio = float(pixel[1] / image_height)
-                            click_color_rgb = self.overlays_dict['crosshair_color_rgb']
+                            click_color_rgb = self.overlays_dict['crosshairs_color_rgb']
                             click_name = 'click'
                             self.add_crosshair(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
             elif self.click_target_enabled == True and click_count == 1:
                             self.click_target_enabled = False
                             x_ratio = float(pixel[0] / image_width)
                             y_ratio = float(pixel[1] / image_height)
-                            click_color_rgb = self.overlays_dict['target_color_rgb']
+                            click_color_rgb = self.overlays_dict['targets_color_rgb']
                             click_name = 'click'
                             self.add_target(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
             else:
@@ -6272,8 +6309,8 @@ class BaseImageIF:
         self.set_overlay_text_pose(enabled)
 
     def _setOverlayListCb(self,msg):
-        overlay_text_list = msg.data
-        self.set_overlay_text_list(overlay_list)
+        overlay_text_list = msg.array
+        self.set_overlay_text_list(overlay_text_list)
 
 
     def _setOverlayTextCb(self,msg):
@@ -6285,6 +6322,10 @@ class BaseImageIF:
         self.clear_overlay_text_list()
 
     ##############################
+
+    def _clickTextEnableCb(self,msg):
+        enabled = msg.data
+        self.set_click_text(enabled)
 
     def _clickCrosshairEnableCb(self,msg):
         enbled = msg.data
@@ -6342,8 +6383,6 @@ class BaseImageIF:
         x_ratio = nepi_utils.check_ratio(x_px/self.width_org)
         y_px = msg.y_pixel
         y_ratio = nepi_utils.check_ratio(y_px/self.height_org)
-        size = msg.size
-        thickness = msg.thickness
         r = msg.r
         g = msg.g
         b = msg.b
@@ -6447,8 +6486,6 @@ class BaseImageIF:
         x_ratio = nepi_utils.check_ratio(x_px/self.width_org)
         y_px = msg.y_pixel
         y_ratio = nepi_utils.check_ratio(y_px/self.height_org)
-        size = msg.size
-        thickness = msg.thickness
         r = msg.r
         g = msg.g
         b = msg.b
@@ -6843,8 +6880,8 @@ class ColorImageIF(BaseImageIF):
         ##########
         # Apply Aspect Controls
         cv2_shape_org = cv2_img.shape
-        img_width_org = cv2_shape[1]
-        img_height_org = cv2_shape[0]
+        img_width_org = cv2_shape_org[1]
+        img_height_org = cv2_shape_org[0]
 
         aspect_ratio = self.aspect_ratio_selected
         if aspect_ratio != 'Original' and aspect_ratio in self.aspect_ratio_options:
@@ -7736,6 +7773,8 @@ class DepthMapIF:
 
     def _needsDataCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
+        needs_save = False
+        needs_snapshot = False
         if self.save_data_if is not None:
             needs_save = self.save_data_if.data_product_save_enabled(self.data_product)
             needs_snapshot = self.save_data_if.data_product_snapshot_enabled(self.data_product)
@@ -9234,6 +9273,8 @@ class PointcloudIF:
 
     def _needsDataCheckCb(self,timer):
         has_subs = self.node_if.pub_has_subscribers('data_pub')
+        needs_save = False
+        needs_snapshot = False
         if self.save_data_if is not None:
             needs_save = self.save_data_if.data_product_save_enabled(self.data_product)
             needs_snapshot = self.save_data_if.data_product_snapshot_enabled(self.data_product)

@@ -530,7 +530,7 @@ class AiDetectorImgPub:
                         data_ref_description = 'image',
                         perspective = 'pov',
                         save_data_if = self.save_data_if,
-                        init_overlay_list = [],
+                        init_overlay_text_list = [],
                         live_adjustments_disabled = True,
                         aspect_adjustment_disabled = True,
                         log_name = 'detections_image',
@@ -548,7 +548,7 @@ class AiDetectorImgPub:
                         data_ref_description = 'image',
                         perspective = 'pov',
                         save_data_if = self.save_data_if,
-                        init_overlay_list = [],
+                        init_overlay_text_list = [],
                         live_adjustments_disabled = True,
                         aspect_adjustment_disabled = True,
                         log_name = 'targets_image',
@@ -826,19 +826,19 @@ class AiDetectorImgPub:
             cv2_img = self.apply_detection_overlay(source_topic, detect_dict_list, cv2_img)
             #self.msg_if.pub_warn("Return detect image: " + str(cv2_img.shape)
 
-            add_overlay_list = []
+            add_overlay_text_list = []
             ## Overlay Detector Name
 
             # if self.overlay_clf_name:
-            #     add_overlay_list.append(self.model_name)
+            #     add_overlay_text_list.append(self.model_name)
 
             # if self.overlay_img_name:
-            #     add_overlay_list.append(nepi_img.getImgShortName(source_topic))
+            #     add_overlay_text_list.append(nepi_img.getImgShortName(source_topic))
 
-            self.publishImgData(source_topic, 
-                                cv2_img, 
-                                timestamp = timestamp, 
-                                add_overlay_list = add_overlay_list
+            self.publishImgData(source_topic,
+                                cv2_img,
+                                timestamp = timestamp,
+                                add_overlay_text_list = add_overlay_text_list
                                 )
             
             if self.imgs_info_dict[source_topic]['img_published'] == False:
@@ -861,12 +861,12 @@ class AiDetectorImgPub:
         if target_dict_list is not None:
             cv2_img = self.apply_detection_overlay(source_topic, target_dict_list, cv2_img)
 
-            add_overlay_list = []
+            add_overlay_text_list = []
 
             self.publishImgData(source_topic,
                                 cv2_img,
                                 timestamp = timestamp,
-                                add_overlay_list = add_overlay_list,
+                                add_overlay_text_list = add_overlay_text_list,
                                 img_if_key = 'targets_img_if',
                                 img_pub_key = 'targets_img_pub'
                                 )
@@ -884,7 +884,7 @@ class AiDetectorImgPub:
         return True
 
 
-    def publishImgData(self, source_topic, cv2_img, encoding = "bgr8", timestamp = None, add_overlay_list = [], img_if_key = 'img_if', img_pub_key = 'img_pub'):
+    def publishImgData(self, source_topic, cv2_img, encoding = "bgr8", timestamp = None, add_overlay_text_list = [], img_if_key = 'img_if', img_pub_key = 'img_pub'):
 
 
             if self.imgs_info_dict[source_topic]['publishing'] == False:
@@ -905,23 +905,31 @@ class AiDetectorImgPub:
                         width_deg = 100
                         height_deg = 70
 
+                    # try/finally: any raise between acquire and release (a
+                    # publish_cv2_img signature drift, a missing dict key) would
+                    # otherwise leave the lock held and wedge image publishing for
+                    # the life of the node. Degrade to a logged error instead.
                     self.img_node_lock.acquire()
-                    img_if = self.img_node_dict[source_topic][img_if_key]
-                    img_pub = self.img_node_dict[source_topic][img_pub_key]
+                    try:
+                        img_if = self.img_node_dict[source_topic][img_if_key]
+                        img_pub = self.img_node_dict[source_topic][img_pub_key]
 
-                    img_if_ready = img_if.ready
-                    if img_if_ready == False:
-                        img_msg = nepi_img.cv2img_to_rosimg(cv2_img)
-                        nepi_sdk.publish_pub(img_pub,img_msg)
-                    else:
-                        img_if.publish_cv2_img(cv2_img, 
-                                            encoding = encoding, 
-                                            timestamp = timestamp, 
-                                            width_deg = width_deg,
-                                            height_deg = height_deg,
-                                            add_overlay_list = add_overlay_list
-                                            )
-                    self.img_node_lock.release()
+                        img_if_ready = img_if.ready
+                        if img_if_ready == False:
+                            img_msg = nepi_img.cv2img_to_rosimg(cv2_img)
+                            nepi_sdk.publish_pub(img_pub,img_msg)
+                        else:
+                            img_if.publish_cv2_img(cv2_img,
+                                                encoding = encoding,
+                                                timestamp = timestamp,
+                                                width_deg = width_deg,
+                                                height_deg = height_deg,
+                                                add_overlay_text_list = add_overlay_text_list
+                                                )
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to publish image for source: " + str(source_topic) + " : " + str(e))
+                    finally:
+                        self.img_node_lock.release()
 
                     # img_pub = self.img_node_dict[source_topic]['img_pub']
                     # img_msg = nepi_img.cv2img_to_rosimg(cv2_img)

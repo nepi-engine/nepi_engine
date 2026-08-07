@@ -169,7 +169,7 @@ class PointcloudImgPub:
                         data_source_description = 'pointcloud',
                         data_ref_description = 'sensor',
                         perspective = 'pov',
-                        init_overlay_list = [],
+                        init_overlay_text_list = [],
                         save_data_if = self.save_data_if,
                         log_name = self.data_product,
                         log_name_list = [],

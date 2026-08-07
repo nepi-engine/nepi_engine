@@ -1377,7 +1377,7 @@ class IDXDeviceIF:
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         pub_image = True,
-                        init_overlay_list = [],
+                        init_overlay_text_list = [],
                         # Transformed-navpose IF (see ColorImageIF above): drives image
                         # overlays with this camera's pose; self.navpose_if is None here.
                         navpose_if = self.idx_navpose_if,
@@ -1495,7 +1495,7 @@ class IDXDeviceIF:
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
                         pub_image = True,
-                        init_overlay_list = [],
+                        init_overlay_text_list = [],
                         # Transformed-navpose IF (see ColorImageIF above): drives image
                         # overlays with this camera's pose; self.navpose_if is None here.
                         navpose_if = self.idx_navpose_if,

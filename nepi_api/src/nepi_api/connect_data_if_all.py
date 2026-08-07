@@ -28,7 +28,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_interfaces.msg import StringArray, ImageCrosshair
+from nepi_interfaces.msg import StringArray, ColorBGR, ImageCrosshair, ImageTarget
 
 from nepi_api.messages_if import MsgIF
 
@@ -109,33 +109,69 @@ class ConnectImagesAllIF:
 
         # Publishers Config Dict ####################
         self.connect_topic_pubs_dict = {
-            'all_overlay_size_ratio': {
+            'all_overlay_text_enable': {
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_size_ratio',
+                'topic': 'set_overlay_text_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_text_size_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_size_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'all_overlay_source_name': {
+            'all_overlay_text_horz_ratio': {
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_source_name',
+                'topic': 'set_overlay_text_horz_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_overlay_text_vert_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_vert_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_overlay_text_transparency_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_overlay_text_color_rgb': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_color_rgb',
+                'msg': ColorBGR,
+                'qsize': 1,
+            },
+            'all_overlay_text_source_name': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_source_name',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'all_overlay_date_time': {
+            'all_overlay_text_date_time': {
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_date_time',
+                'topic': 'set_overlay_text_date_time',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'all_overlay_nav': {
+            'all_overlay_text_nav': {
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_nav',
+                'topic': 'set_overlay_text_nav',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'all_overlay_pose': {
+            'all_overlay_text_pose': {
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_pose',
+                'topic': 'set_overlay_text_pose',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_click_text_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'click_text_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
@@ -145,22 +181,52 @@ class ConnectImagesAllIF:
                 'msg': String,
                 'qsize': 1,
             },
-            'all_overlay_list': {
+            'all_overlay_text_list': {
                 'namespace': self.all_namespace,
-                'topic': 'set_overlay_list',
+                'topic': 'set_overlay_text_list',
                 'msg': StringArray,
                 'qsize': 1,
             },
-            'all_overlay_clear': {
+            'all_overlay_text_clear': {
                 'namespace': self.all_namespace,
-                'topic': 'clear_overlay_list',
+                'topic': 'clear_overlay_text_list',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'all_overlay_crosshairs': {
+            'all_crosshairs_enable': {
                 'namespace': self.all_namespace,
-                'topic': 'overlay_crosshairs',
+                'topic': 'crosshairs_enable',
                 'msg': Bool,
+                'qsize': 1,
+            },
+            'all_crosshairs_size_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_size_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_crosshairs_thickness_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_thickness_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_crosshairs_text_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_text_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_crosshairs_transparency_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_crosshairs_color_rgb': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_color_rgb',
+                'msg': ColorBGR,
                 'qsize': 1,
             },
             'all_overlay_crosshair_names': {
@@ -221,6 +287,132 @@ class ConnectImagesAllIF:
                 'namespace': self.all_namespace,
                 'topic': 'clear_crosshairs',
                 'msg': Empty,
+                'qsize': 1,
+            },
+            'all_targets_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'targets_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_targets_size_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_size_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_targets_thickness_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_thickness_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_targets_text_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_text_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_targets_transparency_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_targets_color_rgb': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_color_rgb',
+                'msg': ColorBGR,
+                'qsize': 1,
+            },
+            'all_overlay_target_names': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_names',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_target_pixels': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_pixels',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_target_degrees': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_degrees',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_target_messages': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_messages',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_click_target_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'click_target_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_add_target_pixel': {
+                'namespace': self.all_namespace,
+                'topic': 'add_target_pixel',
+                'msg': ImageTarget,
+                'qsize': 1,
+            },
+            'all_add_target_ratios': {
+                'namespace': self.all_namespace,
+                'topic': 'add_target_ratios',
+                'msg': ImageTarget,
+                'qsize': 1,
+            },
+            'all_add_target_degree_offsets': {
+                'namespace': self.all_namespace,
+                'topic': 'add_target_degree_offsets',
+                'msg': ImageTarget,
+                'qsize': 1,
+            },
+            'all_remove_target': {
+                'namespace': self.all_namespace,
+                'topic': 'remove_target',
+                'msg': String,
+                'qsize': 1,
+            },
+            'all_clear_targets': {
+                'namespace': self.all_namespace,
+                'topic': 'clear_targets',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'all_set_aspect_adjust_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_set_aspect_adjust_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_ratio',
+                'msg': String,
+                'qsize': 1,
+            },
+            'all_set_stream_compression_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_stream_compression_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_set_stream_compression_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_stream_compression_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_enable',
+                'msg': Bool,
                 'qsize': 1,
             },
             'all_set_live_adjust_rotate_ratio': {
@@ -343,53 +535,116 @@ class ConnectImagesAllIF:
     #################
     ## Collective Image Overlay and Crosshair Controls
 
-    def set_overlay_size_ratio(self, size_ratio):
-        """Set the overlay text and graphic size on every IDX image output.
+    def set_overlay_text_enable(self, enable):
+        """Enable or disable all text overlays on every IDX image output.
 
         Args:
-            size_ratio (float): Desired overlay size as a ratio from 0.0 (smallest) to 1.0 (largest).
+            enable (bool): True to render the text overlays, False to hide them.
         """
-        pub_name = 'all_overlay_size_ratio'
+        pub_name = 'all_overlay_text_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_text_size_ratio(self, size_ratio):
+        """Set the overlay text size on every IDX image output.
+
+        Args:
+            size_ratio (float): Desired overlay text size as a ratio from 0.0 (smallest) to 1.0 (largest).
+        """
+        pub_name = 'all_overlay_text_size_ratio'
         msg = size_ratio
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_overlay_source_name(self, enable):
+    def set_overlay_text_horz_ratio(self, horz_ratio):
+        """Set the horizontal position of the text overlay block on every IDX image output.
+
+        Args:
+            horz_ratio (float): Position from the image left edge as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_overlay_text_horz_ratio'
+        msg = horz_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_text_vert_ratio(self, vert_ratio):
+        """Set the vertical position of the text overlay block on every IDX image output.
+
+        Args:
+            vert_ratio (float): Position from the image top edge as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_overlay_text_vert_ratio'
+        msg = vert_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_text_transparency_ratio(self, transparency_ratio):
+        """Set the text overlay transparency on every IDX image output.
+
+        Args:
+            transparency_ratio (float): Transparency as a ratio from 0.0 (opaque) to 1.0 (invisible).
+        """
+        pub_name = 'all_overlay_text_transparency_ratio'
+        msg = transparency_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_text_color_rgb(self, color_rgb = (0,255,0)):
+        """Set the text overlay color on every IDX image output.
+
+        Args:
+            color_rgb (tuple): Three-element (r, g, b) color, each component 0-255.
+        """
+        pub_name = 'all_overlay_text_color_rgb'
+        msg = ColorBGR()
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_text_source_name(self, enable):
         """Enable or disable the image source name overlay on every IDX image output.
 
         Args:
             enable (bool): True to overlay the image source name, False to hide it.
         """
-        pub_name = 'all_overlay_source_name'
+        pub_name = 'all_overlay_text_source_name'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_overlay_date_time(self, enable):
+    def set_overlay_text_date_time(self, enable):
         """Enable or disable the date and time overlay on every IDX image output.
 
         Args:
             enable (bool): True to overlay the date and time, False to hide it.
         """
-        pub_name = 'all_overlay_date_time'
+        pub_name = 'all_overlay_text_date_time'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_overlay_nav(self, enable):
+    def set_overlay_text_nav(self, enable):
         """Enable or disable the navigation data overlay on every IDX image output.
 
         Args:
             enable (bool): True to overlay navigation data, False to hide it.
         """
-        pub_name = 'all_overlay_nav'
+        pub_name = 'all_overlay_text_nav'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_overlay_pose(self, enable):
+    def set_overlay_text_pose(self, enable):
         """Enable or disable the pose data overlay on every IDX image output.
 
         Args:
             enable (bool): True to overlay pose data, False to hide it.
         """
-        pub_name = 'all_overlay_pose'
+        pub_name = 'all_overlay_text_pose'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_click_text_enable(self, enable):
+        """Enable or disable placing the text overlay block at the next image click.
+
+        Args:
+            enable (bool): True to move the text block on the next click, False to disable it.
+        """
+        pub_name = 'all_click_text_enable'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
@@ -404,32 +659,85 @@ class ConnectImagesAllIF:
         msg.data = text
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_overlay_list(self, overlay_list):
+    def set_overlay_text_list(self, overlay_text_list):
         """Set the full list of custom overlay text lines on every IDX image output.
 
         Args:
-            overlay_list (list): A list of text strings to display as image overlays.
+            overlay_text_list (list): A list of text strings to display as image overlays.
         """
-        pub_name = 'all_overlay_list'
+        pub_name = 'all_overlay_text_list'
         msg = StringArray()
-        msg.array = overlay_list
+        msg.array = overlay_text_list
         self.node_if.publish_pub(pub_name, msg)
 
-    def clear_overlay_list(self):
+    def clear_overlay_text_list(self):
         """Clear all custom overlay text lines from every IDX image output.
         """
-        pub_name = 'all_overlay_clear'
+        pub_name = 'all_overlay_text_clear'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_overlay_crosshairs(self, enable):
+    def set_crosshairs_enable(self, enable):
         """Enable or disable crosshair overlays on every IDX image output.
 
         Args:
             enable (bool): True to overlay crosshairs, False to hide them.
         """
-        pub_name = 'all_overlay_crosshairs'
+        pub_name = 'all_crosshairs_enable'
         msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_size_ratio(self, size_ratio):
+        """Set the crosshair size on every IDX image output.
+
+        Args:
+            size_ratio (float): Desired crosshair size as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_crosshairs_size_ratio'
+        msg = size_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_thickness_ratio(self, thickness_ratio):
+        """Set the crosshair line thickness on every IDX image output.
+
+        Args:
+            thickness_ratio (float): Desired line thickness as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_crosshairs_thickness_ratio'
+        msg = thickness_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_text_ratio(self, text_ratio):
+        """Set the crosshair label text size on every IDX image output.
+
+        Args:
+            text_ratio (float): Desired label text size as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_crosshairs_text_ratio'
+        msg = text_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_transparency_ratio(self, transparency_ratio):
+        """Set the crosshair transparency on every IDX image output.
+
+        Args:
+            transparency_ratio (float): Transparency as a ratio from 0.0 (opaque) to 1.0 (invisible).
+        """
+        pub_name = 'all_crosshairs_transparency_ratio'
+        msg = transparency_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_color_rgb(self, color_rgb = (0,255,0)):
+        """Set the crosshair color on every IDX image output.
+
+        Args:
+            color_rgb (tuple): Three-element (r, g, b) color, each component 0-255.
+        """
+        pub_name = 'all_crosshairs_color_rgb'
+        msg = ColorBGR()
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
         self.node_if.publish_pub(pub_name, msg)
 
     def set_overlay_crosshair_names(self, enable):
@@ -556,7 +864,258 @@ class ConnectImagesAllIF:
         self.node_if.publish_pub(pub_name, msg)
 
     #################
+    ## Collective Image Target Controls
+
+    def set_targets_enable(self, enable):
+        """Enable or disable target overlays on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay targets, False to hide them.
+        """
+        pub_name = 'all_targets_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_size_ratio(self, size_ratio):
+        """Set the target marker size on every IDX image output.
+
+        Args:
+            size_ratio (float): Desired target size as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_targets_size_ratio'
+        msg = size_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_thickness_ratio(self, thickness_ratio):
+        """Set the target marker line thickness on every IDX image output.
+
+        Args:
+            thickness_ratio (float): Desired line thickness as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_targets_thickness_ratio'
+        msg = thickness_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_text_ratio(self, text_ratio):
+        """Set the target label text size on every IDX image output.
+
+        Args:
+            text_ratio (float): Desired label text size as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_targets_text_ratio'
+        msg = text_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_transparency_ratio(self, transparency_ratio):
+        """Set the target marker transparency on every IDX image output.
+
+        Args:
+            transparency_ratio (float): Transparency as a ratio from 0.0 (opaque) to 1.0 (invisible).
+        """
+        pub_name = 'all_targets_transparency_ratio'
+        msg = transparency_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_color_rgb(self, color_rgb = (0,255,0)):
+        """Set the target marker color on every IDX image output.
+
+        Args:
+            color_rgb (tuple): Three-element (r, g, b) color, each component 0-255.
+        """
+        pub_name = 'all_targets_color_rgb'
+        msg = ColorBGR()
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_target_names(self, enable):
+        """Enable or disable target name labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay target names, False to hide them.
+        """
+        pub_name = 'all_overlay_target_names'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_target_pixels(self, enable):
+        """Enable or disable target pixel coordinate labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay target pixel coordinates, False to hide them.
+        """
+        pub_name = 'all_overlay_target_pixels'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_target_degrees(self, enable):
+        """Enable or disable target degree coordinate labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay target degree coordinates, False to hide them.
+        """
+        pub_name = 'all_overlay_target_degrees'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_target_messages(self, enable):
+        """Enable or disable target message labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay target messages, False to hide them.
+        """
+        pub_name = 'all_overlay_target_messages'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_click_target_enable(self, enable):
+        """Enable or disable adding a target at the clicked location on every IDX image.
+
+        Args:
+            enable (bool): True to add a target on image click, False to disable it.
+        """
+        pub_name = 'all_click_target_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_target_pixel(self, name, x_pixel, y_pixel, color_rgb = (0,255,0), msg_str = ''):
+        """Add a named target at a pixel location on every IDX image output.
+
+        Args:
+            name (str): Identifier for the target.
+            x_pixel (int): Horizontal pixel location of the target from the image left edge.
+            y_pixel (int): Vertical pixel location of the target from the image top edge.
+            color_rgb (tuple): Three-element (r, g, b) marker color, each component 0-255.
+            msg_str (str): Optional message rendered beside the target.
+        """
+        pub_name = 'all_add_target_pixel'
+        msg = ImageTarget()
+        msg.name = name
+        msg.x_pixel = x_pixel
+        msg.y_pixel = y_pixel
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        msg.msg_str = msg_str
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_target_ratios(self, name, x_ratio, y_ratio, color_rgb = (0,255,0), msg_str = ''):
+        """Add a named target at an image ratio location on every IDX image output.
+
+        Args:
+            name (str): Identifier for the target.
+            x_ratio (float): Horizontal location as a ratio from 0.0 (left) to 1.0 (right).
+            y_ratio (float): Vertical location as a ratio from 0.0 (top) to 1.0 (bottom).
+            color_rgb (tuple): Three-element (r, g, b) marker color, each component 0-255.
+            msg_str (str): Optional message rendered beside the target.
+        """
+        pub_name = 'all_add_target_ratios'
+        msg = ImageTarget()
+        msg.name = name
+        msg.x_ratio = x_ratio
+        msg.y_ratio = y_ratio
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        msg.msg_str = msg_str
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_target_degree_offsets(self, name, x_offset_deg, y_offset_deg, color_rgb = (0,255,0), msg_str = ''):
+        """Add a named target at a degree offset on every IDX image output.
+
+        Args:
+            name (str): Identifier for the target.
+            x_offset_deg (float): Horizontal degree offset of the target from image center.
+            y_offset_deg (float): Vertical degree offset of the target from image center.
+            color_rgb (tuple): Three-element (r, g, b) marker color, each component 0-255.
+            msg_str (str): Optional message rendered beside the target.
+        """
+        pub_name = 'all_add_target_degree_offsets'
+        msg = ImageTarget()
+        msg.name = name
+        msg.x_offset_deg = x_offset_deg
+        msg.y_offset_deg = y_offset_deg
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        msg.msg_str = msg_str
+        self.node_if.publish_pub(pub_name, msg)
+
+    def remove_target(self, name):
+        """Remove a named target from every IDX image output.
+
+        Args:
+            name (str): Identifier of the target to remove.
+        """
+        pub_name = 'all_remove_target'
+        msg = String()
+        msg.data = name
+        self.node_if.publish_pub(pub_name, msg)
+
+    def clear_targets(self):
+        """Remove all targets from every IDX image output.
+        """
+        pub_name = 'all_clear_targets'
+        msg = Empty()
+        self.node_if.publish_pub(pub_name, msg)
+
+    #################
+    ## Collective Aspect and Stream Controls
+
+    def set_aspect_adjust_enable(self, enable):
+        """Enable or disable aspect ratio adjustment on every IDX image output.
+
+        Args:
+            enable (bool): True to apply the selected aspect ratio, False to publish the original.
+        """
+        pub_name = 'all_set_aspect_adjust_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_aspect_adjust_ratio(self, aspect_ratio):
+        """Select the aspect ratio applied to every IDX image output.
+
+        Args:
+            aspect_ratio (str): One of the aspect_ratio_options reported in ImageStatus.
+        """
+        pub_name = 'all_set_aspect_adjust_ratio'
+        msg = String()
+        msg.data = aspect_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_stream_compression_enable(self, enable):
+        """Enable or disable HTTP stream compression on every IDX image output.
+
+        Args:
+            enable (bool): True to compress the stream, False to publish uncompressed.
+        """
+        pub_name = 'all_set_stream_compression_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_stream_compression_ratio(self, compression_ratio):
+        """Set the HTTP stream compression level on every IDX image output.
+
+        Args:
+            compression_ratio (float): Compression level as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_set_stream_compression_ratio'
+        msg = compression_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    #################
     ## Collective Live Adjust Controls
+
+    def set_live_adjust_enable(self, enable):
+        """Enable or disable the live rotate and translate adjustments on every IDX image.
+
+        Args:
+            enable (bool): True to apply the live adjustments, False to bypass them.
+        """
+        pub_name = 'all_set_live_adjust_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
 
     def set_live_adjust_rotate_ratio(self, rotate_ratio):
         """Set the live rotation adjustment of every IDX image as a ratio.
