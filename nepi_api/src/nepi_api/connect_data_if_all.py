@@ -394,7 +394,13 @@ class ConnectImagesAllIF:
             'all_set_aspect_adjust_ratio': {
                 'namespace': self.all_namespace,
                 'topic': 'set_aspect_adjust_ratio',
-                'msg': String,
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_aspect_adjust_by_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_by_ratio',
+                'msg': Float32,
                 'qsize': 1,
             },
             'all_set_stream_compression_enable': {
@@ -1074,14 +1080,15 @@ class ConnectImagesAllIF:
         self.node_if.publish_pub(pub_name, msg)
 
     def set_aspect_adjust_ratio(self, aspect_ratio):
-        """Select the aspect ratio applied to every IDX image output.
-
-        Args:
-            aspect_ratio (str): One of the aspect_ratio_options reported in ImageStatus.
-        """
         pub_name = 'all_set_aspect_adjust_ratio'
-        msg = String()
+        msg = Float32()
         msg.data = aspect_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_aspect_adjust_by_ratio(self, ratio):
+        pub_name = 'all_set_aspect_adjust_by_ratio'
+        msg = Float32()
+        msg.data = ratio
         self.node_if.publish_pub(pub_name, msg)
 
     def set_stream_compression_enable(self, enable):

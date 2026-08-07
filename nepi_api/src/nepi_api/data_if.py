@@ -1996,8 +1996,8 @@ class BaseImageIF:
 
     aspect_adjustment_disabled = False
     aspect_adjust_enabled = False
-    aspect_ratio_options = ['Original']
-    aspect_ratio_selected = 'Original'
+    aspect_ratio_set = 1.78 # 16:9
+    aspect_ratio = -1 # Not Known Yet
 
     live_adjustments_disabled = False
     live_adjust_enabled = True
@@ -2246,9 +2246,9 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.aspect_adjust_enabled
             },
-            'aspect_ratio_selected': {
+            'aspect_ratio_set': {
                 'namespace': self.namespace,
-                'factory_val': self.aspect_ratio_selected
+                'factory_val': self.aspect_ratio_set
             },
             'filter_dict': {
                 'namespace': self.namespace,
@@ -2804,9 +2804,17 @@ class BaseImageIF:
               'set_aspect_adjust_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_aspect_adjust_ratio',
-                'msg': String,
+                'msg': Float32,
                 'qsize': 5,
                 'callback': self._setAspectAdjustRatioCb,
+                'callback_args': ()
+            },
+              'set_aspect_adjust_by_ratio': {
+                'namespace': self.namespace,
+                'topic': 'set_aspect_adjust_by_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setAspectAdjustByRatioCb,
                 'callback_args': ()
             },
             ####################################
@@ -3237,9 +3245,17 @@ class BaseImageIF:
               'all_set_aspect_adjust_ratio': {
                 'namespace': self.all_namespace,
                 'topic': 'set_aspect_adjust_ratio',
-                'msg': String,
+                'msg': Float32,
                 'qsize': 5,
                 'callback': self._setAspectAdjustRatioCb,
+                'callback_args': ()
+            },
+              'all_set_aspect_adjust_by_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_by_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setAspectAdjustByRatioCb,
                 'callback_args': ()
             },
             ####################################
@@ -4830,10 +4846,16 @@ class BaseImageIF:
         self.aspect_adjust_enabled = enabled and self.aspect_adjustment_disabled == False
 
     def set_aspect_adjust_ratio(self,aspect_ratio):
-        if self.aspect_adjust_enabled == True and self.aspect_adjustment_disabled == False:
-            if aspect_ratio in self.aspect_ratio_options:
-                self.aspect_ratio_selected = aspect_ratio
-    ########################
+        if aspect_ratio >= 0.5 and aspect_ratio <= 2.5:
+            self.aspect_ratio_set = aspect_ratio #nepi_img.get_aspect_ratio_clean(aspect_ratio)
+
+    def set_aspect_adjust_by_ratio(self,ratio):
+        ratio = nepi_utils.check_ratio(ratio)
+        aspect_ratio = 1 + ratio
+        self.set_aspect_adjust_ratio(aspect_ratio)
+           
+
+        
 
     def set_stream_compression_enable(self,enabled):
         self.stream_compression_enabled = enabled
@@ -5577,9 +5599,12 @@ class BaseImageIF:
             self.status_msg.filter_ratios = filter_ratios
 
             self.status_msg.aspect_adjustment_disabled = self.aspect_adjustment_disabled
-            self.status_msg.aspect_adjust_enabled = self.aspect_adjust_enabled
-            self.status_msg.aspect_ratio_options = self.aspect_ratio_options
-            self.status_msg.aspect_ratio_selected = self.aspect_ratio_selected
+            self.status_msg.aspect_adjust_enabled = self.aspect_adjust_enabled and self.aspect_adjustment_disabled == False
+            self.status_msg.aspect_ratio_set = self.aspect_ratio_set
+
+            self.status_msg.aspect_ratio = self.aspect_ratio
+            aspect_ratio_str = nepi_img.get_aspect_ratio_str(self.aspect_ratio)
+            self.status_msg.aspect_ratio_str = aspect_ratio_str
 
             self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
             self.status_msg.rotate_2d_deg = self.controls_dict['rotate_2d_deg']
@@ -5794,8 +5819,10 @@ class BaseImageIF:
             self.live_adjust_enabled  = self.node_if.get_param('live_adjust_enabled') and self.live_adjustments_disabled == False
             self.live_adjust_dict['live_adjust_enabled'] = self.live_adjust_enabled
 
-            self.aspect_adjust_enabled  = self.node_if.get_param('aspect_adjust_enabled') and self.aspect_adjustment_disabled == False
-            self.aspect_ratio_selected = self.node_if.get_param('aspect_ratio_selected')
+            aspect_adjust_enabled  = self.node_if.get_param('aspect_adjust_enabled')
+            self.set_aspect_adjust_enable(aspect_adjust_enabled)
+            aspect_ratio_set = self.node_if.get_param('aspect_ratio_set')
+            self.set_aspect_adjust_ratio(aspect_ratio_set)
 
             self.stream_compression_enabled  = self.node_if.get_param('stream_compression_enabled')
             self.stream_compression_ratio = self.node_if.get_param('stream_compression_ratio')
@@ -5813,27 +5840,29 @@ class BaseImageIF:
                 crosshairs_dict = dict()
                 if 'crosshairs_dict' in overlays_dict.keys():
                     for name in overlays_dict['crosshairs_dict'].keys():
-                        try:
-                            crosshair_dict = overlays_dict['crosshairs_dict'][name]
-                            for key in self.BLANK_CROSSHAIR_DICT.keys():
-                                if key not in crosshair_dict.keys():
-                                    crosshair_dict[key] = self.BLANK_CROSSHAIR_DICT[key]
-                            crosshairs_dict[name] = crosshair_dict
-                        except:
-                            pass
+                        if name != 'click':
+                            try:
+                                crosshair_dict = overlays_dict['crosshairs_dict'][name]
+                                for key in self.BLANK_CROSSHAIR_DICT.keys():
+                                    if key not in crosshair_dict.keys():
+                                        crosshair_dict[key] = self.BLANK_CROSSHAIR_DICT[key]
+                                crosshairs_dict[name] = crosshair_dict
+                            except:
+                                pass
                 overlays_dict['crosshairs_dict'] = crosshairs_dict
 
                 targets_dict = dict()
                 if 'targets_dict' in overlays_dict.keys():
                     for name in overlays_dict['targets_dict'].keys():
-                        try:
-                            target_dict = overlays_dict['targets_dict'][name]
-                            for key in self.BLANK_TARGET_DICT.keys():
-                                if key not in target_dict.keys():
-                                    target_dict[key] = self.BLANK_TARGET_DICT[key]
-                            targets_dict[name] = target_dict
-                        except:
-                            pass
+                        if name != 'click':
+                            try:
+                                target_dict = overlays_dict['targets_dict'][name]
+                                for key in self.BLANK_TARGET_DICT.keys():
+                                    if key not in target_dict.keys():
+                                        target_dict[key] = self.BLANK_TARGET_DICT[key]
+                                targets_dict[name] = target_dict
+                            except:
+                                pass
                 overlays_dict['targets_dict'] = targets_dict
 
                 if overlays_dict is not None:
@@ -6539,6 +6568,10 @@ class BaseImageIF:
         ratio = msg.data
         self.set_aspect_adjust_ratio(ratio)
 
+    def _setAspectAdjustByRatioCb(self,msg):
+        ratio = msg.data
+        self.set_aspect_adjust_by_ratio(ratio)
+
 
     ########################################
     def _setStreamCompressionEnableCb(self,msg):
@@ -6879,13 +6912,19 @@ class ColorImageIF(BaseImageIF):
         """
         ##########
         # Apply Aspect Controls
-        cv2_shape_org = cv2_img.shape
-        img_width_org = cv2_shape_org[1]
-        img_height_org = cv2_shape_org[0]
+        aspect_ratio_set = self.aspect_ratio_set
+        if self.aspect_adjust_enabled == True and self.aspect_adjustment_disabled == False:
+            try:
+                cv2_img = nepi_img.adjust_aspect_ratio(cv2_img, aspect_ratio_set)
+            except:
+                pass
+        cv2_shape_ar = cv2_img.shape
+        img_width_ar = cv2_shape_ar[1]
+        img_height_ar = cv2_shape_ar[0]
+        self.aspect_ratio = (img_width_ar / img_height_ar)
+        
 
-        aspect_ratio = self.aspect_ratio_selected
-        if aspect_ratio != 'Original' and aspect_ratio in self.aspect_ratio_options:
-            pass
+
         # if res_ratio < 0.9:
         #     [cv2_img,new_res] = nepi_img.adjust_resolution_ratio(cv2_img, res_ratio)
 

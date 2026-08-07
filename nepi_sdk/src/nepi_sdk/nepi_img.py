@@ -574,12 +574,71 @@ def get_bgr_filter(color_bgr, sensitivity):
 ###########################################
 ### Image manipulation functions
 
+def get_aspect_ratios(ratio, max_limit: int = 10) -> tuple:
+    """
+    Given an aspect ratio as a float (width / height), returns a tuple 
+    of the closest integer (width, height) aspect ratios bounded by max_limit.
+    """
+    w_ratio, h_ratio = 1, 1
 
-def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEAREST):
-    height, width = image.shape[:2]
+    min_diff = float('inf')
+    
+    # Iterate through all possible heights up to the limit
+    for h in range(1, max_limit + 1):
+        # Calculate the closest integer width for the current height
+        w = round(ratio * h)
+        if w == 0:
+            w = 1
+            
+        current_ratio = w / h
+        diff = abs(current_ratio - ratio)
+        
+        # Keep track of the pair with the smallest error
+        if diff < min_diff:
+            min_diff = diff
+            w_ratio, h_ratio = w, h
+
+    return w_ratio, h_ratio
+
+def get_aspect_ratio_clean(ratio):
+    [w_ratio, h_ratio] = get_aspect_ratios(ratio)
+    aspect_ratio = round(w_ratio / h_ratio, 3)
+    return aspect_ratio
+
+
+def get_aspect_ratio_str(ratio):
+    ratio = get_aspect_ratio_clean(ratio)
+    [w_ratio, h_ratio] = get_aspect_ratios(ratio)
+    aspect_ratio_str = str(w_ratio) + ":" + str(h_ratio)
+    return aspect_ratio_str
+
+
+            
+def adjust_aspect_ratio(cv2_img, target_ratio):
+    cropped = cv2_img
+    if target_ratio >= 0.5 and target_ratio <= 2.5:
+        # Get current dimensions
+        h, w = cv2_img.shape[:2]
+        current_ratio = w / h
+        
+        if current_ratio > target_ratio:
+            # Cv2_Img is too wide: crop the sides
+            new_w = int(h * target_ratio)
+            start_x = (w - new_w) // 2
+            cropped = cv2_img[0:h, start_x:start_x + new_w]
+        else:
+            # Cv2_Img is too tall: crop the top and bottom
+            new_h = int(w / target_ratio)
+            start_y = (h - new_h) // 2
+            cropped = cv2_img[start_y:start_y + new_h, 0:w]
+        
+    return cropped
+
+def resize_proportionally(cv2_img, max_width, max_height, interp = cv2.INTER_NEAREST):
+    height, width = cv2_img.shape[:2]
 
     if max_width is None and max_height is None:
-        return image
+        return cv2_img
     
     if max_width is None:
         ratio = max_height / height
@@ -592,8 +651,8 @@ def resize_proportionally(image, max_width, max_height, interp = cv2.INTER_NEARE
         new_width = int(width * ratio)
         new_height = int(height * ratio)
 
-    resized_image = cv2.resize(image, (new_width, new_height), interpolation=interp)
-    return resized_image, ratio, new_width, new_height
+    resized_cv2_img = cv2.resize(cv2_img, (new_width, new_height), interpolation=interp)
+    return resized_cv2_img, ratio, new_width, new_height
 
 
 def rotate_degrees(cv2_img, deg=0):
@@ -983,7 +1042,7 @@ def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0
     if thickness is None:
        thickness = hw_thickness
    
-    size = int(size * (size_ratio * 2) )
+    size = int(size / 3 + size * (size_ratio * 1.5 ) )
     thickness = int(thickness * (thickness_ratio * 2))
     if size < 5:
        size = 5
@@ -1018,7 +1077,7 @@ def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5,
     if thickness is None:
        thickness = hw_thickness
     size_ratio = nepi_utils.check_ratio(size_ratio)
-    size = int(size * (size_ratio) )
+    size = int(size / 3 + size * (size_ratio * 1.5) )
     thickness = int(thickness * (thickness_ratio * 2))
     if size < 5:
        size = 5
@@ -1041,7 +1100,7 @@ def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5,
         y_padding = 0 # math.ceil((0.02 * h) + size ) 
         y_px = y_px + y_padding
         x_padding = math.ceil((0.02 * w) + size ) 
-        x_px + x_padding
+        x_px = x_px + x_padding
         cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio / 2)
     return cv2_img
 
