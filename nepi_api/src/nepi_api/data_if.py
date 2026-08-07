@@ -6020,21 +6020,21 @@ class BaseImageIF:
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to call mouse click_pixel_callback: " + str(e), log_name_list = self.log_name_list)
             elif self.click_text_enabled == True and click_count == 1:
-                            self.click_text_enabled = False
+                            #self.click_text_enabled = False
                             x_ratio = float(pixel[0] / image_width) 
                             y_ratio = float(pixel[1] / image_height)
                             self.set_overlay_text_horz_ratio(x_ratio)
                             self.set_overlay_text_vert_ratio(y_ratio)
 
             elif self.click_crosshair_enabled == True and click_count == 1:
-                            self.click_crosshair_enabled = False
+                            #self.click_crosshair_enabled = False
                             x_ratio = float(pixel[0] / image_width)
                             y_ratio = float(pixel[1] / image_height)
                             click_color_rgb = self.overlays_dict['crosshairs_color_rgb']
                             click_name = 'click'
                             self.add_crosshair(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
             elif self.click_target_enabled == True and click_count == 1:
-                            self.click_target_enabled = False
+                            #self.click_target_enabled = False
                             x_ratio = float(pixel[0] / image_width)
                             y_ratio = float(pixel[1] / image_height)
                             click_color_rgb = self.overlays_dict['targets_color_rgb']

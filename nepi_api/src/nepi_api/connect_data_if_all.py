@@ -169,12 +169,12 @@ class ConnectImagesAllIF:
                 'msg': Bool,
                 'qsize': 1,
             },
-            'all_click_text_enable': {
-                'namespace': self.all_namespace,
-                'topic': 'click_text_enable',
-                'msg': Bool,
-                'qsize': 1,
-            },
+            # 'all_click_text_enable': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'click_text_enable',
+            #     'msg': Bool,
+            #     'qsize': 1,
+            # },
             'all_overlay_text': {
                 'namespace': self.all_namespace,
                 'topic': 'add_overlay_text',
@@ -253,18 +253,18 @@ class ConnectImagesAllIF:
                 'msg': Bool,
                 'qsize': 1,
             },
-            'all_click_crosshair_enable': {
-                'namespace': self.all_namespace,
-                'topic': 'click_crosshair_enable',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            'all_add_crosshair_pixel': {
-                'namespace': self.all_namespace,
-                'topic': 'add_crosshair_pixel',
-                'msg': ImageCrosshair,
-                'qsize': 1,
-            },
+            # 'all_click_crosshair_enable': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'click_crosshair_enable',
+            #     'msg': Bool,
+            #     'qsize': 1,
+            # },
+            # 'all_add_crosshair_pixel': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'add_crosshair_pixel',
+            #     'msg': ImageCrosshair,
+            #     'qsize': 1,
+            # },
             'all_add_crosshair_ratios': {
                 'namespace': self.all_namespace,
                 'topic': 'add_crosshair_ratios',
@@ -349,18 +349,18 @@ class ConnectImagesAllIF:
                 'msg': Bool,
                 'qsize': 1,
             },
-            'all_click_target_enable': {
-                'namespace': self.all_namespace,
-                'topic': 'click_target_enable',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            'all_add_target_pixel': {
-                'namespace': self.all_namespace,
-                'topic': 'add_target_pixel',
-                'msg': ImageTarget,
-                'qsize': 1,
-            },
+            # 'all_click_target_enable': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'click_target_enable',
+            #     'msg': Bool,
+            #     'qsize': 1,
+            # },
+            # 'all_add_target_pixel': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'add_target_pixel',
+            #     'msg': ImageTarget,
+            #     'qsize': 1,
+            # },
             'all_add_target_ratios': {
                 'namespace': self.all_namespace,
                 'topic': 'add_target_ratios',

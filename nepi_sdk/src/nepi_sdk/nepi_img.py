@@ -1017,21 +1017,31 @@ def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5,
 
     if thickness is None:
        thickness = hw_thickness
-   
-    size = int(size * (size_ratio * 2) )
+    size_ratio = nepi_utils.check_ratio(size_ratio)
+    size = int(size * (size_ratio) )
     thickness = int(thickness * (thickness_ratio * 2))
     if size < 5:
        size = 5
     if thickness < 1:
        thickness = 1 
-    size_ratio = nepi_utils.check_ratio(size_ratio)
-    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color_rgb, thickness)
-    # Draw horizontal line
-    cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color_rgb, thickness)
+    
+    # Draw vetical lines
+    cv2.line(cv2_img, (x_px, y_px + size), (x_px, y_px + 2 * size), color_rgb, thickness)
+    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px - 2 * size), color_rgb, thickness)
+    # Draw horizontal lines
+    cv2.line(cv2_img, (x_px + size, y_px), (x_px + 2 * size, y_px), color_rgb, thickness)
+    cv2.line(cv2_img, (x_px - size, y_px), (x_px - 2 * size, y_px), color_rgb, thickness)
+    # Draw circle
+    center_coordinates = (x_px, y_px)
+    radius = int(size + size/2)
+    cv2.circle(cv2_img, center_coordinates, radius, color_rgb, thickness)
+
     if len(text_list) > 0:
         x_px = x_px
-        y_padding = math.ceil((0.02 * h) + size / 2 ) 
+        y_padding = 0 # math.ceil((0.02 * h) + size ) 
         y_px = y_px + y_padding
+        x_padding = math.ceil((0.02 * w) + size ) 
+        x_px + x_padding
         cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio / 2)
     return cv2_img
 
