@@ -2083,7 +2083,7 @@ class SaveDataIF:
             self.snapshot_dict[data_product] = False
             self.publish_status()
             if self.node_if is not None:
-                self.node_if.set_param('save_rate_dict',save_rate_dict)
+                self.node_if.set_param(self.node_if_prefix + 'save_rate_dict',save_rate_dict)
 
     def unregister_data_product(self, data_product):
         """Remove a previously registered data product from the save rate tracking dict.
@@ -2174,7 +2174,7 @@ class SaveDataIF:
             if self.read_write_if is not None and self.filename_dict is not None:
                 self.read_write_if.set_filename_dict(filename_dict)
             if self.node_if is not None and self.filename_dict is not None:
-                self.node_if.set_param('filename_dict',self.filename_dict)
+                self.node_if.set_param(self.node_if_prefix + 'filename_dict',self.filename_dict)
                 self.node_if.save_config()
 
     def set_save_rate(self,data_product,save_rate_hz=0):
@@ -2215,7 +2215,7 @@ class SaveDataIF:
         #self.msg_if.pub_warn("Updated save rate dict: " + str(self.save_rate_dict))   
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('save_rate_dict',save_rate_dict)
+            self.node_if.set_param(self.node_if_prefix + 'save_rate_dict',save_rate_dict)
             self.node_if.save_config()
         
     def disable(self, enabled):
@@ -2527,7 +2527,7 @@ class SaveDataIF:
             if self.filename_dict is not None:
                 filename_dict = copy.deepcopy(self.filename_dict)
                 try:
-                    status_msg.filename_prefix = ['prefix']
+                    status_msg.filename_prefix = filename_dict['prefix']
                     status_msg.save_subfolder = filename_dict['subfolder']
                     status_msg.save_data_utc = filename_dict['use_utc_tz']
                 except Exception as e:
@@ -2575,14 +2575,22 @@ class SaveDataIF:
         """
         #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
         if self.node_if is not None:
-            save_rate_dict = self.node_if.get_param('save_rate_dict')
+            # Prefixed keys, matching how the params are registered in PARAMS_DICT
+            # and how set_save_rate()/update_filename_dict()/register_data_product()
+            # write them back. get_param() returns None for a name it does not know,
+            # so the unprefixed name wiped filename_dict on every config init, reset
+            # and factory reset -- and save() no-ops entirely when filename_dict is
+            # None, so nothing was ever written to disk.
+            save_rate_dict = self.node_if.get_param(self.node_if_prefix + 'save_rate_dict')
             if save_rate_dict is not None:
                 for data_product in self.save_rate_dict.keys():
                     if data_product in save_rate_dict.keys():
                         self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
                     self.save_rate_dict[data_product][1] = 0.0 # Reset timer
-            self.node_if.set_param('save_rate_dict',self.save_rate_dict)
-            self.filename_dict =  self.node_if.get_param('filename_dict')
+            self.node_if.set_param(self.node_if_prefix + 'save_rate_dict',self.save_rate_dict)
+            filename_dict = self.node_if.get_param(self.node_if_prefix + 'filename_dict')
+            if filename_dict is not None:
+                self.filename_dict = filename_dict
             disabled = self.node_if.get_param('disabled')
             if disabled is not None:
                 self.disabled = disabled
@@ -3058,7 +3066,7 @@ class Transform3DIF:
                 self.transform = transform_list
                 self.publish_transform()
                 if self.node_if is not None:
-                    self.node_if.set_param('transform',transform_list)
+                    self.node_if.set_param(self.node_if_prefix + 'transform',transform_list)
 
     def clear_3d_transform(self):
         """Reset the 3D transform to the zero/identity transform and publish the update.
@@ -3070,7 +3078,7 @@ class Transform3DIF:
             self.transform = copy.deepcopy(self.ZERO_TRANSFORM)
             self.publish_transform()
             if self.node_if is not None:
-                self.node_if.set_param('transform',self.transform)
+                self.node_if.set_param(self.node_if_prefix + 'transform',self.transform)
 
     def set_has_transform(self,has_transform):
         """Set whether this interface reports having a valid transform.
@@ -3106,7 +3114,7 @@ class Transform3DIF:
         self.source = source
         self.publish_transform()
         if self.node_if is not None:
-            self.node_if.set_param('source',source)
+            self.node_if.set_param(self.node_if_prefix + 'source',source)
 
     def get_end_description(self):
         """Return the end (target) reference frame description string.
@@ -3125,7 +3133,7 @@ class Transform3DIF:
         self.end = end
         self.publish_transform()
         if self.node_if is not None:
-            self.node_if.set_param('end',end)
+            self.node_if.set_param(self.node_if_prefix + 'end',end)
 
 
     def publish_transform(self):
@@ -3161,9 +3169,20 @@ class Transform3DIF:
                 effect currently. Defaults to True.
         """
         if self.node_if is not None:
-            self.transform = self.node_if.get_param('transform')
-            self.source = self.node_if.get_param('source')
-            self.end = self.node_if.get_param('end')
+            # Prefixed keys, matching how the params are registered in PARAMS_DICT and
+            # how set_3d_transform()/set_source_description()/set_end_description()
+            # write them back. get_param() returns None for a name it does not know,
+            # so the unprefixed names wiped the transform on every config init, reset
+            # and factory reset -- saved 3D transforms never restored.
+            transform = self.node_if.get_param(self.node_if_prefix + 'transform')
+            if transform is not None:
+                self.transform = transform
+            source = self.node_if.get_param(self.node_if_prefix + 'source')
+            if source is not None:
+                self.source = source
+            end = self.node_if.get_param(self.node_if_prefix + 'end')
+            if end is not None:
+                self.end = end
             #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
             if do_updates:
                 pass
