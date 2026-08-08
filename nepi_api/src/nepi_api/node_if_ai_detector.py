@@ -137,7 +137,7 @@ class AiDetectorIF:
     processFile = None
 
     self_managed = True
-    model_name = "None"
+    model_name = "model"
 
     last_detect_time = nepi_sdk.get_time()
 
@@ -232,7 +232,7 @@ class AiDetectorIF:
 
     next_source_topic="None"
 
-
+    node_if_prefix = model_name + '_'
 
     active_nodes = []
     active_topics = []
@@ -287,7 +287,7 @@ class AiDetectorIF:
         self.all_namespace = nepi_sdk.create_namespace(self.base_namespace, SYSTEM_ALL_TOPIC)
         self.all_detections_namespace = nepi_sdk.create_namespace(self.all_namespace, DETECTIONS_ALL_TOPIC)
         self.all_targets_namespace = nepi_sdk.create_namespace(self.all_namespace, TARGETS_ALL_TOPIC)
-
+ 
  
         ##############################
         # Get for System Folders
@@ -322,7 +322,7 @@ class AiDetectorIF:
         self.process_status_msg.node_name = self.node_name
         self.process_status_msg.namespace = self.namespace
 
-
+        model_name = nepi_utils.get_clean_name(model_name)
         self.model_name = model_name
         self.model_framework = framework
         self.model_type = 'detection'
@@ -340,6 +340,8 @@ class AiDetectorIF:
         self.selected_classes = self.classes
         self.selected_classes_targets = self.classes
 
+
+        self.node_if_prefix =self.model_name + '_'
      
         self.initCb(do_updates = False)
 
@@ -1213,12 +1215,14 @@ class AiDetectorIF:
         # inline PUBS_DICT entries used. They share the detector's SaveDataIF so
         # detections/targets saving stays centralized (and rate-gated), and
         # follow the file convention of building their own node_if.
+        self.msg_if.pub_warn("Pre DetectionsIF max_process_rate: " + str(self.max_process_rate_hz), log_name_list = self.log_name_list)
         self.detections_if = DetectionsIF(namespace = self.namespace,
                         data_product = 'detections',
                         save_data_if = self.save_data_if,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if)
 
+        self.msg_if.pub_warn("Pre TargetsIF max_process_rate: " + str(self.max_process_rate_hz), log_name_list = self.log_name_list)
         self.targets_if = TargetsIF(namespace = self.namespace,
                         data_product = 'targets',
                         save_data_if = self.save_data_if,
@@ -1239,7 +1243,8 @@ class AiDetectorIF:
 
         self.msg_str = 'Loaded'
         ##########################
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("max_process_rate: " + str(self.max_process_rate_hz), log_name_list = self.log_name_list)
         ##########################
 
     def systemStatusCb(self,msg):
@@ -1349,6 +1354,7 @@ class AiDetectorIF:
             self.selected_classes_targets = self.node_if.get_param('selected_classes')
             self.threshold = self.node_if.get_param('threshold')
             self.max_process_rate_hz = self.node_if.get_param('max_process_rate_hz')
+            self.msg_if.pub_warn("Init max process rate: " + str(self.max_process_rate_hz), log_name_list = self.log_name_list)
             self.max_image_pub_rate_hz = self.node_if.get_param('max_image_pub_rate_hz')
             self.use_last_image = self.node_if.get_param('use_last_image')
 
@@ -1702,6 +1708,7 @@ class AiDetectorIF:
 
 
     def setMaxProcRateCb(self,msg):
+        self.msg_if.pub_warn("Got max_process_rate update msg: " + str(msg), log_name_list = self.log_name_list)
         max_rate = msg.data
         if max_rate <  MIN_MAX_RATE:
             max_rate = MIN_MAX_RATE

@@ -152,7 +152,7 @@ class ControlsIF:
             return
         self.msg_if.pub_info("Using Name: " + self.controls_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,controls_name)
-        self.node_if_prefix = '/' + controls_name + '_'
+        self.node_if_prefix = controls_name + '_'
 
         ##############################    
         # Initialize Class Variables
@@ -1647,7 +1647,7 @@ class SaveDataIF:
             return
         self.msg_if.pub_info("Using States Name: " + save_data_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,save_data_name)
-        self.node_if_prefix = '/' + save_data_name + '_'
+        self.node_if_prefix = save_data_name + '_'
         
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
@@ -2805,7 +2805,7 @@ class Transform3DIF:
             return
         self.msg_if.pub_info("Using States Name: " + transform_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,transform_name)
-        self.node_if_prefix = '/' + transform_name + '_'
+        self.node_if_prefix = transform_name + '_'
 
         self.source = source_ref_description
         self.end = end_ref_description
@@ -3886,7 +3886,7 @@ class StatesIF:
             return
         self.msg_if.pub_info("Using States Name: " + states_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,states_name)
-        self.node_if_prefix = '/' + states_name + '_'
+        self.node_if_prefix = states_name + '_'
 
         ##############################  
         # Create NodeClassIF Class  
@@ -4102,7 +4102,7 @@ class TriggersIF:
         if triggers_name is None or triggers_name == '':
             self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
             return
-        self.node_if_prefix = '/' + triggers_name + '_'
+        self.node_if_prefix = triggers_name + '_'
         ##############################  
         # Create NodeClassIF Class  
 

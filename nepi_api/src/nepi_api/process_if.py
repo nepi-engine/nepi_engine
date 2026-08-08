@@ -68,7 +68,7 @@ class ProcessIF:
     process_status_msg = ProcessStatus
     process_node_pubs_dict = None
     process_node_subs_dict = None
-    max_proc_rate_hz = 10
+    max_process_rate_hz = 10
     process_ready = False
 
     active_nodes = []
@@ -176,7 +176,7 @@ class ProcessIF:
             return
         self.msg_if.pub_info("Using Process Name: " + self.process_name)
         self.process_namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
-
+        self.node_if_prefix = self.process_name + '_'
 
 
 
