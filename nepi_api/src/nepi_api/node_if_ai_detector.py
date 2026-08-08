@@ -615,6 +615,161 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             ############
+            # All Detector
+            ############
+            'all_detector_enable': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setEnableCb, 
+                'callback_args': ()
+            },
+            'all_detector_set_source_topic': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_source_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setImageTopicCb, 
+                'callback_args': ()
+            },
+            'all_detector_set_source_topics': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_source_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.setImageTopicsCb, 
+                'callback_args': ()
+            },
+            'all_detector_add_source_topic': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'add_source_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.addImageTopicCb, 
+                'callback_args': ()
+            },
+            'all_detector_add_source_topics': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'add_source_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.addImageTopicsCb, 
+                'callback_args': ()
+            },
+            'all_detector_remove_source_topic': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'remove_source_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.removeImageTopicCb, 
+                'callback_args': ()
+            },
+            'all_detector_remove_source_topics': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'remove_source_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.removeImageTopicsCb, 
+                'callback_args': ()
+            },
+            'all_detector_process_source_file': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'process_source_file',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.processImageFileCb, 
+                'callback_args': ()
+            },
+              'all_detector_set_class': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_class',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setClassCb, 
+                'callback_args': ()
+            },
+            'all_detector_set_classes': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_classes',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.setClassesCb, 
+                'callback_args': ()
+            },
+            'all_detector_add_class': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'add_class',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.addClassCb, 
+                'callback_args': ()
+            },
+            'all_detector_remove_class': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'remove_class',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.removeClassCb, 
+                'callback_args': ()
+            },
+            'all_detector_add_all_classes': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'add_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.addAllClassesCb, 
+                'callback_args': ()
+            },
+            'all_detector_remove_all_classes': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'remove_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.removeAllClassesCb, 
+                'callback_args': ()
+            },
+            'all_detector_set_threshold': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_threshold',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setThresholdCb, 
+                'callback_args': ()
+            },
+            'all_detector_set_image_pub': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_image_pub',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setPubImageCb, 
+                'callback_args': ()
+            },
+            'all_detector_set_max_process_rate': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_max_process_rate',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setMaxProcRateCb, 
+                'callback_args': ()
+            },
+            'all_detector_set_max_image_pub_rate': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_max_image_pub_rate',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setMaxImgRateCb, 
+                'callback_args': ()
+            },
+            'all_detector_set_use_last_image': {
+                'namespace': self.all_detections_namespace,
+                'topic': 'set_use_last_image',
+                'msg':Bool,
+                'qsize': 10,
+                'callback': self.setUseLastImageCb, 
+                'callback_args': ()
+            },
+            ############
             # Targeting
             ############
             'targeting_enable': {
@@ -623,14 +778,6 @@ class AiDetectorIF:
                 'msg': Bool,
                 'qsize': 10,
                 'callback': self.setEnableCb, 
-                'callback_args': ()
-            },
-            'targeting_set_auto_select_enable': {
-                'namespace': self.targeting_namespace,
-                'topic': 'set_auto_select_enable',
-                'msg': Bool,
-                'qsize': 10,
-                'callback': self.setAutoSelectEnableCb, 
                 'callback_args': ()
             },
             'targeting_set_source_topic': {
@@ -771,6 +918,169 @@ class AiDetectorIF:
             },
             'targeting_set_use_last_image': {
                 'namespace': self.targeting_namespace,
+                'topic': 'set_use_last_image',
+                'msg':Bool,
+                'qsize': 10,
+                'callback': self.setUseLastImageCb, 
+                'callback_args': ()
+            },
+            ############
+            # All Targeting
+            ############
+            'all_targeting_enable': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setEnableCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_auto_select_enable': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_auto_select_enable',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setAutoSelectEnableCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_source_topic': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_source_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setImageTopicCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_source_topics': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_source_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.setImageTopicsCb, 
+                'callback_args': ()
+            },
+            'all_targeting_add_source_topic': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'add_source_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.addImageTopicCb, 
+                'callback_args': ()
+            },
+            'all_targeting_add_source_topics': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'add_source_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.addImageTopicsCb, 
+                'callback_args': ()
+            },
+            'all_targeting_remove_source_topic': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'remove_source_topic',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.removeImageTopicCb, 
+                'callback_args': ()
+            },
+            'all_targeting_remove_source_topics': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'remove_source_topics',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.removeImageTopicsCb, 
+                'callback_args': ()
+            },
+            'all_targeting_process_source_file': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'process_source_file',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.processImageFileCb, 
+                'callback_args': ()
+            },
+             'all_targeting_set_class': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_class',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setClassTargetingCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_classes': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_classes',
+                'msg': StringArray,
+                'qsize': 10,
+                'callback': self.setClassesCb, 
+                'callback_args': ()
+            },
+            'all_targeting_add_class': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'add_class',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.addClassTargetingCb, 
+                'callback_args': ()
+            },
+            'all_targeting_remove_class': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'remove_class',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.removeClassTargetingCb, 
+                'callback_args': ()
+            },
+            'all_targeting_add_all_classes': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'add_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.addAllClassesTargetingCb, 
+                'callback_args': ()
+            },
+            'all_targeting_remove_all_classes': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'remove_all_classes',
+                'msg': Empty,
+                'qsize': 10,
+                'callback': self.removeAllClassesTargetingCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_threshold': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_threshold',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setThresholdTargetingCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_image_pub': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_image_pub',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.setPubImageCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_max_process_rate': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_max_process_rate',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setMaxProcRateCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_max_image_pub_rate': {
+                'namespace': self.all_targeting_namespace,
+                'topic': 'set_max_image_pub_rate',
+                'msg': Float32,
+                'qsize': 10,
+                'callback': self.setMaxImgRateCb, 
+                'callback_args': ()
+            },
+            'all_targeting_set_use_last_image': {
+                'namespace': self.all_targeting_namespace,
                 'topic': 'set_use_last_image',
                 'msg':Bool,
                 'qsize': 10,
