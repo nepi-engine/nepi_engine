@@ -109,8 +109,8 @@ class AiDetectorIF:
     BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
 
     namespace = '~'
-    detector_namespace = '~'
-    targeting_namespace = '~'
+    detections_namespace = '~'
+    targets_namespace = '~'
     all_namespace = None
     all_detections_namespace = None
     all_targets_namespace = None
@@ -311,8 +311,8 @@ class AiDetectorIF:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.detector_namespace = nepi_sdk.create_namespace(self.namespace,'detections')
-        self.targeting_namespace = nepi_sdk.create_namespace(self.namespace,'targets')
+        self.detections_namespace = nepi_sdk.create_namespace(self.namespace,'detections')
+        self.targets_namespace = nepi_sdk.create_namespace(self.namespace,'targets')
 
 
         self.enable_image_pub = enable_image_pub
@@ -407,7 +407,7 @@ class AiDetectorIF:
         # Services Config Dict ####################
         self.SRVS_DICT = {
             'detector_status_query': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'detector_status_query',
                 'srv': DetectorStatusQuery,
                 'req': DetectorStatusQueryRequest(),
@@ -455,7 +455,7 @@ class AiDetectorIF:
             # Detector
             ############
             'detector_enable': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'enable',
                 'msg': Bool,
                 'qsize': 10,
@@ -463,7 +463,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_auto_select_enable': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_auto_select_enable',
                 'msg': Bool,
                 'qsize': 10,
@@ -471,7 +471,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_source_topic': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -479,7 +479,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_source_topics': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -487,7 +487,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_add_source_topic': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'add_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -495,7 +495,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_add_source_topics': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'add_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -503,7 +503,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_remove_source_topic': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'remove_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -511,7 +511,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_remove_source_topics': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'remove_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -519,7 +519,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_process_source_file': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'process_source_file',
                 'msg': String,
                 'qsize': 10,
@@ -527,7 +527,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
               'detector_set_class': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_class',
                 'msg': String,
                 'qsize': 10,
@@ -535,7 +535,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_classes': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_classes',
                 'msg': StringArray,
                 'qsize': 10,
@@ -543,7 +543,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_add_class': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'add_class',
                 'msg': String,
                 'qsize': 10,
@@ -551,7 +551,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_remove_class': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'remove_class',
                 'msg': String,
                 'qsize': 10,
@@ -559,7 +559,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_add_all_classes': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'add_all_classes',
                 'msg': Empty,
                 'qsize': 10,
@@ -567,7 +567,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_remove_all_classes': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'remove_all_classes',
                 'msg': Empty,
                 'qsize': 10,
@@ -575,7 +575,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_threshold': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_threshold',
                 'msg': Float32,
                 'qsize': 10,
@@ -583,7 +583,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_image_pub': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_image_pub',
                 'msg': Bool,
                 'qsize': 10,
@@ -591,7 +591,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_max_process_rate': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_max_process_rate',
                 'msg': Float32,
                 'qsize': 10,
@@ -599,7 +599,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_max_image_pub_rate': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_max_image_pub_rate',
                 'msg': Float32,
                 'qsize': 10,
@@ -607,7 +607,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'detector_set_use_last_image': {
-                'namespace': self.detector_namespace,
+                'namespace': self.detections_namespace,
                 'topic': 'set_use_last_image',
                 'msg':Bool,
                 'qsize': 10,
@@ -773,7 +773,7 @@ class AiDetectorIF:
             # Targeting
             ############
             'targeting_enable': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'enable',
                 'msg': Bool,
                 'qsize': 10,
@@ -781,7 +781,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_set_source_topic': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -789,7 +789,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_set_source_topics': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -797,7 +797,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_add_source_topic': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'add_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -805,7 +805,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_add_source_topics': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'add_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -813,7 +813,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_remove_source_topic': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'remove_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -821,7 +821,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_remove_source_topics': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'remove_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -829,7 +829,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_process_source_file': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'process_source_file',
                 'msg': String,
                 'qsize': 10,
@@ -837,7 +837,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
              'targeting_set_class': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_class',
                 'msg': String,
                 'qsize': 10,
@@ -845,7 +845,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_set_classes': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_classes',
                 'msg': StringArray,
                 'qsize': 10,
@@ -853,7 +853,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_add_class': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'add_class',
                 'msg': String,
                 'qsize': 10,
@@ -861,7 +861,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_remove_class': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'remove_class',
                 'msg': String,
                 'qsize': 10,
@@ -869,7 +869,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_add_all_classes': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'add_all_classes',
                 'msg': Empty,
                 'qsize': 10,
@@ -877,7 +877,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_remove_all_classes': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'remove_all_classes',
                 'msg': Empty,
                 'qsize': 10,
@@ -885,7 +885,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_set_threshold': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_threshold',
                 'msg': Float32,
                 'qsize': 10,
@@ -893,7 +893,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_set_image_pub': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_image_pub',
                 'msg': Bool,
                 'qsize': 10,
@@ -901,7 +901,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_set_max_process_rate': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_max_process_rate',
                 'msg': Float32,
                 'qsize': 10,
@@ -909,7 +909,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_set_max_image_pub_rate': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_max_image_pub_rate',
                 'msg': Float32,
                 'qsize': 10,
@@ -917,7 +917,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'targeting_set_use_last_image': {
-                'namespace': self.targeting_namespace,
+                'namespace': self.targets_namespace,
                 'topic': 'set_use_last_image',
                 'msg':Bool,
                 'qsize': 10,
@@ -928,7 +928,7 @@ class AiDetectorIF:
             # All Targeting
             ############
             'all_targeting_enable': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'enable',
                 'msg': Bool,
                 'qsize': 10,
@@ -936,7 +936,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_auto_select_enable': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_auto_select_enable',
                 'msg': Bool,
                 'qsize': 10,
@@ -944,7 +944,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_source_topic': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -952,7 +952,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_source_topics': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -960,7 +960,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_add_source_topic': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'add_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -968,7 +968,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_add_source_topics': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'add_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -976,7 +976,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_remove_source_topic': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'remove_source_topic',
                 'msg': String,
                 'qsize': 10,
@@ -984,7 +984,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_remove_source_topics': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'remove_source_topics',
                 'msg': StringArray,
                 'qsize': 10,
@@ -992,7 +992,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_process_source_file': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'process_source_file',
                 'msg': String,
                 'qsize': 10,
@@ -1000,7 +1000,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
              'all_targeting_set_class': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_class',
                 'msg': String,
                 'qsize': 10,
@@ -1008,7 +1008,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_classes': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_classes',
                 'msg': StringArray,
                 'qsize': 10,
@@ -1016,7 +1016,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_add_class': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'add_class',
                 'msg': String,
                 'qsize': 10,
@@ -1024,7 +1024,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_remove_class': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'remove_class',
                 'msg': String,
                 'qsize': 10,
@@ -1032,7 +1032,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_add_all_classes': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'add_all_classes',
                 'msg': Empty,
                 'qsize': 10,
@@ -1040,7 +1040,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_remove_all_classes': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'remove_all_classes',
                 'msg': Empty,
                 'qsize': 10,
@@ -1048,7 +1048,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_threshold': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_threshold',
                 'msg': Float32,
                 'qsize': 10,
@@ -1056,7 +1056,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_image_pub': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_image_pub',
                 'msg': Bool,
                 'qsize': 10,
@@ -1064,7 +1064,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_max_process_rate': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_max_process_rate',
                 'msg': Float32,
                 'qsize': 10,
@@ -1072,7 +1072,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_max_image_pub_rate': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_max_image_pub_rate',
                 'msg': Float32,
                 'qsize': 10,
@@ -1080,7 +1080,7 @@ class AiDetectorIF:
                 'callback_args': ()
             },
             'all_targeting_set_use_last_image': {
-                'namespace': self.all_targeting_namespace,
+                'namespace': self.all_targets_namespace,
                 'topic': 'set_use_last_image',
                 'msg':Bool,
                 'qsize': 10,
@@ -3001,7 +3001,7 @@ class AiDetectorIF:
         process_status_msg = self.getProcessStatus()
     
         self.detector_status_msg.process_status = process_status_msg
-        self.detector_status_msg.process_status.namespace = self.detector_namespace
+        self.detector_status_msg.process_status.namespace = self.detections_namespace
         self.detector_status_msg.available_classes = self.classes
         self.detector_status_msg.selected_classes = self.selected_classes
         self.detector_status_msg.threshold_filter = self.threshold
@@ -3047,7 +3047,7 @@ class AiDetectorIF:
     
         self.targeting_status_msg = TargetingStatus()
         self.targeting_status_msg.process_status = process_status_msg
-        self.targeting_status_msg.process_status.namespace = self.targeting_namespace
+        self.targeting_status_msg.process_status.namespace = self.targets_namespace
         self.targeting_status_msg.available_classes = self.classes
         self.targeting_status_msg.selected_classes = self.selected_classes
         self.targeting_status_msg.threshold_filter = self.threshold
