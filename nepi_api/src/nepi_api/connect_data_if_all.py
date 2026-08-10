@@ -539,7 +539,7 @@ class ConnectImagesAllIF:
 
 
     #################
-    ## Collective Image Overlay and Crosshair Controls
+    ## Image Text Overlays
 
     def set_overlay_text_enable(self, enable):
         """Enable or disable all text overlays on every IDX image output.
@@ -683,6 +683,8 @@ class ConnectImagesAllIF:
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
+    #################
+    ## Image Crosshair Overlays
     def set_crosshairs_enable(self, enable):
         """Enable or disable crosshair overlays on every IDX image output.
 
@@ -870,7 +872,7 @@ class ConnectImagesAllIF:
         self.node_if.publish_pub(pub_name, msg)
 
     #################
-    ## Collective Image Target Controls
+    ## Image Target Overlays
 
     def set_targets_enable(self, enable):
         """Enable or disable target overlays on every IDX image output.
@@ -1067,7 +1069,7 @@ class ConnectImagesAllIF:
         self.node_if.publish_pub(pub_name, msg)
 
     #################
-    ## Collective Aspect and Stream Controls
+    ## Aspect Controls
 
     def set_aspect_adjust_enable(self, enable):
         """Enable or disable aspect ratio adjustment on every IDX image output.
@@ -1091,6 +1093,8 @@ class ConnectImagesAllIF:
         msg.data = ratio
         self.node_if.publish_pub(pub_name, msg)
 
+    #################
+    ## Stream Compression Controls
     def set_stream_compression_enable(self, enable):
         """Enable or disable HTTP stream compression on every IDX image output.
 
@@ -1112,7 +1116,7 @@ class ConnectImagesAllIF:
         self.node_if.publish_pub(pub_name, msg)
 
     #################
-    ## Collective Live Adjust Controls
+    ## Live Adjust Controls
 
     def set_live_adjust_enable(self, enable):
         """Enable or disable the live rotate and translate adjustments on every IDX image.
