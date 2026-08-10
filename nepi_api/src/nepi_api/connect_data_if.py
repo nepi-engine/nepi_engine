@@ -524,7 +524,7 @@ class ConnectDataIF(ConnectNodeIF):
     def _statusCb(self,status_msg):
         self.last_status_time = nepi_utils.get_time()
         if self.connected == False:
-            self.msg_if.pub_warn("Connected to DATA Status:  " + str(self.selected_topic))
+            self._announceConnected('DATA')
             self.connecting = False
             self.connected_topic = self.selected_topic
         self.connected = True
@@ -1075,7 +1075,7 @@ class ConnectNavPoseIF(ConnectNodeIF):
     def _statusCb(self,status_msg):
         self.last_status_time = nepi_utils.get_time()
         if self.connected == False:
-            self.msg_if.pub_warn("Connected to NAVPOSE Status:  " + str(self.selected_topic))
+            self._announceConnected('NAVPOSE')
             self.connecting = False
             self.connected_topic = self.selected_topic
         self.connected = True
@@ -1669,7 +1669,7 @@ class ConnectDepthMapIF(ConnectNodeIF):
     def _statusCb(self,status_msg):
         self.last_status_time = nepi_utils.get_time()
         if self.connected == False:
-            self.msg_if.pub_warn("Connected to DEPTH_MAP Status:  " + str(self.selected_topic))
+            self._announceConnected('DEPTH_MAP')
             self.connecting = False
             self.connected_topic = self.selected_topic
         self.connected = True
@@ -2235,7 +2235,7 @@ class ConnectPointcloudIF(ConnectNodeIF):
     def _statusCb(self,status_msg):
         self.last_status_time = nepi_utils.get_time()
         if self.connected == False:
-            self.msg_if.pub_warn("Connected to POINTCLOUD Status:  " + str(self.selected_topic))
+            self._announceConnected('POINTCLOUD')
             self.connecting = False
             self.connected_topic = self.selected_topic
         self.connected = True

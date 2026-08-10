@@ -97,6 +97,11 @@ class ConnectNodeIF:
     connected_topic = 'None'
     connect_msg = 'Not Selected'
 
+    # Last topic whose connection was announced at warn level by
+    # _announceConnected(). See that method for why a remembered topic rather than
+    # a bare once-only flag.
+    announced_connected_topic = None
+
     show_selector = True
     show_controls = True
     show_data = True
@@ -573,6 +578,33 @@ class ConnectNodeIF:
     #######################
     # Class Private Methods
     #######################
+
+    # Announce a new connection ONCE per topic, from every subclass's _statusCb.
+    #
+    # Each subclass's status callback runs its announcement inside
+    # 'if self.connected == False:', which reads like a first-connection guard but
+    # is not one: the staleness check in _updaterCb clears self.connected whenever
+    # no status arrives inside CONNECTED_TIMEOUT, without touching the
+    # subscriptions. Any source publishing its status slower than that timeout --
+    # or any source whose status stalls briefly -- therefore re-enters that branch
+    # on every message and re-announces the same connection at warn level forever.
+    #
+    # The remembered value is the announced TOPIC rather than a bare once-only
+    # flag, because connecting to a DIFFERENT topic is still news worth a warn:
+    # these IFs are re-pointed at runtime, by an operator's selector or by a
+    # consumer node driving set_selected_topic() (nepi_app_obstacles derives all
+    # five of its selections that way). It is deliberately never cleared, so a
+    # deselect and reselect of the same topic stays quiet.
+    #
+    # Reconnects still log, at debug, so the churn is visible when it is being
+    # looked for.
+    def _announceConnected(self, connect_label):
+        if self.selected_topic != self.announced_connected_topic:
+            self.announced_connected_topic = self.selected_topic
+            self.msg_if.pub_warn("Connected to " + str(connect_label) + " Status:  " + str(self.selected_topic))
+        else:
+            self.msg_if.pub_debug("Reconnected to " + str(connect_label) + " Status:  " + str(self.selected_topic))
+
 
     # ROS callback for the system status msg. Populates the active topic/type
     # lists that discovery searches. NOTE: this MUST NOT share a name with the

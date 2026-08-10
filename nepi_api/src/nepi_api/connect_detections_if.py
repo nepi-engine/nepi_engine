@@ -437,7 +437,7 @@ class ConnectDetectionsIF(ConnectNodeIF):
     def _statusCb(self,status_msg):
         self.last_status_time = nepi_utils.get_time()
         if self.connected == False:
-            self.msg_if.pub_warn("Connected to DETECTIONS Status:  " + str(self.selected_topic))
+            self._announceConnected('DETECTIONS')
             self.connecting = False
             self.connected_topic = self.selected_topic
         self.connected = True

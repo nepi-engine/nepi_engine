@@ -7590,6 +7590,33 @@ class DepthMapIF:
             if name in self.image_if.get_image_callback_options():
                self.image_if.callback_dict[name] = None
 
+    def set_image_pub_enabled(self, enabled = True):
+        """Declare whether a depth map image is being published for this depth map.
+
+        For producers that were constructed with pub_image = False because they
+        publish their own depth map image rather than letting this interface
+        colorize the raw array -- a file-backed publisher serving a pre-rendered
+        image, for example. Such a producer still owes consumers the standard
+        contract: the image published at <namespace>/depth_map_image and
+        DepthMapStatus.img_pub_enabled reporting True, which is the flag every
+        consumer gates its depth map image topic on.
+
+        This only sets the reported flag. It does not create, destroy or
+        reconfigure the internal DepthMapImageIF, and it is not needed by
+        producers constructed with pub_image = True, which already report True.
+        A producer calling this is responsible for publishing the image at
+        <namespace>/depth_map_image itself.
+
+        Note that status_msg is declared at class scope, so co-resident
+        DepthMapIF instances in one process share it -- as they already do for
+        every other status field this class writes.
+
+        Args:
+            enabled (bool, optional): True while a depth map image is being
+                published for this depth map, False when none is. Defaults to True.
+        """
+        self.status_msg.img_pub_enabled = enabled
+
     def get_data_product(self):
         """Return the data product name for this interface.
 
