@@ -1132,6 +1132,37 @@ def overlay_bounding_box_text_list(cv2_img, text_list, bot_left_px ,top_right_px
     y_padding = int(line_height*0.4)
     bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
     overlay_text_list(cv2_img, text_list, x_px = bot_left_text[0] , y_px = bot_left_text[1], color_rgb = color_rgb, scale = scale, thickness = thickness, background_rgb = background_rgb, apply_shadow = apply_shadow)
+
+
+
+def overlay_np_depth_map(cv2_img, np_depth_map,
+                        min_range_m = 0,
+                        max_range_m = 100,
+                        ):
+    
+    if np_depth_map is None:
+        return cv2_img
+
+    # Publish and Save org Image Data if Required  
+    [height,width] = np_depth_map.shape[0:2]
+
+    cv2_dm_img = None
+    try:
+        cv2_dm_img = npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = min_range_m, max_range_m = max_range_m)      
+    except Exception as e:
+        pass
+
+    if cv2_dm_img is not None:
+        try:
+            mask = np.any(cv2_dm_img > 0, axis=2)
+            cv2_img[mask] = cv2_dm_img[mask]
+        except:
+            pass
+
+    return cv2_img
+
+
+
       
 def create_blank_image(image_size = (350, 700, 3) ):
     # Create a blank img for when not running
