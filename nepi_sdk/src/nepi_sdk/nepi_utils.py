@@ -84,6 +84,11 @@ def get_datetime_str_now(add_ms = True, add_us = False, timezone = None):
   return get_datetime_str_from_timestamp(timestamp = time_ns, add_ms = add_ms, add_us = add_us, timezone = timezone)
 
 
+def clock_check():
+    cur_year = datetime.now().year
+    valid = cur_year > 2025
+    return valid
+
 def get_datetime_str_from_timestamp(timestamp = None, add_ms = True, add_us = False, add_tz = False, timezone = None):
   if timestamp is None:
       timestamp = get_time()
@@ -231,6 +236,14 @@ def ping_ip(ip_address):
       except Exception as e:
           logger.log_info("An error occurred: " + str(e))
           return False
+
+def internet_check():
+    connected = False
+    try:
+        connected = ping_ip("8.8.8.8")
+    except Exception as e:
+        logger.log_info("An error occurred: " + str(e))
+    return connected
 
 
 

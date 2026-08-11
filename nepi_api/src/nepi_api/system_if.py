@@ -3300,6 +3300,8 @@ class SettingsIF:
    
     caps_settings = nepi_settings.NONE_CAP_SETTINGS
     factorySettings = nepi_settings.NONE_SETTINGS
+    getCapSettingsFunction = None
+    getSettingsFunction = None
     setSettingFunction = None
 
     caps_response = SettingsCapabilitiesQueryResponse()
@@ -3348,7 +3350,9 @@ class SettingsIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(settings_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + settings_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,settings_name)
+        if namespace is None:
+            namespace = self.node_namespace
+        self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
         self.node_if_prefix = '' # '/' + settings_name + '_'
 
         self.allow_cap_updates = allow_cap_updates
@@ -3368,6 +3372,8 @@ class SettingsIF:
                 self.msg_if.pub_warn("Exiting, None Valid Settings Dict: " + str(settings_dict) + " : " + str(e), log_name_list = self.log_name_list)
                 return
 
+        if 'getCapSettingsFunction' in settings_dict.keys():
+            self.getCapSettingsFunction = settings_dict['getCapSettingsFunction']
 
         #  Initialize capabilities info
         if capSettings is None:
@@ -3607,6 +3613,8 @@ class SettingsIF:
         """
         if self.node_if is not None:
             current_settings = self.getSettingsFunction()
+            if self.getCapSettingsFunction is not None:
+                self.cap_settings = self.getCapSettingsFunction()
             cap_settings = self.cap_settings
             #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
             status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)

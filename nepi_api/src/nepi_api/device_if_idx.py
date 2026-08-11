@@ -184,6 +184,7 @@ class IDXDeviceIF:
     ### IF Initialization
     def __init__(self, device_info, 
                  capSettings=None, factorySettings=None, 
+                 getCapSettingsFunction = None,
                  settingUpdateFunction=None, getSettingsFunction=None,
                  factoryControls = None, 
                  data_source_description = 'imaging_sensor',
@@ -652,6 +653,7 @@ class IDXDeviceIF:
         self.SETTINGS_DICT = {
                     'capSettings': capSettings, 
                     'factorySettings': factorySettings,
+                    'getCapSettingsFunction': getCapSettingsFunction,
                     'setSettingFunction': settingUpdateFunction, 
                     'getSettingsFunction': getSettingsFunction
                     

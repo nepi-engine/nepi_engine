@@ -218,6 +218,8 @@ class SystemMgrNode():
     config_saved = False
 
     timezone_str = 'UTC'
+    internet_connected = False
+    date_time_str = ''
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -394,12 +396,12 @@ class SystemMgrNode():
 
         self.msg_if.pub_warn("Checking User Storage Partition")
         # First check that the storage partition is actually mounted
-        if not os.path.ismount(self.storage_folder):
-            self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
-            ret, msg = self.nepi_image.mountPartition(self.nepi_storage_device, self.storage_folder)
-            if ret is False:
-                self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
-                #return False # Allow it continue on local storage...
+        # if not os.path.ismount(self.storage_folder):
+        #     self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
+        #     ret, msg = self.nepi_image.mountPartition(self.nepi_storage_device, self.storage_folder)
+        #     if ret is False:
+        #         self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
+        #         #return False # Allow it continue on local storage...
                 
         # ... as long as there is enough space
         self.update_storage()
@@ -710,12 +712,28 @@ class SystemMgrNode():
                 'callback': self.updateNepiConfigCb, 
                 'callback_args': ()
             },
-            'restart_nepi': {
+            'connect_internet': {
                 'namespace': self.base_namespace,
-                'topic': 'restart_nepi',
+                'topic': 'connect_internet',
                 'msg': Empty,
                 'qsize': None,
-                'callback': self.restartNepiCb,
+                'callback': self.connectInternetCb, 
+                'callback_args': ()
+            },
+            'restart_nepi_software': {
+                'namespace': self.base_namespace,
+                'topic': 'restart_nepi_software',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.restartNepiSoftwareCb,
+                'callback_args': ()
+            },
+            'restart_nepi_container': {
+                'namespace': self.base_namespace,
+                'topic': 'restart_nepi_container',
+                'msg': Empty,
+                'qsize': None,
+                'callback': self.restartNepiContainerCb,
                 'callback_args': ()
             },
             'expand_storage_drive': {
@@ -1108,11 +1126,14 @@ class SystemMgrNode():
         else:
             self.msg_if.pub_warn("System Update Process Allready in Progress")
         
-        
+    def connectInternetCb(self, msg):
+        nepi_system.update_nepi_docker_config('NEPI_ETC_INTERNET_UPDATE',1)
 
-    def restartNepiCb(self, msg):
-        if self.in_container == True:
-            self.nepi_image.restart()
+    def restartNepiSoftwareCb(self, msg):
+        nepi_system.update_nepi_docker_config('NEPI_ETC_INTERNET_UPDATE',1)
+
+    def restartNepiContainerCb(self, msg):
+        nepi_system.restart_nepi_software()
 
     def expandStorageDriveCb(self, msg):
         self.msg_if.pub_info("Got Expand Storage Drive msg: " + str(msg))
@@ -1452,7 +1473,10 @@ class SystemMgrNode():
             
         nepi_system.set_space_available(space_available)
         
-            
+        self.internet_connected = nepi_utils.check_internet()
+        self.status_msg.internet_connected = self.internet_connected
+        self.date_time_str = nepi_utils.get_datetime_str_from_timestamp()
+        self.status_msg.date_time_str = self.date_time_str
 
         nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
 
