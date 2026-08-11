@@ -1473,7 +1473,7 @@ class SystemMgrNode():
             
         nepi_system.set_space_available(space_available)
         
-        self.internet_connected = nepi_utils.check_internet()
+        self.internet_connected = nepi_utils.internet_check()
         self.status_msg.internet_connected = self.internet_connected
         self.date_time_str = nepi_utils.get_datetime_str_from_timestamp()
         self.status_msg.date_time_str = self.date_time_str
