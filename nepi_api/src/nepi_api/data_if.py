@@ -6495,14 +6495,17 @@ class BaseImageIF:
         x_deg_offset = msg.x_offset_deg
         x_ratio = ((self.width_deg/2) - x_deg_offset) / self.width_deg
         x_ratio = nepi_utils.check_ratio(x_ratio)
+
         y_deg_offset = msg.y_offset_deg
         y_ratio = ((self.height_deg/2) + y_deg_offset) / self.height_deg
         y_ratio = nepi_utils.check_ratio(y_ratio)
+
         r = msg.r
         g = msg.g
         b = msg.b
         msg_str = msg.msg_str
         self.click_crosshair_enabled = False
+        self.msg_if.pub_info("Adding crosshair: " + str([name],x_ratio,y_ratio)], log_name_list = self.log_name_list)
         self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
     def _removeCrosshairCb(self,msg):
