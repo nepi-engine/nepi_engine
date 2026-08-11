@@ -1253,7 +1253,9 @@ class SystemMgrNode():
                     netlist_text = file.read()
             except:
                 pass
-        self.status_msg.netlist_str = str(netlist_text)
+        if netlist_text != '' and 'end_file' in netlist_text:
+            netlist_text = netlist_text.replace('end_file','')
+            self.status_msg.netlist_str = str(netlist_text)
 
         nepi_service_running = False
         nepi_updating_config = False
