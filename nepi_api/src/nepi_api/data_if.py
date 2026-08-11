@@ -4147,9 +4147,9 @@ class BaseImageIF:
                                 crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
                                 crosshairs_thickness_ratio = self.overlays_dict['crosshairs_thickness_ratio']
                                 crosshairs_text_ratio = self.overlays_dict['crosshairs_text_ratio']
-                                #self.msg_if.pub_warn("Rendering image crosshair: " + str([crosshair_x,crosshair_y]) , log_name_list = self.log_name_list)
+                                #self.msg_if.pub_warn("Rendering image crosshair: " + str([x_pixel,y_pixel]) , log_name_list = self.log_name_list)
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
-                                                        x_px = crosshair_x , y_px = crosshair_y, 
+                                                        x_px = x_pixel , y_px = y_pixel, 
                                                         color_rgb = crosshair_rbg, 
                                                         size_ratio =  crosshairs_size_ratio,
                                                         thickness_ratio = crosshairs_thickness_ratio,
@@ -6505,7 +6505,7 @@ class BaseImageIF:
         b = msg.b
         msg_str = msg.msg_str
         self.click_crosshair_enabled = False
-        self.msg_if.pub_info("Adding crosshair: " + str([name],x_ratio,y_ratio)], log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Adding crosshair: " + str([name,x_ratio,y_ratio]), log_name_list = self.log_name_list)
         self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
     def _removeCrosshairCb(self,msg):
