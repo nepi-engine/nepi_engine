@@ -129,6 +129,14 @@ class SystemMgrNode():
 
 
 
+    # Sentinel the nepi system config file uses for an entry that is not set
+    CONFIG_NONE_VALUE = 'NONE'
+
+    # Seconds to wait for the host service to pick up an NEPI_UPDATE_CONFIG request,
+    # and then to wait for the update it started to finish
+    UPDATE_START_WAIT_S = 10
+    UPDATE_FINISH_WAIT_S = 300
+
     SYSTEM_SETTINGS_KEYS = []
     SYSTEM_SETTINGS_DICT = dict()
     system_capSettings = None
@@ -1038,17 +1046,18 @@ class SystemMgrNode():
       if data is not None:
         setting_name = setting['name']
         setting_data = data
-        if 'IP' in setting_name:
+        # NONE is the config file's sentinel for an unset entry and is the shipped
+        # value for NEPI_GATEWAY_IP, NEPI_ALIAS_IP_2/3, and NEPI_NAV_IP, so it has to
+        # survive the IP check or those keys can never be cleared once set.
+        if 'IP' in setting_name and setting_data != self.CONFIG_NONE_VALUE:
             if nepi_utils.is_valid_ip(setting_data) == False:
                 msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
-                return success, msg
-        if 'IP' in setting_name:
-            if nepi_utils.is_valid_ip(setting_data) == False:
-                msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
+                self.add_info_string(msg, StampedString.PRI_HIGH)
                 return success, msg
         if 'NEPI_DEVICE_SN' == setting_name:
             if nepi_utils.is_valid_serial_number(setting_data) == False:
                 msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
+                self.add_info_string(msg, StampedString.PRI_HIGH)
                 return success, msg
         self.system_config[setting_name] = setting_data
         # nepi_system.update_nepi_system_config(setting_name,setting_data)         
@@ -1087,23 +1096,27 @@ class SystemMgrNode():
             umsg = 'NEPI Config Failed to Update'
             last_time = nepi_utils.get_time()
             timer = 0
-            while (timer < 10):
+            while (timer < self.UPDATE_START_WAIT_S):
                     timer = nepi_utils.get_time() - last_time
                     if self.nepi_updating_config == True:
                         success = True
                         umsg = 'NEPI Config Updating'
                         self.status_msg.nepi_update_msg = umsg
+                        break
                     nepi_sdk.sleep(0.5)
-            
+
             if success == False:
                 self.msg_if.pub_info(str(umsg))
                 self.status_msg.nepi_update_msg = umsg
             else:
+                # The host cleared the flag means the update finished. Bounded by the
+                # timer this loop already computes so a host that never clears it
+                # cannot wedge this subscriber callback thread forever.
                 success = False
-                umsg = 'NEPI Config Failed to Update, Reseting Config'
+                umsg = 'NEPI Config Update Did Not Finish'
                 last_time = nepi_utils.get_time()
                 timer = 0
-                while (self.nepi_updating_config == True):
+                while (self.nepi_updating_config == True and timer < self.UPDATE_FINISH_WAIT_S):
                         timer = nepi_utils.get_time() - last_time
                         nepi_sdk.sleep(0.5)
                 if self.nepi_updating_config == False:

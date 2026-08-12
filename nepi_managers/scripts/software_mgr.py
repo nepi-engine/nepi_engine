@@ -389,7 +389,7 @@ class SoftwareMgrNode():
             }
 
         self.msg_if.pub_debug("Starting save_rate_dict: " + str(factory_data_rates))
-        sd_namespace = self.base_namespace
+        sd_namespace = self.node_namespace
         self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                 data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,

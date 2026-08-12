@@ -308,7 +308,7 @@ class AiDetectorImgPub:
         for d in self.data_products:
             factory_data_rates[d] = [1.0, 0.0, 100] 
             
-        self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False, factory_rate_dict = factory_data_rates, namespace = self.process_namespace,
+        self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False, factory_rate_dict = factory_data_rates, namespace = self.node_namespace,
                         msg_if = self.msg_if,
                             node_if = self.node_if
                         )
@@ -1125,7 +1125,7 @@ class AiDetectorImgPub:
         self.use_last_image = self.status_msg.use_last_image
 
 
-        self.imaging_enabled = self.status_msg.imaging_enabled
+        self.imaging_enabled = self.status_msg.image_pub_enabled
         last_sel_imgs = copy.deepcopy(self.selected_source_topics)
         self.selected_source_topics = self.status_msg.selected_sources
         if last_sel_imgs != self.selected_source_topics:

@@ -1646,7 +1646,13 @@ class SaveDataIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(save_data_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + save_data_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,save_data_name)
+        # An explicit namespace lets a caller place this interface somewhere other than
+        # its own node namespace. system_mgr passes the base namespace to own the global
+        # '<base>/save_data' namespace, which is where the RUI's All selection subscribes
+        # for status and where every other instance subscribes for global commands.
+        if namespace is None:
+            namespace = self.node_namespace
+        self.namespace = nepi_sdk.create_namespace(namespace,save_data_name)
         self.node_if_prefix = save_data_name + '_'
         
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
@@ -2542,7 +2548,9 @@ class SaveDataIF:
 
             if self.all_save_namespace is None:
                 status_msg.save_all_enabled = self.save_data
-                status_msg.save_all_rate = save_rate_dict['All'][0]
+                # Guarded: publish_status runs on a 1 Hz timer, so a KeyError here would
+                # silence the global status topic entirely.
+                status_msg.save_all_rate = save_rate_dict.get('All',[0.0])[0]
             else:
                 status_msg.save_all_enabled = self.save_all_enabled
                 status_msg.save_all_rate = self.save_all_rate   
@@ -3350,6 +3358,14 @@ class SettingsIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(settings_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + settings_name)
+<<<<<<< HEAD
+        # An explicit namespace lets a caller place this interface somewhere other than
+        # its own node namespace. system_mgr passes the base namespace so the system
+        # config settings own the global '<base>/settings' namespace the RUI subscribes
+        # to, and the device IFs pass their device namespace ('<node>/idx', '<node>/ptx',
+        # ...) so each device type's settings sit under its own device namespace.
+=======
+>>>>>>> 63a573b2aabf394f765ce7488b8b13de17ad5b57
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
