@@ -1972,10 +1972,18 @@ class BaseImageIF:
 
     height_org = 0
     width_org = 0
+
     height_proc = 0
     width_proc = 0
-    width_deg = 100
-    height_deg = 70
+
+
+
+    width_start_deg = 0
+    width_stop_deg = DEFAULT_WIDTH_DEG
+    height_start_deg = 0
+    height_stop_deg = DEFAULT_HEIGHT_DEG
+    width_deg = DEFAULT_WIDTH_DEG
+    height_deg = DEFAULT_HEIGHT_DEG
 
     zoom_ratio = 1
     x_ratio = 0.5
@@ -2160,13 +2168,21 @@ class BaseImageIF:
         self.status_msg.navpose_topic = navpose_namespace if navpose_namespace is not None else ''
         self.status_msg.transform_topic = transform_namespace if transform_namespace is not None else ''
 
+        # Published Data Info
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
         self.status_msg.encoding = 'bgr8'
         self.status_msg.width_px = 0
         self.status_msg.height_px = 0
+
+        self.status_msg.width_start_deg = 0
+        self.status_msg.width_stop_deg = 0
+        self.status_msg.height_start_deg = 0
+        self.status_msg.height_stop_deg = 0
         self.status_msg.width_deg = 0
         self.status_msg.height_deg = 0
+
+
         self.status_msg.perspective = self.perspective
         self.status_msg.auto_adjust_controls = self.auto_adjust_controls
         self.status_msg.get_latency_time = 0
