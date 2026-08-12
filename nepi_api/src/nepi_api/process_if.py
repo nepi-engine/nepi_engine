@@ -384,7 +384,7 @@ class ProcessIF:
                 'add_node_name': True
                 }
 
-            sd_namespace = self.process_namespace
+            sd_namespace = self.node_namespace
             self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = list(self.process_data_products),
                                     factory_rate_dict = factory_data_rates,
@@ -881,7 +881,7 @@ class DetectionsIF:
                     'add_node_name': True
                 }
 
-                self.save_data_if = SaveDataIF(namespace = self.namespace,
+                self.save_data_if = SaveDataIF(namespace = self.node_namespace,
                                         data_products = [self.data_product],
                                         factory_rate_dict = factory_data_rates,
                                         factory_filename_dict = factory_filename_dict,
@@ -1265,7 +1265,7 @@ class DetectionsImageIF:
                     'add_node_name': True
                 }
 
-                self.save_data_if = SaveDataIF(namespace = self.namespace,
+                self.save_data_if = SaveDataIF(namespace = self.node_namespace,
                                         data_products = [self.data_product],
                                         factory_rate_dict = factory_data_rates,
                                         factory_filename_dict = factory_filename_dict,
@@ -1672,7 +1672,7 @@ class TargetsIF:
                     'add_node_name': True
                 }
 
-                self.save_data_if = SaveDataIF(namespace = self.namespace,
+                self.save_data_if = SaveDataIF(namespace = self.node_namespace,
                                         data_products = [self.data_product],
                                         factory_rate_dict = factory_data_rates,
                                         factory_filename_dict = factory_filename_dict,
@@ -2055,7 +2055,7 @@ class TargetsImageIF:
                     'add_node_name': True
                 }
 
-                self.save_data_if = SaveDataIF(namespace = self.namespace,
+                self.save_data_if = SaveDataIF(namespace = self.node_namespace,
                                         data_products = [self.data_product],
                                         factory_rate_dict = factory_data_rates,
                                         factory_filename_dict = factory_filename_dict,

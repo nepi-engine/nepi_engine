@@ -2934,8 +2934,9 @@ class AiDetectorIF:
         img_connected = True in img_connects or self.source_file_processing
         self.process_status_msg.source_connected = img_connected 
 
-        self.process_status_msg.has_imaging = True
-        self.process_status_msg.imaging_enabled = self.imaging_enabled
+        self.process_status_msg.has_image_pub = True
+        self.process_status_msg.image_pub_name = 'detections_image'
+        self.process_status_msg.image_pub_enabled = self.imaging_enabled
         self.process_status_msg.max_image_pub_rate_hz = self.max_image_pub_rate_hz
         self.process_status_msg.use_last_image = self.use_last_image
         img_source_topics = []

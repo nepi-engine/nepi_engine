@@ -1259,7 +1259,7 @@ class NavPoseIF:
                     'add_node_name': True
                     }
 
-                sd_namespace = self.namespace
+                sd_namespace = self.node_namespace
                 self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                         data_products = [self.data_product],
                                         factory_rate_dict = factory_data_rates,
@@ -3594,7 +3594,7 @@ class BaseImageIF:
                 'add_node_name': True
                 }
 
-            sd_namespace = self.namespace
+            sd_namespace = self.node_namespace
             self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = [self.data_product],
                                     factory_rate_dict = factory_data_rates,
@@ -7379,7 +7379,7 @@ class DepthMapIF:
                 'add_node_name': True
                 }
 
-            sd_namespace = self.namespace
+            sd_namespace = self.node_namespace
             self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = [self.data_product],
                                     factory_rate_dict = factory_data_rates,
@@ -8831,7 +8831,7 @@ class PointcloudIF:
                 'add_node_name': True
                 }
 
-            sd_namespace = self.namespace
+            sd_namespace = self.node_namespace
             self.save_data_if = SaveDataIF(namespace = sd_namespace,
                                     data_products = [self.data_product],
                                     factory_rate_dict = factory_data_rates,
