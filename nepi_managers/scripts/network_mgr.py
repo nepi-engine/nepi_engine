@@ -772,7 +772,7 @@ class NetworkMgr:
     
 
     def internet_check(self):
-        connected = None
+        connected = False
         try:
             connected = nepi_utils.ping_ip("8.8.8.8")
             self.internet_checked = True

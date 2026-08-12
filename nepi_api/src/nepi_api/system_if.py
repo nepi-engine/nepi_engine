@@ -3308,6 +3308,8 @@ class SettingsIF:
    
     caps_settings = nepi_settings.NONE_CAP_SETTINGS
     factorySettings = nepi_settings.NONE_SETTINGS
+    getCapSettingsFunction = None
+    getSettingsFunction = None
     setSettingFunction = None
 
     caps_response = SettingsCapabilitiesQueryResponse()
@@ -3356,11 +3358,14 @@ class SettingsIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(settings_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + settings_name)
+<<<<<<< HEAD
         # An explicit namespace lets a caller place this interface somewhere other than
         # its own node namespace. system_mgr passes the base namespace so the system
         # config settings own the global '<base>/settings' namespace the RUI subscribes
         # to, and the device IFs pass their device namespace ('<node>/idx', '<node>/ptx',
         # ...) so each device type's settings sit under its own device namespace.
+=======
+>>>>>>> 63a573b2aabf394f765ce7488b8b13de17ad5b57
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
@@ -3383,6 +3388,8 @@ class SettingsIF:
                 self.msg_if.pub_warn("Exiting, None Valid Settings Dict: " + str(settings_dict) + " : " + str(e), log_name_list = self.log_name_list)
                 return
 
+        if 'getCapSettingsFunction' in settings_dict.keys():
+            self.getCapSettingsFunction = settings_dict['getCapSettingsFunction']
 
         #  Initialize capabilities info
         if capSettings is None:
@@ -3622,6 +3629,8 @@ class SettingsIF:
         """
         if self.node_if is not None:
             current_settings = self.getSettingsFunction()
+            if self.getCapSettingsFunction is not None:
+                self.cap_settings = self.getCapSettingsFunction()
             cap_settings = self.cap_settings
             #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
             status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)

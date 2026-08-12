@@ -383,7 +383,8 @@ def update_nepi_system_config(config_key, config_value, config_dict = None):
         success=save_nepi_system_config(config_dict)
     return config_dict
 
-
+def restart_nepi_software():
+    nepi_utils.bash_nepi_cmd('nepistart')
 
 ########################
 def load_nepi_docker_config():
