@@ -55,6 +55,7 @@ from nepi_api.system_if import SaveDataIF
 
 CONNECTED_TIMEOUT = 2
 
+<<<<<<< HEAD
 class ProcessIF:
     
     msg_if = None
@@ -715,6 +716,8 @@ class ProcessIF:
         #   self.publish_status()
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
+=======
+>>>>>>> f3f7d0d010383ba0d60cd0d810932037289b523f
 
 #########################################
 # Detections Data Product IF Class

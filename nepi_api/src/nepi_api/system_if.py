@@ -3358,11 +3358,14 @@ class SettingsIF:
             self.msg_if.pub_warn("Name Not Valid: " + str(settings_name)) 
             return
         self.msg_if.pub_info("Using States Name: " + settings_name)
+<<<<<<< HEAD
         # An explicit namespace lets a caller place this interface somewhere other than
         # its own node namespace. system_mgr passes the base namespace so the system
         # config settings own the global '<base>/settings' namespace the RUI subscribes
         # to, and the device IFs pass their device namespace ('<node>/idx', '<node>/ptx',
         # ...) so each device type's settings sit under its own device namespace.
+=======
+>>>>>>> f3f7d0d010383ba0d60cd0d810932037289b523f
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
