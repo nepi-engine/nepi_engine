@@ -1063,7 +1063,7 @@ class SystemMgrNode():
                 self.add_info_string(msg, StampedString.PRI_HIGH)
                 return success, msg
 
-        #self.msg_if.pub_warn("Updating Config Setting File with: " + str([setting_name,setting_data]))
+        self.msg_if.pub_warn("Updating Config Setting File with: " + str([setting_name,setting_data]))
         self.system_config[setting_name] = setting_data
         nepi_system.update_nepi_system_config(setting_name,setting_data)         
         success = True

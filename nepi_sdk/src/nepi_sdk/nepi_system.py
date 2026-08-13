@@ -34,7 +34,7 @@ SYSTEM_CONFIG_FILE = '/mnt/nepi_config/system_cfg/etc/nepi_system_config.yaml'
 FACTORY_CONFIG_FILE= '/mnt/nepi_config/system_cfg/etc/nepi_system_config.factory'
 
 
-NEPI_DOCKER_CONFIG_FILE = '/opt/nepi/docker_cfg/nepi_docker_config.yaml'
+DOCKER_CONFIG_BLANK_FILE = '/mnt/nepi_config/docker_cfg/nepi_docker_config.blank'
 DOCKER_CONFIG_FILE = '/mnt/nepi_config/docker_cfg/nepi_docker_config.yaml'
 
 NEPI_ALL_CONFIG_IDS = ['idx','ptx','lsx','npx','rbx']
@@ -366,20 +366,24 @@ def save_nepi_system_config(config_dict):
 
 def update_nepi_system_configs(config_dict):
     success=False
+    logger.log_warn('Got System Configs update ' + str(config_dict))
     cur_config_dict=load_nepi_system_config()
     if cur_config_dict is not None:
         for key in cur_config_dict.keys():
             if key not in config_dict.keys():
                 config_dict[key] = cur_config_dict[key]
+    logger.log_warn('Updating System Configs file with ' + str(config_dict))
     success=save_nepi_system_config(config_dict)
     return config_dict
 
 def update_nepi_system_config(config_key, config_value, config_dict = None):
     success=False
+    logger.log_warn('Got System Config update ' + str([config_dict,config_key]))
     if config_dict is None:
         config_dict=load_nepi_system_config()
     if config_dict is not None:
         config_dict[config_key] = config_value
+        logger.log_warn('Updating System Config file with ' + str(config_dict[config_key]))
         success=save_nepi_system_config(config_dict)
     return config_dict
 
@@ -391,8 +395,8 @@ def load_nepi_docker_config():
     config_dict = None
 
     target_file=DOCKER_CONFIG_FILE
-    backup_file=NEPI_DOCKER_CONFIG_FILE
-    if os.path.exists(target_file) == False:
+    backup_file=DOCKER_CONFIG_BLANK_FILE
+    if os.path.exists(target_file) == False or os.path.getsize(target_file) == 0:
         folder=os.path.dirname(target_file)
         if os.path.exists(folder) == False:       
             try:
@@ -406,16 +410,21 @@ def load_nepi_docker_config():
     if os.path.exists(target_file) == True:
         config_dict = nepi_utils.read_dict_from_file(target_file)
         if config_dict is not None:
-            for key in config_dict.keys(): # Fixe empty arrays
-                if config_dict[key] is None:
-                    config_dict[key]=[]
+            if len(list(config_dict.keys())) == 0:
+                config_dict = None
+            else:
+                for key in config_dict.keys(): # Fixe empty arrays
+                    if config_dict[key] is None:
+                        config_dict[key]=[]
+            
     return config_dict
 
 def save_nepi_docker_config(config_dict):
-
+    if len(list(config_dict.keys())) == 0:
+        return False
     target_file=DOCKER_CONFIG_FILE
-    backup_file=NEPI_DOCKER_CONFIG_FILE
-    if os.path.exists(target_file) == False:
+    backup_file=DOCKER_CONFIG_BLANK_FILE
+    if os.path.exists(target_file) == False or os.path.getsize(target_file) == 0:
         folder=os.path.dirname(target_file)
         if os.path.exists(folder) == False:       
             try:
