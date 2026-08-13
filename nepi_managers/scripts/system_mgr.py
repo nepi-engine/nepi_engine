@@ -144,6 +144,7 @@ class SystemMgrNode():
     system_update_time = 0
     system_update_delay = 60
     nepi_service_running = False
+    nepi_config_updating = False
     nepi_update_requested = False
     nepi_updating_config = False
     nepi_expand_requested = False
@@ -774,7 +775,10 @@ class SystemMgrNode():
 
 
         self.initCb(do_updates = True)
-
+        # Want to update the op_environment (from param server) through the whole system once at
+        # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
+        self.msg_if.pub_warn("Updating From Param Server")
+        self.initConfig()
 
         ###############################
         # Setup System Settings IF Class ####################
@@ -794,14 +798,15 @@ class SystemMgrNode():
                         settings_dict = self.SYSTEM_SETTINGS_DICT,
                         log_name_list = [self.node_name],
                         save_params = False,
-                            msg_if = self.msg_if
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
                         )
 
         #######################
         # Setup NEPI Managers Updater Process
         self.msg_if.pub_info(":" + self.class_name + ": Starting states status pub service: ")
         nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
-
+        nepi_sdk.start_timer_process(1, self.updateDockerCb, oneshot = True)
 
         #######################
         # Setup System IF Classes
@@ -833,10 +838,7 @@ class SystemMgrNode():
         nepi_sdk.start_timer_process(self.states_pub_interval, self.systemStatesPubCb)
 
     
-        # Want to update the op_environment (from param server) through the whole system once at
-        # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
-        self.msg_if.pub_warn("Updating From Param Server")
-        self.initConfig()
+
     
 
 
@@ -845,7 +847,7 @@ class SystemMgrNode():
         nepi_sdk.start_timer_process(self.STATUS_PERIOD, self.publishStatusCb)
         nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
         nepi_sdk.start_timer_process(60000, self.ClearLogsCb, oneshot = True)
-        nepi_sdk.start_timer_process(1, self.updateDockerCb)
+        
         self.msg_if.pub_warn("System status ready")
 
         ##################################
@@ -1042,6 +1044,7 @@ class SystemMgrNode():
       success = False
       msg = ""
       setting_str = str(setting)
+      self.msg_if.pub_warn("Got Config Setting Update: " + str(setting))
       [s_name, s_type, data] = nepi_settings.get_data_from_setting(setting)
       if data is not None:
         setting_name = setting['name']
@@ -1059,28 +1062,38 @@ class SystemMgrNode():
                 msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
                 self.add_info_string(msg, StampedString.PRI_HIGH)
                 return success, msg
+
+        #self.msg_if.pub_warn("Updating Config Setting File with: " + str([setting_name,setting_data]))
         self.system_config[setting_name] = setting_data
-        # nepi_system.update_nepi_system_config(setting_name,setting_data)         
+        nepi_system.update_nepi_system_config(setting_name,setting_data)         
         success = True
         msg = ( self.node_name  + " UPDATED SETTINGS " + setting_str)   
       else:
         msg = (self.node_name  + " Setting data" + setting_str + " is None")
+      self.msg_if.pub_warn("Setting Update returned msg: " + str(msg))
       return success, msg
 
     def setNepiConfigsCb(self, msg):
-        self.msg_if.pub_info("Got Set Configs msg: " + str(msg))
-        if self.system_settings_if is not None:
-            key_strs = msg.key_strs
-            value_strs = msg.value_strs
-            if len(key_strs) == len(value_strs):
-                for i, key_str in enumerate(key_strs):
-                    self.system_settings_if.update_setting_value(key_str, value_strs[i])
-                    nepi_sdk.sleep(0.2)
+        updating = copy.deepcopy(self.nepi_config_updating)
+        if updating == False:
+            self.nepi_config_updating = True
+            self.msg_if.pub_info("Got Set Configs msg: " + str(msg))
+            if self.system_settings_if is not None:
+                key_strs = msg.key_strs
+                value_strs = msg.value_strs
+                if len(key_strs) == len(value_strs):
+                    for i, key_str in enumerate(key_strs):
+                        self.system_settings_if.update_setting_value(key_str, value_strs[i])
+                        nepi_sdk.sleep(0.2)
+            self.nepi_config_updating = False
+        
 
     def updateNepiConfigCb(self, msg):
         self.msg_if.pub_info("Got Update Config msg: " + str(msg))
         start_config = nepi_system.load_nepi_system_config()
         if self.nepi_update_requested == False and self.nepi_updating_config == False:
+            while (self.nepi_config_updating == True):
+              nepi_sdk.sleep(0.5)            
             self.msg_if.pub_warn("Starting System Update Process")
             umsg = "Sending NEPI Update Request"
             self.msg_if.pub_info(str(umsg))
@@ -1089,11 +1102,12 @@ class SystemMgrNode():
             system_config = copy.deepcopy(self.system_config)
             nepi_system.update_nepi_system_configs(system_config) 
             nepi_sdk.sleep(1)
+
+            ####################
             update_config = 1
-            nepi_system.update_nepi_docker_config('NEPI_UPDATE_CONFIG',update_config)
-            # Wait for updates
             success = False
             umsg = 'NEPI Config Failed to Update'
+            nepi_system.update_nepi_docker_config('NEPI_UPDATE_CONFIG',update_config)
             last_time = nepi_utils.get_time()
             timer = 0
             while (timer < self.UPDATE_START_WAIT_S):
@@ -1130,7 +1144,7 @@ class SystemMgrNode():
                 nepi_system.save_nepi_system_config(start_config)
                 nepi_sdk.sleep(1)
             updated_config = nepi_system.load_nepi_system_config()
-            self.msg_if.pub_warn("Got Updted System Config: " + str(updated_config))
+            #self.msg_if.pub_warn("Got Updated System Config: " + str(updated_config))
             if updated_config is None:
                 self.system_config = dict()
             for key in updated_config.keys():
@@ -1303,7 +1317,7 @@ class SystemMgrNode():
             # Expansion just finished, clear the in-progress warning
             self.status_msg.nepi_update_msg = 'STORAGE EXPANSION FINISHED'
         self.nepi_expanding_fs = nepi_expanding_fs
-
+        nepi_sdk.start_timer_process(1, self.updateDockerCb, oneshot = True)
         
         
 
