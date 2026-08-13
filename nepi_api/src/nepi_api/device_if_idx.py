@@ -889,7 +889,8 @@ class IDXDeviceIF:
       if self.node_if is not None:
             self.width_deg = self.node_if.get_param('width_deg')
             self.height_deg = self.node_if.get_param('height_deg')  
-            self.aspect_ratio_deg = self.node_if.get_param('aspect_ratio_deg')  
+            self.aspect_ratio_deg = round(self.node_if.get_param('aspect_ratio_deg'),2)
+            self.msg_if.pub_warn("Init degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
 
             self.resolution_ratio = self.node_if.get_param('resolution_ratio')
             max_framerate = self.node_if.get_param('max_framerate') 
@@ -925,10 +926,12 @@ class IDXDeviceIF:
 
     def resetCb(self,do_updates = True):
       if self.node_if is not None:
-        # self.node_if.reset_params()
+        self.node_if.reset_params()
         if self.getFOV is not None:
             try:
-                [width_deg,height_deg] = self.getFOV()
+                [self.width_deg,self.height_deg] = self.getFOV()
+                self.aspect_ratio_deg = -999
+                self.msg_if.pub_warn("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
                 if self.node_if is not None:
                     self.node_if.set_param('width_deg',self.width_deg)
                     self.node_if.set_param('height_deg',self.height_deg) 
@@ -946,10 +949,12 @@ class IDXDeviceIF:
 
     def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
-        #self.node_if.factory_reset_params()
+        self.node_if.factory_reset_params()
         if self.getFOV is not None:
             try:
-                [width_deg,height_deg] = self.getFOV()
+                [self.width_deg,self.height_deg] = self.getFOV()
+                self.aspect_ratio_deg = -999
+                self.msg_if.pub_warn("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
                 if self.node_if is not None:
                     self.node_if.set_param('width_deg',self.width_deg)
                     self.node_if.set_param('height_deg',self.height_deg) 
@@ -1028,12 +1033,10 @@ class IDXDeviceIF:
     def setWidthDegCb(self, msg):
         #self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
         width_deg = msg.data
-        if width_deg > 0:
-            aspect_ratio_deg = self.width_px / self.height_px
-            if aspect_ratio_deg < 0.5 or aspect_ratio_deg > 2.5:
-                self.aspect_ratio_deg = aspect_ratio_deg
+        if width_deg > 10:
+            self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
             self.width_deg = width_deg     
-
+            self.msg_if.pub_warn("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
             self.publish_status(do_updates=False) # Updated inline here   
             if self.node_if is not None:
                 self.node_if.set_param('width_deg', width_deg)
@@ -1044,12 +1047,10 @@ class IDXDeviceIF:
     def setHeightDegCb(self, msg):
         #self.msg_if.pub_info("Recived Height Deg update message: " + str(msg))
         height_deg = msg.data
-        if height_deg > 0:
-            aspect_ratio_deg = self.width_px / self.height_px
-            if aspect_ratio_deg < 0.5 or aspect_ratio_deg > 2.5:
-                self.aspect_ratio_deg = aspect_ratio_deg  
+        if height_deg > 10:
+            self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
             self.height_deg = height_deg   
-
+            self.msg_if.pub_warn("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg, ]))
             self.publish_status(do_updates=False) # Updated inline here   
             if self.node_if is not None:
                 self.node_if.set_param('height_deg', height_deg)
@@ -1337,15 +1338,17 @@ class IDXDeviceIF:
                         self.width_px = cv2_shape[1] 
                         self.height_px = cv2_shape[0]             
 
+                        
                         if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
-                            self.aspect_ratio_deg = self.width_px / self.height_px
+                            self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
                             if self.node_if is not None:
                                 self.node_if.set_param('aspect_ratio_deg',self.aspect_ratio_deg)
 
-                        cur_aspect_ratio = self.width_px / self.height_px
+                        cur_aspect_ratio = round(self.width_px / self.height_px, 2)
+                        
                         width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
                         height_deg = self.height_deg
-
+                        #self.msg_if.pub_warn("Image Pub degs w,cw,ch,h,ar,cr:: " + str([self.width_deg,width_deg,self.height_deg,height_deg,self.aspect_ratio_deg,cur_aspect_ratio]), throttle_s = 5)
                         # Now process and publish image
                         cv2_img = dp_if.publish_cv2_img(cv2_img, encoding = encoding,
                                                         timestamp = timestamp,
@@ -1453,10 +1456,10 @@ class IDXDeviceIF:
                         self.width_px = cv2_shape[1] 
                         self.height_px = cv2_shape[0] 
 
-                        if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
-                            self.aspect_ratio_deg = self.width_px / self.height_px
-                            if self.node_if is not None:
-                                self.node_if.set_param('aspect_ratio_deg',self.aspect_ratio_deg)
+                        # if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
+                        #     self.aspect_ratio_deg  = round(self.width_px / self.height_px, 2)
+                        #     if self.node_if is not None:
+                        #         self.node_if.set_param('aspect_ratio_deg',self.aspect_ratio_deg)
                         cur_aspect_ratio = self.width_px / self.height_px
                         width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
                         height_deg = self.height_deg
@@ -1716,9 +1719,9 @@ class IDXDeviceIF:
 
         self.status_msg.device_disabled = self.device_disabled
 
-        aspect_ratio_deg = self.width_px / self.height_px
-        if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
-            self.aspect_ratio_deg = self.width_px / self.height_px
+        # aspect_ratio_deg = self.width_px / self.height_px
+        # if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
+        #     self.aspect_ratio_deg  = round(self.width_px / self.height_px, 2)
         
         cur_aspect_ratio = self.width_px / self.height_px
         if cur_aspect_ratio < 0.5 or cur_aspect_ratio > 2.5:
