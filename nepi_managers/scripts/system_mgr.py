@@ -139,6 +139,8 @@ class SystemMgrNode():
 
     SYSTEM_SETTINGS_KEYS = []
     SYSTEM_SETTINGS_DICT = dict()
+    SYSTEM_ENABLE_KEYS = ['NEPI_DEVICE_ID','NEPI_DEVICE_MD','NEPI_DEVICE_SN','IP']
+    SYSTEM_DISABLE_KEYS = ['ROS']
     system_capSettings = None
     system_factorySettings = None
     system_update_time = 0
@@ -796,6 +798,8 @@ class SystemMgrNode():
     
         self.system_settings_if = SettingsIF(namespace = system_settings_ns,
                         settings_dict = self.SYSTEM_SETTINGS_DICT,
+                        enable_list = self.SYSTEM_ENABLE_KEYS,
+                        disable_list = self.SYSTEM_ENABLE_KEYS,
                         log_name_list = [self.node_name],
                         save_params = False,
                             msg_if = self.msg_if,

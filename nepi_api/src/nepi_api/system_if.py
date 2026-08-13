@@ -161,7 +161,7 @@ class ControlsIF:
         self.controls_description = str(controls_description)
         self.controls_dict = nepi_controls.create_controls_dict(controls_init_dict)
         self.controls_status_msg = nepi_controls.create_status_msg(self.controls_name, self.controls_display_name, self.controls_description,
-                                                                    show_controls, has_show_control)
+                                                                    show_controls, has_show_control, enable_list = self.enable_list, disable_list = self.disable_list)
         self.controls_hidden = hidden
 
         self.controls_updated_callback = controls_updated_callback
@@ -3316,6 +3316,9 @@ class SettingsIF:
 
     init_settings = dict()
 
+    enable_list = []
+    disable_list = []
+
     save_params = True
     #######################
     ### IF Initialization
@@ -3324,6 +3327,8 @@ class SettingsIF:
                 settings_name = 'settings',
                 settings_dict = None,
                 allow_cap_updates = False,
+                enable_list = [],
+                disable_list = [],
                 save_params = True,
                 log_name = None,
                 log_name_list = [],
@@ -3351,6 +3356,9 @@ class SettingsIF:
         
 
         #############################
+
+        self.enable_list = enable_list
+        self.disable_list = disable_list
 
         # Create Namespace
         settings_name = nepi_utils.get_clean_name(settings_name)
@@ -3394,7 +3402,7 @@ class SettingsIF:
         else:
             self.msg_if.pub_debug("Got Node settings capabilitis dict : " + str(capSettings), log_name_list = self.log_name_list)
             self.cap_settings = capSettings   
-        caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates)
+        caps_response = nepi_settings.create_capabilities_response(self.cap_settings,has_cap_updates = self.allow_cap_updates, enable_list = self.enable_list, disable_list = self.disable_list)
         self.msg_if.pub_debug("Cap Settings: " + str(caps_response), log_name_list = self.log_name_list)
 
 
@@ -3630,7 +3638,7 @@ class SettingsIF:
                 self.cap_settings = self.getCapSettingsFunction()
             cap_settings = self.cap_settings
             #self.msg_if.pub_warn("Settings status: " + str(current_settings) + " : " + str(cap_settings), log_name_list = self.log_name_list, throttle_s = 5.0)
-            status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates)
+            status_msg = nepi_settings.create_status_msg(current_settings,cap_settings,self.allow_cap_updates, enable_list = self.enable_list, disable_list = self.disable_list)
             status_msg.node_name = self.node_name
             status_msg.settings_topic = self.namespace
             #self.msg_if.pub_debug("Publishing settings status msg: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -3669,10 +3677,25 @@ class SettingsIF:
 
     def update_setting_value(self, key_str, value_str):
         current_settings = self.getSettingsFunction()
-        if key_str in current_settings.keys():
-            setting = current_settings[key_str]
-            setting['value'] = str(value_str)
-            self.update_setting(setting)    
+        name = key_str
+        if name in current_settings.keys():
+            disabled = False
+            # if len(self.enable_list) > 0:
+            #     valid = False
+            #     for entry in self.enable_list:
+            #         if entry in name:
+            #             valid = True
+            #             break
+            #     disabled = valid == False
+            # if len(self.disable_list) > 0:
+            #     for entry in self.disable_list:
+            #         if entry in name:
+            #             disabled = True
+            #             break 
+            if disabled == False:
+                setting = current_settings[name]
+                setting['value'] = str(value_str)
+                self.update_setting(setting)    
 
     def update_setting(self,setting,do_updates = True, update_param = True):
         """Apply a single setting update using the registered setSettingFunction.
@@ -3795,7 +3818,7 @@ class SettingsIF:
         self.reset()
 
     def _capabilitiesHandler(self, req):
-        caps_response = nepi_settings.create_capabilities_response(self.cap_settings, has_cap_updates = self.allow_cap_updates)
+        caps_response = nepi_settings.create_capabilities_response(self.cap_settings, has_cap_updates = self.allow_cap_updates, enable_list = self.enable_list, disable_list = self.disable_list)
         return caps_response
 
 

@@ -67,22 +67,37 @@ def parse_cap_setting_msgs_list(cap_settings_msg_list):
   return cap_settings
 
 
-def create_msg_from_cap_setting(cap_setting):
+def create_msg_from_cap_setting(cap_setting, enable_list = [], disable_list = []):
     cap_setting_msg = SettingCap()
     cap_setting_msg.type_str = cap_setting['type']
-    cap_setting_msg.name_str = cap_setting['name']
+    name = cap_setting['name']
+    cap_setting_msg.name_str = name
     if 'options' in cap_setting.keys():
       cap_setting_msg.options_list = cap_setting['options']
     else:
       cap_setting_msg.options_list = []
+    disabled = False
+    # if len(enable_list) > 0:
+    #   valid = False
+    #   for entry in enable_list:
+    #     if entry in name:
+    #       valid = True
+    #       break
+    #   disabled = valid == False
+    # if len(disable_list) > 0:
+    #   for entry in disable_list:
+    #     if entry in name:
+    #       disabled = True
+    #       break
+    cap_setting_msg.disabled = disabled
     return cap_setting_msg
 
 
-def create_msgs_list_from_cap_settings(cap_settings):
+def create_msgs_list_from_cap_settings(cap_settings, enable_list = [], disable_list = []):
   cap_setting_msgs_list = []
   for cap_setting_name in cap_settings.keys():
     cap_setting = cap_settings[cap_setting_name]
-    cap_setting_msg = create_msg_from_cap_setting(cap_setting)
+    cap_setting_msg = create_msg_from_cap_setting(cap_setting, enable_list, disable_list)
     cap_setting_msgs_list.append(cap_setting_msg)
   return cap_setting_msgs_list
 
@@ -119,10 +134,10 @@ def create_msgs_list_from_settings(settings):
   return settings_list
 
 
-def create_capabilities_response(cap_settings, has_cap_updates = False):
+def create_capabilities_response(cap_settings, has_cap_updates = False, enable_list = [], disable_list = []):
   response = SettingsCapabilitiesQueryResponse()
   response.settings_count = len(cap_settings)
-  response.setting_caps_list = create_msgs_list_from_cap_settings(cap_settings)
+  response.setting_caps_list = create_msgs_list_from_cap_settings(cap_settings, enable_list, disable_list)
   response.has_cap_updates = has_cap_updates
   return response
 
@@ -132,12 +147,12 @@ def parse_capabilities_response(response):
   return(cap_settings,has_cap_updates )
 
 
-def create_status_msg(settings,cap_settings, has_cap_updates = False):
+def create_status_msg(settings,cap_settings, has_cap_updates = False, enable_list = [], disable_list = []):
   status_msg = SettingsStatus()
   if len(settings) == len(cap_settings):
     status_msg.settings_count = len(settings)
     status_msg.settings_list = create_msgs_list_from_settings(settings)
-    status_msg.setting_caps_list = create_msgs_list_from_cap_settings(cap_settings)
+    status_msg.setting_caps_list = create_msgs_list_from_cap_settings(cap_settings, enable_list, disable_list)
     status_msg.has_cap_updates = has_cap_updates
   return status_msg
 
