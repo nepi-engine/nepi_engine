@@ -474,20 +474,23 @@ class NepiDriversMgr(object):
     setting_options_dict = dict()
     setting_options_dict['SERIAL_DEVICES'] = avail_serial_ports
     setting_options_dict['IDX_DEVICES'] = []
+    setting_options_dict['SVX_DEVICES'] = []
     setting_options_dict['PTX_DEVICES'] = []
     setting_options_dict['NPX_DEVICES'] = []
     setting_options_dict['LSX_DEVICES'] = []
     setting_options_dict['RBX_DEVICES'] = []  
     for topic in msg.active_topics:
-      if 'IDX/status' in topic:
+      if 'idx/status' in topic:
         setting_options_dict['IDX_DEVICES'].append(topic.replace('/status',''))
-      if 'PTX/status' in topic:
+      if 'ptx/status' in topic:
         setting_options_dict['PTX_DEVICES'].append(topic.replace('/status',''))
-      if 'NPX/status' in topic:
+      if 'svx/status' in topic:
+        setting_options_dict['SVX_DEVICES'].append(topic.replace('/status',''))
+      if 'npx/status' in topic:
         setting_options_dict['NPX_DEVICES'].append(topic.replace('/status',''))
-      if 'LSX/status' in topic:
+      if 'lsx/status' in topic:
         setting_options_dict['LSX_DEVICES'].append(topic.replace('/status',''))
-      if 'RBX/status' in topic:
+      if 'rbx/status' in topic:
         setting_options_dict['RBX_DEVICES'].append(topic.replace('/status',''))
     self.setting_options_dict = setting_options_dict
 
