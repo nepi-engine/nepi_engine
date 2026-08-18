@@ -2107,9 +2107,10 @@ class BaseImageIF:
             self.filter_dict = dict()
 
 
-        self.live_adjustments_disabled = live_adjustments_disabled
-        self.aspect_adjustment_disabled = aspect_adjustment_disabled
-
+        self.live_adjustments_disabled = live_adjustments_disabled == True
+        #self.msg_if.pub_warn(self.data_product + " Got Live Adjust Disabled: " + str(self.live_adjustments_disabled ) )
+        self.aspect_adjustment_disabled = aspect_adjustment_disabled == True
+        #self.msg_if.pub_warn(self.data_product + " Got Aspect Adjust Disabled: " + str(self.aspect_adjustment_disabled ) )
         # Create and update capabilities dictionary
         if caps_dict is not None:
             for cap in self.caps_dict.keys():
@@ -2310,18 +2311,18 @@ class BaseImageIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'data_pub': {
+            self.data_product + '_data_pub': {
                 'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            # NOTE: 'data_pub'/'status_pub' keys are generic and identical across every
+            # NOTE: self.data_product + '_data_pub'/'status_pub' keys are generic and identical across every
             # image-IF instance. Safe only while this IF owns its own node_if. If a shared
             # node_if is ever passed in, make these keys namespace-unique first or coexisting
             # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
-            'status_pub': {
+            self.data_product + '_status_pub': {
                 'msg': ImageStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
@@ -4244,7 +4245,7 @@ class BaseImageIF:
                             header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = navpose_dict['navpose_frame'])
                             #self.msg_if.pub_warn("Publishing image with header: " + str(header))
                             ros_img.header = header
-                            self.node_if.publish_pub('data_pub', ros_img)
+                            self.node_if.publish_pub(self.data_product + '_data_pub', ros_img)
 
 
                             for namespace in add_pubs:
@@ -4256,7 +4257,7 @@ class BaseImageIF:
                             if pub_twice == True:
                                 #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
                                 nepi_sdk.sleep(0.01)
-                                self.node_if.publish_pub('data_pub', ros_img)
+                                self.node_if.publish_pub(self.data_product + '_data_pub', ros_img)
                                 for namespace in add_pubs:
                                     if namespace in self.add_pubs_dict.keys():
                                         [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
@@ -4318,7 +4319,7 @@ class BaseImageIF:
         sec = nepi_sdk.sec_from_timestamp(timestamp)
         ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = navpose_frame)
         if self.node_if is not None:
-            self.node_if.publish_pub('data_pub', ros_img)
+            self.node_if.publish_pub(self.data_product + '_data_pub', ros_img)
 
     
 
@@ -5644,6 +5645,7 @@ class BaseImageIF:
             self.status_msg.filter_ratios = filter_ratios
 
             self.status_msg.aspect_adjustment_disabled = self.aspect_adjustment_disabled
+            #self.msg_if.pub_warn(self.data_product + " Publishing Aspect Adjust Disabled: " + str(self.aspect_adjustment_disabled ) )
             self.status_msg.aspect_adjust_enabled = self.aspect_adjust_enabled and self.aspect_adjustment_disabled == False
             self.status_msg.aspect_ratio_set = self.aspect_ratio_set
 
@@ -5690,6 +5692,7 @@ class BaseImageIF:
             live_adjust_y_degs = round(shift_y_scaler * self.height_deg,1)
 
             self.status_msg.live_adjustments_disabled = self.live_adjustments_disabled
+            #self.msg_if.pub_warn(self.data_product + " Publishing Live Adjust Disabled: " + str(self.live_adjustments_disabled ) , throttle_s = 5)
             self.status_msg.live_adjust_enabled = live_adjust_enabled
             self.status_msg.live_adjust_rotate_ratio = live_adjust_rotate_ratio
             self.status_msg.live_adjust_rotate_deg = live_adjust_rotate_deg
@@ -5862,8 +5865,11 @@ class BaseImageIF:
                 if avg_time > .01:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
-            #self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg), log_name_list = self.log_name_list, throttle_s = 5)
-            self.node_if.publish_pub('status_pub',self.status_msg)
+            
+            if self.node_if is not None:
+                # if self.data_product == 'pointcloud_image':
+                #     self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg), log_name_list = self.log_name_list, throttle_s = 10)
+                self.node_if.publish_pub(self.data_product + '_status_pub',self.status_msg)
 
 
 
@@ -6005,7 +6011,7 @@ class BaseImageIF:
         
 
     def _needsDataCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        has_subs = self.node_if.pub_has_subscribers(self.data_product + '_data_pub')
         needs_save = False
         needs_snapshot = False
         if self.save_data_if is not None:
@@ -6333,8 +6339,10 @@ class BaseImageIF:
         self.set_tilt_3d_ratio(ratio)
 
     def render3dControlsCb(self, msg):
+        self.msg_if.pub_info("Received Render 3D Controls Enable message: " + str(msg), log_name_list = self.log_name_list)
         enabled = msg.data
         self.render_3d_controls_enabled = enabled
+
         if enabled == True:
             self.msg_if.pub_info("Enabling 3D render controls (mouse drag/window)", log_name_list = self.log_name_list)
             if hasattr(self, 'render3dDragHandler'):
@@ -7256,8 +7264,8 @@ class DepthMapIF:
         # Initialize Status Msg.  Updated on each publish
         self.perspective = perspective
 
-        self.live_adjustments_disabled = live_adjustments_disabled,
-        self.aspect_adjustment_disabled = aspect_adjustment_disabled,
+        self.live_adjustments_disabled = live_adjustments_disabled
+        self.aspect_adjustment_disabled = aspect_adjustment_disabled
 
         if data_source_description is None:
             data_source_description = self.data_source_description
@@ -7307,18 +7315,18 @@ class DepthMapIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'data_pub': {
+            self.data_product + '_data_pub': {
                 'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            # NOTE: 'data_pub'/'status_pub' keys are generic and identical across every
+            # NOTE: self.data_product + '_data_pub'/self.data_product + '_status_pub' keys are generic and identical across every
             # image-IF instance. Safe only while this IF owns its own node_if. If a shared
             # node_if is ever passed in, make these keys namespace-unique first or coexisting
             # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
-            'status_pub': {
+            self.data_product + '_status_pub': {
                 'msg': DepthMapStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
@@ -7451,7 +7459,7 @@ class DepthMapIF:
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if,
                         # NOTE: intentionally NOT sharing self.node_if. DepthMapImageIF
-                        # (via BaseImageIF) registers the generic 'data_pub'/'status_pub'
+                        # (via BaseImageIF) registers the generic self.data_product + '_data_pub'/self.data_product + '_status_pub'
                         # keys, which would clobber DepthMapIF's own entries on a shared
                         # node_if and cross-publish raw 32FC1 (grayscale) and jet-colorized
                         # bgr8 frames onto the same topic (the depth_map flashing bug).
@@ -7757,7 +7765,7 @@ class DepthMapIF:
                     sec = nepi_sdk.sec_from_timestamp(timestamp)
                     ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'None')
                     #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-                    self.node_if.publish_pub('data_pub', ros_img)
+                    self.node_if.publish_pub(self.data_product + '_data_pub', ros_img)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish Depth Map: " + str(e) , throttle = 5)
 
@@ -7856,7 +7864,7 @@ class DepthMapIF:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
 
-            self.node_if.publish_pub('status_pub',self.status_msg)
+            self.node_if.publish_pub(self.data_product + '_status_pub',self.status_msg)
 
 
 
@@ -7916,7 +7924,7 @@ class DepthMapIF:
 
 
     def _needsDataCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        has_subs = self.node_if.pub_has_subscribers(self.data_product + '_data_pub')
         needs_save = False
         needs_snapshot = False
         if self.save_data_if is not None:
@@ -8598,18 +8606,18 @@ class PointcloudIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            'data_pub': {
+            self.data_product + '_data_pub': {
                 'msg': PointCloud2,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            # NOTE: 'data_pub'/'status_pub' keys are generic and identical across every
+            # NOTE: self.data_product + '_data_pub'/self.data_product + '_status_pub' keys are generic and identical across every
             # image-IF instance. Safe only while this IF owns its own node_if. If a shared
             # node_if is ever passed in, make these keys namespace-unique first or coexisting
             # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
-            'status_pub': {
+            self.data_product + '_status_pub': {
                 'msg':  PointcloudStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
@@ -8834,12 +8842,17 @@ class PointcloudIF:
             data_products = self.save_data_if.get_data_products()
             if self.data_product not in data_products:
                 self.save_data_if.register_data_product(self.data_product)
+            if 'pointcloud_image' not in data_products and pub_image == True:
+                self.save_data_if.register_data_product('pointcloud_image')
         elif save_data_if != 'None':
             
             # Setup Save Data IF Class 
             self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
             factory_data_rates= dict()
             factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+            if pub_image == True:
+                factory_data_rates['pointcloud_image'] = [1.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+            
 
             factory_filename_dict = {
                 'prefix': "", 
@@ -9211,9 +9224,13 @@ class PointcloudIF:
                 self._updateRangesM(min_range_m,max_range_m)
                 self.status_msg.render_status.range_min_max_m.start_range = self.min_range_m
                 self.status_msg.render_status.range_min_max_m.stop_range = self.max_range_m
+                o3d_pc = nepi_pc.range_clip_spherical(o3d_pc, self.min_range_m, self.max_range_m)
+
             else:
                 self.status_msg.render_status.range_min_max_m.start_range = 0
                 self.status_msg.render_status.range_min_max_m.stop_range = 1
+
+
 
             current_time = nepi_utils.get_time()
             latency = (current_time - timestamp)
@@ -9232,7 +9249,7 @@ class PointcloudIF:
                 sec = nepi_sdk.sec_from_timestamp(timestamp)
                 ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'sensor')
                 #self.msg_if.pub_debug("Publishing Pointcloud with header: " + str(ros_pc.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-                self.node_if.publish_pub('data_pub', ros_pc)
+                self.node_if.publish_pub(self.data_product + '_data_pub', ros_pc)
 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
@@ -9356,7 +9373,7 @@ class PointcloudIF:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
 
-            self.node_if.publish_pub('status_pub',self.status_msg)
+            self.node_if.publish_pub(self.data_product + '_status_pub',self.status_msg)
 
 
     def init(self, do_updates = False):
@@ -9416,7 +9433,7 @@ class PointcloudIF:
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
     def _needsDataCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('data_pub')
+        has_subs = self.node_if.pub_has_subscribers(self.data_product + '_data_pub')
         needs_save = False
         needs_snapshot = False
         if self.save_data_if is not None:
@@ -9784,6 +9801,7 @@ class PointcloudImageIF(BaseImageIF):
             log_name = nepi_utils.get_clean_name(log_name)
         self.save_data_if = save_data_if
         self.navpose_if = navpose_if
+
         # Call the parent class constructor
         super().__init__(namespace , 
                 self.data_product,
@@ -9973,7 +9991,7 @@ class PointcloudImageIF(BaseImageIF):
     ###############################
 
     def render3dDragHandler(self, start_pixel, start_color_bgr, stop_pixel, stop_color_bgr):
-        self.msg_if.pub_info("3D render drag handler fired - start: " + str(start_pixel) + " stop: " + str(stop_pixel), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("3D render drag handler fired - start: " + str(start_pixel) + " stop: " + str(stop_pixel), log_name_list = self.log_name_list)
         img_width = self.status_msg.width_px
         img_height = self.status_msg.height_px
         if img_width <= 0 or img_height <= 0:

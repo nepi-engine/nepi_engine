@@ -308,7 +308,7 @@ class AiDetectorImgPub:
         for d in self.data_products:
             factory_data_rates[d] = [1.0, 0.0, 100] 
             
-        self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False, factory_rate_dict = factory_data_rates, namespace = self.node_namespace,
+        self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False, factory_rate_dict = factory_data_rates, namespace = self.process_namespace,
                         msg_if = self.msg_if,
                             node_if = self.node_if
                         )

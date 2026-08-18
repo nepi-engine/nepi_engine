@@ -99,12 +99,15 @@ class PointcloudImgPub:
 
         backup_data_products = ['pointcloud_image']
         self.data_products = nepi_sdk.get_param(self.node_namespace + "/data_products", backup_data_products)
-        self.data_product = self.data_products[-1]
+        #self.data_product = self.data_products[-1]
         self.msg_if.pub_warn("Starting with Data Products: " + str(self.data_products))
 
         backup_pointcloud_namespace = self.node_namespace.replace("_img_pub", "")
         self.pointcloud_namespace = nepi_sdk.get_param(self.node_namespace + "/pointcloud_namespace", backup_pointcloud_namespace)
         self.msg_if.pub_warn("Starting with Pointcloud Namespace: " + str(self.pointcloud_namespace))
+
+        self.pointcloud_image_namespace = nepi_sdk.create_namespace(self.pointcloud_namespace,self.data_product)
+        self.msg_if.pub_warn("Starting with Pointcloud Image Namespace: " + str(self.pointcloud_image_namespace))
 
         self.status_msg = PointcloudStatus()
 
@@ -157,7 +160,7 @@ class PointcloudImgPub:
             factory_data_rates[d] = [1.0, 0.0, 100]
 
         self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False,
-                        factory_rate_dict = factory_data_rates, namespace = self.node_namespace,
+                        factory_rate_dict = factory_data_rates, namespace = self.pointcloud_namespace,
                         msg_if = self.msg_if
                         )
 
