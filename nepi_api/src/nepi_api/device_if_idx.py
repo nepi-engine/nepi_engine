@@ -889,7 +889,9 @@ class IDXDeviceIF:
       if self.node_if is not None:
             self.width_deg = self.node_if.get_param('width_deg')
             self.height_deg = self.node_if.get_param('height_deg')  
-            self.aspect_ratio_deg = round(self.node_if.get_param('aspect_ratio_deg'),2)
+            aspect_ratio_deg = round(self.node_if.get_param('aspect_ratio_deg'),2)
+            if aspect_ratio_deg is not None:
+                self.aspect_ratio_deg = round(aspect_ratio_deg,2)
             self.msg_if.pub_warn("Init degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
 
             self.resolution_ratio = self.node_if.get_param('resolution_ratio')
