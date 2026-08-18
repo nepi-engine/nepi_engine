@@ -4063,63 +4063,15 @@ class BaseImageIF:
                     [self.height_proc,self.width_proc] = [height,width]
 
 
+                    last_width = self.status_msg.width_px
+                    last_height = self.status_msg.height_px
+                    self.status_msg.width_px = width
+                    self.status_msg.height_px = height
+                    res_str = str(width) + ":" + str(height)
+                    self.status_msg.resolution_current = res_str
+
                     if height > 5 and width > 5:
-                        #self.msg_if.pub_debug("Got Processed size: " + str([height,width]), log_name_list = self.log_name_list)
-
-
-                        last_width = self.status_msg.width_px
-                        last_height = self.status_msg.height_px
-                        self.status_msg.width_px = width
-                        self.status_msg.height_px = height
-                        res_str = str(width) + ":" + str(height)
-                        self.status_msg.resolution_current = res_str
-
-                        
-                        # Apply Text Overlays
-                        overlay_text_list = []
-                        overlay_text_enabled = self.overlays_dict['overlay_text_enabled']
-                        overlay_text_size_ratio = self.overlays_dict['overlay_text_size_ratio']
-                        overlay_text_vert_ratio = self.overlays_dict['overlay_text_vert_ratio']
-                        overlay_text_horz_ratio = self.overlays_dict['overlay_text_horz_ratio']
-                        overlay_text_color_rgb = self.overlays_dict['overlay_text_color_rgb']
-                        overlay_text_img_name = self.overlays_dict['overlay_text_img_name']
-                        overlay_text_date_time = self.overlays_dict['overlay_text_date_time']
-                        overlay_text_nav = self.overlays_dict['overlay_text_nav']
-                        overlay_text_pose = self.overlays_dict['overlay_text_pose']
-                        if overlay_text_enabled == True:
-                            if overlay_text_img_name == True:
-                                overlay = nepi_img.getImgShortName(self.namespace)
-                                overlay_text_list.append(overlay)
-                            
-                            if overlay_text_date_time == True:
-                                overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
-                                overlay = overlay.replace('D','')
-                                overlay = overlay.replace('T',' T: ')
-                                overlay_text_list.append(overlay)
-
-                            if overlay_text_nav == True or overlay_text_pose == True:
-                                if navpose_dict is not None:
-                                    if overlay_text_nav == True and navpose_dict is not None:
-                                        overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],0))
-                                        overlay_text_list.append(overlay)
-
-                                    if overlay_text_pose == True and navpose_dict is not None:
-                                        overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],0)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],0)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],0))
-                                        overlay_text_list.append(overlay)
-
-                            overlay_text_list = overlay_text_list + self.overlays_dict['init_overlay_text_list'] + self.overlays_dict['add_overlay_text_list'] + add_overlay_text_list
-
-                            if len(overlay_text_list) > 0:
-                                start_x = (width * 0.01) + ((width * 0.99) * overlay_text_horz_ratio)
-                                start_y = (height * 0.01) + ((height * 0.90) * overlay_text_vert_ratio)
-                                cv2_img = nepi_img.overlay_text_list(cv2_img, 
-                                                        text_list = overlay_text_list, 
-                                                        x_px = start_x , y_px = start_y, 
-                                                        color_rgb = overlay_text_color_rgb, 
-                                                        apply_shadow = True, 
-                                                        size_ratio = overlay_text_size_ratio )
-
-
+ 
                         ######################             
                         crosshairs_dict = self.overlays_dict['crosshairs_dict']
                         crosshair_len = len(list(crosshairs_dict.keys()))
@@ -4240,10 +4192,66 @@ class BaseImageIF:
                                 
 
 
+                        if process_data == True and  cv2_img is not None:
+                             cv2_img = self._zoomAdjust(cv2_img)
 
                         if process_data == True and  cv2_img is not None:
-                            cv2_img = self._liveAdjust(cv2_img)         
-                        
+                            cv2_img = self._liveAdjust(cv2_img)       
+
+                        if cv2_img is not None:
+                            [height,width] = cv2_img.shape[0:2]
+                            if height > 5 and width > 5:
+                                #self.msg_if.pub_debug("Got Processed size: " + str([height,width]), log_name_list = self.log_name_list)
+
+
+
+                                
+                                # Apply Text Overlays
+                                overlay_text_list = []
+                                overlay_text_enabled = self.overlays_dict['overlay_text_enabled']
+                                overlay_text_size_ratio = self.overlays_dict['overlay_text_size_ratio']
+                                overlay_text_vert_ratio = self.overlays_dict['overlay_text_vert_ratio']
+                                overlay_text_horz_ratio = self.overlays_dict['overlay_text_horz_ratio']
+                                overlay_text_color_rgb = self.overlays_dict['overlay_text_color_rgb']
+                                overlay_text_img_name = self.overlays_dict['overlay_text_img_name']
+                                overlay_text_date_time = self.overlays_dict['overlay_text_date_time']
+                                overlay_text_nav = self.overlays_dict['overlay_text_nav']
+                                overlay_text_pose = self.overlays_dict['overlay_text_pose']
+                                if overlay_text_enabled == True:
+                                    if overlay_text_img_name == True:
+                                        overlay = nepi_img.getImgShortName(self.namespace)
+                                        overlay_text_list.append(overlay)
+                                    
+                                    if overlay_text_date_time == True:
+                                        overlay = nepi_utils.get_datetime_str_from_timestamp(timestamp)
+                                        overlay = overlay.replace('D','')
+                                        overlay = overlay.replace('T',' T: ')
+                                        overlay_text_list.append(overlay)
+
+                                    if overlay_text_nav == True or overlay_text_pose == True:
+                                        if navpose_dict is not None:
+                                            if overlay_text_nav == True and navpose_dict is not None:
+                                                overlay = 'Lat: ' +  str(round(navpose_dict['latitude'],6)) + ' Long: ' +  str(round(navpose_dict['longitude'],6)) + ' Head: ' +  str(round(navpose_dict['heading_deg'],0))
+                                                overlay_text_list.append(overlay)
+
+                                            if overlay_text_pose == True and navpose_dict is not None:
+                                                overlay = 'Roll: ' +  str(round(navpose_dict['roll_deg'],0)) + ' Pitch: ' +  str(round(navpose_dict['pitch_deg'],0)) + ' Yaw: ' +  str(round(navpose_dict['yaw_deg'],0))
+                                                overlay_text_list.append(overlay)
+
+                                    overlay_text_list = overlay_text_list + self.overlays_dict['init_overlay_text_list'] + self.overlays_dict['add_overlay_text_list'] + add_overlay_text_list
+
+                                    if len(overlay_text_list) > 0:
+                                        start_x = (width * 0.01) + ((width * 0.99) * overlay_text_horz_ratio)
+                                        start_y = (height * 0.01) + ((height * 0.90) * overlay_text_vert_ratio)
+                                        cv2_img = nepi_img.overlay_text_list(cv2_img, 
+                                                                text_list = overlay_text_list, 
+                                                                x_px = start_x , y_px = start_y, 
+                                                                color_rgb = overlay_text_color_rgb, 
+                                                                apply_shadow = True, 
+                                                                size_ratio = overlay_text_size_ratio )
+
+
+
                         if self.node_if is not None and self.needs_data == True and cv2_img is not None:
                             #self.msg_if.pub_warn("Publishing once")
                             #Convert to ros Image message
@@ -4651,6 +4659,7 @@ class BaseImageIF:
         self.x_ratio = xr_min + (xr_max - xr_min) / 2
         self.y_ratio = yr_min + (yr_max - yr_min) / 2
         self.zoom_ratio = ratio
+
 
         self.publish_status() 
         self.needs_update()
@@ -5675,6 +5684,9 @@ class BaseImageIF:
 
 
             self.status_msg.zoom_ratio = self.zoom_ratio
+            if self.zoom_ratio > 0.01:
+                self.click_crosshair_enabled = False
+                self.click_target_enabled = False
             self.status_msg.pan_x_ratio = self.x_ratio
             self.status_msg.pan_y_ratio = self.y_ratio
             self.status_msg.window_x_ratios.start_range = self.controls_dict['window_ratios'][0]
@@ -6066,6 +6078,53 @@ class BaseImageIF:
 
 
 
+    def _zoomAdjust(self,cv2_img):
+        #####################
+        cv2_shape = cv2_img.shape
+        img_width = cv2_shape[1]
+        img_height = cv2_shape[0]
+        ratio = img_width / img_height
+
+        #####################
+        # Apply render controls 
+        [xr_min,xr_max,yr_min,yr_max] = copy.deepcopy(self.controls_dict['window_ratios'])
+        x_min = int(max(0, img_width * xr_min )) 
+        x_max = int(min(img_width, img_width * xr_max))
+        y_min = int(max(0, img_height * yr_min))
+        y_max = int(min(img_height, img_height * yr_max))
+
+        #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
+        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
+
+        self.x_offset = x_min 
+        self.y_offset = y_min
+        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
+
+
+
+        ##########
+        # Show Drag Box if Needed
+        drag_window = copy.deepcopy(self.drag_window)
+
+        #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+        if drag_window is not None:
+            #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
+            # Define the rectangle parameters
+            x1 = min(drag_window[0], drag_window[1])
+            x2 = max(drag_window[0], drag_window[1])
+            y1 = min(drag_window[2], drag_window[3])
+            y2 = max(drag_window[2], drag_window[3])
+
+
+            color = (0, 200, 0) # Green color in BGR
+            alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
+
+            # Dorg a filled rectangle on the overlay copy
+            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
+        
+        return cv2_img
+
+
     def _liveAdjust(self, cv2_img):
         """
         Translates an OpenCV image by a given number of ratio in x and y directions.
@@ -6158,13 +6217,15 @@ class BaseImageIF:
                             self.set_overlay_text_horz_ratio(x_ratio)
                             self.set_overlay_text_vert_ratio(y_ratio)
             elif self.click_crosshair_enabled == True and click_count == 1:
-                            click_color_rgb = self.overlays_dict['crosshairs_color_rgb']
-                            click_name = 'click'
-                            self.add_crosshair(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
+                            if self.zoom_ratio < 0.01:
+                                click_color_rgb = self.overlays_dict['crosshairs_color_rgb']
+                                click_name = 'click'
+                                self.add_crosshair(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
             elif self.click_target_enabled == True and click_count == 1:
-                            click_color_rgb = self.overlays_dict['targets_color_rgb']
-                            click_name = 'click'
-                            self.add_target(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
+                            if self.zoom_ratio < 0.01:
+                                click_color_rgb = self.overlays_dict['targets_color_rgb']
+                                click_name = 'click'
+                                self.add_target(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
             else:
                     if click_count == 1:
                         #self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
@@ -7062,48 +7123,7 @@ class ColorImageIF(BaseImageIF):
             cv2_img = nepi_img.flip_vert(cv2_img)
 
 
-        #####################
-        cv2_shape = cv2_img.shape
-        img_width = cv2_shape[1]
-        img_height = cv2_shape[0]
-        ratio = img_width / img_height
 
-        #####################
-        # Apply render controls 
-        [xr_min,xr_max,yr_min,yr_max] = copy.deepcopy(self.controls_dict['window_ratios'])
-        x_min = int(max(0, img_width * xr_min )) 
-        x_max = int(min(img_width, img_width * xr_max))
-        y_min = int(max(0, img_height * yr_min))
-        y_max = int(min(img_height, img_height * yr_max))
-
-        #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]), log_name_list = self.log_name_list)
-        cv2_img = cv2_img[y_min:y_max, x_min:x_max]
-
-        self.x_offset = x_min 
-        self.y_offset = y_min
-        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape), log_name_list = self.log_name_list)
-
-
-
-        ##########
-        # Show Drag Box if Needed
-        drag_window = copy.deepcopy(self.drag_window)
-
-        #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
-        if drag_window is not None:
-            #self.msg_if.pub_info("Processing drag_window" + str(drag_window), log_name_list = self.log_name_list)
-            # Define the rectangle parameters
-            x1 = min(drag_window[0], drag_window[1])
-            x2 = max(drag_window[0], drag_window[1])
-            y1 = min(drag_window[2], drag_window[3])
-            y2 = max(drag_window[2], drag_window[3])
-
-
-            color = (0, 200, 0) # Green color in BGR
-            alpha = 0.4 # Transparency factor (0.0 for fully transparent, 1.0 for fully opaque)
-
-            # Dorg a filled rectangle on the overlay copy
-            cv2_img = nepi_img.overlay_rectangle(cv2_img, (x1, y1), (x2, y2), color = color, alpha = alpha)
 
 
 
@@ -7137,9 +7157,8 @@ class ColorImageIF(BaseImageIF):
         #self.msg_if.pub_info("Image Filter: " + str(cv2_img.shape), log_name_list = self.log_name_list)
 
 
-
-
         return cv2_img
+        
 
 
 

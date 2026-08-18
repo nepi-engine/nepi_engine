@@ -889,7 +889,7 @@ class IDXDeviceIF:
       if self.node_if is not None:
             self.width_deg = self.node_if.get_param('width_deg')
             self.height_deg = self.node_if.get_param('height_deg')  
-            aspect_ratio_deg = round(self.node_if.get_param('aspect_ratio_deg'),2)
+            aspect_ratio_deg = self.node_if.get_param('aspect_ratio_deg')
             if aspect_ratio_deg is not None:
                 self.aspect_ratio_deg = round(aspect_ratio_deg,2)
             self.msg_if.pub_warn("Init degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
@@ -1340,7 +1340,8 @@ class IDXDeviceIF:
                         self.width_px = cv2_shape[1] 
                         self.height_px = cv2_shape[0]             
 
-                        
+                        if self.aspect_ratio_deg is None:
+                            self.aspect_ratio_deg = -999
                         if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
                             self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
                             if self.node_if is not None:
@@ -1463,6 +1464,8 @@ class IDXDeviceIF:
                         #     if self.node_if is not None:
                         #         self.node_if.set_param('aspect_ratio_deg',self.aspect_ratio_deg)
                         cur_aspect_ratio = self.width_px / self.height_px
+                        if self.aspect_ratio_deg is not None:
+                            self.aspect_ratio_deg = cur_aspect_ratio
                         width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
                         height_deg = self.height_deg
 
