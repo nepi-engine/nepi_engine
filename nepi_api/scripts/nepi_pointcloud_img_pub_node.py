@@ -158,9 +158,9 @@ class PointcloudImgPub:
         factory_data_rates = {}
         for d in self.data_products:
             factory_data_rates[d] = [1.0, 0.0, 100]
-
+        save_data_ns = os.path.dirname(self.pointcloud_namespace).split('/idx')[0]
         self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False,
-                        factory_rate_dict = factory_data_rates, namespace = self.pointcloud_namespace,
+                        factory_rate_dict = factory_data_rates, namespace = save_data_ns,
                         msg_if = self.msg_if
                         )
 
