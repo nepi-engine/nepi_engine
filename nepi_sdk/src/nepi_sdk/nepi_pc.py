@@ -402,7 +402,7 @@ def statistical_outlier_removal( o3d_pc, nb_neighbors, std_ratio):
         o3d_pc (o3d.geometry.PointCloud): Open3D PointCloud with Statistical Outliers Removed
     '''
 
-    o3d_pc = o3d_pc.remove_statistical_outlier(nb_neighbors, std_ratio)
+    [o3d_pc, keep_indexes] = o3d_pc.remove_statistical_outlier(nb_neighbors, std_ratio)
     return o3d_pc
 
 def radius_outlier_removal( o3d_pc, nb_points, search_radius_m):
@@ -415,7 +415,7 @@ def radius_outlier_removal( o3d_pc, nb_points, search_radius_m):
         o3d_pc (o3d.geometry.PointCloud): Open3D PointCloud with Radius Outliers Removed
     '''
 
-    o3d_pc = o3d_pc.remove_radius_outlier(nb_points, search_radius_m)
+    [o3d_pc, keep_indexes] = o3d_pc.remove_radius_outlier(nb_points, search_radius_m)
     return o3d_pc
 
 def rotate_pc( o3d_pc, rotation_angles_deg):

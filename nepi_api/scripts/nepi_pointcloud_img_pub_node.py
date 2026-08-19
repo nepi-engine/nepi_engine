@@ -230,23 +230,7 @@ class PointcloudImgPub:
         nepi_sdk.start_timer_process(1, self.watchdogCb, oneshot = True)
 
 
-    def renderDictFromStatus(self, status_msg):
-        self.min_range_m = status_msg.range_min_max_m.start_range
-        self.max_range_m = status_msg.range_min_max_m.stop_range
-        self.width_deg = status_msg.width_deg
-        self.height_deg = status_msg.height_deg
-        cam_view = status_msg.camera_view
-        cam_pos = status_msg.camera_position
-        cam_rot = status_msg.camera_rotation
 
-        render_dict = {
-
-            'cam_fov': status_msg.camera_fov,
-            'cam_view': [cam_view.x, cam_view.y, cam_view.z],
-            'cam_pos': [cam_pos.x, cam_pos.y, cam_pos.z],
-            'cam_rot': [cam_rot.x, cam_rot.y, cam_rot.z],
-        }
-        return render_dict
 
 
     def statusCb(self, msg):
@@ -254,7 +238,10 @@ class PointcloudImgPub:
         self.status_msg = msg
         self.img_pub_enabled = msg.img_pub_enabled
         self.render_enable = msg.render_status.render_enable
-        self.render_dict = self.renderDictFromStatus(msg)
+        self.min_range_m = msg.range_min_max_m.start_range
+        self.max_range_m = msg.range_min_max_m.stop_range
+        self.width_deg = msg.width_deg
+        self.height_deg = msg.height_deg
 
 
     def pointcloudCb(self, msg):
