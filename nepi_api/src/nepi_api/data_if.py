@@ -8324,7 +8324,8 @@ class PointcloudIF:
         clip_max_range_m = 20,
         voxel_downsample_size = 0.0, # Zero value skips process
         uniform_downsample_k_points = 0, # Zero value skips process
-        outlier_removal_num_neighbors = 0 # Zero value skips process
+        outlier_removal_num_neighbors = 0, # Zero value skips process
+        outlier_removal_std_ratio = 1.0 # Only applied when outlier_removal_num_neighbors > 0
         )
 
     DEFAULT_CALLBACK_DICT = dict(
@@ -8594,6 +8595,12 @@ class PointcloudIF:
             'outlier_removal_num_neighbors': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['outlier_removal_num_neighbors']
+            },
+            # No subscriber topic and no PointcloudProcessStatus field for this one; it is a
+            # param-only tuning value read alongside outlier_removal_num_neighbors.
+            'outlier_removal_std_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.DEFAULT_CONTROLS_DICT['outlier_removal_std_ratio']
             }
         }
 
@@ -9237,8 +9244,57 @@ class PointcloudIF:
             self.status_msg.get_latency_time = latency
             #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency), log_name_list = self.log_name_list, throttle_s = 5.0)
 
-            # Start Pub Process
-            start_time = nepi_utils.get_time()   
+            # Start Pub Process. Timed from here so process_time covers the process controls
+            # below as well as the message conversion and publish.
+            start_time = nepi_utils.get_time()
+
+            ##########
+            # Apply Process Controls
+            # Order is voxel, then uniform, then outlier removal. Outlier removal runs last on
+            # the already-reduced cloud even though its neighbor statistics are more meaningful
+            # at native density: it builds a KD-tree and runs a per-point k-nearest-neighbor
+            # query, by far the most expensive of the three, and is not viable at frame rate on
+            # a full-resolution stereo cloud of ~2M points. Decimate first, then filter.
+            # Each stage is a no-op at its factory value, so a device that never sets these
+            # controls sees the pointcloud it saw before.
+            pre_process_pc = o3d_pc
+
+            # Read the controls once per publish call, never per point
+            voxel_size_m = None
+            uniform_k_points = None
+            outlier_num_neighbors = None
+            outlier_std_ratio = None
+            if self.node_if is not None:
+                voxel_size_m = self.node_if.get_param('voxel_downsample_size')
+                uniform_k_points = self.node_if.get_param('uniform_downsample_k_points')
+                outlier_num_neighbors = self.node_if.get_param('outlier_removal_num_neighbors')
+                outlier_std_ratio = self.node_if.get_param('outlier_removal_std_ratio')
+
+            if voxel_size_m is not None and voxel_size_m > 0:
+                try:
+                    o3d_pc = nepi_pc.voxel_down_sampling(o3d_pc, voxel_size_m)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to voxel downsample pointcloud with size: " + str(voxel_size_m) + " " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            # k of zero is invalid input to Open3D and k of one returns every point
+            if uniform_k_points is not None and uniform_k_points > 1:
+                try:
+                    o3d_pc = nepi_pc.uniform_down_sampling(o3d_pc, uniform_k_points)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to uniform downsample pointcloud with k points: " + str(uniform_k_points) + " " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            if outlier_num_neighbors is not None and outlier_num_neighbors > 0:
+                if outlier_std_ratio is None:
+                    outlier_std_ratio = self.DEFAULT_CONTROLS_DICT['outlier_removal_std_ratio']
+                try:
+                    o3d_pc = nepi_pc.statistical_outlier_removal(o3d_pc, outlier_num_neighbors, outlier_std_ratio)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to remove pointcloud outliers with neighbors and std ratio: " + str([outlier_num_neighbors,outlier_std_ratio]) + " " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+
+            # Don't let an over-aggressive control setting blank the data product silently
+            if o3d_pc is None or len(o3d_pc.points) == 0:
+                self.msg_if.pub_warn("Process controls returned an empty pointcloud, publishing unprocessed data. Controls: " + str([voxel_size_m,uniform_k_points,outlier_num_neighbors]), log_name_list = self.log_name_list, throttle_s = 5.0)
+                o3d_pc = pre_process_pc
 
             self.status_msg.point_count = len(o3d_pc.points)
 
@@ -9328,6 +9384,23 @@ class PointcloudIF:
         if self.node_if is not None:
 
             if do_updates == True:
+                self.status_msg.process_status.clip_enabled = self.node_if.get_param('clip_enabled')
+                self.status_msg.process_status.clip_options = self.clip_options
+                self.status_msg.process_status.clip_selection = self.node_if.get_param('clip_selection')
+
+                clip_meters = RangeWindow()
+                clip_meters.start_range =   float(self.node_if.get_param('range_min_m'))
+                clip_meters.stop_range =   float(self.node_if.get_param('range_max_m'))
+                self.status_msg.process_status.clip_meters = clip_meters
+
+                self.status_msg.process_status.clip_target_topic = self.bounding_box3d_topic
+
+                # outlier_removal_std_ratio has no field in PointcloudProcessStatus, so it is
+                # not reported on the wire.
+                self.status_msg.process_status.voxel_downsample_size_m = self.node_if.get_param('voxel_downsample_size')
+                self.status_msg.process_status.uniform_downsample_points = self.node_if.get_param('uniform_downsample_k_points')
+                self.status_msg.process_status.outlier_k_points = self.node_if.get_param('outlier_removal_num_neighbors')
+
                 self.status_msg.render_status.image_width = self.node_if.get_param('image_width')
                 self.status_msg.render_status.image_height = self.node_if.get_param('image_height')
 
@@ -9482,6 +9555,103 @@ class PointcloudIF:
         self.active_services = msg.active_services
 
     ###################
+    ## Process Control Public API
+    #
+    # These exist so a host node (e.g. a driver exposing these as SettingsIF
+    # cap_settings entries) can drive the process pipeline directly instead of
+    # constructing a ROS message to hand to the subscriber callbacks below.
+    # Each accepts a value that str()s to a number, so a SettingsIF string value
+    # can be passed through unparsed, and returns whether the value was applied.
+
+    def set_voxel_downsample_size(self, size_m):
+        """Set the voxel downsample size for the pointcloud process pipeline.
+
+        Args:
+            size_m (float): Voxel edge length in meters. Zero disables the voxel
+                downsample stage. Negative values are rejected.
+
+        Returns:
+            bool: True if the value was applied, False if it was rejected.
+        """
+        success = False
+        try:
+            val = float(size_m)
+        except (TypeError, ValueError):
+            val = None
+        if val is not None and val >= 0:
+            self.node_if.set_param('voxel_downsample_size', val)
+            success = True
+        self.publish_status()
+        return success
+
+    def set_uniform_downsample_k_points(self, k_points):
+        """Set the uniform downsample sampling rate for the process pipeline.
+
+        Args:
+            k_points (int): Keep every k-th point. Zero or one disables the
+                uniform downsample stage. Negative values are rejected.
+
+        Returns:
+            bool: True if the value was applied, False if it was rejected.
+        """
+        success = False
+        try:
+            val = int(k_points)
+        except (TypeError, ValueError):
+            val = None
+        if val is not None and val >= 0:
+            self.node_if.set_param('uniform_downsample_k_points', val)
+            success = True
+        self.publish_status()
+        return success
+
+    def set_outlier_removal_num_neighbors(self, num_neighbors):
+        """Set the neighbor count for the statistical outlier removal stage.
+
+        Args:
+            num_neighbors (int): Neighbors considered per point. Zero disables
+                the outlier removal stage. Negative values are rejected.
+
+        Returns:
+            bool: True if the value was applied, False if it was rejected.
+        """
+        success = False
+        try:
+            val = int(num_neighbors)
+        except (TypeError, ValueError):
+            val = None
+        if val is not None and val >= 0:
+            self.node_if.set_param('outlier_removal_num_neighbors', val)
+            success = True
+        self.publish_status()
+        return success
+
+    def set_outlier_removal_std_ratio(self, std_ratio):
+        """Set the standard deviation ratio for statistical outlier removal.
+
+        Lower values cull more aggressively. Has no effect unless the outlier
+        removal neighbor count is greater than zero. This value has no field in
+        PointcloudProcessStatus, so it is not reported on the wire.
+
+        Args:
+            std_ratio (float): Standard deviation ratio. Must be greater than
+                zero; zero and negative values are rejected.
+
+        Returns:
+            bool: True if the value was applied, False if it was rejected.
+        """
+        success = False
+        try:
+            val = float(std_ratio)
+        except (TypeError, ValueError):
+            val = None
+        if val is not None and val > 0:
+            self.node_if.set_param('outlier_removal_std_ratio', val)
+            success = True
+        self.publish_status()
+        return success
+
+    ###################
     ## Process Callbacks
     def resetProcessControlsCb(self,msg):
         self.resetProcessControls()
@@ -9495,6 +9665,7 @@ class PointcloudIF:
         self.node_if.factory_reset_param('voxel_downsample_size')
         self.node_if.factory_reset_param('uniform_downsample_k_points')
         self.node_if.factory_reset_param('outlier_removal_num_neighbors')
+        self.node_if.factory_reset_param('outlier_removal_std_ratio')
 
         if do_updates:
             self.publish_status()
@@ -9528,24 +9699,15 @@ class PointcloudIF:
 
     def setVoxelSizeCb(self,msg):
         #self.msg_if.pub_info(str(msg))
-        val = msg.data
-        if val >= 0:
-            self.node_if.set_param('voxel_downsample_size',val)
-        self.publish_status()
+        self.set_voxel_downsample_size(msg.data)
 
     def setUniformPointsCb(self,msg):
         #self.msg_if.pub_info(str(msg))
-        val = msg.data
-        if val >= 0:
-            self.node_if.set_param('uniform_downsample_k_points',val)
-        self.publish_status()
+        self.set_uniform_downsample_k_points(msg.data)
 
     def setOutlierNumCb(self,msg):
         #self.msg_if.pub_info(str(msg))
-        val = msg.data
-        if val >= 0:
-            self.node_if.set_param('outlier_removal_num_neighbors',val)
-        self.publish_status()
+        self.set_outlier_removal_num_neighbors(msg.data)
 
     def setFrame3dCb(self, msg):
         #self.msg_if.pub_info(str(msg))

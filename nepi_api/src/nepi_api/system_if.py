@@ -161,7 +161,7 @@ class ControlsIF:
         self.controls_description = str(controls_description)
         self.controls_dict = nepi_controls.create_controls_dict(controls_init_dict)
         self.controls_status_msg = nepi_controls.create_status_msg(self.controls_name, self.controls_display_name, self.controls_description,
-                                                                    show_controls, has_show_control, enable_list = self.enable_list, disable_list = self.disable_list)
+                                                                    show_controls, has_show_control)
         self.controls_hidden = hidden
 
         self.controls_updated_callback = controls_updated_callback
