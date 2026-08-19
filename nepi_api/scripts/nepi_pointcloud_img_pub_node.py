@@ -79,6 +79,12 @@ class PointcloudImgPub:
 
     data_product = IMG_DATA_PRODUCT
 
+    width_deg = 100
+    height_deg = 70
+
+    min_range_m = 0
+    max_range_m = 1
+
     DEFAULT_NODE_NAME = "pointcloud_img_pub"  # Can be overwritten by launch command
 
     def __init__(self):
@@ -105,6 +111,11 @@ class PointcloudImgPub:
         backup_pointcloud_namespace = self.node_namespace.replace("_img_pub", "")
         self.pointcloud_namespace = nepi_sdk.get_param(self.node_namespace + "/pointcloud_namespace", backup_pointcloud_namespace)
         self.msg_if.pub_warn("Starting with Pointcloud Namespace: " + str(self.pointcloud_namespace))
+
+
+        backup_navpose_namespace = self.node_namespace.replace("_img_pub", "") + '/navpose'
+        self.navpose_namespace = nepi_sdk.get_param(self.node_namespace + "/navpose_namespace", backup_navpose_namespace)
+        self.msg_if.pub_warn("Starting with NavPose Namespace: " + str(self.navpose_namespace))
 
         self.pointcloud_image_namespace = nepi_sdk.create_namespace(self.pointcloud_namespace,self.data_product)
         self.msg_if.pub_warn("Starting with Pointcloud Image Namespace: " + str(self.pointcloud_image_namespace))
@@ -166,6 +177,7 @@ class PointcloudImgPub:
 
         nepi_sdk.sleep(1)
 
+        
         # Setup Pointcloud Image IF (renders and publishes the pointcloud image)
         self.image_if = PointcloudImageIF(namespace = self.pointcloud_namespace,
                         data_product = self.data_product,
@@ -174,6 +186,7 @@ class PointcloudImgPub:
                         perspective = 'pov',
                         init_overlay_text_list = [],
                         save_data_if = self.save_data_if,
+                        navpose_namespace = self.navpose_namespace,
                         log_name = self.data_product,
                         log_name_list = [],
                         msg_if = self.msg_if
@@ -218,24 +231,20 @@ class PointcloudImgPub:
 
 
     def renderDictFromStatus(self, status_msg):
-        render_status = status_msg.render_status
-        cam_view = render_status.camera_view
-        cam_pos = render_status.camera_position
-        cam_rot = render_status.camera_rotation
+        self.min_range_m = status_msg.range_min_max_m.start_range
+        self.max_range_m = status_msg.range_min_max_m.stop_range
+        self.width_deg = status_msg.width_deg
+        self.height_deg = status_msg.height_deg
+        cam_view = status_msg.camera_view
+        cam_pos = status_msg.camera_position
+        cam_rot = status_msg.camera_rotation
+
         render_dict = {
-            'image_width': render_status.image_width,
-            'image_height': render_status.image_height,
-            'start_range_ratio': render_status.range_clip_ratios.start_range,
-            'stop_range_ratio': render_status.range_clip_ratios.stop_range,
-            'zoom_ratio': render_status.zoom_ratio,
-            'rotate_ratio': render_status.rotate_ratio,
-            'tilt_ratio': render_status.tilt_ratio,
-            'cam_fov': render_status.camera_fov,
+
+            'cam_fov': status_msg.camera_fov,
             'cam_view': [cam_view.x, cam_view.y, cam_view.z],
             'cam_pos': [cam_pos.x, cam_pos.y, cam_pos.z],
             'cam_rot': [cam_rot.x, cam_rot.y, cam_rot.z],
-            'render_enable': render_status.render_enable,
-            'use_wbg': False
         }
         return render_dict
 
@@ -304,6 +313,10 @@ class PointcloudImgPub:
             if o3d_pc is not None:
                 self.image_if.publish_pointcloud_img(o3d_pc,
                                     render_dict = render_dict,
+                                    width_deg = self.width_deg,
+                                    height_deg = self.height_deg,
+                                    min_range_m = self.min_range_m,
+                                    max_range_m = self.max_range_m,
                                     timestamp = timestamp,
                                     frame_id = frame_id
                                     )

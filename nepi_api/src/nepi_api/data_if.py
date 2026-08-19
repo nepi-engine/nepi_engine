@@ -1749,8 +1749,10 @@ EXAMPLE_CAPS_DICT = dict(
         has_zoom = False,
         has_pan = False,
         has_window = False,
+        has_zoom_3d = False,
         has_rotate_3d = False,
-        has_tilt_3d = False
+        has_tilt_3d = False,
+        has_camera_3d = False
     )
 
 EXAMPLE_FILTERS_DICT = dict(
@@ -1798,8 +1800,10 @@ class BaseImageIF:
         has_zoom = False,
         has_pan = False,
         has_window = False,
+        has_zoom_3d = False,
         has_rotate_3d = False,
-        has_tilt_3d = False
+        has_tilt_3d = False,
+        has_camera_3d = False
         )
 
     DEFAULT_FILTERS_DICT = dict()
@@ -1820,8 +1824,13 @@ class BaseImageIF:
         start_range_ratio = 0.0,
         stop_range_ratio = 1.0,
         window_ratios = [0,1,0,1],
+        zoom_3d_ratio = 0,
         rotate_3d_ratio = 0.5,
         tilt_3d_ratio = 0.5,
+        cam_fov = 60,
+        cam_view = [3, 0, 0],
+        cam_pos = [-5, 0, 0],
+        cam_rot = [0, 0, 1]
         )
 
 
@@ -2137,8 +2146,10 @@ class BaseImageIF:
         self.caps_report.has_zoom = self.caps_dict['has_zoom']
         self.caps_report.has_pan = self.caps_dict['has_pan']
         self.caps_report.has_window = self.caps_dict['has_window']
+        self.caps_report.has_zoom_3d = self.caps_dict['has_zoom_3d']
         self.caps_report.has_rotate_3d = self.caps_dict['has_rotate_3d']
         self.caps_report.has_tilt_3d = self.caps_dict['has_tilt_3d']
+        self.caps_report.has_camera_3d = self.caps_dict['has_camera_3d']
 
         self.caps_report.has_filters = self.has_filters
         self.caps_report.filter_options = self.filter_options
@@ -2254,6 +2265,22 @@ class BaseImageIF:
             'start_range_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["start_range_ratio"]
+            },
+            'cam_fov': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict['cam_fov']
+            },
+            'cam_view': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict['cam_view']
+            },
+            'cam_pos': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict['cam_pos']
+            },
+            'cam_rot': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict['cam_rot']
             },
             'stop_range_ratio': {
                 'namespace': self.namespace,
@@ -3488,6 +3515,14 @@ class BaseImageIF:
                 'callback': self._setRangeCb, 
                 'callback_args': ()
             }
+            # self.SUBS_DICT['set_range_ratios'] = {
+            #     'namespace': self.node_namespace,
+            #     'topic': 'set_range_ratios',
+            #     'msg': RangeWindow,
+            #     'qsize': 10,
+            #     'callback': self.setRangeRatiosCb,
+            #     'callback_args': ()setRangeRatiosCb
+            # },
         if caps_dict['has_zoom'] == True:
             self.SUBS_DICT['set_zoom'] = {
                 'namespace': self.namespace,
@@ -3515,25 +3550,81 @@ class BaseImageIF:
                 'callback_args': ()
             }
 
+        if caps_dict['has_zoom_3d'] == True:
+            self.SUBS_DICT['set_zoom_3d'] = {
+                'namespace': self.namespace,
+                'topic': 'set_zoom_3d_ratio',
+                'msg': Float32,
+                'qsize': 5,
+                'callback': self._setZoom3DCb, 
+                'callback_args': ()
+            }
+
         if caps_dict['has_rotate_3d'] == True:
-            self.SUBS_DICT['set_rotate'] = {
+            self.SUBS_DICT['set_rotate_3d'] = {
                 'namespace': self.namespace,
                 'topic': 'set_rotate_3d_ratio',
                 'msg': Float32,
                 'qsize': 5,
-                'callback': self._setRotateCb, 
+                'callback': self._setRotate3DCb, 
                 'callback_args': ()
             }
 
         if caps_dict['has_tilt_3d'] == True:
-            self.SUBS_DICT['set_tilt'] = {
+            self.SUBS_DICT['set_tilt_3d'] = {
                 'namespace': self.namespace,
                 'topic': 'set_tilt_3d_ratio',
                 'msg': Float32,
                 'qsize': 5,
-                'callback': self._setTiltCb, 
+                'callback': self._setTilt3DCb, 
                 'callback_args': ()
             }
+
+
+
+
+            if caps_dict['has_tilt_3d'] == True:
+                self.SUBS_DICT['set_camera_fov'] = {
+                    'namespace': self.node_namespace,
+                    'topic': 'set_camera_fov',
+                    'msg': Int32,
+                    'qsize': 10,
+                    'callback': self.setCamFovCb,
+                    'callback_args': ()
+                },
+                self.SUBS_DICT['set_camera_view'] = {
+                    'namespace': self.node_namespace,
+                    'topic': 'set_camera_view',
+                    'msg': Vector3,
+                    'qsize': 10,
+                    'callback': self.setCamViewCb,
+                    'callback_args': ()
+                },
+                self.SUBS_DICT['set_camera_position'] = {
+                    'namespace': self.node_namespace,
+                    'topic': 'set_camera_position',
+                    'msg': Vector3,
+                    'qsize': 10,
+                    'callback': self.setCamPositionCb,
+                    'callback_args': ()
+                },
+                self.SUBS_DICT['set_camera_rotation'] = {
+                    'namespace': self.node_namespace,
+                    'topic': 'set_camera_rotation',
+                    'msg': Vector3,
+                    'qsize': 10,
+                    'callback': self.setCamRotationCb,
+                    'callback_args': ()
+                },
+                self.SUBS_DICT['set_white_bg_enable'] = {
+                    'namespace': self.node_namespace,
+                    'topic': 'set_white_bg_enable',
+                    'msg': Bool,
+                    'qsize': 10,
+                    'callback': self.setWhiteBgCb,
+                    'callback_args': ()
+                },
+
         if self.has_filters == True:
             self.SUBS_DICT['set_filter_enable'] = {
                 'namespace': self.namespace,
@@ -4876,6 +4967,16 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
 
+    def set_zoom_3d_ratio(self, ratio):
+        """Set the 3-D rotation ratio, clamped to a valid ratio range.
+
+        Args:
+            ratio (float): Rotation position in [0.0, 1.0].
+        """
+        self.controls_dict['zoom_3d_ratio'] = nepi_utils.check_ratio(ratio)
+        self.publish_status()
+        self.needs_update()
+
     def set_rotate_3d_ratio(self, ratio):
         """Set the 3-D rotation ratio, clamped to a valid ratio range.
 
@@ -5619,20 +5720,23 @@ class BaseImageIF:
         self.x_scaler = 1
         self.y_scaler = 1
         self.controls_dict = self.init_controls_dict
-        self.controls_dict['start_range_ratio'] = 0
-        self.controls_dict['stop_range_ratio'] = 1
-        self.controls_dict['window_ratios'] = [0,1,0,1]
 
-        self.window_ratios = [0,1,0,1]
 
-        self.controls_dict['rotate_3d_ratio'] = 0.5
-        self.controls_dict['tilt_3d_ratio'] = 0.5
+        # self.controls_dict['start_range_ratio'] = 0
+        # self.controls_dict['stop_range_ratio'] = 1
+        # self.controls_dict['window_ratios'] = [0,1,0,1]
 
-        self.node_if.factory_reset_param('start_range_ratio')
-        self.node_if.factory_reset_param('stop_range_ratio')
+        # self.window_ratios = [0,1,0,1]
 
-        self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
-        self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
+        # self.controls_dict['rotate_2d_ratio'] = 0.5
+        # self.controls_dict['rotate_3d_ratio'] = 0.5
+        # self.controls_dict['tilt_3d_ratio'] = 0.5
+
+        # self.node_if.factory_reset_param('start_range_ratio')
+        # self.node_if.factory_reset_param('stop_range_ratio')
+
+        # self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
+        # self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
 
         self.live_adjust_dict['live_adjust_rotate_ratio'] = 0.5
         self.live_adjust_dict['live_adjust_x_ratio'] = 0.5
@@ -5693,9 +5797,34 @@ class BaseImageIF:
             self.status_msg.window_x_ratios.stop_range = self.controls_dict['window_ratios'][1]
             self.status_msg.window_y_ratios.start_range = self.controls_dict['window_ratios'][2]
             self.status_msg.window_y_ratios.stop_range = self.controls_dict['window_ratios'][3]
+            self.status_msg.zoom_3d_ratio = self.controls_dict['zoom_3d_ratio']
             self.status_msg.rotate_3d_ratio = self.controls_dict['rotate_3d_ratio']
             self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
             self.status_msg.render_3d_controls_enabled = self.render_3d_controls_enabled
+
+            self.status_msg.camera_fov = self.controls_dict['cam_fov']
+
+            view = self.controls_dict['cam_fov']
+            cam_view = Vector3()
+            cam_view.x = view[0]
+            cam_view.y = view[1]
+            cam_view.z = view[2]
+            self.status_msg.camera_view = cam_view
+
+            pos = self.controls_dict['cam_pos']
+            cam_pos = Vector3()
+            cam_pos.x = pos[0]
+            cam_pos.y = pos[1]
+            cam_pos.z = pos[2]
+            self.status_msg.camera_position = cam_pos
+
+            rot = self.controls_dict['cam_rot']
+            cam_rot = Vector3()
+            cam_rot.x = rot[0]
+            cam_rot.y = rot[1]
+            cam_rot.z = rot[2]
+            self.status_msg.camera_rotation = cam_rot
+
 
             live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
             live_adjust_enabled = live_adjust_dict['live_adjust_enabled']
@@ -5924,6 +6053,18 @@ class BaseImageIF:
             self.controls_dict['window_ratios'] = [0,1,0,1]
             self.controls_dict['start_range_ratio'] = 0
             self.controls_dict['stop_range_ratio'] = 1
+
+
+            self.controls_dict['cam_fov'] = self.node_if.get_param('cam_fov')
+            
+
+            self.controls_dict['cam_view'] =  self.node_if.get_param('cam_view')
+            self.controls_dict['cam_pos'] =  self.node_if.get_param('cam_pos')
+            self.controls_dict['cam_rot'] =  self.node_if.get_param('cam_rot')
+
+            self.status_msg.camera_fov = self.controls_dict['cam_fov']
+
+
 
             self.live_adjust_enabled  = self.node_if.get_param('live_adjust_enabled') and self.live_adjustments_disabled == False
             self.live_adjust_dict['live_adjust_enabled'] = self.live_adjust_enabled
@@ -6405,12 +6546,17 @@ class BaseImageIF:
         self.set_y_ratio(ratio)
 
 
-    def _setRotateCb(self, msg):
-        self.msg_if.pub_info("Received Rotate update message: " + str(msg), log_name_list = self.log_name_list)
+    def _setZoom3DCb(self, msg):
+        self.msg_if.pub_info("Received Zoom 3D update message: " + str(msg), log_name_list = self.log_name_list)
+        ratio = msg.data
+        self.set_zoom_3d_ratio(ratio) 
+
+    def _setRotate3DCb(self, msg):
+        self.msg_if.pub_info("Received Rotate 3D update message: " + str(msg), log_name_list = self.log_name_list)
         ratio = msg.data
         self.set_rotate_3d_ratio(ratio) 
 
-    def _setTiltCb(self, msg):
+    def _setTilte3DCb(self, msg):
         ratio = msg.data
         self.set_tilt_3d_ratio(ratio)
 
@@ -6435,6 +6581,64 @@ class BaseImageIF:
             self.clear_image_callback('window_callback')
             self.clear_image_callback('scroll_callback')
             self.clear_image_callback('click_pixel_callback')
+        self.publish_status()
+
+
+
+    def setCamFovCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_val = msg.data
+        if new_val > 100:
+            new_val = 100
+        if new_val < 30:
+            new_val = 30
+        self.controls_dict['cam_fov'] = new_val
+        self.publish_status()
+        self.node_if.set_param('cam_fov',new_val)
+
+    def setCamViewCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_array = []
+        new_array.append(msg.x)
+        new_array.append(msg.y)
+        new_array.append(msg.z)
+        self.controls_dict['cam_view'] = new_array
+        self.publish_status()
+        self.node_if.set_param('cam_view',new_array)
+
+    def setCamPositionCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_array = []
+        new_array.append(msg.x)
+        new_array.append(msg.y)
+        new_array.append(msg.z)
+        self.controls_dict['cam_pos'] = new_array
+        self.publish_status()
+        self.node_if.set_param('cam_pos',new_array)
+
+
+    def setCamRotationCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        new_array = []
+        new_array.append(msg.x)
+        new_array.append(msg.y)
+        new_array.append(msg.z)
+        self.controls_dict['cam_rot'] = new_array
+        self.publish_status()
+        self.node_if.set_param('cam_rot',new_array)
+
+    def setRangeRatiosCb(self,msg):
+        #self.msg_if.pub_info(str(msg))
+        min_ratio = msg.start_range
+        max_ratio = msg.stop_range
+        if min_ratio < max_ratio and min_ratio >= 0 and max_ratio <= 1:
+            self.node_if.set_param('start_range_ratio', min_ratio)
+            self.node_if.set_param('stop_range_ratio', max_ratio)
+            self.publish_status()
+
+    def setWhiteBgCb(self,msg):
+        enable = msg.data
+        self.node_if.set_param('use_wbg', enable)
         self.publish_status()
 
     def resetRender3dControlsCb(self, msg):
@@ -6826,8 +7030,10 @@ class ImageIF(BaseImageIF):
         has_zoom = False,
         has_pan = False,
         has_window = False,
+        has_zoom_3d = False,
         has_rotate_3d = False,
-        has_tilt_3d = False
+        has_tilt_3d = False,
+        has_camera_3d = False
         )
 
     DEFAULT_FILTERS_DICT = dict(
@@ -6960,8 +7166,10 @@ class ColorImageIF(BaseImageIF):
         has_zoom = True,
         has_pan = True,
         has_window = True,
+        has_zoom_3d = False,
         has_rotate_3d = False,
-        has_tilt_3d = False
+        has_tilt_3d = False,
+        has_camera_3d = False
         )
 
     DEFAULT_FILTERS_DICT = dict(
@@ -8027,8 +8235,10 @@ class DepthMapImageIF(BaseImageIF):
         has_zoom = True,
         has_pan = False,
         has_window = False,
+        has_zoom_3d = False,
         has_rotate_3d = False,
-        has_tilt_3d = False
+        has_tilt_3d = False,
+        has_camera_3d = False
         )
 
     DEFAULT_FILTERS_DICT = dict()
@@ -8336,23 +8546,6 @@ class PointcloudIF:
 
     #Default Control Values (single merged dict holding all process + render controls)
     DEFAULT_CONTROLS_DICT = dict(
-        resolution_ratio = 1.0,
-        auto_adjust_enabled = False,
-        auto_adjust_ratio = 0.3,
-        brightness_ratio = 0.5,
-        contrast_ratio =  0.5,
-        threshold_ratio =  0.0,
-        start_range_ratio = 0.0,
-        stop_range_ratio = 1.0,
-        window_ratios = [0,1,0,1],
-        rotate_3d_ratio = 0.5,
-        tilt_3d_ratio = 0.5,
-        image_width = 955,
-        image_height = 600,
-        cam_fov = 60,
-        cam_view = [3, 0, 0],
-        cam_pos = [-5, 0, 0],
-        cam_rot = [0, 0, 1],
         clip_enabled = True,
         clip_selection = 'Range',
         clip_min_range_m = -20,
@@ -8362,18 +8555,6 @@ class PointcloudIF:
         outlier_removal_num_neighbors = 0 # Zero value skips process
         )
 
-    DEFAULT_CALLBACK_DICT = dict(
-        needs_update_callback = None,
-        mouse_event_callback = None,
-        click_pixel_callback = None,
-        click_angle_callback = None,
-        drag_callback = None,
-        window_callback = None,
-        voxel_callback = None,
-        frame_updated_callback = None
-    )
-
-    callback_dict = copy.deepcopy(DEFAULT_CALLBACK_DICT)
 
     ready = False
     namespace = '~'
@@ -8426,8 +8607,6 @@ class PointcloudIF:
     active_topics = []
     active_topic_types = []
     active_services = []
-    live_adjustments_disabled = False
-    aspect_adjustment_disabled = False
 
 
     def __init__(self, namespace = None,
@@ -8439,9 +8618,6 @@ class PointcloudIF:
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
-                init_overlay_text_list = [],
-                live_adjustments_disabled = False,
-                aspect_adjustment_disabled = False,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -8510,8 +8686,6 @@ class PointcloudIF:
 
         self.perspective = perspective
 
-        self.live_adjustments_disabled = live_adjustments_disabled
-        self.aspect_adjustment_disabled = aspect_adjustment_disabled
 
         self.status_msg.node_name = self.node_name
 
@@ -8546,50 +8720,7 @@ class PointcloudIF:
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'start_range_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['start_range_ratio']
-            },
-            'stop_range_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['stop_range_ratio']
-            },
-            'image_width': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['image_width']
-            },
-            'image_height': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['image_height']
-            },
-            'zoom_ratio': {
-                'namespace': self.namespace,
-                'factory_val': 0.5
-            },
-            'rotate_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['rotate_3d_ratio']
-            },
-            'tilt_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['tilt_3d_ratio']
-            },
-            'cam_fov': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['cam_fov']
-            },
-            'cam_view': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['cam_view']
-            },
-            'cam_pos': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['cam_pos']
-            },
-            'cam_rot': {
-                'namespace': self.namespace,
-                'factory_val': self.DEFAULT_CONTROLS_DICT['cam_rot']
-            },
+
             'render_enable': {
                 'namespace': self.namespace,
                 'factory_val': True
@@ -8728,38 +8859,6 @@ class PointcloudIF:
                 'callback': self.setOutlierNumCb,
                 'callback_args': ()
             },
-            'render_reset_controls': {
-                'namespace': self.node_namespace,
-                'topic': 'reset_controls',
-                'msg': Empty,
-                'qsize': 10,
-                'callback': self.resetRenderControlsCb,
-                'callback_args': ()
-            },
-            'set_image_size': {
-                'namespace': self.node_namespace,
-                'topic': 'set_image_size',
-                'msg': ImageSize,
-                'qsize': 10,
-                'callback': self.setImageSizeCb,
-                'callback_args': ()
-            },
-            'set_range_ratios': {
-                'namespace': self.node_namespace,
-                'topic': 'set_range_ratios',
-                'msg': RangeWindow,
-                'qsize': 10,
-                'callback': self.setRangeRatiosCb,
-                'callback_args': ()
-            },
-            'set_zoom_ratio': {
-                'namespace': self.node_namespace,
-                'topic': 'set_zoom_ratio',
-                'msg': Float32,
-                'qsize': 10,
-                'callback': self.setZoomRatioCb,
-                'callback_args': ()
-            },
             'set_rotate_ratio': {
                 'namespace': self.node_namespace,
                 'topic': 'set_rotate_ratio',
@@ -8776,46 +8875,7 @@ class PointcloudIF:
                 'callback': self.setTiltRatioCb,
                 'callback_args': ()
             },
-            'set_camera_fov': {
-                'namespace': self.node_namespace,
-                'topic': 'set_camera_fov',
-                'msg': Int32,
-                'qsize': 10,
-                'callback': self.setCamFovCb,
-                'callback_args': ()
-            },
-            'set_camera_view': {
-                'namespace': self.node_namespace,
-                'topic': 'set_camera_view',
-                'msg': Vector3,
-                'qsize': 10,
-                'callback': self.setCamViewCb,
-                'callback_args': ()
-            },
-            'set_camera_position': {
-                'namespace': self.node_namespace,
-                'topic': 'set_camera_position',
-                'msg': Vector3,
-                'qsize': 10,
-                'callback': self.setCamPositionCb,
-                'callback_args': ()
-            },
-            'set_camera_rotation': {
-                'namespace': self.node_namespace,
-                'topic': 'set_camera_rotation',
-                'msg': Vector3,
-                'qsize': 10,
-                'callback': self.setCamRotationCb,
-                'callback_args': ()
-            },
-            'set_white_bg_enable': {
-                'namespace': self.node_namespace,
-                'topic': 'set_white_bg_enable',
-                'msg': Bool,
-                'qsize': 10,
-                'callback': self.setWhiteBgCb,
-                'callback_args': ()
-            },
+
             'set_render_enable': {
                 'namespace': self.node_namespace,
                 'topic': 'set_render_enable',
@@ -8983,6 +9043,9 @@ class PointcloudIF:
             param_ns = nepi_sdk.create_namespace(node_namespace, 'pointcloud_namespace')
             nepi_sdk.set_param(param_ns, self.namespace)
 
+            param_ns = nepi_sdk.create_namespace(node_namespace, 'navpose_namespace')
+            nepi_sdk.set_param(param_ns, self.status_msg.navpose_topic)
+
             [success, msg, sub_process] = nepi_sdk.launch_node(pkg_name, node_file_name, node_name, namespace=launch_namespace)
             if success == True:
                 self.launch_node_process = sub_process
@@ -9085,72 +9148,6 @@ class PointcloudIF:
         """
         return self.data_source_description
 
-    def get_pointcloud_callback_options(self):
-        """Return the list of supported pointcloud callback names.
-
-        Returns:
-            list: Callback name strings registered in the callback dictionary.
-        """
-        return list(self.callback_dict.keys())
-
-    def set_pointcloud_callback(self,name,function):
-        """Register a callable for the named pointcloud callback slot.
-
-        Args:
-            name (str): Name of the callback slot (must be in the callback dict).
-            function (callable): Function to call when the event fires.
-        """
-        self.msg_if.pub_warn("Got set callback for: " + str(name), log_name_list = self.log_name_list)
-        if name in self.callback_dict.keys():
-            self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
-            self.callback_dict[name] = function
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
-
-    def clear_pointcloud_callback(self,name):
-        """Clear (un-register) the callable for the named pointcloud callback slot.
-
-        Args:
-            name (str): Name of the callback slot to clear.
-        """
-        self.msg_if.pub_warn("Got clear image callback for: " + str(name), log_name_list = self.log_name_list)
-        if name in self.callback_dict.keys():
-            self.callback_dict[name] = None
-
-    def get_image_callback_options(self):
-        """Return the list of supported image callback names from the image sub-interface.
-
-        Returns:
-            list: Callback name strings from the PointcloudImageIF, or an empty list
-            if no image interface is attached.
-        """
-        if self.image_if is not None:
-            return self.image_if.get_image_callback_options()
-        else:
-            return []
-
-    def set_image_callback(self,name,function):
-        """Register a callable for a named callback slot in the image sub-interface.
-
-        Args:
-            name (str): Name of the image callback slot.
-            function (callable): Function to call when the event fires.
-        """
-        if self.image_if is not None:
-            if name in self.image_if.get_image_callback_options():
-                self.msg_if.pub_warn("Image Callback set for: " + str(name), log_name_list = self.log_name_list)
-                self.image_if.set_callback(name,function)
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
-
-    def clear_image_callback(self,name):
-        """Clear the callable for a named callback slot in the image sub-interface.
-
-        Args:
-            name (str): Name of the image callback slot to clear.
-        """
-        if self.image_if is not None:
-            self.msg_if.pub_warn("Got clear image callback for: " + str(name), log_name_list = self.log_name_list)
-            if name in self.image_if.get_image_callback_options():
-               self.image_if.callback_dict[name] = None
 
     def get_data_product(self):
         """Return the data product name for this interface.
@@ -9257,13 +9254,13 @@ class PointcloudIF:
 
             if (min_range_m is not None and max_range_m is not None):
                 self._updateRangesM(min_range_m,max_range_m)
-                self.status_msg.render_status.range_min_max_m.start_range = self.min_range_m
-                self.status_msg.render_status.range_min_max_m.stop_range = self.max_range_m
+                self.status_msg.range_min_max_m.start_range = self.min_range_m
+                self.status_msg.range_min_max_m.stop_range = self.max_range_m
                 o3d_pc = nepi_pc.range_clip_spherical(o3d_pc, self.min_range_m, self.max_range_m)
 
             else:
-                self.status_msg.render_status.range_min_max_m.start_range = 0
-                self.status_msg.render_status.range_min_max_m.stop_range = 1
+                self.status_msg.range_min_max_m.start_range = 0
+                self.status_msg.range_min_max_m.stop_range = 1
 
 
 
@@ -9363,43 +9360,18 @@ class PointcloudIF:
         if self.node_if is not None:
 
             if do_updates == True:
-                self.status_msg.render_status.image_width = self.node_if.get_param('image_width')
-                self.status_msg.render_status.image_height = self.node_if.get_param('image_height')
 
-                range_ratios = RangeWindow()
-                range_ratios.start_range =   float(self.node_if.get_param('start_range_ratio'))
-                range_ratios.stop_range =   float(self.node_if.get_param('stop_range_ratio'))
-                self.status_msg.render_status.range_clip_ratios = range_ratios
+                # range_ratios = RangeWindow()
+                # range_ratios.start_range =   float(self.node_if.get_param('start_range_ratio'))
+                # range_ratios.stop_range =   float(self.node_if.get_param('stop_range_ratio'))
+                # self.status_msg.range_clip_ratios = range_ratios
 
-                self.status_msg.render_status.zoom_ratio = self.node_if.get_param('zoom_ratio')
-                self.status_msg.render_status.rotate_ratio = self.node_if.get_param('rotate_ratio')
-                self.status_msg.render_status.tilt_ratio = self.node_if.get_param('tilt_ratio')
+                # self.status_msg.zoom_ratio = self.node_if.get_param('zoom_ratio')
+                # self.status_msg.rotate_ratio = self.node_if.get_param('rotate_ratio')
+                # self.status_msg.tilt_ratio = self.node_if.get_param('tilt_ratio')
 
-                fov = self.node_if.get_param('cam_fov')
-                self.status_msg.render_status.camera_fov = fov
 
-                view = self.node_if.get_param('cam_view')
-                cam_view = Vector3()
-                cam_view.x = view[0]
-                cam_view.y = view[1]
-                cam_view.z = view[2]
-                self.status_msg.render_status.camera_view = cam_view
-
-                pos = self.node_if.get_param('cam_pos')
-                cam_pos = Vector3()
-                cam_pos.x = pos[0]
-                cam_pos.y = pos[1]
-                cam_pos.z = pos[2]
-                self.status_msg.render_status.camera_position = cam_pos
-
-                rot = self.node_if.get_param('cam_rot')
-                cam_rot = Vector3()
-                cam_rot.x = rot[0]
-                cam_rot.y = rot[1]
-                cam_rot.z = rot[2]
-                self.status_msg.render_status.camera_rotation = cam_rot
-
-                self.status_msg.render_status.render_enable = self.node_if.get_param('render_enable')
+                # self.status_msg.render_enable = self.node_if.get_param('render_enable')
 
             avg_rate = 0
             if len(self.time_list) > 0:
@@ -9596,18 +9568,8 @@ class PointcloudIF:
         self.resetRenderControls()
 
     def resetRenderControls(self,do_updates = True):
-        self.node_if.factory_reset_param('image_width')
-        self.node_if.factory_reset_param('image_height')
-        self.node_if.factory_reset_param('start_range_ratio')
-        self.node_if.factory_reset_param('stop_range_ratio')
-        self.node_if.factory_reset_param('zoom_ratio')
         self.node_if.factory_reset_param('rotate_ratio')
         self.node_if.factory_reset_param('tilt_ratio')
-        self.node_if.factory_reset_param('cam_fov')
-        self.node_if.factory_reset_param('cam_view')
-        self.node_if.factory_reset_param('cam_pos')
-        self.node_if.factory_reset_param('cam_rot')
-        self.node_if.factory_reset_param('use_wbg')
         self.node_if.factory_reset_param('render_enable')
 
         if do_updates:
@@ -9656,56 +9618,6 @@ class PointcloudIF:
             self.node_if.set_param('tilt_ratio',new_val)
             self.publish_status()
 
-    def setCamFovCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
-        new_val = msg.data
-        if new_val > 100:
-            new_val = 100
-        if new_val < 30:
-            new_val = 30
-        self.node_if.set_param('cam_fov',new_val)
-        self.publish_status()
-
-    def setCamViewCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
-        new_array = []
-        new_array.append(msg.x)
-        new_array.append(msg.y)
-        new_array.append(msg.z)
-        self.node_if.set_param('cam_view',new_array)
-        self.publish_status()
-
-    def setCamPositionCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
-        new_array = []
-        new_array.append(msg.x)
-        new_array.append(msg.y)
-        new_array.append(msg.z)
-        self.node_if.set_param('cam_pos',new_array)
-        self.publish_status()
-
-    def setCamRotationCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
-        new_array = []
-        new_array.append(msg.x)
-        new_array.append(msg.y)
-        new_array.append(msg.z)
-        self.node_if.set_param('cam_rot',new_array)
-        self.publish_status()
-
-    def setRangeRatiosCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
-        min_ratio = msg.start_range
-        max_ratio = msg.stop_range
-        if min_ratio < max_ratio and min_ratio >= 0 and max_ratio <= 1:
-            self.node_if.set_param('start_range_ratio', min_ratio)
-            self.node_if.set_param('stop_range_ratio', max_ratio)
-            self.publish_status()
-
-    def setWhiteBgCb(self,msg):
-        enable = msg.data
-        self.node_if.set_param('use_wbg', enable)
-        self.publish_status()
 
     def setRenderEnableCb(self,msg):
         render_enable = msg.data
@@ -9731,8 +9643,10 @@ class PointcloudImageIF(BaseImageIF):
         has_zoom = False,
         has_pan = False,
         has_window = False,
+        has_zoom_3d = True,
         has_rotate_3d = True,
-        has_tilt_3d = True
+        has_tilt_3d = True,
+        has_camera_3d = True
         )
 
     DEFAULT_FILTERS_DICT = dict()
@@ -9745,45 +9659,44 @@ class PointcloudImageIF(BaseImageIF):
         auto_adjust_ratio = 0.3,
         brightness_ratio = 0.5,
         contrast_ratio =  0.5,
-        threshold_ratio =  0.0,
-        start_range_ratio = 0.0,
-        stop_range_ratio = 1.0,
-        window_ratios = [0,1,0,1],
-        rotate_3d_ratio = 0.5,
-        tilt_3d_ratio = 0.5,
-        )
-
-    DEFAULT_CAM_DICT = dict(
+        threshold_ratio =  0,
+        start_range_ratio = 0,
+        stop_range_ratio = 0,
+        window_ratios = [0,0,0,0],
+        zoom_3d_ratio = 0,
+        rotate_3d_ratio = 0,
+        tilt_3d_ratio = 0,
         cam_fov = 60,
         cam_view = [3, 0, 0],
         cam_pos = [-5, 0, 0],
         cam_rot = [0, 0, 1]
         )
 
-    #Default Control Values 
-    DEFAULT_OFFSETS_DICT = dict( 
 
-        resolution_ratio = 0,
-        auto_adjust_enabled = False,
-        auto_adjust_ratio = 0,
-        brightness_ratio = 0,
-        contrast_ratio =  0,
-        threshold_ratio =  0,
-        start_range_ratio = 0,
-        stop_range_ratio = 0,
-        zoom_ratio = 0,
-        window_ratios = [0,0,0,0],
-        rotate_3d_ratio = 0,
-        tilt_3d_ratio = 0,
-        cam_fov = 0,
-        cam_view = [0, 0, 0],
-        cam_pos = [0, 0, 0],
-        cam_rot = [0, 0, 0]
-        )
+    # #Default Control Values 
+    # DEFAULT_OFFSETS_DICT = dict( 
 
-    # Working copy of the render offsets; drag handlers mutate this, the
-    # reset callback restores it to DEFAULT_OFFSETS_DICT (start orientation).
-    offsets_dict = copy.deepcopy(DEFAULT_OFFSETS_DICT)
+    #     resolution_ratio = 0,
+    #     auto_adjust_enabled = False,
+    #     auto_adjust_ratio = 0,
+    #     brightness_ratio = 0,
+    #     contrast_ratio =  0,
+    #     threshold_ratio =  0,
+    #     start_range_ratio = 0,
+    #     stop_range_ratio = 0,
+    #     zoom_3d_ratio = 0,
+    #     window_ratios = [0,0,0,0],
+    #     rotate_3d_ratio = 0,
+    #     tilt_3d_ratio = 0,
+    #     cam_fov = 0,
+    #     cam_view = [0, 0, 0],
+    #     cam_pos = [0, 0, 0],
+    #     cam_rot = [0, 0, 0]
+    #     )
+
+    # # Working copy of the render offsets; drag handlers mutate this, the
+    # # reset callback restores it to DEFAULT_OFFSETS_DICT (start orientation).
+    #offsets_dict = copy.deepcopy(DEFAULT_OFFSETS_DICT)
 
     # Anchor state for interactive 3D drags (start pixel is the fixed drag anchor)
     render_3d_drag_anchor = None
@@ -9807,7 +9720,6 @@ class PointcloudImageIF(BaseImageIF):
     last_bg_white = None
 
     render_dict = copy.deepcopy(DEFAULT_CONTROLS_DICT)
-    render_dict.update(DEFAULT_CAM_DICT)
     
 
     def __init__(self, namespace = None , 
@@ -9878,6 +9790,8 @@ class PointcloudImageIF(BaseImageIF):
                             width_deg = 100,
                             height_deg = 70,
                             render_dict = None,
+                            min_range_m = None,
+                            max_range_m = None,
                             img_width = None,
                             img_height = None,
                             timestamp = None,
@@ -9898,7 +9812,7 @@ class PointcloudImageIF(BaseImageIF):
             height_deg (float, optional): Vertical field of view in degrees.
                 Defaults to 70.
             render_dict (dict, optional): Render control values (image_width,
-                image_height, start_range_ratio, stop_range_ratio, zoom_ratio,
+                image_height, start_range_ratio, stop_range_ratio, zoom_3d_ratio,
                 rotate_ratio, tilt_ratio, cam_fov, cam_view, cam_pos, cam_rot,
                 use_wbg). Falls back to interface defaults when None.
             timestamp (float or rospy.Time, optional): Acquisition timestamp.
@@ -9930,13 +9844,21 @@ class PointcloudImageIF(BaseImageIF):
 
         # Resolve render controls (render_dict comes from the pointcloud status each
         # frame; fall back to interface defaults only when nothing was passed)
+        base_render_dict = copy.deepcopy(self.render_dict)
         if render_dict is None:
-            render_dict = copy.deepcopy(self.render_dict)
+            render_dict = base_render_dict
+        else:
+            for key in base_render_dict.keys():
+                if key not in render_dict.keys():
+                    render_dict[key] = base_render_dict[key]
+            self.render_dict = copy.deepcopy(render_dict)
+        
 
-        # Working copy of the interactive render offsets (drag handlers add into this,
-        # reset restores it to DEFAULT_OFFSETS_DICT); offsets are added on top of the
-        # status-driven base values below.
-        offsets_dict = copy.deepcopy(self.offsets_dict)
+
+        # # Working copy of the interactive render offsets (drag handlers add into this,
+        # # reset restores it to DEFAULT_OFFSETS_DICT); offsets are added on top of the
+        # # status-driven base values below.
+        # offsets_dict = copy.deepcopy(self.offsets_dict)
 
         # Explicit img_width/img_height args override the status-driven size
         if img_width is None:
@@ -9945,26 +9867,28 @@ class PointcloudImageIF(BaseImageIF):
             img_height = render_dict.get('image_height', 600)
         img_width = int(img_width)
         img_height = int(img_height)
-        start_range_ratio = render_dict.get('start_range_ratio', 0.0) + offsets_dict.get('start_range_ratio', 0)
-        stop_range_ratio = render_dict.get('stop_range_ratio', 1.0) + offsets_dict.get('stop_range_ratio', 0)
-        zoom_ratio = nepi_utils.check_ratio(render_dict.get('zoom_ratio', 0.5) + offsets_dict.get('zoom_ratio', 0))
-        rotate_ratio = render_dict.get('rotate_ratio', 0.5) + offsets_dict.get('rotate_3d_ratio', 0)
-        tilt_ratio = render_dict.get('tilt_ratio', 0.5) + offsets_dict.get('tilt_3d_ratio', 0)
-        cam_fov = render_dict.get('cam_fov', self.DEFAULT_CAM_DICT['cam_fov']) + offsets_dict.get('cam_fov', 0)
-        cam_view_base = list(render_dict.get('cam_view', self.DEFAULT_CAM_DICT['cam_view']))
-        cam_pos_base = list(render_dict.get('cam_pos', self.DEFAULT_CAM_DICT['cam_pos']))
-        cam_rot_base = list(render_dict.get('cam_rot', self.DEFAULT_CAM_DICT['cam_rot']))
-        cam_view_off = offsets_dict.get('cam_view', [0, 0, 0])
-        cam_pos_off = offsets_dict.get('cam_pos', [0, 0, 0])
-        cam_rot_off = offsets_dict.get('cam_rot', [0, 0, 0])
+        start_range_ratio = render_dict.get('start_range_ratio', 0.0) # + offsets_dict.get('start_range_ratio', 0)
+        stop_range_ratio = render_dict.get('stop_range_ratio', 1.0) # + offsets_dict.get('stop_range_ratio', 0)
+        zoom_ratio = nepi_utils.check_ratio(render_dict.get('zoom_3d_ratio', 0)) # + offsets_dict.get('zoom_3d_ratio', 0))
+        rotate_ratio = render_dict.get('rotate_3d_ratio', 0.5) # + offsets_dict.get('rotate_3d_ratio', 0)
+        tilt_ratio = render_dict.get('tilt_3d_ratio', 0.5) # + offsets_dict.get('tilt_3d_ratio', 0)
+        cam_fov = render_dict.get('cam_fov', self.DEFAULT_CONTROLS_DICT['cam_fov']) # + offsets_dict.get('cam_fov', 0)
+        cam_view_base = list(render_dict.get('cam_view', self.DEFAULT_CONTROLS_DICT['cam_view']))
+        cam_pos_base = list(render_dict.get('cam_pos', self.DEFAULT_CONTROLS_DICT['cam_pos']))
+        cam_rot_base = list(render_dict.get('cam_rot', self.DEFAULT_CONTROLS_DICT['cam_rot']))
+        cam_view_off = render_dict.get('cam_view', [0, 0, 0])
+        cam_pos_off = render_dict.get('cam_pos', [0, 0, 0])
+        cam_rot_off = render_dict.get('cam_rot', [0, 0, 0])
         cam_view = [cam_view_base[i] + cam_view_off[i] for i in range(len(cam_view_base))]
         cam_pos = [cam_pos_base[i] + cam_pos_off[i] for i in range(len(cam_pos_base))]
         cam_rot = [cam_rot_base[i] + cam_rot_off[i] for i in range(len(cam_rot_base))]
         use_wbg = render_dict.get('use_wbg', False)
 
         # Range clip
-        min_range_m = nepi_pc.get_min_range(o3d_pc)
-        max_range_m = nepi_pc.get_max_range(o3d_pc)
+        if min_range_m is None:
+            min_range_m = nepi_pc.get_min_range(o3d_pc)
+        if max_range_m is None:
+            max_range_m = nepi_pc.get_max_range(o3d_pc)
         delta_range_m = max_range_m - min_range_m
         clip_min_range_m = min_range_m + start_range_ratio * delta_range_m
         clip_max_range_m = min_range_m + stop_range_ratio * delta_range_m
@@ -10040,10 +9964,10 @@ class PointcloudImageIF(BaseImageIF):
         rotate_change = float(stop_pixel[0] - self.render_3d_drag_last[0]) / float(img_width)
         tilt_change = float(stop_pixel[1] - self.render_3d_drag_last[1]) / float(img_height)
         self.render_3d_drag_last = list(stop_pixel)
-        rotate_offset = min(1.0, max(-1.0, self.offsets_dict['rotate_3d_ratio'] + rotate_change))
-        tilt_offset = min(1.0, max(-1.0, self.offsets_dict['tilt_3d_ratio'] + tilt_change))
-        self.offsets_dict['rotate_3d_ratio'] = rotate_offset
-        self.offsets_dict['tilt_3d_ratio'] = tilt_offset
+        rotate_offset = min(1.0, max(-1.0, self.render_dict['rotate_3d_ratio'] + rotate_change))
+        tilt_offset = min(1.0, max(-1.0, self.render_dict['tilt_3d_ratio'] + tilt_change))
+        self.render_dict['rotate_3d_ratio'] = rotate_offset
+        self.render_dict['tilt_3d_ratio'] = tilt_offset
         self.publish_status()
         self.needs_update()
 
@@ -10056,8 +9980,8 @@ class PointcloudImageIF(BaseImageIF):
         # scroll_amount is a normalized wheel step (+ = zoom in, - = zoom out); accumulate
         # into the zoom offset applied on top of the status-driven zoom in publish.
         zoom_step = float(scroll_amount) * 0.05
-        zoom_offset = min(1.0, max(-1.0, self.offsets_dict['zoom_ratio'] + zoom_step))
-        self.offsets_dict['zoom_ratio'] = zoom_offset
+        zoom_offset = min(1.0, max(-1.0, self.render_dict['zoom_3d_ratio'] + zoom_step))
+        self.render_dict['zoom_3d_ratio'] = zoom_offset
         self.publish_status()
         self.needs_update()
 
@@ -10077,23 +10001,23 @@ class PointcloudImageIF(BaseImageIF):
         pan_scale = 1.0
         pan_y = x_ratio * pan_scale
         pan_z = -y_ratio * pan_scale
-        cam_view = list(self.offsets_dict['cam_view'])
-        cam_pos = list(self.offsets_dict['cam_pos'])
+        cam_view = list(self.render_dict['cam_view'])
+        cam_pos = list(self.render_dict['cam_pos'])
         cam_view[1] = cam_view[1] + pan_y
         cam_pos[1] = cam_pos[1] + pan_y
         cam_view[2] = cam_view[2] + pan_z
         cam_pos[2] = cam_pos[2] + pan_z
-        self.offsets_dict['cam_view'] = cam_view
-        self.offsets_dict['cam_pos'] = cam_pos
+        self.render_dict['cam_view'] = cam_view
+        self.render_dict['cam_pos'] = cam_pos
         self.publish_status()
         self.needs_update()
 
     def reset_render_3d_orientation(self):
         """Reset the interactive 3D orientation offsets (rotate, tilt, zoom) to start."""
-        defaults = copy.deepcopy(self.DEFAULT_OFFSETS_DICT)
-        self.offsets_dict['rotate_3d_ratio'] = defaults['rotate_3d_ratio']
-        self.offsets_dict['tilt_3d_ratio'] = defaults['tilt_3d_ratio']
-        self.offsets_dict['zoom_ratio'] = defaults['zoom_ratio']
+        defaults = copy.deepcopy(self.DEFAULT_RENDER_DICT)
+        self.render_dict['rotate_3d_ratio'] = defaults['rotate_3d_ratio']
+        self.render_dict['tilt_3d_ratio'] = defaults['tilt_3d_ratio']
+        self.render_dict['zoom_3d_ratio'] = defaults['zoom_3d_ratio']
         self.render_3d_drag_anchor = None
         self.render_3d_drag_last = None
         self.publish_status()
@@ -10101,9 +10025,9 @@ class PointcloudImageIF(BaseImageIF):
 
     def reset_render_3d_position(self):
         """Reset the interactive 3D position offsets (pan / camera translation) to start."""
-        defaults = copy.deepcopy(self.DEFAULT_OFFSETS_DICT)
-        self.offsets_dict['cam_view'] = defaults['cam_view']
-        self.offsets_dict['cam_pos'] = defaults['cam_pos']
+        defaults = copy.deepcopy(self.DEFAULT_RENDER_DICT)
+        self.render_dict['cam_view'] = defaults['cam_view']
+        self.render_dict['cam_pos'] = defaults['cam_pos']
         self.publish_status()
         self.needs_update()
 
