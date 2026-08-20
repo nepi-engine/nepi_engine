@@ -57,7 +57,6 @@ class PointcloudImgPub:
     image_if = None
 
     status_msg = None
-    render_dict = None
     render_enable = True
     img_pub_enabled = True
 
@@ -237,7 +236,7 @@ class PointcloudImgPub:
         self.last_status_time = nepi_utils.get_time()
         self.status_msg = msg
         self.img_pub_enabled = msg.img_pub_enabled
-        self.render_enable = msg.render_status.render_enable
+        self.render_enable = msg.render_enable
         self.min_range_m = msg.range_min_max_m.start_range
         self.max_range_m = msg.range_min_max_m.stop_range
         self.width_deg = msg.width_deg
@@ -274,10 +273,6 @@ class PointcloudImgPub:
         if self.img_pub_enabled == False or self.render_enable == False:
             return
 
-        render_dict = copy.deepcopy(self.render_dict)
-        if render_dict is None:
-            return
-
         # Only render if something downstream needs the image
         needs_img = self.image_if.needs_data_check()
         if needs_img == False:
@@ -298,8 +293,12 @@ class PointcloudImgPub:
             frame_id = msg.header.frame_id
             o3d_pc = nepi_pc.rospc_to_o3dpc(msg, remove_nans = True)
             if o3d_pc is not None:
+                # render_dict = None on purpose: the render controls (zoom, rotate,
+                # tilt, camera pose, range ratios) are owned by PointcloudImageIF,
+                # not by this node. Passing None makes the interface resolve them
+                # from its own control state.
                 self.image_if.publish_pointcloud_img(o3d_pc,
-                                    render_dict = render_dict,
+                                    render_dict = None,
                                     width_deg = self.width_deg,
                                     height_deg = self.height_deg,
                                     min_range_m = self.min_range_m,
