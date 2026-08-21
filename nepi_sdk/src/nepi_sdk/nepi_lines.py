@@ -23,6 +23,10 @@ import os
 #os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
 import copy
 import numpy as np
+try:
+    import cupy as npa
+except:
+    import numpy as npa
 import cv2
 import math
 import pandas as pd

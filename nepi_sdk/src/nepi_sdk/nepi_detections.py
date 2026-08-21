@@ -19,6 +19,10 @@
 
 import os
 import numpy as np
+try:
+    import cupy as npa
+except:
+    import numpy as npa
 import sys
 import declxml as xml
 import xml.etree.ElementTree as ET

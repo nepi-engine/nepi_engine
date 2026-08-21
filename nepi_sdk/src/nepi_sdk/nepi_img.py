@@ -23,6 +23,11 @@ import os
 import copy
 
 import numpy as np
+try:
+    import cupy as npa
+except:
+    import numpy as npa
+    
 import cv2
 import math
 import random

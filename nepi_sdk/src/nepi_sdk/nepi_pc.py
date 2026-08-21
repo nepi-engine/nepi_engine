@@ -27,6 +27,11 @@
 
 
 import numpy as np
+try:
+    import cupy as npa
+except:
+    import numpy as npa
+
 import ros_numpy as rnp
 import os
 import math
@@ -34,6 +39,7 @@ import math
 os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
 import open3d as o3d
 
+from nepi_sdk import nepi_sdk
 from nepi_sdk import open3d_ros_helper 
 
 import cv2

@@ -23,19 +23,24 @@
 # Adapted from https://github.com/hirschmanner/open3d-ros-helper/blob/master/open3d_ros_helper/open3d_ros_helper.py
 # Updated for use in NEPI Engine
 
-import ros_numpy as rnp
 
-
-import open3d as o3d
-import tf.transformations as t
+import numpy as np
+try:
+    import cupy as npa
+except:
+    import numpy as npa
 
 import copy
 import cv2
 
 from nepi_sdk import nepi_sdk
+
+import open3d as o3d
+import tf.transformations as t
+
 from sensor_msgs.msg import PointCloud2, PointField
 from geometry_msgs.msg import Pose, PoseStamped, Transform, TransformStamped
-import numpy as np
+
 #import numpy.matlib as npm
 
 
@@ -286,11 +291,6 @@ def rospc_to_o3dpc(rospc, remove_nans=False):
     Returns: 
         o3dpc (o3d.geometry.PointCloud): Open3D PointCloud
     """
-    # Parse the PointCloud2 buffer directly with numpy instead of via ros_numpy:
-    # some installs lack the ros_numpy.point_cloud2 submodule (AttributeError:
-    # module 'ros_numpy' has no attribute 'point_cloud2'). The structured dtype is
-    # built from each field's real offset with the message point_step as itemsize,
-    # which reproduces ros_numpy.point_cloud2.pointcloud2_to_array's output.
     _PF_TO_STR = {
         PointField.INT8: 'i1',   PointField.UINT8: 'u1',
         PointField.INT16: 'i2',  PointField.UINT16: 'u2',
@@ -375,11 +375,6 @@ def o3dpc_to_rospc(o3dpc, stamp=None, frame_id=None):
         rgb_npy = rgb_npy.astype(np.uint32)
         data['rgb'] = rgb_npy
 
-    # NOTE: build the PointCloud2 directly rather than via rnp.msgify. Some
-    # ros_numpy installs expose the point_cloud2/image submodules but not the
-    # top-level msgify/numpify registry (AttributeError: module 'ros_numpy' has
-    # no attribute 'msgify'). Every field below is set explicitly, and the packed
-    # buffer is written from the structured array, so no registry call is needed.
     rospc = PointCloud2()
 
     if stamp is None:

@@ -24,6 +24,10 @@
 
 import os
 import numpy as np
+try:
+    import cupy as npa
+except:
+    import numpy as npa
 from scipy.spatial.transform import Rotation as R
 import math
 import time
