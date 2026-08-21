@@ -39,6 +39,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
 
 from nepi_interfaces.msg import DeviceSVXStatus
+from nepi_interfaces.msg import SingleAxisTimedSpeedMove
 from nepi_interfaces.srv import SVXCapabilitiesQuery, SVXCapabilitiesQueryRequest, SVXCapabilitiesQueryResponse
 
 
@@ -439,6 +440,14 @@ class SVXActuatorIF:
                 'callback': self._setReverseEnableCb,
                 'callback_args': ()
             },
+            'move_direction': {
+                'namespace': self.namespace,
+                'topic': 'move_direction',
+                'msg': SingleAxisTimedSpeedMove,
+                'qsize': 1,
+                'callback': self._moveDirectionCb,
+                'callback_args': ()
+            },
             'stop_moving': {
                 'namespace': self.namespace,
                 'topic': 'stop_moving',
@@ -752,6 +761,44 @@ class SVXActuatorIF:
             self._commandSpin()
         self.publish_status()
         return True
+
+
+    def _moveDirectionCb(self, msg):
+        # Jog: move in a direction and hold there until stopped. An open-loop servo has
+        # no velocity command, so the direction resolves to the end of the travel range
+        # and the existing speed setting decides how fast it gets there -- exactly what
+        # a positional goto already does, which is why no new driver callback is needed.
+        #
+        # speed_ratio of 0 or less means "leave the current speed alone", so the same
+        # topic serves a jog with a speed and a jog without one.
+        #
+        # duration_s is not honored: the caller owns the timed stop (it waits, then
+        # publishes stop_moving), and a device-side timer would add a second motion
+        # owner for no caller that asks for it.
+        direction = 1 if msg.direction >= 0 else -1
+        set_speed = msg.speed_ratio > 0.0 and self.has_adjustable_speed == True
+
+        if self.continuous_enabled == True:
+            # A continuous servo reads pulse-offset-from-center as speed and direction,
+            # so a jog IS a spin. Going to the hardstop instead would spin it flat out
+            # regardless of the requested speed.
+            self.spin_direction = direction
+            if self.node_if is not None:
+                self.node_if.set_param('spin_direction', direction)
+            if set_speed == True:
+                # _setSpeedRatio re-issues the spin itself while in continuous mode.
+                self._setSpeedRatio(nepi_utils.check_ratio(msg.speed_ratio))
+            else:
+                self._commandSpin()
+            return
+
+        if set_speed == True:
+            self._setSpeedRatio(nepi_utils.check_ratio(msg.speed_ratio))
+        # Driver frame, matching _commandSpin: reverse is folded into the direction
+        # rather than applied again by gotoPosition.
+        dir_eff = direction * self.ri
+        target = self.max_hardstop_deg if dir_eff >= 0 else self.min_hardstop_deg
+        self.gotoPosition(target)
 
 
     def _stopMovingCb(self, _):
