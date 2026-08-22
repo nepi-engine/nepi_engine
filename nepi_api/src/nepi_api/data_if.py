@@ -9910,7 +9910,7 @@ class PointcloudImageIF(BaseImageIF):
     last_fov = None
     last_bg_white = None
 
-
+    is_processing = False
     def __init__(self, namespace = None ,
                 data_product = None,
                 data_source_description = 'sensor',
@@ -10015,15 +10015,20 @@ class PointcloudImageIF(BaseImageIF):
             tuple: (o3d_pc, cv2_img) where cv2_img is the rendered image, or
             None if rendering produced no image.
         """
-
+        cv2_img = None
+        if self.is_processing == True:
+            self.is_processing = False
+            return o3d_pc, cv2_img
+        self.is_processing = True
 
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
 
-        cv2_img = None
+        
         if o3d_pc is None:
+            self.is_processing = False
             return o3d_pc, cv2_img
 
         if timestamp is None:
@@ -10124,6 +10129,7 @@ class PointcloudImageIF(BaseImageIF):
                                 timestamp = timestamp,
                                 pub_twice = pub_twice
                                 )
+        self.is_processing = False
         return o3d_pc, cv2_img
 
 
