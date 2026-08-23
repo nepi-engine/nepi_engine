@@ -64,6 +64,7 @@ class PointcloudImgPub:
     last_img_time = 0
 
     connected = False
+    processing = False
     publishing = False
 
     # Decoupled render worker state. pointcloudCb only stashes the newest cloud
@@ -268,11 +269,10 @@ class PointcloudImgPub:
             self._renderPointcloudMsg(msg)
 
     def _renderPointcloudMsg(self, msg):
-        if self.image_if is None:
-            return
-        if self.img_pub_enabled == False or self.render_enable == False:
-            return
 
+        if self.image_if is None or self.img_pub_enabled == False or self.render_enable == False or self.processing == True:
+            return
+        
         # Only render if something downstream needs the image
         needs_img = self.image_if.needs_data_check()
         if needs_img == False:
@@ -286,6 +286,7 @@ class PointcloudImgPub:
         current_time = nepi_utils.get_time()
         if (current_time - self.last_img_time) < delay_time:
             return
+        self.processing = True
         self.last_img_time = current_time
 
         try:
@@ -308,6 +309,7 @@ class PointcloudImgPub:
                                     )
         except Exception as e:
             self.msg_if.pub_warn("Failed to render pointcloud image: " + str(e))
+        self.processing = False
 
 
     def shutdownCb(self):
