@@ -5017,8 +5017,9 @@ class BaseImageIF:
         self.aspect_adjust_enabled = enabled and self.aspect_adjustment_disabled == False
 
     def set_aspect_adjust_ratio(self,aspect_ratio):
-        if aspect_ratio >= 0.5 and aspect_ratio <= 2.5:
-            self.aspect_ratio_set = aspect_ratio #nepi_img.get_aspect_ratio_clean(aspect_ratio)
+        if aspect_ratio is not None:
+            if aspect_ratio >= 0.5 and aspect_ratio <= 2.5:
+                self.aspect_ratio_set = aspect_ratio #nepi_img.get_aspect_ratio_clean(aspect_ratio)
 
     def set_aspect_adjust_by_ratio(self,ratio):
         ratio = nepi_utils.check_ratio(ratio)
