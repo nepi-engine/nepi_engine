@@ -630,7 +630,7 @@ class ConnectNodeIF:
         available_topics = []
         for topic in topics:
             valid = True
-            if len(self.filter_topics_lis) > 0:
+            if len(self.filter_topics_list) > 0:
                 valid = False
                 for filter in self.filter_topics_list:
                     if filter in topic:
