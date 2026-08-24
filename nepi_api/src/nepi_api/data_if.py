@@ -3742,7 +3742,7 @@ class BaseImageIF:
         else:
             # Setup NavPose Connect IF Class
             self.msg_if.pub_info("Starting NavPose IF Initialization")
-            np_namespace = self.namespace
+            np_namespace = self.namespace + '/navpose'
             if navpose_namespace is not None:
                 np_namespace = navpose_namespace
 
@@ -6203,7 +6203,7 @@ class BaseImageIF:
     def _updaterCb(self, timer):
 
         # Check for other topics
-        image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'color_image')
+        image_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),self.data_product)
         depth_map_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'depth_map')
         pointcloud_ns = nepi_sdk.create_namespace(os.path.dirname(self.namespace),'pointcloud')
         found_topics = self.active_topics
@@ -7716,7 +7716,7 @@ class DepthMapIF:
         else:
             # Setup NavPose Connect IF Class
             self.msg_if.pub_info("Starting NavPose IF Initialization")
-            np_namespace = self.namespace
+            np_namespace = self.namespace + '/navpose'
             if navpose_namespace is not None:
                 np_namespace = navpose_namespace
 
@@ -9030,7 +9030,7 @@ class PointcloudIF:
         else:
             # Setup NavPose Connect IF Class
             self.msg_if.pub_info("Starting NavPose IF Initialization")
-            np_namespace = self.namespace
+            np_namespace = self.namespace + '/navpose'
             if navpose_namespace is not None:
                 np_namespace = navpose_namespace
 
