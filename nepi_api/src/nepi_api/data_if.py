@@ -5371,10 +5371,38 @@ class BaseImageIF:
         if color_rgb is None:
             color_rgb = self.overlays_dict['crosshairs_color_rgb']
         crosshair_dict = copy.deepcopy(self.BLANK_CROSSHAIR_DICT)
-        crosshair_dict['x_ratio'] = x_ratio
-        crosshair_dict['y_ratio'] = y_ratio
         crosshair_dict['x_deg_offset'] = round(  ((x_ratio - 0.5) * self.width_deg),1)
         crosshair_dict['y_deg_offset'] = round(  ((y_ratio - 0.5) * self.height_deg),1)  
+        crosshair_dict['color_rgb'] = color_rgb
+        crosshair_dict['msg_str'] = msg_str
+
+        self.overlays_dict['crosshairs_dict'][ch_name] = crosshair_dict
+        self.publish_status()
+        self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
+
+    def add_crosshair_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = ''):
+        """Append a crosshair overlay at degs offset location.
+
+        Args:
+            x deg, y deg, crosshair name str.
+        """
+        crosshairs_dict = self.overlays_dict['crosshairs_dict']
+        crosshair_names = list(crosshairs_dict.keys())
+        num_crosshairs = len(crosshair_names)
+        x_ratio = nepi_utils.check_ratio(x_ratio)
+        y_ratio = nepi_utils.check_ratio(y_ratio)
+        ch_name = str(num_crosshairs + 1)
+        if name is not None:
+            if name != '':
+                ch_name = name
+        if color_rgb is None:
+            color_rgb = self.overlays_dict['crosshairs_color_rgb']
+        crosshair_dict = copy.deepcopy(self.BLANK_CROSSHAIR_DICT)
+        crosshair_dict['x_deg_offset'] = x_deg
+        crosshair_dict['y_deg_offset'] = y_deg
         crosshair_dict['color_rgb'] = color_rgb
         crosshair_dict['msg_str'] = msg_str
 
@@ -5562,8 +5590,6 @@ class BaseImageIF:
         if color_rgb is None:
             color_rgb = self.overlays_dict['targets_color_rgb']
         target_dict = copy.deepcopy(self.BLANK_TARGET_DICT)
-        target_dict['x_ratio'] = x_ratio
-        target_dict['y_ratio'] = y_ratio
         target_dict['x_deg_offset'] = round( ((x_ratio - 0.5) * self.width_deg),1)
         target_dict['y_deg_offset'] = round( ((y_ratio - 0.5) * self.height_deg),1)   
         target_dict['color_rgb'] = color_rgb
