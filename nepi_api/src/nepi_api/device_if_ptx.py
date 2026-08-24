@@ -181,10 +181,11 @@ class PTXActuatorIF:
 
 
     ### IF Initialization
-    def __init__(self,  device_info, 
-                 capSettings, factorySettings, 
+    def __init__(self,  device_info,
+                 capSettings, factorySettings,
                  settingUpdateFunction, getSettingsFunction,
                  factoryControls , # Dictionary to be supplied by parent, specific key set is required
+                 getCapSettingsFunction = None,
                  factoryLimits = None,
                  data_source_description = 'pan_tilt',
                  data_ref_description = 'tilt_axis_center',
@@ -874,10 +875,18 @@ class PTXActuatorIF:
         self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
         settings_ns = self.namespace
 
+        # getCapSettingsFunction is optional and only matters for a device whose
+        # cap settings are not knowable at construction -- ptx_servos builds its
+        # pan_servo/tilt_servo option lists from whatever SVX servo devices were
+        # discovered, so the options change while the node runs. SettingsIF
+        # re-reads through this callback when present and otherwise keeps using
+        # the capSettings value passed once here, which is what every other PTX
+        # driver wants. Same plumbing as device_if_idx.py.
         self.SETTINGS_DICT = {
-                    'capSettings': capSettings, 
+                    'capSettings': capSettings,
                     'factorySettings': factorySettings,
-                    'setSettingFunction': settingUpdateFunction, 
+                    'getCapSettingsFunction': getCapSettingsFunction,
+                    'setSettingFunction': settingUpdateFunction,
                     'getSettingsFunction': getSettingsFunction
 
         }
