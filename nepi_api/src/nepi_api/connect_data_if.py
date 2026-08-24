@@ -80,6 +80,7 @@ class ConnectDataIF(ConnectNodeIF):
 
     node_if = None
 
+    connect_name = CONNECT_NAME
     status_msg = None
     connected = False
     last_status_time = 0
@@ -139,8 +140,11 @@ class ConnectDataIF(ConnectNodeIF):
                     "subscribe_topic always creates the status subscriber, so this "
                     "is required even when connect_data is False.")
 
+
         self.msg_if = msg_if
         self.node_if = node_if
+        self.connect_name = connect_name
+
         super().__init__(
                 connect_id = connect_id,
                 connect_status_msg = connect_status_msg,
@@ -173,6 +177,7 @@ class ConnectDataIF(ConnectNodeIF):
 
         ##############################
         # Start updater process
+        self.node_if_prefix = self.node_namespace.replace(self.base_namespace + '/','').replace('/','_') + '_' + self.connect_name
         nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
         ##############################
@@ -441,7 +446,7 @@ class ConnectDataIF(ConnectNodeIF):
 
         # Subscribers Config Dict ####################
         self.connect_topic_subs_dict = {
-            'status_sub': {
+            self.node_if_prefix + 'status_sub': {
                 'namespace': self.selected_topic,
                 'topic': 'status',
                 'msg': self.connect_status_msg_class,
@@ -450,7 +455,7 @@ class ConnectDataIF(ConnectNodeIF):
             }
         }
         if self.connect_data == True:
-             self.connect_topic_subs_dict['data_sub'] = {
+             self.connect_topic_subs_dict[self.node_if_prefix + 'data_sub'] = {
                 'namespace': self.selected_topic,
                 'topic': '',
                 'msg': self.connect_data_msg,
@@ -462,19 +467,19 @@ class ConnectDataIF(ConnectNodeIF):
 
         # Publishers Config Dict ####################
         self.connect_topic_pubs_dict = {
-            'save_config': {
+            self.node_if_prefix + 'save_config': {
                 'namespace': self.selected_topic,
                 'topic': 'save_config',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'reset_config': {
+            self.node_if_prefix + 'reset_config': {
                 'namespace': self.selected_topic,
                 'topic': 'reset_config',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'factory_reset_config': {
+            self.node_if_prefix + 'factory_reset_config': {
                 'namespace': self.selected_topic,
                 'topic': 'factory_reset_config',
                 'msg': Empty,

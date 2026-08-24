@@ -1040,7 +1040,7 @@ class NavPoseIF:
         if os.path.basename(namespace) != self.data_product:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
-
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         if data_source_description is None:
             data_source_description = self.data_source_description
@@ -1117,14 +1117,14 @@ class NavPoseIF:
         
         if self.pub_navpose == True:
 
-            self.PUBS_DICT['navpose_status_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'navpose_status_pub'] = {
                     'msg': NavPoseStatus,
                     'namespace': self.namespace,
                     'topic': 'status',
                     'qsize': 1,
                     'latch': True
                 }
-            self.PUBS_DICT['navpose_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'navpose_pub'] = {
                     'msg': NavPose,
                     'namespace': self.namespace,
                     'topic': '',
@@ -1133,7 +1133,7 @@ class NavPoseIF:
                 }
       
         if self.pub_location == True:
-            self.PUBS_DICT['location_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'location_pub'] = {
                 'msg': NavPoseLocation,
                 'namespace': self.namespace,
                 'topic': 'location',
@@ -1142,7 +1142,7 @@ class NavPoseIF:
             }
             
         if self.pub_orientation == True:
-            self.PUBS_DICT['orientation_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'orientation_pub'] = {
                 'msg': NavPoseOrientation,
                 'namespace': self.namespace,
                 'topic': 'orientation',
@@ -1151,7 +1151,7 @@ class NavPoseIF:
             }
 
         if self.pub_position == True:
-            self.PUBS_DICT['position_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'position_pub'] = {
                 'msg': NavPosePosition,
                 'namespace': self.namespace,
                 'topic': 'position',
@@ -1160,7 +1160,7 @@ class NavPoseIF:
             }
 
         if self.pub_heading == True:
-            self.PUBS_DICT['heading_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'heading_pub'] = {
                 'msg': NavPoseHeading,
                 'namespace': self.namespace,
                 'topic': 'heading',
@@ -1169,7 +1169,7 @@ class NavPoseIF:
             }
 
         if self.pub_altitude == True:
-            self.PUBS_DICT['altitude_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'altitude_pub'] = {
                 'msg': NavPoseAltitude,
                 'namespace': self.namespace,
                 'topic': 'altitude',
@@ -1178,7 +1178,7 @@ class NavPoseIF:
             }
 
         if self.pub_depth == True:
-            self.PUBS_DICT['depth_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'depth_pub'] = {
                 'msg': NavPoseDepth,
                 'namespace': self.namespace,
                 'topic': 'depth',
@@ -1187,7 +1187,7 @@ class NavPoseIF:
             }
 
         if self.pub_pan_tilt == True:
-            self.PUBS_DICT['pan_tilt_pub'] = {
+            self.PUBS_DICT[self.node_if_prefix + 'pan_tilt_pub'] = {
                 'msg': NavPosePanTilt,
                 'namespace': self.namespace,
                 'topic': 'pan_tilt',
@@ -1198,7 +1198,7 @@ class NavPoseIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'navpose_reset': {
+            self.node_if_prefix + 'navpose_reset': {
                 'namespace': self.namespace,
                 'topic': 'reset',
                 'msg': Empty,
@@ -1474,7 +1474,7 @@ class NavPoseIF:
 
             # Publish nav pose subs
             if self.pub_location == True:
-                pub_name = 'location_pub'
+                pub_name = self.node_if_prefix + 'location_pub'
                 msg = self.PUBS_DICT[pub_name]['msg']()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_location']
@@ -1484,7 +1484,7 @@ class NavPoseIF:
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_heading == True:
-                pub_name = 'heading_pub'
+                pub_name = self.node_if_prefix + 'heading_pub'
                 msg = self.PUBS_DICT[pub_name]['msg']()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_heading']
@@ -1493,7 +1493,7 @@ class NavPoseIF:
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_orientation == True:
-                pub_name = 'orientation_pub'
+                pub_name = self.node_if_prefix + 'orientation_pub'
                 msg = self.PUBS_DICT[pub_name]['msg']()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_orientation']
@@ -1506,7 +1506,7 @@ class NavPoseIF:
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_position == True:
-                pub_name = 'position_pub'
+                pub_name = self.node_if_prefix + 'position_pub'
                 msg = self.PUBS_DICT[pub_name]['msg']()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_position']
@@ -1519,7 +1519,7 @@ class NavPoseIF:
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_altitude == True:
-                pub_name = 'altitude_pub'
+                pub_name = self.node_if_prefix + 'altitude_pub'
                 msg = self.PUBS_DICT[pub_name]['msg']()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_altitude']
@@ -1528,7 +1528,7 @@ class NavPoseIF:
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_depth == True:
-                pub_name = 'depth_pub'
+                pub_name = self.node_if_prefix + 'depth_pub'
                 msg = self.PUBS_DICT[pub_name]['msg']()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_depth']
@@ -1537,7 +1537,7 @@ class NavPoseIF:
                 self.node_if.publish_pub(pub_name,msg)
 
             if self.pub_pan_tilt == True:
-                pub_name = 'pan_tilt_pub'
+                pub_name = self.node_if_prefix + 'pan_tilt_pub'
                 msg = self.PUBS_DICT[pub_name]['msg']()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_depth']
@@ -1584,7 +1584,7 @@ class NavPoseIF:
 
                 if data_msg is not None:
                     try:
-                        self.node_if.publish_pub('navpose_pub', data_msg)
+                        self.node_if.publish_pub(self.node_if_prefix + 'navpose_pub', data_msg)
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                         success = False
@@ -1662,7 +1662,7 @@ class NavPoseIF:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
 
-            self.node_if.publish_pub('navpose_status_pub', self.status_msg)
+            self.node_if.publish_pub(self.node_if_prefix + 'navpose_status_pub', self.status_msg)
 
     def init(self, do_updates = False):
         """Initialize or re-initialize interface state and publish status.
@@ -1703,7 +1703,7 @@ class NavPoseIF:
 
 
     def _needsDataCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers('navpose_pub')
+        has_subs = self.node_if.pub_has_subscribers(self.node_if_prefix + 'navpose_pub')
         if self.save_data_if is not None:
             needs_save = self.save_data_if.data_product_save_enabled(self.data_product)
             needs_snapshot = self.save_data_if.data_product_snapshot_enabled(self.data_product)
@@ -2106,6 +2106,8 @@ class BaseImageIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+
           
         if perspective is not None:
             self.perspective = perspective
@@ -2356,18 +2358,18 @@ class BaseImageIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            self.data_product + '_data_pub': {
+            self.node_if_prefix + 'data_pub': {
                 'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            # NOTE: self.data_product + '_data_pub'/'status_pub' keys are generic and identical across every
+            # NOTE: self.node_if_prefix + 'data_pub'/'status_pub' keys are generic and identical across every
             # image-IF instance. Safe only while this IF owns its own node_if. If a shared
             # node_if is ever passed in, make these keys namespace-unique first or coexisting
             # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
-            self.data_product + '_status_pub': {
+            self.node_if_prefix + 'status_pub': {
                 'msg': ImageStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
@@ -2385,7 +2387,7 @@ class BaseImageIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'reset_all': {
+            self.node_if_prefix + 'reset_all': {
                 'namespace': self.namespace,
                 'topic': 'reset',
                 'msg': Empty,
@@ -2393,7 +2395,7 @@ class BaseImageIF:
                 'callback': self._resetControlsCb, 
                 'callback_args': ()
             },
-            'reset_filters': {
+            self.node_if_prefix + 'reset_filters': {
                 'namespace': self.namespace,
                 'topic': 'reset_filters',
                 'msg': Empty,
@@ -2401,7 +2403,7 @@ class BaseImageIF:
                 'callback': self._resetFiltersCb, 
                 'callback_args': ()
             },
-            'reset_overlays': {
+            self.node_if_prefix + 'reset_overlays': {
                 'namespace': self.namespace,
                 'topic': 'reset_overlays',
                 'msg': Empty,
@@ -2409,7 +2411,7 @@ class BaseImageIF:
                 'callback': self._resetOverlaysCb, 
                 'callback_args': ()
             },
-            'reset_settings': {
+            self.node_if_prefix + 'reset_settings': {
                 'namespace': self.namespace,
                 'topic': 'reset_settings',
                 'msg': Empty,
@@ -2417,7 +2419,7 @@ class BaseImageIF:
                 'callback': self._resetSettingsCb, 
                 'callback_args': ()
             },
-            'reset_renders': {
+            self.node_if_prefix + 'reset_renders': {
                 'namespace': self.namespace,
                 'topic': 'reset_renders',
                 'msg': Empty,
@@ -2425,7 +2427,7 @@ class BaseImageIF:
                 'callback': self._resetRendersCb, 
                 'callback_args': ()
             },
-            'mouse_event': {
+            self.node_if_prefix + 'mouse_event': {
                 'namespace': self.namespace,
                 'topic': 'mouse_event',
                 'msg': ImageMouseEvent,
@@ -2434,7 +2436,7 @@ class BaseImageIF:
                 'callback_args': ()
             },
         
-            'render_3d_controls': {
+            self.node_if_prefix + 'render_3d_controls': {
                 'namespace': self.namespace,
                 'topic': 'render_3d_controls',
                 'msg': Bool,
@@ -2442,7 +2444,7 @@ class BaseImageIF:
                 'callback': self.render3dControlsCb,
                 'callback_args': ()
             },
-            'reset_render_3d_controls': {
+            self.node_if_prefix + 'reset_render_3d_controls': {
                 'namespace': self.namespace,
                 'topic': 'reset_render_3d_controls',
                 'msg': Empty,
@@ -2450,7 +2452,7 @@ class BaseImageIF:
                 'callback': self.resetRender3dControlsCb,
                 'callback_args': ()
             },
-            'reset_render_3d_position': {
+            self.node_if_prefix + 'reset_render_3d_position': {
                 'namespace': self.namespace,
                 'topic': 'reset_render_3d_position',
                 'msg': Empty,
@@ -2460,98 +2462,98 @@ class BaseImageIF:
             },
 
             ######################
-            'overlay_text_enable': {
+            self.node_if_prefix + 'overlay_text_enable': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_enable',
                 'qsize': 5,
                 'callback': self._setrOverlayTextEnableCb
             },
-            'click_text_enable': {
+            self.node_if_prefix + 'click_text_enable': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'click_text_enable',
                 'qsize': 5,
                 'callback': self._clickTextEnableCb
             },
-            'overlay_text_size_ratio': {
+            self.node_if_prefix + 'overlay_text_size_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_size_ratio',
                 'qsize': 5,
                 'callback': self._setOverlaySizeCb
             },
-            'overlay_text_vert_ratio': {
+            self.node_if_prefix + 'overlay_text_vert_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_vert_ratio',
                 'qsize': 5,
                 'callback': self._setOverlayVertCb
             },
-            'overlay_text_horz_ratio': {
+            self.node_if_prefix + 'overlay_text_horz_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_horz_ratio',
                 'qsize': 5,
                 'callback': self._setOverlayHorzCb
             },
-            'overlay_text_transparency_ratio': {
+            self.node_if_prefix + 'overlay_text_transparency_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_transparency_ratio',
                 'qsize': 5,
                 'callback': self._setOverlayTransparencyCb
             },
-            'overlay_text_color_rgb': {
+            self.node_if_prefix + 'overlay_text_color_rgb': {
                 'msg': ColorBGR,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_color_rgb',
                 'qsize': 5,
                 'callback': self._setOverlayColorRGBCb
             },
-            'overlay_text_img_name': {
+            self.node_if_prefix + 'overlay_text_img_name': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_source_name',
                 'qsize': 5,
                 'callback': self._setOverlayImgNameCb
             },
-            'overlay_text_date_time': {
+            self.node_if_prefix + 'overlay_text_date_time': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_date_time',
                 'qsize': 5,
                 'callback': self._setOverlayDateTimeCb
             },
-            'overlay_text_nav': {
+            self.node_if_prefix + 'overlay_text_nav': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_nav',
                 'qsize': 5,
                 'callback': self._setOverlayNavCb
             },
-            'overlay_text_pose': {
+            self.node_if_prefix + 'overlay_text_pose': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_pose',
                 'qsize': 5,
                 'callback': self._setOverlayPoseCb
             },
-            'add_overlay_text': {
+            self.node_if_prefix + 'add_overlay_text': {
                 'msg': String,
                 'namespace': self.namespace,
                 'topic': 'add_overlay_text',
                 'qsize': 5,
                 'callback': self._setOverlayTextCb
             },
-            'set_overlay_text_list': {
+            self.node_if_prefix + 'set_overlay_text_list': {
                 'msg': StringArray,
                 'namespace': self.namespace,
                 'topic': 'set_overlay_text_list',
                 'qsize': 5,
                 'callback': self._setOverlayListCb
             },
-            'overlay_text_clear': {
+            self.node_if_prefix + 'overlay_text_clear': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'clear_overlay_text_list',
@@ -2560,42 +2562,42 @@ class BaseImageIF:
             },
 
             #######################################
-            'crosshairs_enable': {
+            self.node_if_prefix + 'crosshairs_enable': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'crosshairs_enable',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairsCb
             },
-            'crosshairs_size_ratio': {
+            self.node_if_prefix + 'crosshairs_size_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_crosshairs_size_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsSizeRatioCb
             },
-            'crosshairs_thickness_ratio': {
+            self.node_if_prefix + 'crosshairs_thickness_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_crosshairs_thickness_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsThicknessRatioCb
             },
-            'crosshairs_text_ratio': {
+            self.node_if_prefix + 'crosshairs_text_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_crosshairs_text_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsTextRatioCb
             },
-            'crosshairs_transparency_ratio': {
+            self.node_if_prefix + 'crosshairs_transparency_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_crosshairs_transparency_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsTransparencyRatioCb
             },
-            'crosshairs_color_rgb': {
+            self.node_if_prefix + 'crosshairs_color_rgb': {
                 'msg': ColorBGR,
                 'namespace': self.namespace,
                 'topic': 'set_crosshairs_color_rgb',
@@ -2603,77 +2605,77 @@ class BaseImageIF:
                 'callback': self._setCrosshairsColorRGBCb
             },
 
-            'overlay_crosshair_names': {
+            self.node_if_prefix + 'overlay_crosshair_names': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'overlay_crosshair_names',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairNamesCb
             },
-            'overlay_crosshair_pixels': {
+            self.node_if_prefix + 'overlay_crosshair_pixels': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'overlay_crosshair_pixels',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairPixelsCb
             },
-            'overlay_crosshair_degrees': {
+            self.node_if_prefix + 'overlay_crosshair_degrees': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'overlay_crosshair_degrees',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairDegreesCb
             },
-            'overlay_crosshair_messages': {
+            self.node_if_prefix + 'overlay_crosshair_messages': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'overlay_crosshair_messages',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairMessagesCb
             },
-            'click_crosshair_enable': {
+            self.node_if_prefix + 'click_crosshair_enable': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'click_crosshair_enable',
                 'qsize': 5,
                 'callback': self._clickCrosshairEnableCb
             },
-            'add_crosshair_pixel': {
+            self.node_if_prefix + 'add_crosshair_pixel': {
                 'msg': ImageCrosshair,
                 'namespace': self.namespace,
                 'topic': 'add_crosshair_pixel',
                 'qsize': 5,
                 'callback': self._addCrosshairPixelCb
             },
-            'add_crosshair_ratios': {
+            self.node_if_prefix + 'add_crosshair_ratios': {
                 'msg': ImageCrosshair,
                 'namespace': self.namespace,
                 'topic': 'add_crosshair_ratios',
                 'qsize': 5,
                 'callback': self._addCrosshairRatiosCb
             },
-            'add_crosshair_degree_offsets': {
+            self.node_if_prefix + 'add_crosshair_degree_offsets': {
                 'msg': ImageCrosshair,
                 'namespace': self.namespace,
                 'topic': 'add_crosshair_degree_offsets',
                 'qsize': 5,
                 'callback': self._addCrosshairDegreesCb
             },
-            'remove_crosshair': {
+            self.node_if_prefix + 'remove_crosshair': {
                 'msg': String,
                 'namespace': self.namespace,
                 'topic': 'remove_crosshair',
                 'qsize': 5,
                 'callback': self._removeCrosshairCb
             },
-            'clear_crosshairs': {
+            self.node_if_prefix + 'clear_crosshairs': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'clear_crosshairs',
                 'qsize': 5,
                 'callback': self._clearCrosshairsCb
             },
-            'set_live_adjust_rotate_ratio': {
+            self.node_if_prefix + 'set_live_adjust_rotate_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_rotate_ratio',
                 'msg': Float32,
@@ -2681,7 +2683,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustRotateRatioCb,
                 'callback_args': ()
             },
-            'set_live_adjust_rotate_deg': {
+            self.node_if_prefix + 'set_live_adjust_rotate_deg': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_rotate_deg',
                 'msg': Float32,
@@ -2689,7 +2691,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustRotateDegCb,
                 'callback_args': ()
             },
-            'set_live_adjust_x_ratio': {
+            self.node_if_prefix + 'set_live_adjust_x_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_x_ratio',
                 'msg': Float32,
@@ -2697,7 +2699,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXRatioCb,
                 'callback_args': ()
             },
-            'set_live_adjust_x_pixel': {
+            self.node_if_prefix + 'set_live_adjust_x_pixel': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_x_pixel',
                 'msg': Int32,
@@ -2705,7 +2707,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXPixelCb,
                 'callback_args': ()
             },
-            'set_live_adjust_x_deg': {
+            self.node_if_prefix + 'set_live_adjust_x_deg': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_x_deg',
                 'msg': Float32,
@@ -2713,7 +2715,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXDegCb,
                 'callback_args': ()
             },
-            'set_live_adjust_y_ratio': {
+            self.node_if_prefix + 'set_live_adjust_y_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_y_ratio',
                 'msg': Float32,
@@ -2721,7 +2723,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranYRatioCb,
                 'callback_args': ()
             },
-            'set_live_adjust_y_pixel': {
+            self.node_if_prefix + 'set_live_adjust_y_pixel': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_y_pixel',
                 'msg': Int32,
@@ -2729,7 +2731,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranYPixelCb,
                 'callback_args': ()
             },
-            'set_live_adjust_y_deg': {
+            self.node_if_prefix + 'set_live_adjust_y_deg': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_y_deg',
                 'msg': Float32,
@@ -2740,42 +2742,42 @@ class BaseImageIF:
 
             ############################
 
-            'targets_enable': {
+            self.node_if_prefix + 'targets_enable': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'targets_enable',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetsCb
             },
-            'targets_size_ratio': {
+            self.node_if_prefix + 'targets_size_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_targets_size_ratio',
                 'qsize': 5,
                 'callback': self._setTargetsSizeRatioCb
             },
-            'targets_thickness_ratio': {
+            self.node_if_prefix + 'targets_thickness_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_targets_thickness_ratio',
                 'qsize': 5,
                 'callback': self._setTargetsThicknessRatioCb
             },
-            'targets_text_ratio': {
+            self.node_if_prefix + 'targets_text_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_targets_text_ratio',
                 'qsize': 5,
                 'callback': self._setTargetsTextRatioCb
             },
-            'targets_transparency_ratio': {
+            self.node_if_prefix + 'targets_transparency_ratio': {
                 'msg': Float32,
                 'namespace': self.namespace,
                 'topic': 'set_targets_transparency_ratio',
                 'qsize': 5,
                 'callback': self._setTargetsTransparencyRatioCb
             },
-            'targets_color_rgb': {
+            self.node_if_prefix + 'targets_color_rgb': {
                 'msg': ColorBGR,
                 'namespace': self.namespace,
                 'topic': 'set_targets_color_rgb',
@@ -2783,70 +2785,70 @@ class BaseImageIF:
                 'callback': self._setTargetsColorRGBCb
             },
 
-            'overlay_target_names': {
+            self.node_if_prefix + 'overlay_target_names': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'overlay_target_names',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetNamesCb
             },
-            'overlay_target_pixels': {
+            self.node_if_prefix + 'overlay_target_pixels': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'overlay_target_pixels',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetPixelsCb
             },
-            'overlay_target_degrees': {
+            self.node_if_prefix + 'overlay_target_degrees': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'overlay_target_degrees',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetDegreesCb
             },
-            'overlay_target_messages': {
+            self.node_if_prefix + 'overlay_target_messages': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'overlay_target_messages',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetMessagesCb
             },
-            'click_target_enable': {
+            self.node_if_prefix + 'click_target_enable': {
                 'msg': Bool,
                 'namespace': self.namespace,
                 'topic': 'click_target_enable',
                 'qsize': 5,
                 'callback': self._clickTargetEnableCb
             },
-            'add_target_pixel': {
+            self.node_if_prefix + 'add_target_pixel': {
                 'msg': ImageTarget,
                 'namespace': self.namespace,
                 'topic': 'add_target_pixel',
                 'qsize': 5,
                 'callback': self._addTargetPixelCb
             },
-            'add_target_ratios': {
+            self.node_if_prefix + 'add_target_ratios': {
                 'msg': ImageTarget,
                 'namespace': self.namespace,
                 'topic': 'add_target_ratios',
                 'qsize': 5,
                 'callback': self._addTargetRatiosCb
             },
-            'add_target_degree_offsets': {
+            self.node_if_prefix + 'add_target_degree_offsets': {
                 'msg': ImageTarget,
                 'namespace': self.namespace,
                 'topic': 'add_target_degree_offsets',
                 'qsize': 5,
                 'callback': self._addTargetDegreesCb
             },
-            'remove_target': {
+            self.node_if_prefix + 'remove_target': {
                 'msg': String,
                 'namespace': self.namespace,
                 'topic': 'remove_target',
                 'qsize': 5,
                 'callback': self._removeTargetCb
             },
-            'clear_targets': {
+            self.node_if_prefix + 'clear_targets': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'clear_targets',
@@ -2855,7 +2857,7 @@ class BaseImageIF:
             },
 
             ####################################
-            'set_aspect_adjust_enable': {
+            self.node_if_prefix + 'set_aspect_adjust_enable': {
                 'namespace': self.namespace,
                 'topic': 'set_aspect_adjust_enable',
                 'msg': Bool,
@@ -2863,7 +2865,7 @@ class BaseImageIF:
                 'callback': self._setAspectAdjustEnableCb,
                 'callback_args': ()
             },
-              'set_aspect_adjust_ratio': {
+              self.node_if_prefix + 'set_aspect_adjust_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_aspect_adjust_ratio',
                 'msg': Float32,
@@ -2871,7 +2873,7 @@ class BaseImageIF:
                 'callback': self._setAspectAdjustRatioCb,
                 'callback_args': ()
             },
-              'set_aspect_adjust_by_ratio': {
+              self.node_if_prefix + 'set_aspect_adjust_by_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_aspect_adjust_by_ratio',
                 'msg': Float32,
@@ -2880,7 +2882,7 @@ class BaseImageIF:
                 'callback_args': ()
             },
             ####################################
-            'set_stream_compression_enable': {
+            self.node_if_prefix + 'set_stream_compression_enable': {
                 'namespace': self.namespace,
                 'topic': 'set_stream_compression_enable',
                 'msg': Bool,
@@ -2888,7 +2890,7 @@ class BaseImageIF:
                 'callback': self._setStreamCompressionEnableCb,
                 'callback_args': ()
             },
-            'set_stream_compression_ratio': {
+            self.node_if_prefix + 'set_stream_compression_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_stream_compression_ratio',
                 'msg': Float32,
@@ -2897,7 +2899,7 @@ class BaseImageIF:
                 'callback_args': ()
             },
             #########################
-            'set_live_adjust_enable': {
+            self.node_if_prefix + 'set_live_adjust_enable': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_enable',
                 'msg': Bool,
@@ -2905,7 +2907,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustEnableCb,
                 'callback_args': ()
             },
-            'set_live_adjust_rotate_ratio': {
+            self.node_if_prefix + 'set_live_adjust_rotate_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_rotate_ratio',
                 'msg': Float32,
@@ -2913,7 +2915,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustRotateRatioCb,
                 'callback_args': ()
             },
-            'set_live_adjust_rotate_deg': {
+            self.node_if_prefix + 'set_live_adjust_rotate_deg': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_rotate_deg',
                 'msg': Float32,
@@ -2921,7 +2923,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustRotateDegCb,
                 'callback_args': ()
             },
-            'set_live_adjust_x_ratio': {
+            self.node_if_prefix + 'set_live_adjust_x_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_x_ratio',
                 'msg': Float32,
@@ -2929,7 +2931,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXRatioCb,
                 'callback_args': ()
             },
-            'set_live_adjust_x_pixel': {
+            self.node_if_prefix + 'set_live_adjust_x_pixel': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_x_pixel',
                 'msg': Int32,
@@ -2937,7 +2939,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXPixelCb,
                 'callback_args': ()
             },
-            'set_live_adjust_x_deg': {
+            self.node_if_prefix + 'set_live_adjust_x_deg': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_x_deg',
                 'msg': Float32,
@@ -2945,7 +2947,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXDegCb,
                 'callback_args': ()
             },
-            'set_live_adjust_y_ratio': {
+            self.node_if_prefix + 'set_live_adjust_y_ratio': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_y_ratio',
                 'msg': Float32,
@@ -2953,7 +2955,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranYRatioCb,
                 'callback_args': ()
             },
-            'set_live_adjust_y_pixel': {
+            self.node_if_prefix + 'set_live_adjust_y_pixel': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_y_pixel',
                 'msg': Int32,
@@ -2961,7 +2963,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranYPixelCb,
                 'callback_args': ()
             },
-            'set_live_adjust_y_deg': {
+            self.node_if_prefix + 'set_live_adjust_y_deg': {
                 'namespace': self.namespace,
                 'topic': 'set_live_adjust_y_deg',
                 'msg': Float32,
@@ -2970,14 +2972,14 @@ class BaseImageIF:
                 'callback_args': ()
             },
             ############################
-            'all_overlay_text_enable': {
+            self.node_if_prefix + 'all_overlay_text_enable': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_enable',
                 'qsize': 5,
                 'callback': self._setrOverlayTextEnableCb
             },
-            'all_click_text_enable': {
+            self.node_if_prefix + 'all_click_text_enable': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'click_text_enable',
@@ -2985,84 +2987,84 @@ class BaseImageIF:
                 'callback': self._clickTextEnableCb
             },
 
-            'all_overlay_text_size_ratio': {
+            self.node_if_prefix + 'all_overlay_text_size_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_size_ratio',
                 'qsize': 5,
                 'callback': self._setOverlaySizeCb
             },
-            'all_overlay_text_vert_ratio': {
+            self.node_if_prefix + 'all_overlay_text_vert_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_vert_ratio',
                 'qsize': 5,
                 'callback': self._setOverlayVertCb
             },
-            'all_overlay_text_horz_ratio': {
+            self.node_if_prefix + 'all_overlay_text_horz_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_horz_ratio',
                 'qsize': 5,
                 'callback': self._setOverlayHorzCb
             },
-            'all_overlay_text_transparency_ratio': {
+            self.node_if_prefix + 'all_overlay_text_transparency_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_transparency_ratio',
                 'qsize': 5,
                 'callback': self._setOverlayTransparencyCb
             },
-            'all_overlay_text_color_rgb': {
+            self.node_if_prefix + 'all_overlay_text_color_rgb': {
                 'msg': ColorBGR,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_color_rgb',
                 'qsize': 5,
                 'callback': self._setOverlayColorRGBCb
             },
-            'all_overlay_text_img_name': {
+            self.node_if_prefix + 'all_overlay_text_img_name': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_source_name',
                 'qsize': 5,
                 'callback': self._setOverlayImgNameCb
             },
-            'all_overlay_text_date_time': {
+            self.node_if_prefix + 'all_overlay_text_date_time': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_date_time',
                 'qsize': 5,
                 'callback': self._setOverlayDateTimeCb
             },
-            'all_overlay_text_nav': {
+            self.node_if_prefix + 'all_overlay_text_nav': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_nav',
                 'qsize': 5,
                 'callback': self._setOverlayNavCb
             },
-            'all_overlay_text_pose': {
+            self.node_if_prefix + 'all_overlay_text_pose': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_pose',
                 'qsize': 5,
                 'callback': self._setOverlayPoseCb
             },
-            'all_add_overlay_text': {
+            self.node_if_prefix + 'all_add_overlay_text': {
                 'msg': String,
                 'namespace': self.all_namespace,
                 'topic': 'add_overlay_text',
                 'qsize': 5,
                 'callback': self._setOverlayTextCb
             },
-            'all_set_overlay_text_list': {
+            self.node_if_prefix + 'all_set_overlay_text_list': {
                 'msg': StringArray,
                 'namespace': self.all_namespace,
                 'topic': 'set_overlay_text_list',
                 'qsize': 5,
                 'callback': self._setOverlayListCb
             },
-            'all_overlay_text_clear': {
+            self.node_if_prefix + 'all_overlay_text_clear': {
                 'msg': Empty,
                 'namespace': self.all_namespace,
                 'topic': 'clear_overlay_text_list',
@@ -3070,112 +3072,112 @@ class BaseImageIF:
                 'callback': self._clearOverlayListCb
             },
             #############################
-            'all_crosshairs_enable': {
+            self.node_if_prefix + 'all_crosshairs_enable': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'crosshairs_enable',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairsCb
             },
-            'all_crosshairs_size_ratio': {
+            self.node_if_prefix + 'all_crosshairs_size_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_crosshairs_size_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsSizeRatioCb
             },
-            'all_crosshairs_thickness_ratio': {
+            self.node_if_prefix + 'all_crosshairs_thickness_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_crosshairs_thickness_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsThicknessRatioCb
             },
-            'all_crosshairs_text_ratio': {
+            self.node_if_prefix + 'all_crosshairs_text_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_crosshairs_text_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsTextRatioCb
             },
-            'all_crosshairs_transparency_ratio': {
+            self.node_if_prefix + 'all_crosshairs_transparency_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_crosshairs_transparency_ratio',
                 'qsize': 5,
                 'callback': self._setCrosshairsTransparencyRatioCb
             },
-            'all_crosshairs_color_rgb': {
+            self.node_if_prefix + 'all_crosshairs_color_rgb': {
                 'msg': ColorBGR,
                 'namespace': self.all_namespace,
                 'topic': 'set_crosshairs_color_rgb',
                 'qsize': 5,
                 'callback': self._setCrosshairsColorRGBCb
             },
-            'all_overlay_crosshair_names': {
+            self.node_if_prefix + 'all_overlay_crosshair_names': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'overlay_crosshair_names',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairNamesCb
             },
-            'all_overlay_crosshair_pixels': {
+            self.node_if_prefix + 'all_overlay_crosshair_pixels': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'overlay_crosshair_pixels',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairPixelsCb
             },
-            'all_overlay_crosshair_degrees': {
+            self.node_if_prefix + 'all_overlay_crosshair_degrees': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'overlay_crosshair_degrees',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairDegreesCb
             },
-            'all_overlay_crosshair_messages': {
+            self.node_if_prefix + 'all_overlay_crosshair_messages': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'overlay_crosshair_messages',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairMessagesCb
             },
-            'all_click_crosshair_enable': {
+            self.node_if_prefix + 'all_click_crosshair_enable': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'click_crosshair_enable',
                 'qsize': 5,
                 'callback': self._clickCrosshairEnableCb
             },
-            'all_add_crosshair_pixel': {
+            self.node_if_prefix + 'all_add_crosshair_pixel': {
                 'msg': ImageCrosshair,
                 'namespace': self.all_namespace,
                 'topic': 'add_crosshair_pixel',
                 'qsize': 5,
                 'callback': self._addCrosshairPixelCb
             },
-            'all_add_crosshair_ratios': {
+            self.node_if_prefix + 'all_add_crosshair_ratios': {
                 'msg': ImageCrosshair,
                 'namespace': self.all_namespace,
                 'topic': 'add_crosshair_ratios',
                 'qsize': 5,
                 'callback': self._addCrosshairRatiosCb
             },
-            'all_add_crosshair_degree_offsets': {
+            self.node_if_prefix + 'all_add_crosshair_degree_offsets': {
                 'msg': ImageCrosshair,
                 'namespace': self.all_namespace,
                 'topic': 'add_crosshair_degree_offsets',
                 'qsize': 5,
                 'callback': self._addCrosshairDegreesCb
             },
-            'all_remove_crosshair': {
+            self.node_if_prefix + 'all_remove_crosshair': {
                 'msg': String,
                 'namespace': self.all_namespace,
                 'topic': 'remove_crosshair',
                 'qsize': 5,
                 'callback': self._removeCrosshairCb
             },
-            'all_clear_crosshairs': {
+            self.node_if_prefix + 'all_clear_crosshairs': {
                 'msg': Empty,
                 'namespace': self.all_namespace,
                 'topic': 'clear_crosshairs',
@@ -3183,112 +3185,112 @@ class BaseImageIF:
                 'callback': self._clearCrosshairsCb
             },
             #############################
-            'all_targets_enable': {
+            self.node_if_prefix + 'all_targets_enable': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'targets_enable',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetsCb
             },
-            'all_targets_size_ratio': {
+            self.node_if_prefix + 'all_targets_size_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_targets_size_ratio',
                 'qsize': 5,
                 'callback': self._setTargetsSizeRatioCb
             },
-            'all_targets_thickness_ratio': {
+            self.node_if_prefix + 'all_targets_thickness_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_targets_thickness_ratio',
                 'qsize': 5,
                 'callback': self._setTargetsThicknessRatioCb
             },
-            'all_targets_text_ratio': {
+            self.node_if_prefix + 'all_targets_text_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_targets_text_ratio',
                 'qsize': 5,
                 'callback': self._setTargetsTextRatioCb
             },
-            'all_targets_transparency_ratio': {
+            self.node_if_prefix + 'all_targets_transparency_ratio': {
                 'msg': Float32,
                 'namespace': self.all_namespace,
                 'topic': 'set_targets_transparency_ratio',
                 'qsize': 5,
                 'callback': self._setTargetsTransparencyRatioCb
             },
-            'all_targets_color_rgb': {
+            self.node_if_prefix + 'all_targets_color_rgb': {
                 'msg': ColorBGR,
                 'namespace': self.all_namespace,
                 'topic': 'set_targets_color_rgb',
                 'qsize': 5,
                 'callback': self._setTargetsColorRGBCb
             },
-            'all_overlay_target_names': {
+            self.node_if_prefix + 'all_overlay_target_names': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'overlay_target_names',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetNamesCb
             },
-            'all_overlay_target_pixels': {
+            self.node_if_prefix + 'all_overlay_target_pixels': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'overlay_target_pixels',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetPixelsCb
             },
-            'all_overlay_target_degrees': {
+            self.node_if_prefix + 'all_overlay_target_degrees': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'overlay_target_degrees',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetDegreesCb
             },
-            'all_overlay_target_messages': {
+            self.node_if_prefix + 'all_overlay_target_messages': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'overlay_target_messages',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetMessagesCb
             },
-            'all_click_target_enable': {
+            self.node_if_prefix + 'all_click_target_enable': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
                 'topic': 'click_target_enable',
                 'qsize': 5,
                 'callback': self._clickTargetEnableCb
             },
-            'all_add_target_pixel': {
+            self.node_if_prefix + 'all_add_target_pixel': {
                 'msg': ImageTarget,
                 'namespace': self.all_namespace,
                 'topic': 'add_target_pixel',
                 'qsize': 5,
                 'callback': self._addTargetPixelCb
             },
-            'all_add_target_ratios': {
+            self.node_if_prefix + 'all_add_target_ratios': {
                 'msg': ImageTarget,
                 'namespace': self.all_namespace,
                 'topic': 'add_target_ratios',
                 'qsize': 5,
                 'callback': self._addTargetRatiosCb
             },
-            'all_add_target_degree_offsets': {
+            self.node_if_prefix + 'all_add_target_degree_offsets': {
                 'msg': ImageTarget,
                 'namespace': self.all_namespace,
                 'topic': 'add_target_degree_offsets',
                 'qsize': 5,
                 'callback': self._addTargetDegreesCb
             },
-            'all_remove_target': {
+            self.node_if_prefix + 'all_remove_target': {
                 'msg': String,
                 'namespace': self.all_namespace,
                 'topic': 'remove_target',
                 'qsize': 5,
                 'callback': self._removeTargetCb
             },
-            'all_clear_targets': {
+            self.node_if_prefix + 'all_clear_targets': {
                 'msg': Empty,
                 'namespace': self.all_namespace,
                 'topic': 'clear_targets',
@@ -3296,7 +3298,7 @@ class BaseImageIF:
                 'callback': self._clearTargetsCb
             },
             ####################################
-            'all_set_aspect_adjust_enable': {
+            self.node_if_prefix + 'all_set_aspect_adjust_enable': {
                 'namespace': self.all_namespace,
                 'topic': 'set_aspect_adjust_enable',
                 'msg': Bool,
@@ -3304,7 +3306,7 @@ class BaseImageIF:
                 'callback': self._setAspectAdjustEnableCb,
                 'callback_args': ()
             },
-              'all_set_aspect_adjust_ratio': {
+              self.node_if_prefix + 'all_set_aspect_adjust_ratio': {
                 'namespace': self.all_namespace,
                 'topic': 'set_aspect_adjust_ratio',
                 'msg': Float32,
@@ -3312,7 +3314,7 @@ class BaseImageIF:
                 'callback': self._setAspectAdjustRatioCb,
                 'callback_args': ()
             },
-              'all_set_aspect_adjust_by_ratio': {
+              self.node_if_prefix + 'all_set_aspect_adjust_by_ratio': {
                 'namespace': self.all_namespace,
                 'topic': 'set_aspect_adjust_by_ratio',
                 'msg': Float32,
@@ -3321,7 +3323,7 @@ class BaseImageIF:
                 'callback_args': ()
             },
             ####################################
-            'all_set_stream_compression_enable': {
+            self.node_if_prefix + 'all_set_stream_compression_enable': {
                 'namespace': self.all_namespace,
                 'topic': 'set_stream_compression_enable',
                 'msg': Bool,
@@ -3329,7 +3331,7 @@ class BaseImageIF:
                 'callback': self._setStreamCompressionEnableCb,
                 'callback_args': ()
             },
-            'all_set_stream_compression_ratio': {
+            self.node_if_prefix + 'all_set_stream_compression_ratio': {
                 'namespace': self.all_namespace,
                 'topic': 'set_stream_compression_ratio',
                 'msg': Float32,
@@ -3338,7 +3340,7 @@ class BaseImageIF:
                 'callback_args': ()
             },
             ####################################
-            'all_set_live_adjust_enable': {
+            self.node_if_prefix + 'all_set_live_adjust_enable': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_enable',
                 'msg': Bool,
@@ -3346,7 +3348,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustEnableCb,
                 'callback_args': ()
             },
-            'all_set_live_adjust_rotate_ratio': {
+            self.node_if_prefix + 'all_set_live_adjust_rotate_ratio': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_rotate_ratio',
                 'msg': Float32,
@@ -3354,7 +3356,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustRotateRatioCb,
                 'callback_args': ()
             },
-            'all_set_live_adjust_rotate_deg': {
+            self.node_if_prefix + 'all_set_live_adjust_rotate_deg': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_rotate_deg',
                 'msg': Float32,
@@ -3362,7 +3364,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustRotateDegCb,
                 'callback_args': ()
             },
-            'all_set_live_adjust_x_ratio': {
+            self.node_if_prefix + 'all_set_live_adjust_x_ratio': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_x_ratio',
                 'msg': Float32,
@@ -3370,7 +3372,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXRatioCb,
                 'callback_args': ()
             },
-            'all_set_live_adjust_x_pixel': {
+            self.node_if_prefix + 'all_set_live_adjust_x_pixel': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_x_pixel',
                 'msg': Int32,
@@ -3378,7 +3380,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXPixelCb,
                 'callback_args': ()
             },
-            'all_set_live_adjust_x_deg': {
+            self.node_if_prefix + 'all_set_live_adjust_x_deg': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_x_deg',
                 'msg': Float32,
@@ -3386,7 +3388,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranXDegCb,
                 'callback_args': ()
             },
-            'all_set_live_adjust_y_ratio': {
+            self.node_if_prefix + 'all_set_live_adjust_y_ratio': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_y_ratio',
                 'msg': Float32,
@@ -3394,7 +3396,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranYRatioCb,
                 'callback_args': ()
             },
-            'all_set_live_adjust_y_pixel': {
+            self.node_if_prefix + 'all_set_live_adjust_y_pixel': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_y_pixel',
                 'msg': Int32,
@@ -3402,7 +3404,7 @@ class BaseImageIF:
                 'callback': self._setLiveAdjustTranYPixelCb,
                 'callback_args': ()
             },
-            'all_set_live_adjust_y_deg': {
+            self.node_if_prefix + 'all_set_live_adjust_y_deg': {
                 'namespace': self.all_namespace,
                 'topic': 'set_live_adjust_y_deg',
                 'msg': Float32,
@@ -3411,7 +3413,7 @@ class BaseImageIF:
                 'callback_args': ()
             },
 
-            'system_status': {
+            self.node_if_prefix + 'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
                 'topic': 'status',
@@ -3424,7 +3426,7 @@ class BaseImageIF:
 
         # Create subs if required
         if caps_dict['has_resolution'] == True:
-            self.SUBS_DICT['set_resolution'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_resolution'] = {
                 'namespace': self.namespace,
                 'topic': 'set_resolution_ratio',
                 'msg': Float32,
@@ -3434,7 +3436,7 @@ class BaseImageIF:
             }
 
         if caps_dict['has_auto_adjust'] == True:
-            self.SUBS_DICT['set_auto_adjust'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_auto_adjust'] = {
                 'namespace': self.namespace,
                 'topic': 'set_auto_adjust_enable',
                 'msg': Bool,
@@ -3442,7 +3444,7 @@ class BaseImageIF:
                 'callback': self._setAutoAdjustCb, 
                 'callback_args': ()
             }
-            self.SUBS_DICT['set_auto_adjust_ratio'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_auto_adjust_ratio'] = {
                 'namespace': self.namespace,
                 'topic': 'set_auto_adjust_ratio',
                 'msg': Float32,
@@ -3451,7 +3453,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_brightness'] == True:
-            self.SUBS_DICT['set_brightness'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_brightness'] = {
                 'namespace': self.namespace,
                 'topic': 'set_brightness_ratio',
                 'msg': Float32,
@@ -3460,7 +3462,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_contrast'] == True:
-            self.SUBS_DICT['set_contrast'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_contrast'] = {
                 'namespace': self.namespace,
                 'topic': 'set_contrast_ratio',
                 'msg': Float32,
@@ -3469,7 +3471,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_threshold'] == True:
-            self.SUBS_DICT['set_thresholding'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_thresholding'] = {
                 'namespace': self.namespace,
                 'topic': 'set_threshold_ratio',
                 'msg': Float32,
@@ -3478,7 +3480,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_rotate_2d'] == True:
-            self.SUBS_DICT['rotate_2d'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'rotate_2d'] = {
                 'namespace': self.namespace,
                 'topic': 'rotate_2d',
                 'msg': Empty,
@@ -3486,7 +3488,7 @@ class BaseImageIF:
                 'callback': self._setRotate2dCb,
                 'callback_args': ()
             }
-            self.SUBS_DICT['set_rotate_2d_deg'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_rotate_2d_deg'] = {
                 'namespace': self.namespace,
                 'topic': 'set_rotate_2d_deg',
                 'msg': Int32,
@@ -3494,7 +3496,7 @@ class BaseImageIF:
                 'callback': self._setRotate2dDegCb,
                 'callback_args': ()
             }
-            self.SUBS_DICT['set_rotate_2d_swap_box'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_rotate_2d_swap_box'] = {
                 'namespace': self.namespace,
                 'topic': 'set_rotate_2d_swap_box',
                 'msg': Bool,
@@ -3503,7 +3505,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_flip_horz'] == True:
-            self.SUBS_DICT['set_flip_horz'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_flip_horz'] = {
                 'namespace': self.namespace,
                 'topic': 'set_flip_horz',
                 'msg': Bool,
@@ -3512,7 +3514,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_flip_vert'] == True:
-            self.SUBS_DICT['set_flip_vert'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_flip_vert'] = {
                 'namespace': self.namespace,
                 'topic': 'set_flip_vert',
                 'msg': Bool,
@@ -3521,7 +3523,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_range'] == True:
-            self.SUBS_DICT['set_range'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_range'] = {
                 'namespace': self.namespace,
                 'topic': 'set_range_ratios',
                 'msg': RangeWindow,
@@ -3529,7 +3531,7 @@ class BaseImageIF:
                 'callback': self._setRangeCb, 
                 'callback_args': ()
             }
-            # self.SUBS_DICT['set_range_ratios'] = {
+            # self.SUBS_DICT[self.node_if_prefix + 'set_range_ratios'] = {
             #     'namespace': self.node_namespace,
             #     'topic': 'set_range_ratios',
             #     'msg': RangeWindow,
@@ -3538,7 +3540,7 @@ class BaseImageIF:
             #     'callback_args': ()setRangeRatiosCb
             # },
         if caps_dict['has_zoom'] == True:
-            self.SUBS_DICT['set_zoom'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_zoom'] = {
                 'namespace': self.namespace,
                 'topic': 'set_zoom_ratio',
                 'msg': Float32,
@@ -3547,7 +3549,7 @@ class BaseImageIF:
                 'callback_args': ()
             }
         if caps_dict['has_pan'] == True:
-            self.SUBS_DICT['set_pan_x_ratio'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_pan_x_ratio'] = {
                 'namespace': self.namespace,
                 'topic': 'set_pan_x_ratio',
                 'msg': Float32,
@@ -3555,7 +3557,7 @@ class BaseImageIF:
                 'callback': self._setPanXCb, 
                 'callback_args': ()
             }
-            self.SUBS_DICT['set_pan_y_ratio'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_pan_y_ratio'] = {
                 'namespace': self.namespace,
                 'topic': 'set_pan_y_ratio',
                 'msg': Float32,
@@ -3565,7 +3567,7 @@ class BaseImageIF:
             }
 
         if caps_dict['has_zoom_3d'] == True:
-            self.SUBS_DICT['set_zoom_3d'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_zoom_3d'] = {
                 'namespace': self.namespace,
                 'topic': 'set_zoom_3d_ratio',
                 'msg': Float32,
@@ -3575,7 +3577,7 @@ class BaseImageIF:
             }
 
         if caps_dict['has_rotate_3d'] == True:
-            self.SUBS_DICT['set_rotate_3d'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_rotate_3d'] = {
                 'namespace': self.namespace,
                 'topic': 'set_rotate_3d_ratio',
                 'msg': Float32,
@@ -3585,7 +3587,7 @@ class BaseImageIF:
             }
 
         if caps_dict['has_tilt_3d'] == True:
-            self.SUBS_DICT['set_tilt_3d'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_tilt_3d'] = {
                 'namespace': self.namespace,
                 'topic': 'set_tilt_3d_ratio',
                 'msg': Float32,
@@ -3598,7 +3600,7 @@ class BaseImageIF:
 
 
             if caps_dict['has_tilt_3d'] == True:
-                self.SUBS_DICT['set_camera_fov'] = {
+                self.SUBS_DICT[self.node_if_prefix + 'set_camera_fov'] = {
                     'namespace': self.node_namespace,
                     'topic': 'set_camera_fov',
                     'msg': Int32,
@@ -3606,7 +3608,7 @@ class BaseImageIF:
                     'callback': self.setCamFovCb,
                     'callback_args': ()
                 }
-                self.SUBS_DICT['set_camera_view'] = {
+                self.SUBS_DICT[self.node_if_prefix + 'set_camera_view'] = {
                     'namespace': self.node_namespace,
                     'topic': 'set_camera_view',
                     'msg': Vector3,
@@ -3614,7 +3616,7 @@ class BaseImageIF:
                     'callback': self.setCamViewCb,
                     'callback_args': ()
                 }
-                self.SUBS_DICT['set_camera_position'] = {
+                self.SUBS_DICT[self.node_if_prefix + 'set_camera_position'] = {
                     'namespace': self.node_namespace,
                     'topic': 'set_camera_position',
                     'msg': Vector3,
@@ -3622,7 +3624,7 @@ class BaseImageIF:
                     'callback': self.setCamPositionCb,
                     'callback_args': ()
                 }
-                self.SUBS_DICT['set_camera_rotation'] = {
+                self.SUBS_DICT[self.node_if_prefix + 'set_camera_rotation'] = {
                     'namespace': self.node_namespace,
                     'topic': 'set_camera_rotation',
                     'msg': Vector3,
@@ -3630,7 +3632,7 @@ class BaseImageIF:
                     'callback': self.setCamRotationCb,
                     'callback_args': ()
                 }
-                self.SUBS_DICT['set_white_bg_enable'] = {
+                self.SUBS_DICT[self.node_if_prefix + 'set_white_bg_enable'] = {
                     'namespace': self.node_namespace,
                     'topic': 'set_white_bg_enable',
                     'msg': Bool,
@@ -3640,7 +3642,7 @@ class BaseImageIF:
                 }
 
         if self.has_filters == True:
-            self.SUBS_DICT['set_filter_enable'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_filter_enable'] = {
                 'namespace': self.namespace,
                 'topic': 'set_filter_enable',
                 'msg': UpdateBool,
@@ -3648,7 +3650,7 @@ class BaseImageIF:
                 'callback': self._setFilterEnableCb, 
                 'callback_args': ()
             }
-            self.SUBS_DICT['set_filter_ratio'] = {
+            self.SUBS_DICT[self.node_if_prefix + 'set_filter_ratio'] = {
                 'namespace': self.namespace,
                 'topic': 'set_filter_ratio',
                 'msg': UpdateFloat,
@@ -3910,10 +3912,9 @@ class BaseImageIF:
             dict: The current nav pose data dictionary, or a blank dict if no
             NavPoseIF is attached.
         """
-        if self.navpose_if is not None:
-            navpose_dict = self.navpose_if.get_navpose_dict()
-        else:
-            blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        # if self.navpose_if is not None:
+        #     navpose_dict = self.navpose_if.get_navpose_dict()
         return navpose_dict
 
     def get_data_source_description(self):
@@ -4365,7 +4366,7 @@ class BaseImageIF:
                             header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = navpose_dict['navpose_frame'])
                             #self.msg_if.pub_warn("Publishing image with header: " + str(header))
                             ros_img.header = header
-                            self.node_if.publish_pub(self.data_product + '_data_pub', ros_img)
+                            self.node_if.publish_pub(self.node_if_prefix + 'data_pub', ros_img)
 
 
                             for namespace in add_pubs:
@@ -4377,7 +4378,7 @@ class BaseImageIF:
                             if pub_twice == True:
                                 #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
                                 nepi_sdk.sleep(0.01)
-                                self.node_if.publish_pub(self.data_product + '_data_pub', ros_img)
+                                self.node_if.publish_pub(self.node_if_prefix + 'data_pub', ros_img)
                                 for namespace in add_pubs:
                                     if namespace in self.add_pubs_dict.keys():
                                         [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
@@ -4439,7 +4440,7 @@ class BaseImageIF:
         sec = nepi_sdk.sec_from_timestamp(timestamp)
         ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = navpose_frame)
         if self.node_if is not None:
-            self.node_if.publish_pub(self.data_product + '_data_pub', ros_img)
+            self.node_if.publish_pub(self.node_if_prefix + 'data_pub', ros_img)
 
     
 
@@ -6066,7 +6067,7 @@ class BaseImageIF:
             if self.node_if is not None:
                 # if self.data_product == 'pointcloud_image':
                 #     self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg), log_name_list = self.log_name_list, throttle_s = 10)
-                self.node_if.publish_pub(self.data_product + '_status_pub',self.status_msg)
+                self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
 
 
 
@@ -6220,7 +6221,7 @@ class BaseImageIF:
         
 
     def _needsDataCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers(self.data_product + '_data_pub')
+        has_subs = self.node_if.pub_has_subscribers(self.node_if_prefix + 'data_pub')
         needs_save = False
         needs_snapshot = False
         if self.save_data_if is not None:
@@ -7543,6 +7544,9 @@ class DepthMapIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
+
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+
         '''
                 default_min_meters = 0.0,
                 default_max_meters = 20.0,
@@ -7603,18 +7607,18 @@ class DepthMapIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            self.data_product + '_data_pub': {
+            self.node_if_prefix + 'data_pub': {
                 'msg': Image,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            # NOTE: self.data_product + '_data_pub'/self.data_product + '_status_pub' keys are generic and identical across every
+            # NOTE: self.node_if_prefix + 'data_pub'/self.node_if_prefix + 'status_pub' keys are generic and identical across every
             # image-IF instance. Safe only while this IF owns its own node_if. If a shared
             # node_if is ever passed in, make these keys namespace-unique first or coexisting
             # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
-            self.data_product + '_status_pub': {
+            self.node_if_prefix + 'status_pub': {
                 'msg': DepthMapStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
@@ -7625,7 +7629,7 @@ class DepthMapIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'system_status': {
+            self.node_if_prefix + 'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
                 'topic': 'status',
@@ -7747,7 +7751,7 @@ class DepthMapIF:
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if,
                         # NOTE: intentionally NOT sharing self.node_if. DepthMapImageIF
-                        # (via BaseImageIF) registers the generic self.data_product + '_data_pub'/self.data_product + '_status_pub'
+                        # (via BaseImageIF) registers the generic self.node_if_prefix + 'data_pub'/self.node_if_prefix + 'status_pub'
                         # keys, which would clobber DepthMapIF's own entries on a shared
                         # node_if and cross-publish raw 32FC1 (grayscale) and jet-colorized
                         # bgr8 frames onto the same topic (the depth_map flashing bug).
@@ -8053,7 +8057,7 @@ class DepthMapIF:
                     sec = nepi_sdk.sec_from_timestamp(timestamp)
                     ros_img.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'None')
                     #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-                    self.node_if.publish_pub(self.data_product + '_data_pub', ros_img)
+                    self.node_if.publish_pub(self.node_if_prefix + 'data_pub', ros_img)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish Depth Map: " + str(e) , throttle = 5)
 
@@ -8152,7 +8156,7 @@ class DepthMapIF:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
 
-            self.node_if.publish_pub(self.data_product + '_status_pub',self.status_msg)
+            self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
 
 
 
@@ -8212,7 +8216,7 @@ class DepthMapIF:
 
 
     def _needsDataCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers(self.data_product + '_data_pub')
+        has_subs = self.node_if.pub_has_subscribers(self.node_if_prefix + 'data_pub')
         needs_save = False
         needs_snapshot = False
         if self.save_data_if is not None:
@@ -8718,6 +8722,8 @@ class PointcloudIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+
         self.init_overlay_text_list = init_overlay_text_list
 
 
@@ -8823,18 +8829,18 @@ class PointcloudIF:
 
         # Pubs Config Dict ####################
         self.PUBS_DICT = {
-            self.data_product + '_data_pub': {
+            self.node_if_prefix + 'data_pub': {
                 'msg': PointCloud2,
                 'namespace': self.namespace,
                 'topic': '',
                 'qsize': 1,
                 'latch': False
             },
-            # NOTE: self.data_product + '_data_pub'/self.data_product + '_status_pub' keys are generic and identical across every
+            # NOTE: self.node_if_prefix + 'data_pub'/self.node_if_prefix + 'status_pub' keys are generic and identical across every
             # image-IF instance. Safe only while this IF owns its own node_if. If a shared
             # node_if is ever passed in, make these keys namespace-unique first or coexisting
             # instances (and the parent device) will clobber each other (see CLAUDE.md decision log).
-            self.data_product + '_status_pub': {
+            self.node_if_prefix + 'status_pub': {
                 'msg':  PointcloudStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
@@ -8846,7 +8852,7 @@ class PointcloudIF:
 
         # Subs Config Dict ###########
         self.SUBS_DICT = {
-            'reset_controls': {
+            self.node_if_prefix + 'reset_controls': {
                 'namespace': self.node_namespace,
                 'topic': 'reset_controls',
                 'msg': Empty,
@@ -8854,7 +8860,7 @@ class PointcloudIF:
                 'callback': self.resetProcessControlsCb,
                 'callback_args': ()
             },
-            'set_clip_enable': {
+            self.node_if_prefix + 'set_clip_enable': {
                 'namespace': self.node_namespace,
                 'topic': 'set_clip_enable',
                 'msg': Bool,
@@ -8862,7 +8868,7 @@ class PointcloudIF:
                 'callback': self.clipEnableCb,
                 'callback_args': ()
             },
-            'clip_selection': {
+            self.node_if_prefix + 'clip_selection': {
                 'namespace': self.node_namespace,
                 'topic': 'set_clip_selection',
                 'msg': String,
@@ -8870,7 +8876,7 @@ class PointcloudIF:
                 'callback': self.setClipSelectionCb,
                 'callback_args': ()
             },
-            'range_clip_m': {
+            self.node_if_prefix + 'range_clip_m': {
                 'namespace': self.node_namespace,
                 'topic': 'set_range_clip_m',
                 'msg': RangeWindow,
@@ -8878,7 +8884,7 @@ class PointcloudIF:
                 'callback': self.setRangeMetersCb,
                 'callback_args': ()
             },
-            'clip_bounding_box3d_topic': {
+            self.node_if_prefix + 'clip_bounding_box3d_topic': {
                 'namespace': self.node_namespace,
                 'topic': 'set_clip_bounding_box3d_topic',
                 'msg': String,
@@ -8886,7 +8892,7 @@ class PointcloudIF:
                 'callback': self.setClipBoxTopicCb,
                 'callback_args': ()
             },
-            'voxel_downsample_size': {
+            self.node_if_prefix + 'voxel_downsample_size': {
                 'namespace': self.node_namespace,
                 'topic': 'set_voxel_downsample_size',
                 'msg': Float32,
@@ -8894,7 +8900,7 @@ class PointcloudIF:
                 'callback': self.setVoxelSizeCb,
                 'callback_args': ()
             },
-            'downsample_k_points': {
+            self.node_if_prefix + 'downsample_k_points': {
                 'namespace': self.node_namespace,
                 'topic': 'uniform_downsample_k_points',
                 'msg': Int32,
@@ -8902,7 +8908,7 @@ class PointcloudIF:
                 'callback': self.setUniformPointsCb,
                 'callback_args': ()
             },
-            'outlier_removal': {
+            self.node_if_prefix + 'outlier_removal': {
                 'namespace': self.node_namespace,
                 'topic': 'outlier_removal_num_neighbors',
                 'msg': Int32,
@@ -8910,7 +8916,7 @@ class PointcloudIF:
                 'callback': self.setOutlierNumCb,
                 'callback_args': ()
             },
-            'set_rotate_ratio': {
+            self.node_if_prefix + 'set_rotate_ratio': {
                 'namespace': self.node_namespace,
                 'topic': 'set_rotate_ratio',
                 'msg': Float32,
@@ -8918,7 +8924,7 @@ class PointcloudIF:
                 'callback': self.setRotateRatioCb,
                 'callback_args': ()
             },
-            'set_tilt_ratio': {
+            self.node_if_prefix + 'set_tilt_ratio': {
                 'namespace': self.node_namespace,
                 'topic': 'set_tilt_ratio',
                 'msg': Float32,
@@ -8927,7 +8933,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
 
-            'set_render_enable': {
+            self.node_if_prefix + 'set_render_enable': {
                 'namespace': self.node_namespace,
                 'topic': 'set_render_enable',
                 'msg': Bool,
@@ -8935,7 +8941,7 @@ class PointcloudIF:
                 'callback': self.setRenderEnableCb,
                 'callback_args': ()
             },
-            'system_status': {
+            self.node_if_prefix + 'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
                 'topic': 'status',
@@ -9381,7 +9387,7 @@ class PointcloudIF:
                 sec = nepi_sdk.sec_from_timestamp(timestamp)
                 ros_pc.header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = 'sensor')
                 #self.msg_if.pub_debug("Publishing Pointcloud with header: " + str(ros_pc.header), log_name_list = self.log_name_list, throttle_s = 5.0)
-                self.node_if.publish_pub(self.data_product + '_data_pub', ros_pc)
+                self.node_if.publish_pub(self.node_if_prefix + 'data_pub', ros_pc)
 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
@@ -9488,7 +9494,7 @@ class PointcloudIF:
                     avg_rate = float(1) / avg_time
             self.status_msg.avg_pub_rate = avg_rate
 
-            self.node_if.publish_pub(self.data_product + '_status_pub',self.status_msg)
+            self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
 
 
     def init(self, do_updates = False):
@@ -9548,7 +9554,7 @@ class PointcloudIF:
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
     def _needsDataCheckCb(self,timer):
-        has_subs = self.node_if.pub_has_subscribers(self.data_product + '_data_pub')
+        has_subs = self.node_if.pub_has_subscribers(self.node_if_prefix + 'data_pub')
         needs_save = False
         needs_snapshot = False
         if self.save_data_if is not None:
