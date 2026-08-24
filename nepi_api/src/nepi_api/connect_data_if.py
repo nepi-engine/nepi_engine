@@ -34,6 +34,10 @@ from nepi_sdk import nepi_pc
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
 from nepi_interfaces.msg import SaveDataRate
+from nepi_interfaces.msg import ColorBGR
+from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat
+from nepi_interfaces.msg import RangeWindow, ImageMouseEvent
+from nepi_interfaces.msg import ImageCrosshair, ImageTarget
 from nepi_interfaces.msg import ImageStatus
 from nepi_interfaces.msg import NavPose, NavPoseStatus
 from nepi_interfaces.msg import DepthMapStatus
@@ -107,6 +111,8 @@ class ConnectDataIF(ConnectNodeIF):
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
+
+    connect_topic_controls_dict = None
     #######################
     ### IF Initialization
     def __init__(self,
@@ -120,6 +126,7 @@ class ConnectDataIF(ConnectNodeIF):
                 connect_data_msg = CONNECT_DATA_MSG,
                 data_callback = None,
                 filter_topic_list = [],
+                connect_topic_controls_dict = None,
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
@@ -141,6 +148,7 @@ class ConnectDataIF(ConnectNodeIF):
 
         self.msg_if = msg_if
         self.node_if = node_if
+        self.connect_topic_controls_dict = connect_topic_controls_dict
         super().__init__(
                 connect_id = connect_id,
                 connect_status_msg = connect_status_msg,
@@ -480,9 +488,23 @@ class ConnectDataIF(ConnectNodeIF):
                 'msg': Empty,
                 'qsize': 1,
             }
-
-
         }
+
+        # Controls Config Dict ####################
+        # Each subclass authors its controls dict in its own constructor, before the
+        # connected namespace is known, so every entry carries the 'unknown' namespace
+        # sentinel meaning "fill this in with the connected topic". Resolve into a
+        # per-entry copy. Writing self.selected_topic back into
+        # self.connect_topic_controls_dict strips the sentinel permanently, and the
+        # next subscribe -- connect_node_if._updaterCb calls subscribe_topic on every
+        # topic change -- would then re-register every control publisher against the
+        # previously connected namespace, silently commanding the wrong data source.
+        if self.connect_topic_controls_dict is not None:
+            for control_name in self.connect_topic_controls_dict.keys():
+                control_dict = dict(self.connect_topic_controls_dict[control_name])
+                if control_dict['namespace'] == 'unknown':
+                    control_dict['namespace'] = self.selected_topic
+                self.connect_topic_pubs_dict[control_name] = control_dict
 
         if self.node_if is not None:
             self.node_if.register_pubs(self.connect_topic_pubs_dict)
@@ -606,6 +628,22 @@ class ConnectNavPoseIF(ConnectDataIF):
         # so every argument landed in the wrong slot and connect_status_msg received
         # None, which tripped the guard in ConnectDataIF.__init__ and left the
         # instance dead. msg_if and node_if never arrived at all.
+
+
+
+        # Controls Config Dict ####################
+        # Mirrors data_if.NavPoseIF.SUBS_DICT, which advertises exactly one
+        # subscriber. The 'unknown' namespace is the sentinel ConnectDataIF
+        # replaces with the connected topic at subscribe time.
+        connect_topic_controls_dict = {
+            'connect_navpose_reset': {
+                'namespace': 'unknown',
+                'topic': 'reset',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        }
+
         super().__init__(
                 connect_id = NAVPOSE_CONNECT_ID,
                 connect_name = connect_name,
@@ -617,6 +655,7 @@ class ConnectNavPoseIF(ConnectDataIF):
                 connect_data_msg = NAVPOSE_CONNECT_DATA_MSG,
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
+                connect_topic_controls_dict = connect_topic_controls_dict,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
@@ -633,6 +672,22 @@ class ConnectNavPoseIF(ConnectDataIF):
     # Class Public Methods
     #######################
 
+    #################
+    ## Control Functions
+
+    def reset(self):
+        """Publish a reset command to the connected navpose source.
+
+        Restores the navpose interface to its initialized state. Mirrors
+        data_if.NavPoseIF.reset.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_navpose_reset', Empty())
 
 
     ###############################
@@ -688,6 +743,572 @@ class ConnectBaseImageIF(ConnectDataIF):
                 ):
         self.msg_if = msg_if
         self.node_if = node_if
+
+        # Controls Config Dict ####################
+        # Mirrors the data_if.BaseImageIF subscriber set. Only the subscribers
+        # advertised on the data product namespace appear here -- that namespace is
+        # what the connect side's selected_topic resolves to. The 'unknown' namespace
+        # is the sentinel ConnectDataIF replaces with the connected topic at subscribe
+        # time. Every image connect subclass inherits this set unchanged.
+        connect_topic_controls_dict = {
+
+            # Reset commands
+            'connect_image_reset': {
+                'namespace': 'unknown',
+                'topic': 'reset',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'connect_image_reset_filters': {
+                'namespace': 'unknown',
+                'topic': 'reset_filters',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'connect_image_reset_overlays': {
+                'namespace': 'unknown',
+                'topic': 'reset_overlays',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'connect_image_reset_settings': {
+                'namespace': 'unknown',
+                'topic': 'reset_settings',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'connect_image_reset_renders': {
+                'namespace': 'unknown',
+                'topic': 'reset_renders',
+                'msg': Empty,
+                'qsize': 1,
+            },
+
+            # 3D render controls
+            'connect_image_render_3d_controls': {
+                'namespace': 'unknown',
+                'topic': 'render_3d_controls',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_reset_render_3d_controls': {
+                'namespace': 'unknown',
+                'topic': 'reset_render_3d_controls',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'connect_image_reset_render_3d_position': {
+                'namespace': 'unknown',
+                'topic': 'reset_render_3d_position',
+                'msg': Empty,
+                'qsize': 1,
+            },
+
+            # Mouse event injection
+            'connect_image_mouse_event': {
+                'namespace': 'unknown',
+                'topic': 'mouse_event',
+                'msg': ImageMouseEvent,
+                'qsize': 1,
+            },
+
+            # Overlay text controls
+            'connect_image_set_overlay_text_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_click_text_enable': {
+                'namespace': 'unknown',
+                'topic': 'click_text_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_size_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_size_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_vert_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_vert_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_horz_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_horz_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_transparency_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_color_rgb': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_color_rgb',
+                'msg': ColorBGR,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_source_name': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_source_name',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_date_time': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_date_time',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_nav': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_nav',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_pose': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_pose',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_add_overlay_text': {
+                'namespace': 'unknown',
+                'topic': 'add_overlay_text',
+                'msg': String,
+                'qsize': 1,
+            },
+            'connect_image_set_overlay_text_list': {
+                'namespace': 'unknown',
+                'topic': 'set_overlay_text_list',
+                'msg': StringArray,
+                'qsize': 1,
+            },
+            'connect_image_clear_overlay_text_list': {
+                'namespace': 'unknown',
+                'topic': 'clear_overlay_text_list',
+                'msg': Empty,
+                'qsize': 1,
+            },
+
+            # Crosshair overlay controls
+            'connect_image_crosshairs_enable': {
+                'namespace': 'unknown',
+                'topic': 'crosshairs_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_crosshairs_size_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_crosshairs_size_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_crosshairs_thickness_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_crosshairs_thickness_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_crosshairs_text_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_crosshairs_text_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_crosshairs_transparency_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_crosshairs_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_crosshairs_color_rgb': {
+                'namespace': 'unknown',
+                'topic': 'set_crosshairs_color_rgb',
+                'msg': ColorBGR,
+                'qsize': 1,
+            },
+            'connect_image_overlay_crosshair_names': {
+                'namespace': 'unknown',
+                'topic': 'overlay_crosshair_names',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_overlay_crosshair_pixels': {
+                'namespace': 'unknown',
+                'topic': 'overlay_crosshair_pixels',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_overlay_crosshair_degrees': {
+                'namespace': 'unknown',
+                'topic': 'overlay_crosshair_degrees',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_overlay_crosshair_messages': {
+                'namespace': 'unknown',
+                'topic': 'overlay_crosshair_messages',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_click_crosshair_enable': {
+                'namespace': 'unknown',
+                'topic': 'click_crosshair_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_add_crosshair_pixel': {
+                'namespace': 'unknown',
+                'topic': 'add_crosshair_pixel',
+                'msg': ImageCrosshair,
+                'qsize': 1,
+            },
+            'connect_image_add_crosshair_ratios': {
+                'namespace': 'unknown',
+                'topic': 'add_crosshair_ratios',
+                'msg': ImageCrosshair,
+                'qsize': 1,
+            },
+            'connect_image_add_crosshair_degree_offsets': {
+                'namespace': 'unknown',
+                'topic': 'add_crosshair_degree_offsets',
+                'msg': ImageCrosshair,
+                'qsize': 1,
+            },
+            'connect_image_remove_crosshair': {
+                'namespace': 'unknown',
+                'topic': 'remove_crosshair',
+                'msg': String,
+                'qsize': 1,
+            },
+            'connect_image_clear_crosshairs': {
+                'namespace': 'unknown',
+                'topic': 'clear_crosshairs',
+                'msg': Empty,
+                'qsize': 1,
+            },
+
+            # Target overlay controls
+            'connect_image_targets_enable': {
+                'namespace': 'unknown',
+                'topic': 'targets_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_targets_size_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_targets_size_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_targets_thickness_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_targets_thickness_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_targets_text_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_targets_text_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_targets_transparency_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_targets_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_targets_color_rgb': {
+                'namespace': 'unknown',
+                'topic': 'set_targets_color_rgb',
+                'msg': ColorBGR,
+                'qsize': 1,
+            },
+            'connect_image_overlay_target_names': {
+                'namespace': 'unknown',
+                'topic': 'overlay_target_names',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_overlay_target_pixels': {
+                'namespace': 'unknown',
+                'topic': 'overlay_target_pixels',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_overlay_target_degrees': {
+                'namespace': 'unknown',
+                'topic': 'overlay_target_degrees',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_overlay_target_messages': {
+                'namespace': 'unknown',
+                'topic': 'overlay_target_messages',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_click_target_enable': {
+                'namespace': 'unknown',
+                'topic': 'click_target_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_add_target_pixel': {
+                'namespace': 'unknown',
+                'topic': 'add_target_pixel',
+                'msg': ImageTarget,
+                'qsize': 1,
+            },
+            'connect_image_add_target_ratios': {
+                'namespace': 'unknown',
+                'topic': 'add_target_ratios',
+                'msg': ImageTarget,
+                'qsize': 1,
+            },
+            'connect_image_add_target_degree_offsets': {
+                'namespace': 'unknown',
+                'topic': 'add_target_degree_offsets',
+                'msg': ImageTarget,
+                'qsize': 1,
+            },
+            'connect_image_remove_target': {
+                'namespace': 'unknown',
+                'topic': 'remove_target',
+                'msg': String,
+                'qsize': 1,
+            },
+            'connect_image_clear_targets': {
+                'namespace': 'unknown',
+                'topic': 'clear_targets',
+                'msg': Empty,
+                'qsize': 1,
+            },
+
+            # Aspect and stream controls
+            'connect_image_set_aspect_adjust_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_aspect_adjust_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_aspect_adjust_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_aspect_adjust_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_aspect_adjust_by_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_aspect_adjust_by_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_stream_compression_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_stream_compression_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_stream_compression_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_stream_compression_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+
+            # Live adjustment controls
+            'connect_image_set_live_adjust_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_live_adjust_rotate_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_rotate_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_live_adjust_rotate_deg': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_rotate_deg',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_live_adjust_x_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_x_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_live_adjust_x_pixel': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_x_pixel',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'connect_image_set_live_adjust_x_deg': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_x_deg',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_live_adjust_y_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_y_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_live_adjust_y_pixel': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_y_pixel',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'connect_image_set_live_adjust_y_deg': {
+                'namespace': 'unknown',
+                'topic': 'set_live_adjust_y_deg',
+                'msg': Float32,
+                'qsize': 1,
+            },
+
+            # Capability-gated controls. data_if.BaseImageIF advertises these only when
+
+            # the matching caps_dict flag is set, and the connect side cannot know the
+
+            # server's configuration, so they are always registered.
+            'connect_image_set_resolution_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_resolution_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_auto_adjust_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_auto_adjust_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_auto_adjust_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_auto_adjust_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_brightness_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_brightness_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_contrast_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_contrast_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_threshold_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_threshold_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_rotate_2d': {
+                'namespace': 'unknown',
+                'topic': 'rotate_2d',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'connect_image_set_rotate_2d_deg': {
+                'namespace': 'unknown',
+                'topic': 'set_rotate_2d_deg',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'connect_image_set_rotate_2d_swap_box': {
+                'namespace': 'unknown',
+                'topic': 'set_rotate_2d_swap_box',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_flip_horz': {
+                'namespace': 'unknown',
+                'topic': 'set_flip_horz',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_flip_vert': {
+                'namespace': 'unknown',
+                'topic': 'set_flip_vert',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_image_set_range_ratios': {
+                'namespace': 'unknown',
+                'topic': 'set_range_ratios',
+                'msg': RangeWindow,
+                'qsize': 1,
+            },
+            'connect_image_set_zoom_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_zoom_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_pan_x_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_pan_x_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_pan_y_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_pan_y_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_zoom_3d_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_zoom_3d_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_rotate_3d_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_rotate_3d_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_tilt_3d_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_tilt_3d_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_image_set_filter_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_filter_enable',
+                'msg': UpdateBool,
+                'qsize': 1,
+            },
+            'connect_image_set_filter_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_filter_ratio',
+                'msg': UpdateFloat,
+                'qsize': 1,
+            }
+        }
+
         super().__init__(
                 connect_id = BASE_IMAGE_CONNECT_ID,
                 connect_name = connect_name,
@@ -699,6 +1320,7 @@ class ConnectBaseImageIF(ConnectDataIF):
                 connect_data_msg = BASE_IMAGE_CONNECT_DATA_MSG,
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
+                connect_topic_controls_dict = connect_topic_controls_dict,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
@@ -707,6 +1329,1254 @@ class ConnectBaseImageIF(ConnectDataIF):
                 )
         ####  IF INIT SETUP ####
         ###############################
+
+
+    #######################
+    # Class Public Methods
+    #######################
+
+    #################
+    ## Control Functions
+
+    # Reset commands
+
+    def reset(self):
+        """Publish a reset command, restoring all image controls to their initialized state.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_reset', Empty())
+
+    def reset_filters(self):
+        """Publish a reset command for the image filter settings.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_reset_filters', Empty())
+
+    def reset_overlays(self):
+        """Publish a reset command for the image overlay settings.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_reset_overlays', Empty())
+
+    def reset_settings(self):
+        """Publish a reset command for the image driver settings.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_reset_settings', Empty())
+
+    def reset_renders(self):
+        """Publish a reset command for the image render settings.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_reset_renders', Empty())
+
+    # 3D render controls
+
+    def render_3d_controls(self, enable):
+        """Enable or disable the 3D render controls on the connected image source.
+
+        Args:
+            enable (bool): True to enable the 3D render controls, False to disable them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_render_3d_controls', Bool(enable))
+
+    def reset_render_3d_controls(self):
+        """Publish a reset command for the 3D render controls.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_reset_render_3d_controls', Empty())
+
+    def reset_render_3d_position(self):
+        """Publish a reset command for the 3D render camera position.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_reset_render_3d_position', Empty())
+
+    # Mouse event injection
+
+    def mouse_event(self, mouse_event_msg):
+        """Publish a mouse event against the connected image source.
+
+        Args:
+            mouse_event_msg (ImageMouseEvent): A fully-populated ImageMouseEvent msg describing the click, drag, window or scroll event.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_mouse_event', mouse_event_msg)
+
+    # Overlay text controls
+
+    def set_overlay_text_enable(self, enable):
+        """Enable or disable the image text overlay.
+
+        Args:
+            enable (bool): True to draw the overlay text, False to hide it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_enable', Bool(enable))
+
+    def set_click_text(self, enable):
+        """Enable or disable click-driven overlay text placement.
+
+        Args:
+            enable (bool): True to enable click-to-place text, False to disable it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_click_text_enable', Bool(enable))
+
+    def set_overlay_text_size_ratio(self, ratio):
+        """Set the overlay text size ratio.
+
+        Args:
+            ratio (float): Overlay text size as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_size_ratio', Float32(ratio))
+
+    def set_overlay_text_vert_ratio(self, ratio):
+        """Set the overlay text vertical position ratio.
+
+        Args:
+            ratio (float): Overlay text vertical position as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_vert_ratio', Float32(ratio))
+
+    def set_overlay_text_horz_ratio(self, ratio):
+        """Set the overlay text horizontal position ratio.
+
+        Args:
+            ratio (float): Overlay text horizontal position as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_horz_ratio', Float32(ratio))
+
+    def set_overlay_text_transparency_ratio(self, ratio):
+        """Set the overlay text transparency ratio.
+
+        Args:
+            ratio (float): Overlay text transparency as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_transparency_ratio', Float32(ratio))
+
+    def set_overlay_text_color_rgb(self, color_msg):
+        """Set the overlay text color.
+
+        Args:
+            color_msg (ColorBGR): A ColorBGR msg carrying the overlay text color.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_color_rgb', color_msg)
+
+    def set_overlay_text_image_name(self, enable):
+        """Enable or disable the data source name in the overlay text.
+
+        Args:
+            enable (bool): True to include the source name in the overlay text, False to omit it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_source_name', Bool(enable))
+
+    def set_overlay_text_date_time(self, enable):
+        """Enable or disable the date and time in the overlay text.
+
+        Args:
+            enable (bool): True to include the date and time in the overlay text, False to omit it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_date_time', Bool(enable))
+
+    def set_overlay_text_nav(self, enable):
+        """Enable or disable navigation data in the overlay text.
+
+        Args:
+            enable (bool): True to include navigation data in the overlay text, False to omit it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_nav', Bool(enable))
+
+    def set_overlay_text_pose(self, enable):
+        """Enable or disable pose data in the overlay text.
+
+        Args:
+            enable (bool): True to include pose data in the overlay text, False to omit it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_pose', Bool(enable))
+
+    def set_overlay_text(self, text):
+        """Append a line to the overlay text list.
+
+        Args:
+            text (str): The text line to append to the overlay text list.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_add_overlay_text', String(text))
+
+    def set_overlay_text_list(self, text_list_msg):
+        """Replace the overlay text list.
+
+        Args:
+            text_list_msg (StringArray): A StringArray msg carrying the full overlay text list.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_overlay_text_list', text_list_msg)
+
+    def clear_overlay_text_list(self):
+        """Clear the overlay text list.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_clear_overlay_text_list', Empty())
+
+    # Crosshair overlay controls
+
+    def set_crosshairs_enable(self, enable):
+        """Enable or disable the crosshair overlays.
+
+        Args:
+            enable (bool): True to draw the crosshair overlays, False to hide them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_crosshairs_enable', Bool(enable))
+
+    def set_crosshairs_size_ratio(self, ratio):
+        """Set the crosshair size ratio.
+
+        Args:
+            ratio (float): Crosshair size as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_crosshairs_size_ratio', Float32(ratio))
+
+    def set_crosshairs_thickness_ratio(self, ratio):
+        """Set the crosshair line thickness ratio.
+
+        Args:
+            ratio (float): Crosshair line thickness as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_crosshairs_thickness_ratio', Float32(ratio))
+
+    def set_crosshairs_text_ratio(self, ratio):
+        """Set the crosshair label text size ratio.
+
+        Args:
+            ratio (float): Crosshair label text size as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_crosshairs_text_ratio', Float32(ratio))
+
+    def set_crosshairs_transparency_ratio(self, ratio):
+        """Set the crosshair transparency ratio.
+
+        Args:
+            ratio (float): Crosshair transparency as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_crosshairs_transparency_ratio', Float32(ratio))
+
+    def set_crosshairs_color_rgb(self, color_msg):
+        """Set the crosshair overlay color.
+
+        Args:
+            color_msg (ColorBGR): A ColorBGR msg carrying the crosshair color.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_crosshairs_color_rgb', color_msg)
+
+    def set_overlay_crosshair_names(self, enable):
+        """Enable or disable crosshair name labels.
+
+        Args:
+            enable (bool): True to label crosshairs with their names, False to omit the labels.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_overlay_crosshair_names', Bool(enable))
+
+    def set_overlay_crosshair_pixels(self, enable):
+        """Enable or disable crosshair pixel coordinate labels.
+
+        Args:
+            enable (bool): True to label crosshairs with their pixel coordinates, False to omit them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_overlay_crosshair_pixels', Bool(enable))
+
+    def set_overlay_crosshair_degrees(self, enable):
+        """Enable or disable crosshair degree offset labels.
+
+        Args:
+            enable (bool): True to label crosshairs with their degree offsets, False to omit them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_overlay_crosshair_degrees', Bool(enable))
+
+    def set_overlay_crosshair_messages(self, enable):
+        """Enable or disable crosshair message labels.
+
+        Args:
+            enable (bool): True to label crosshairs with their message strings, False to omit them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_overlay_crosshair_messages', Bool(enable))
+
+    def set_click_crosshair(self, enable):
+        """Enable or disable click-driven crosshair placement.
+
+        Args:
+            enable (bool): True to enable click-to-place crosshairs, False to disable it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_click_crosshair_enable', Bool(enable))
+
+    def add_crosshair_pixel(self, crosshair_msg):
+        """Add a crosshair positioned by pixel coordinates.
+
+        Args:
+            crosshair_msg (ImageCrosshair): An ImageCrosshair msg whose x_pixel and y_pixel fields locate the crosshair.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_add_crosshair_pixel', crosshair_msg)
+
+    def add_crosshair_ratios(self, crosshair_msg):
+        """Add a crosshair positioned by image ratios.
+
+        Args:
+            crosshair_msg (ImageCrosshair): An ImageCrosshair msg whose x_ratio and y_ratio fields locate the crosshair.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_add_crosshair_ratios', crosshair_msg)
+
+    def add_crosshair_degree_offsets(self, crosshair_msg):
+        """Add a crosshair positioned by degree offsets from image center.
+
+        Args:
+            crosshair_msg (ImageCrosshair): An ImageCrosshair msg whose x_offset_deg and y_offset_deg fields locate the crosshair.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_add_crosshair_degree_offsets', crosshair_msg)
+
+    def remove_crosshair(self, name):
+        """Remove a named crosshair.
+
+        Args:
+            name (str): Name of the crosshair to remove.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_remove_crosshair', String(name))
+
+    def clear_crosshairs(self):
+        """Remove every crosshair from the connected image source.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_clear_crosshairs', Empty())
+
+    # Target overlay controls
+
+    def set_targets_enable(self, enable):
+        """Enable or disable the target overlays.
+
+        Args:
+            enable (bool): True to draw the target overlays, False to hide them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_targets_enable', Bool(enable))
+
+    def set_targets_size_ratio(self, ratio):
+        """Set the target size ratio.
+
+        Args:
+            ratio (float): Target size as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_targets_size_ratio', Float32(ratio))
+
+    def set_targets_thickness_ratio(self, ratio):
+        """Set the target line thickness ratio.
+
+        Args:
+            ratio (float): Target line thickness as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_targets_thickness_ratio', Float32(ratio))
+
+    def set_targets_text_ratio(self, ratio):
+        """Set the target label text size ratio.
+
+        Args:
+            ratio (float): Target label text size as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_targets_text_ratio', Float32(ratio))
+
+    def set_targets_transparency_ratio(self, ratio):
+        """Set the target transparency ratio.
+
+        Args:
+            ratio (float): Target transparency as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_targets_transparency_ratio', Float32(ratio))
+
+    def set_targets_color_rgb(self, color_msg):
+        """Set the target overlay color.
+
+        Args:
+            color_msg (ColorBGR): A ColorBGR msg carrying the target color.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_targets_color_rgb', color_msg)
+
+    def set_overlay_target_names(self, enable):
+        """Enable or disable target name labels.
+
+        Args:
+            enable (bool): True to label targets with their names, False to omit the labels.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_overlay_target_names', Bool(enable))
+
+    def set_overlay_target_pixels(self, enable):
+        """Enable or disable target pixel coordinate labels.
+
+        Args:
+            enable (bool): True to label targets with their pixel coordinates, False to omit them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_overlay_target_pixels', Bool(enable))
+
+    def set_overlay_target_degrees(self, enable):
+        """Enable or disable target degree offset labels.
+
+        Args:
+            enable (bool): True to label targets with their degree offsets, False to omit them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_overlay_target_degrees', Bool(enable))
+
+    def set_overlay_target_messages(self, enable):
+        """Enable or disable target message labels.
+
+        Args:
+            enable (bool): True to label targets with their message strings, False to omit them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_overlay_target_messages', Bool(enable))
+
+    def set_click_target(self, enable):
+        """Enable or disable click-driven target placement.
+
+        Args:
+            enable (bool): True to enable click-to-place targets, False to disable it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_click_target_enable', Bool(enable))
+
+    def add_target_pixel(self, target_msg):
+        """Add a target positioned by pixel coordinates.
+
+        Args:
+            target_msg (ImageTarget): An ImageTarget msg whose x_pixel and y_pixel fields locate the target.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_add_target_pixel', target_msg)
+
+    def add_target_ratios(self, target_msg):
+        """Add a target positioned by image ratios.
+
+        Args:
+            target_msg (ImageTarget): An ImageTarget msg whose x_ratio and y_ratio fields locate the target.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_add_target_ratios', target_msg)
+
+    def add_target_degree_offsets(self, target_msg):
+        """Add a target positioned by degree offsets from image center.
+
+        Args:
+            target_msg (ImageTarget): An ImageTarget msg whose x_offset_deg and y_offset_deg fields locate the target.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_add_target_degree_offsets', target_msg)
+
+    def remove_target(self, name):
+        """Remove a named target.
+
+        Args:
+            name (str): Name of the target to remove.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_remove_target', String(name))
+
+    def clear_targets(self):
+        """Remove every target from the connected image source.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_clear_targets', Empty())
+
+    # Aspect and stream controls
+
+    def set_aspect_adjust_enable(self, enable):
+        """Enable or disable image aspect ratio adjustment.
+
+        Args:
+            enable (bool): True to enable aspect ratio adjustment, False to disable it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_aspect_adjust_enable', Bool(enable))
+
+    def set_aspect_adjust_ratio(self, ratio):
+        """Set the image aspect adjustment ratio.
+
+        Args:
+            ratio (float): Target aspect ratio value.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_aspect_adjust_ratio', Float32(ratio))
+
+    def set_aspect_adjust_by_ratio(self, ratio):
+        """Set the image aspect adjustment by relative ratio.
+
+        Args:
+            ratio (float): Relative aspect adjustment as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_aspect_adjust_by_ratio', Float32(ratio))
+
+    def set_stream_compression_enable(self, enable):
+        """Enable or disable image stream compression.
+
+        Args:
+            enable (bool): True to compress the published image stream, False to publish uncompressed.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_stream_compression_enable', Bool(enable))
+
+    def set_stream_compression_ratio(self, ratio):
+        """Set the image stream compression ratio.
+
+        Args:
+            ratio (float): Stream compression as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_stream_compression_ratio', Float32(ratio))
+
+    # Live adjustment controls
+
+    def set_live_adjust_enable(self, enable):
+        """Enable or disable live image adjustments.
+
+        Args:
+            enable (bool): True to enable live image adjustments, False to disable them.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_enable', Bool(enable))
+
+    def set_live_adjust_rotate_ratio(self, ratio):
+        """Set the live adjustment rotation ratio.
+
+        Args:
+            ratio (float): Live rotation as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_rotate_ratio', Float32(ratio))
+
+    def set_live_adjust_rotate_deg(self, deg):
+        """Set the live adjustment rotation in degrees.
+
+        Args:
+            deg (float): Live rotation in degrees.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_rotate_deg', Float32(deg))
+
+    def set_live_adjust_x_ratio(self, ratio):
+        """Set the live adjustment horizontal translation ratio.
+
+        Args:
+            ratio (float): Live horizontal translation as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_x_ratio', Float32(ratio))
+
+    def set_live_adjust_x_pixel(self, pixel):
+        """Set the live adjustment horizontal translation in pixels.
+
+        Args:
+            pixel (int): Live horizontal translation in pixels.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_x_pixel', Int32(pixel))
+
+    def set_live_adjust_x_deg(self, deg):
+        """Set the live adjustment horizontal translation in degrees.
+
+        Args:
+            deg (float): Live horizontal translation in degrees.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_x_deg', Float32(deg))
+
+    def set_live_adjust_y_ratio(self, ratio):
+        """Set the live adjustment vertical translation ratio.
+
+        Args:
+            ratio (float): Live vertical translation as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_y_ratio', Float32(ratio))
+
+    def set_live_adjust_y_pixel(self, pixel):
+        """Set the live adjustment vertical translation in pixels.
+
+        Args:
+            pixel (int): Live vertical translation in pixels.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_y_pixel', Int32(pixel))
+
+    def set_live_adjust_y_deg(self, deg):
+        """Set the live adjustment vertical translation in degrees.
+
+        Args:
+            deg (float): Live vertical translation in degrees.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_live_adjust_y_deg', Float32(deg))
+
+    # Capability-gated controls. data_if.BaseImageIF advertises these only when
+
+    # the matching caps_dict flag is set, and the connect side cannot know the
+
+    # server's configuration, so they are always registered.
+
+    def set_resolution_ratio(self, ratio):
+        """Set the image resolution ratio.
+
+        Args:
+            ratio (float): Image resolution as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_resolution_ratio', Float32(ratio))
+
+    def set_auto_adjust_enable(self, enable):
+        """Enable or disable image auto adjustment.
+
+        Args:
+            enable (bool): True to enable auto adjustment, False to disable it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_auto_adjust_enable', Bool(enable))
+
+    def set_auto_adjust_ratio(self, ratio):
+        """Set the image auto adjustment ratio.
+
+        Args:
+            ratio (float): Auto adjustment strength as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_auto_adjust_ratio', Float32(ratio))
+
+    def set_brightness_ratio(self, ratio):
+        """Set the image brightness ratio.
+
+        Args:
+            ratio (float): Image brightness as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_brightness_ratio', Float32(ratio))
+
+    def set_contrast_ratio(self, ratio):
+        """Set the image contrast ratio.
+
+        Args:
+            ratio (float): Image contrast as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_contrast_ratio', Float32(ratio))
+
+    def set_threshold_ratio(self, ratio):
+        """Set the image threshold ratio.
+
+        Args:
+            ratio (float): Image threshold as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_threshold_ratio', Float32(ratio))
+
+    def rotate_2d(self):
+        """Publish a single 2D rotation step command.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_rotate_2d', Empty())
+
+    def set_rotate_2d_deg(self, deg):
+        """Set the 2D image rotation in degrees.
+
+        Args:
+            deg (int): 2D rotation in degrees.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_rotate_2d_deg', Int32(deg))
+
+    def set_rotate_2d_swap_box(self, enable):
+        """Enable or disable bounding box swapping on 2D rotation.
+
+        Args:
+            enable (bool): True to swap the bounding box on rotation, False to leave it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_rotate_2d_swap_box', Bool(enable))
+
+    def set_flip_horz(self, enable):
+        """Enable or disable horizontal image flip.
+
+        Args:
+            enable (bool): True to flip the image horizontally, False to leave it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_flip_horz', Bool(enable))
+
+    def set_flip_vert(self, enable):
+        """Enable or disable vertical image flip.
+
+        Args:
+            enable (bool): True to flip the image vertically, False to leave it.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_flip_vert', Bool(enable))
+
+    def set_range_ratios(self, range_msg):
+        """Set the image range window ratios.
+
+        Args:
+            range_msg (RangeWindow): A RangeWindow msg carrying the start and stop range ratios.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_range_ratios', range_msg)
+
+    def set_zoom_ratio(self, ratio):
+        """Set the image zoom ratio.
+
+        Args:
+            ratio (float): Image zoom as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_zoom_ratio', Float32(ratio))
+
+    def set_pan_x_ratio(self, ratio):
+        """Set the image horizontal pan ratio.
+
+        Args:
+            ratio (float): Horizontal pan as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_pan_x_ratio', Float32(ratio))
+
+    def set_pan_y_ratio(self, ratio):
+        """Set the image vertical pan ratio.
+
+        Args:
+            ratio (float): Vertical pan as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_pan_y_ratio', Float32(ratio))
+
+    def set_zoom_3d_ratio(self, ratio):
+        """Set the 3D render zoom ratio.
+
+        Args:
+            ratio (float): 3D render zoom as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_zoom_3d_ratio', Float32(ratio))
+
+    def set_rotate_3d_ratio(self, ratio):
+        """Set the 3D render rotation ratio.
+
+        Args:
+            ratio (float): 3D render rotation as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_rotate_3d_ratio', Float32(ratio))
+
+    def set_tilt_3d_ratio(self, ratio):
+        """Set the 3D render tilt ratio.
+
+        Args:
+            ratio (float): 3D render tilt as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_tilt_3d_ratio', Float32(ratio))
+
+    def set_filter_enable(self, update_msg):
+        """Enable or disable a named image filter.
+
+        Args:
+            update_msg (UpdateBool): An UpdateBool msg naming the filter and carrying its enable value.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_filter_enable', update_msg)
+
+    def set_filter_ratio(self, update_msg):
+        """Set the ratio of a named image filter.
+
+        Args:
+            update_msg (UpdateFloat): An UpdateFloat msg naming the filter and carrying its ratio value.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_filter_ratio', update_msg)
+
+
+    ###############################
+    # Class Private Methods
+    ###############################
 
 
 
