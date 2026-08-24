@@ -677,6 +677,29 @@ class ConnectNavPoseIF(ConnectDataIF):
     #######################
 
     #################
+    ## Data Functions
+
+    def get_navpose_dict(self):
+        """Return a deep copy of the most recently received nav pose dictionary.
+
+        Mirrors data_if.NavPoseIF.get_navpose_dict, which is the contract the
+        data_if image, depth map and pointcloud classes call against whichever
+        navpose interface they hold -- a server-side NavPoseIF when one is passed
+        in, or a ConnectNavPoseIF built from a namespace when one is not.
+
+        Returns:
+            dict: The last nav pose data dictionary, or None if no NavPose message
+                has arrived from the connected source yet.
+        """
+        if self.data_dict is None:
+            return None
+        self.data_dict_lock.acquire()
+        navpose_dict = copy.deepcopy(self.data_dict)
+        self.data_dict_lock.release()
+        return navpose_dict
+
+
+    #################
     ## Control Functions
 
     def reset(self):
@@ -697,6 +720,36 @@ class ConnectNavPoseIF(ConnectDataIF):
     ###############################
     # Class Private Methods
     ###############################
+
+    def _dataCb(self,data_msg):
+        # Diverges from ConnectDataIF._dataCb in two ways, both required by the
+        # get_navpose_dict contract above.
+        #
+        # No get_data gating. The parent gates on the get_data one-shot flag
+        # because building an image frame from a msg is expensive. A NavPose msg
+        # is small and its conversion is cheap, and the data_if publish paths poll
+        # get_navpose_dict once per published frame without ever arming get_data,
+        # so gating here would leave the cache permanently empty and every frame
+        # would fall back to a blank navpose. Cache every message instead, so a
+        # poll returns the last known nav pose the way NavPoseIF does.
+        #
+        # Converted with nepi_nav.convert_navpose_msg2dict rather than the
+        # parent's generic nepi_sdk.convert_msg2dict. Consumers index nav pose
+        # keys directly (data_if.py reads navpose_dict['navpose_frame'] unguarded),
+        # and only the nepi_nav converter guarantees the full BLANK_NAVPOSE_DICT
+        # key set. It returns None on a conversion failure, which the callers
+        # already handle by falling back to the blank dict.
+        navpose_dict = nepi_nav.convert_navpose_msg2dict(data_msg)
+        if navpose_dict is None:
+            return
+
+        if self.data_callback is not None:
+            self.data_callback(navpose_dict)
+        else:
+            self.data_dict_lock.acquire()
+            self.data_dict = navpose_dict
+            self.data_dict_lock.release()
+            self.got_data = True
 
 
 
