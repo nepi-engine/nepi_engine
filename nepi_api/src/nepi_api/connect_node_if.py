@@ -630,9 +630,12 @@ class ConnectNodeIF:
         available_topics = []
         for topic in topics:
             valid = True
-            for filter in self.filter_topics_list:
-                if filter in topic:
-                    valid = False
+            if len(self.filter_topics_list) > 0:
+                valid = False
+                for filter in self.filter_topics_list:
+                    if filter in topic:
+                        valid = True
+                        break
             if valid == True:
                 available_topics.append(topic.replace('/status',''))
         if available_topics != last_available:
