@@ -103,8 +103,9 @@ class ConnectDataIF(ConnectNodeIF):
     data_dict = None
     data_dict_lock = None
 
-    get_data = False
-    got_data = False
+    navpose_dict = None
+    navpose_dict_lock = None
+
 
     connect_data_msg = None
     connect_data = True
@@ -114,6 +115,8 @@ class ConnectDataIF(ConnectNodeIF):
     connect_topic_pubs_dict = None
 
     connect_topic_controls_dict = None
+
+    has_navpose = False
     #######################
     ### IF Initialization
     def __init__(self,
@@ -128,6 +131,7 @@ class ConnectDataIF(ConnectNodeIF):
                 data_callback = None,
                 filter_topic_list = [],
                 connect_topic_controls_dict = None,
+                has_navpose = False,
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
@@ -151,6 +155,8 @@ class ConnectDataIF(ConnectNodeIF):
         self.msg_if = msg_if
         self.node_if = node_if
         self.connect_name = connect_name
+        self.connect_topic_controls_dict = connect_topic_controls_dict
+        self.has_navpose = has_navpose
 
         super().__init__(
                 connect_id = connect_id,
@@ -331,27 +337,12 @@ class ConnectDataIF(ConnectNodeIF):
         return self.selected_topic
 
 
-    def set_get_data(self, state):
-        """Set the flag requesting capture of the next available image frame.
+    def get_navpose_dict(self):
+        self.navpose_dict_lock.acquire()
+        navpose_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_dict_lock.release()
+        return navpose_dict
 
-        Args:
-            state (bool): True to request the next frame, False to clear the request.
-
-        Returns:
-            bool: Always True.
-        """
-        self.get_data = state
-        return True
-
-    def read_get_got_states(self):
-        """Return the current get and got data flags.
-
-        Returns:
-            list: A two-element list [get_data, got_data] where get_data indicates
-                whether a frame has been requested and got_data indicates whether a
-                frame is waiting to be retrieved.
-        """
-        return [self.get_data, self.got_data]
 
 
     def save_config(self):
@@ -471,6 +462,14 @@ class ConnectDataIF(ConnectNodeIF):
             }
 
 
+        if self.has_navpose == True:
+            self.connect_topic_subs_dict[self.node_if_prefix + 'navpose_sub'] = {
+                'namespace': self.selected_topic,
+                'topic': 'navpose',
+                'msg': NavPose,
+                'qsize': 1,
+                'callback': self._navposeCb
+            }            
 
         # Publishers Config Dict ####################
         self.connect_topic_pubs_dict = {
@@ -565,24 +564,18 @@ class ConnectDataIF(ConnectNodeIF):
 
 
     def _dataCb(self,data_msg):
-        # Only build a frame when a consumer has asked for one (get_data flag) or
-        # a data_callback is registered; otherwise the incoming Image is
-        # dropped cheaply. Connection state is driven by the status callback.
-        get_data = (self.data_callback is not None or self.get_data == True)
-        if get_data == False:
-            return
+        pass
 
-        self.get_data = False
 
-        data_dict = nepi_sdk.convert_msg2dict(data_msg)
 
-        if self.data_callback is not None:
-            self.data_callback(data_dict)
-        else:
-            self.data_dict_lock.acquire()
-            self.data_dict = data_dict
-            self.data_dict_lock.release()
-            self.got_data = True
+    def _navposeCb(self,navpose_msg):
+       
+        navpose_dict = nepi_nav.convert_navposes_msg2dict(navpose_msg)
+
+
+        self.navpose_dict_lock.acquire()
+        self.navpose_dict = navpose_dict
+        self.navpose_dict_lock.release()
 
 
 
@@ -660,6 +653,8 @@ class ConnectNavPoseIF(ConnectDataIF):
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
                 connect_topic_controls_dict = connect_topic_controls_dict,
+                has_navpose = True,
+                has_navpose = False,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
@@ -1325,6 +1320,7 @@ class ConnectBaseImageIF(ConnectDataIF):
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
                 connect_topic_controls_dict = connect_topic_controls_dict,
+                has_navpose = True,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
@@ -2739,6 +2735,8 @@ class ConnectDepthMapIF(ConnectDataIF):
                 connect_data_msg = DEPTH_MAP_CONNECT_DATA_MSG,
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
+                connect_topic_controls_dict = None,
+                has_navpose = True,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
@@ -2800,20 +2798,13 @@ class ConnectDepthMapIF(ConnectDataIF):
     # it is decoded to cv2 here and returned with its dimensions, timestamps and
     # get/process/got latency.
     def _dataCb(self,data_msg):
-        # Only build a frame when a consumer has asked for one (get_data flag) or
-        # a data_callback is registered; otherwise the incoming Image is
-        # dropped cheaply. Connection state is driven by the status callback.
-        get_data = (self.data_callback is not None or self.get_data == True)
-        if get_data == False:
-            return
+
 
         current_time = nepi_sdk.get_msg_stamp()
         msg_stamp = data_msg.header.stamp
         get_latency = (current_time.to_sec() - msg_stamp.to_sec())
 
         start_time = nepi_sdk.get_time()
-
-        self.get_data = False
 
         ##############################
         ### Preprocess Depth Map
@@ -2840,11 +2831,10 @@ class ConnectDepthMapIF(ConnectDataIF):
 
         if self.data_callback is not None:
             self.data_callback(data_dict)
-        else:
-            self.data_dict_lock.acquire()
-            self.data_dict = data_dict
-            self.data_dict_lock.release()
-            self.got_data = True
+
+        self.data_dict_lock.acquire()
+        self.data_dict = data_dict
+        self.data_dict_lock.release()
 
 
 
@@ -2952,6 +2942,8 @@ class ConnectPointcloudIF(ConnectDataIF):
                 connect_data_msg = POINTCLOUD_CONNECT_DATA_MSG,
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
+                connect_topic_controls_dict = None,
+                has_navpose = True,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
@@ -3020,12 +3012,6 @@ class ConnectPointcloudIF(ConnectDataIF):
     # convert_msg2dict. A PointCloud2 is converted to an Open3D cloud here and
     # returned with its point count, timestamps and get/process/got latency.
     def _dataCb(self,data_msg):
-        # Only build a frame when a consumer has asked for one (get_data flag) or
-        # a data_callback is registered; otherwise the incoming PointCloud2 is
-        # dropped cheaply. Connection state is driven by the status callback.
-        get_data = (self.data_callback is not None or self.get_data == True)
-        if get_data == False:
-            return
 
         current_time = nepi_sdk.get_msg_stamp()
         msg_stamp = data_msg.header.stamp
@@ -3033,7 +3019,7 @@ class ConnectPointcloudIF(ConnectDataIF):
 
         start_time = nepi_sdk.get_time()
 
-        self.get_data = False
+
 
         ##############################
         ### Preprocess Pointcloud
@@ -3057,11 +3043,11 @@ class ConnectPointcloudIF(ConnectDataIF):
 
         if self.data_callback is not None:
             self.data_callback(data_dict)
-        else:
-            self.data_dict_lock.acquire()
-            self.data_dict = data_dict
-            self.data_dict_lock.release()
-            self.got_data = True
+
+        self.data_dict_lock.acquire()
+        self.data_dict = data_dict
+        self.data_dict_lock.release()
+
 
 
 
