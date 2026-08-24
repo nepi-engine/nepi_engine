@@ -529,15 +529,32 @@ class ConnectNodeIF:
 
         selected_name = 'None'
         if selected_topic not in available_topics:
-            if len(available_topics) > 0 and self.auto_select_enabled == True:
+            # Auto-select fills an EMPTY selection only. A selection that IS set but
+            # not yet discovered must be left alone: available_topics is populated
+            # incrementally as sibling device nodes come up, so grabbing
+            # available_topics[0] here silently repointed a restored selection at
+            # whichever device happened to appear first. On a two-axis node that
+            # landed both axes on the same servo -- ptx_servos_node restored pan
+            # channel 0 and tilt channel 1 from config, then this method moved tilt
+            # to channel 0 before channel 1 was discovered, and the node adopted the
+            # wrong topic on its next updateConnectsHandler cycle. Nothing rewrote
+            # the param when that happened, so the config file still held the
+            # operator's real choice while the live selection had already moved on,
+            # which is why the selection looked like it never saved.
+            if selected_topic == 'None' and len(available_topics) > 0 and self.auto_select_enabled == True:
                 selected_topic = available_topics[0]
                 self.selected_topic = selected_topic
-            else:
-                selected_topic = 'None' 
 
         if selected_topic in available_topics:
             selected_ind = available_topics.index(selected_topic)
             selected_name = available_names[selected_ind]
+        elif selected_topic != 'None':
+            # Selected but not discovered yet. Report the selection with a derived
+            # label rather than 'None' so the status does not read as unselected
+            # while discovery catches up.
+            selected_names = self.get_available_path_names([selected_topic])
+            if len(selected_names) > 0:
+                selected_name = selected_names[0]
 
         status_msg.selected_topic = selected_topic
         status_msg.selected_name = selected_name
@@ -646,7 +663,11 @@ class ConnectNodeIF:
         if self.connected_topic is not None:
             if self.connected_topic not in self.available_topics:
                 success = self.unsubscribe_topic()
-        if selected_topic == 'None' and len(self.available_topics) > 0:
+        # Honor auto_select_enabled here too. This path ignored the flag, so a
+        # consumer that disabled auto-select (a pan/tilt pair, where auto-selecting
+        # the first servo is guaranteed wrong for at least one axis) still got one
+        # picked for it one second after startup.
+        if selected_topic == 'None' and len(self.available_topics) > 0 and self.auto_select_enabled == True:
             self.selected_topic = self.available_topics[0]
         needs_publish = True
 
