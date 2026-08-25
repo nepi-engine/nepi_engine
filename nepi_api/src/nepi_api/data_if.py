@@ -1925,7 +1925,7 @@ class BaseImageIF:
 
     perspective = 'pov'
 
-    blank_img = nepi_img.create_cv2_blank_img(last_width, last_height, color = (0, 0, 0) )
+    blank_img = nepi_img.create_cv2_blank_img(last_width, last_height, color_rgb = (0, 0, 0) )
 
     last_pub_time = None
 
@@ -4408,7 +4408,7 @@ class BaseImageIF:
 
                         # Update blank image if needed
                         if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
-                            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color = (0, 0, 0) )
+                            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color_rgb = (0, 0, 0) )
 
 
    
@@ -7527,7 +7527,7 @@ class DepthMapIF:
     last_width = DEFUALT_IMG_WIDTH_PX
     last_height = DEFUALT_IMG_HEIGHT_PX
 
-    blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH_PX, DEFUALT_IMG_HEIGHT_PX, color = (0, 0, 0) )
+    blank_img = nepi_img.create_cv2_blank_img(DEFUALT_IMG_WIDTH_PX, DEFUALT_IMG_HEIGHT_PX, color_rgb = (0, 0, 0) )
 
     last_pub_time = None
 
