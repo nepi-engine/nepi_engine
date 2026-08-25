@@ -33,6 +33,7 @@ from nepi_sdk import nepi_pc
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
+from geometry_msgs.msg import Vector3
 from nepi_interfaces.msg import SaveDataRate
 from nepi_interfaces.msg import ColorBGR
 from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat
@@ -653,7 +654,6 @@ class ConnectNavPoseIF(ConnectDataIF):
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
                 connect_topic_controls_dict = connect_topic_controls_dict,
-                has_navpose = True,
                 has_navpose = False,
                 show_selector = show_selector,
                 show_controls = show_controls,
@@ -1357,6 +1357,36 @@ class ConnectBaseImageIF(ConnectDataIF):
                 'namespace': 'unknown',
                 'topic': 'set_filter_ratio',
                 'msg': UpdateFloat,
+                'qsize': 1,
+            },
+            'connect_image_set_camera_fov': {
+                'namespace': 'unknown',
+                'topic': 'set_camera_fov',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'connect_image_set_camera_view': {
+                'namespace': 'unknown',
+                'topic': 'set_camera_view',
+                'msg': Vector3,
+                'qsize': 1,
+            },
+            'connect_image_set_camera_position': {
+                'namespace': 'unknown',
+                'topic': 'set_camera_position',
+                'msg': Vector3,
+                'qsize': 1,
+            },
+            'connect_image_set_camera_rotation': {
+                'namespace': 'unknown',
+                'topic': 'set_camera_rotation',
+                'msg': Vector3,
+                'qsize': 1,
+            },
+            'connect_image_set_white_bg_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_white_bg_enable',
+                'msg': Bool,
                 'qsize': 1,
             }
         }
@@ -2626,6 +2656,86 @@ class ConnectBaseImageIF(ConnectDataIF):
             return False
         return self.node_if.publish_pub('connect_image_set_filter_ratio', update_msg)
 
+    def set_camera_fov(self, fov_deg):
+        """Set the 3D render camera field of view.
+
+        Only advertised by sources reporting the 3D camera capability.
+
+        Args:
+            fov_deg (int): Camera field of view in degrees.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_camera_fov', Int32(fov_deg))
+
+    def set_camera_view(self, vector3_msg):
+        """Set the 3D render camera view vector.
+
+        Only advertised by sources reporting the 3D camera capability.
+
+        Args:
+            vector3_msg (Vector3): Caller-built Vector3 msg carrying the view vector.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_camera_view', vector3_msg)
+
+    def set_camera_position(self, vector3_msg):
+        """Set the 3D render camera position.
+
+        Only advertised by sources reporting the 3D camera capability.
+
+        Args:
+            vector3_msg (Vector3): Caller-built Vector3 msg carrying the position.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_camera_position', vector3_msg)
+
+    def set_camera_rotation(self, vector3_msg):
+        """Set the 3D render camera rotation.
+
+        Only advertised by sources reporting the 3D camera capability.
+
+        Args:
+            vector3_msg (Vector3): Caller-built Vector3 msg carrying the rotation.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_camera_rotation', vector3_msg)
+
+    def set_white_bg_enable(self, enable):
+        """Enable or disable the white render background.
+
+        Only advertised by sources reporting the 3D camera capability.
+
+        Args:
+            enable (bool): True for a white background, False otherwise.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_image_set_white_bg_enable', Bool(enable))
+
 
     ###############################
     # Class Private Methods
@@ -2984,6 +3094,76 @@ class ConnectPointcloudIF(ConnectDataIF):
                 ):
         self.msg_if = msg_if
         self.node_if = node_if
+
+        connect_topic_controls_dict = {
+            'connect_pointcloud_reset_controls': {
+                'namespace': 'unknown',
+                'topic': 'reset_controls',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'connect_pointcloud_set_clip_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_clip_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'connect_pointcloud_set_clip_selection': {
+                'namespace': 'unknown',
+                'topic': 'set_clip_selection',
+                'msg': String,
+                'qsize': 1,
+            },
+            'connect_pointcloud_set_range_clip_m': {
+                'namespace': 'unknown',
+                'topic': 'set_range_clip_m',
+                'msg': RangeWindow,
+                'qsize': 1,
+            },
+            'connect_pointcloud_set_clip_bounding_box3d_topic': {
+                'namespace': 'unknown',
+                'topic': 'set_clip_bounding_box3d_topic',
+                'msg': String,
+                'qsize': 1,
+            },
+            'connect_pointcloud_set_voxel_downsample_size': {
+                'namespace': 'unknown',
+                'topic': 'set_voxel_downsample_size',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_pointcloud_uniform_downsample_k_points': {
+                'namespace': 'unknown',
+                'topic': 'uniform_downsample_k_points',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'connect_pointcloud_outlier_removal_num_neighbors': {
+                'namespace': 'unknown',
+                'topic': 'outlier_removal_num_neighbors',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'connect_pointcloud_set_rotate_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_rotate_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_pointcloud_set_tilt_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_tilt_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'connect_pointcloud_set_render_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_render_enable',
+                'msg': Bool,
+                'qsize': 1,
+            }
+        }
+
         super().__init__(
                 connect_id = POINTCLOUD_CONNECT_ID,
                 connect_name = connect_name,
@@ -2995,7 +3175,7 @@ class ConnectPointcloudIF(ConnectDataIF):
                 connect_data_msg = POINTCLOUD_CONNECT_DATA_MSG,
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
-                connect_topic_controls_dict = None,
+                connect_topic_controls_dict = connect_topic_controls_dict,
                 has_navpose = True,
                 show_selector = show_selector,
                 show_controls = show_controls,
@@ -3055,6 +3235,166 @@ class ConnectPointcloudIF(ConnectDataIF):
         self.data_dict = None
         self.data_dict_lock.release()
         return data_dict
+
+
+    #################
+    ## Control Functions
+
+    def reset_controls(self):
+        """Reset all pointcloud process controls to their initialized values.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_reset_controls', Empty())
+
+    def set_clip_enable(self, enable):
+        """Enable or disable pointcloud clipping.
+
+        Args:
+            enable (bool): True to enable clipping, False to disable.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_set_clip_enable', Bool(enable))
+
+    def set_clip_selection(self, selection):
+        """Select which clipping mode is applied.
+
+        Args:
+            selection (str): Clip selection name, from the clip_options list in
+                the pointcloud status message.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_set_clip_selection', String(selection))
+
+    def set_range_clip_m(self, range_window_msg):
+        """Set the clipping range window in meters.
+
+        Args:
+            range_window_msg (RangeWindow): Caller-built RangeWindow message
+                carrying the minimum and maximum clip range in meters.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_set_range_clip_m', range_window_msg)
+
+    def set_clip_bounding_box3d_topic(self, topic):
+        """Set the topic supplying the 3D bounding box used for clipping.
+
+        Args:
+            topic (str): Namespace of the bounding box 3D topic.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_set_clip_bounding_box3d_topic', String(topic))
+
+    def set_voxel_downsample_size(self, size_m):
+        """Set the voxel downsample size.
+
+        Args:
+            size_m (float): Voxel edge length in meters. Zero disables voxel
+                downsampling.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_set_voxel_downsample_size', Float32(size_m))
+
+    def uniform_downsample_k_points(self, k_points):
+        """Set the uniform downsample point count.
+
+        Args:
+            k_points (int): Number of points to keep. Zero disables uniform
+                downsampling.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_uniform_downsample_k_points', Int32(k_points))
+
+    def outlier_removal_num_neighbors(self, num_neighbors):
+        """Set the outlier removal neighbor count.
+
+        Args:
+            num_neighbors (int): Neighbor count used for statistical outlier
+                removal. Zero disables outlier removal.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_outlier_removal_num_neighbors', Int32(num_neighbors))
+
+    def set_rotate_ratio(self, ratio):
+        """Set the pointcloud render rotation ratio.
+
+        Args:
+            ratio (float): Rotation as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_set_rotate_ratio', Float32(ratio))
+
+    def set_tilt_ratio(self, ratio):
+        """Set the pointcloud render tilt ratio.
+
+        Args:
+            ratio (float): Tilt as a 0.0-1.0 ratio.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_set_tilt_ratio', Float32(ratio))
+
+    def set_render_enable(self, enable):
+        """Enable or disable pointcloud render image publishing.
+
+        Args:
+            enable (bool): True to enable rendering, False to disable.
+
+        Returns:
+            bool: True if the command was published, False if there is no node
+                interface or no connected source.
+        """
+        if self.node_if is None or self.connected == False:
+            return False
+        return self.node_if.publish_pub('connect_pointcloud_set_render_enable', Bool(enable))
 
 
     ###############################

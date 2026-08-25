@@ -3601,7 +3601,7 @@ class BaseImageIF:
 
             if caps_dict['has_tilt_3d'] == True:
                 self.SUBS_DICT[self.node_if_prefix + 'set_camera_fov'] = {
-                    'namespace': self.node_namespace,
+                    'namespace': self.namespace,
                     'topic': 'set_camera_fov',
                     'msg': Int32,
                     'qsize': 10,
@@ -3609,7 +3609,7 @@ class BaseImageIF:
                     'callback_args': ()
                 }
                 self.SUBS_DICT[self.node_if_prefix + 'set_camera_view'] = {
-                    'namespace': self.node_namespace,
+                    'namespace': self.namespace,
                     'topic': 'set_camera_view',
                     'msg': Vector3,
                     'qsize': 10,
@@ -3617,7 +3617,7 @@ class BaseImageIF:
                     'callback_args': ()
                 }
                 self.SUBS_DICT[self.node_if_prefix + 'set_camera_position'] = {
-                    'namespace': self.node_namespace,
+                    'namespace': self.namespace,
                     'topic': 'set_camera_position',
                     'msg': Vector3,
                     'qsize': 10,
@@ -3625,7 +3625,7 @@ class BaseImageIF:
                     'callback_args': ()
                 }
                 self.SUBS_DICT[self.node_if_prefix + 'set_camera_rotation'] = {
-                    'namespace': self.node_namespace,
+                    'namespace': self.namespace,
                     'topic': 'set_camera_rotation',
                     'msg': Vector3,
                     'qsize': 10,
@@ -3633,7 +3633,7 @@ class BaseImageIF:
                     'callback_args': ()
                 }
                 self.SUBS_DICT[self.node_if_prefix + 'set_white_bg_enable'] = {
-                    'namespace': self.node_namespace,
+                    'namespace': self.namespace,
                     'topic': 'set_white_bg_enable',
                     'msg': Bool,
                     'qsize': 10,
@@ -8853,7 +8853,7 @@ class PointcloudIF:
         # Subs Config Dict ###########
         self.SUBS_DICT = {
             self.node_if_prefix + 'reset_controls': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'reset_controls',
                 'msg': Empty,
                 'qsize': 10,
@@ -8861,7 +8861,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'set_clip_enable': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_clip_enable',
                 'msg': Bool,
                 'qsize': 10,
@@ -8869,7 +8869,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'clip_selection': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_clip_selection',
                 'msg': String,
                 'qsize': 10,
@@ -8877,7 +8877,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'range_clip_m': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_range_clip_m',
                 'msg': RangeWindow,
                 'qsize': 10,
@@ -8885,7 +8885,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'clip_bounding_box3d_topic': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_clip_bounding_box3d_topic',
                 'msg': String,
                 'qsize': 10,
@@ -8893,7 +8893,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'voxel_downsample_size': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_voxel_downsample_size',
                 'msg': Float32,
                 'qsize': 10,
@@ -8901,7 +8901,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'downsample_k_points': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'uniform_downsample_k_points',
                 'msg': Int32,
                 'qsize': 10,
@@ -8909,7 +8909,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'outlier_removal': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'outlier_removal_num_neighbors',
                 'msg': Int32,
                 'qsize': 10,
@@ -8917,7 +8917,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'set_rotate_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_rotate_ratio',
                 'msg': Float32,
                 'qsize': 10,
@@ -8925,7 +8925,7 @@ class PointcloudIF:
                 'callback_args': ()
             },
             self.node_if_prefix + 'set_tilt_ratio': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_tilt_ratio',
                 'msg': Float32,
                 'qsize': 10,
@@ -8934,7 +8934,7 @@ class PointcloudIF:
             },
 
             self.node_if_prefix + 'set_render_enable': {
-                'namespace': self.node_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_render_enable',
                 'msg': Bool,
                 'qsize': 10,
