@@ -653,7 +653,6 @@ class ConnectNavPoseIF(ConnectDataIF):
                 data_callback = data_callback,
                 filter_topic_list = filter_topic_list,
                 connect_topic_controls_dict = connect_topic_controls_dict,
-                has_navpose = True,
                 has_navpose = False,
                 show_selector = show_selector,
                 show_controls = show_controls,

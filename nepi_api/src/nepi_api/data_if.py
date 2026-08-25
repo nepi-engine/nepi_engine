@@ -5222,13 +5222,15 @@ class BaseImageIF:
         Args:
             enabled (bool): True to show crosshairs data, False to hide it.
         """
+        was_enabled = copy.deepcopy(self.overlays_dict['crosshairs_enabled'])
         self.overlays_dict['crosshairs_enabled'] = enabled
         if enabled == False:
             self.click_crosshair_enabled = False
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if was_enabled != enabled:
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_click_crosshair(self,enabled):
         """Enable or disable the click crosshair enable.
@@ -5248,12 +5250,14 @@ class BaseImageIF:
         Args:
             ratio (float): Text size ratio in [0.0, 1.0].
         """
+        cur_ratio = copy.deepcopy(self.overlays_dict['crosshairs_size_ratio'])
         ratio = nepi_utils.check_ratio(ratio)
         self.overlays_dict['crosshairs_size_ratio'] = ratio
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if cur_ratio != ratio:
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_crosshairs_thickness_ratio(self, ratio):
         """Set the relative thickness of crosshairs overlays on the image.
@@ -5261,12 +5265,14 @@ class BaseImageIF:
         Args:
             ratio (float): Text thickness ratio in [0.0, 1.0].
         """
+        cur_ratio = copy.deepcopy(self.overlays_dict['crosshairs_thickness_ratio'])
         ratio = nepi_utils.check_ratio(ratio)
         self.overlays_dict['crosshairs_thickness_ratio'] = ratio
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if cur_ratio != ratio:
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_crosshairs_text_ratio(self, ratio):
         """Set the relative text of crosshairs overlays on the image.
@@ -5274,12 +5280,14 @@ class BaseImageIF:
         Args:
             ratio (float): Text text ratio in [0.0, 1.0].
         """
+        cur_ratio = copy.deepcopy(self.overlays_dict['crosshairs_text_ratio'])
         ratio = nepi_utils.check_ratio(ratio)
         self.overlays_dict['crosshairs_text_ratio'] = ratio
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if cur_ratio != ratio:
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_crosshairs_transparency_ratio(self, ratio):
         """Set the relative size of crosshairs overlays on the image.
@@ -5287,6 +5295,7 @@ class BaseImageIF:
         Args:
             ratio (float): Text size ratio in [0.0, 1.0].
         """
+        cur_ratio = copy.deepcopy(self.overlays_dict['targets_thickness_ratio'])
         ratio = nepi_utils.check_ratio(ratio)
         self.overlays_dict['crosshairs_transparency_ratio'] = ratio
         self.publish_status()
@@ -5378,11 +5387,16 @@ class BaseImageIF:
         crosshair_dict['color_rgb'] = color_rgb
         crosshair_dict['msg_str'] = msg_str
 
-        self.overlays_dict['crosshairs_dict'][ch_name] = crosshair_dict
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        needs_update = True
+        if ch_name in self.overlays_dict['crosshairs_dict'].keys():
+            if self.overlays_dict['crosshairs_dict'][ch_name] == crosshair_dict:
+                needs_update = False
+        if needs_update == True:
+            self.overlays_dict['crosshairs_dict'][ch_name] = crosshair_dict
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
 
     def add_crosshair_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = ''):
@@ -5394,8 +5408,6 @@ class BaseImageIF:
         crosshairs_dict = self.overlays_dict['crosshairs_dict']
         crosshair_names = list(crosshairs_dict.keys())
         num_crosshairs = len(crosshair_names)
-        x_ratio = nepi_utils.check_ratio(x_ratio)
-        y_ratio = nepi_utils.check_ratio(y_ratio)
         ch_name = str(num_crosshairs + 1)
         if name is not None:
             if name != '':
@@ -5408,31 +5420,38 @@ class BaseImageIF:
         crosshair_dict['color_rgb'] = color_rgb
         crosshair_dict['msg_str'] = msg_str
 
-        self.overlays_dict['crosshairs_dict'][ch_name] = crosshair_dict
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        needs_update = True
+        if ch_name in self.overlays_dict['crosshairs_dict'].keys():
+            if self.overlays_dict['crosshairs_dict'][ch_name] == crosshair_dict:
+                needs_update = False
+        if needs_update == True:
+            self.overlays_dict['crosshairs_dict'][ch_name] = crosshair_dict
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def remove_crosshair(self, name):
         """Remove entry from crosshairs overlay dict."""
         try:
             del self.overlays_dict['crosshairs_dict'][name]
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
         except:
             pass
         
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        
 
     def clear_crosshairs(self):
         """Clear all entries from crosshairs overlay dict."""
-        self.overlays_dict['crosshairs_dict'] = dict()
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if len(list(self.overlays_dict['crosshairs_dict'].keys())) > 0:
+            self.overlays_dict['crosshairs_dict'] = dict()
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
 
     ###################################
@@ -5442,13 +5461,15 @@ class BaseImageIF:
         Args:
             enabled (bool): True to show targets data, False to hide it.
         """
+        was_enabled = copy.deepcopy(self.overlays_dict['targets_enabled'])
         self.overlays_dict['targets_enabled'] = enabled
         if enabled == False:
             self.click_target_enabled = False
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if was_enabled != enabled:
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_click_target(self,enabled):
         """Enable or disable the click target enable.
@@ -5467,12 +5488,14 @@ class BaseImageIF:
         Args:
             ratio (float): Text size ratio in [0.0, 1.0].
         """
+        cur_ratio = copy.deepcopy(self.overlays_dict['targets_size_ratio'])
         ratio = nepi_utils.check_ratio(ratio)
         self.overlays_dict['targets_size_ratio'] = ratio
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if cur_ratio != ratio:
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_targets_thickness_ratio(self, ratio):
         """Set the relative thickness of targets overlays on the image.
@@ -5480,12 +5503,14 @@ class BaseImageIF:
         Args:
             ratio (float): Text thickness ratio in [0.0, 1.0].
         """
+        cur_ratio = copy.deepcopy(self.overlays_dict['targets_thickness_ratio'])
         ratio = nepi_utils.check_ratio(ratio)
         self.overlays_dict['targets_thickness_ratio'] = ratio
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if cur_ratio != ratio:
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_targets_text_ratio(self, ratio):
         """Set the relative text of targets overlays on the image.
@@ -5493,12 +5518,14 @@ class BaseImageIF:
         Args:
             ratio (float): Text text ratio in [0.0, 1.0].
         """
+        cur_ratio = copy.deepcopy(self.overlays_dict['targets_text_ratio'])
         ratio = nepi_utils.check_ratio(ratio)
         self.overlays_dict['targets_text_ratio'] = ratio
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if cur_ratio != ratio:
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def set_targets_transparency_ratio(self, ratio):
         """Set the relative size of targets overlays on the image.
@@ -5573,6 +5600,39 @@ class BaseImageIF:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
 
+    def add_target_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = ''):
+        """Append a target overlay at pixel location.
+
+        Args:
+            x pixel, y pixel, target name str.
+        """
+        targets_dict = self.overlays_dict['targets_dict']
+        target_names = list(targets_dict.keys())
+        num_targets = len(target_names)
+    
+        ch_name = str(num_targets + 1)
+        if name is not None:
+            if name != '':
+                ch_name = name
+        if color_rgb is None:
+            color_rgb = self.overlays_dict['targets_color_rgb']
+        target_dict = copy.deepcopy(self.BLANK_TARGET_DICT)
+        target_dict['x_deg_offset'] = x_deg
+        target_dict['y_deg_offset'] = y_deg
+        target_dict['color_rgb'] = color_rgb
+        target_dict['msg_str'] = msg_str
+
+        needs_update = True
+        if ch_name in self.overlays_dict['targets_dict'].keys():
+            if self.overlays_dict['targets_dict'][ch_name] == target_dict:
+                needs_update = False
+        if needs_update == True:
+            self.overlays_dict['targets_dict'][ch_name] = target_dict
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
+
 
     def add_target(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
         """Append a target overlay at pixel location.
@@ -5597,31 +5657,38 @@ class BaseImageIF:
         target_dict['color_rgb'] = color_rgb
         target_dict['msg_str'] = msg_str
 
-        self.overlays_dict['targets_dict'][ch_name] = target_dict
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        needs_update = True
+        if ch_name in self.overlays_dict['targets_dict'].keys():
+            if self.overlays_dict['targets_dict'][ch_name] == target_dict:
+                needs_update = False
+        if needs_update == True:
+            self.overlays_dict['targets_dict'][ch_name] = target_dict
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
     def remove_target(self, name):
         """Remove entry from targets overlay dict."""
         try:
             del self.overlays_dict['targets_dict'][name]
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
         except:
             pass
         
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+
 
     def clear_targets(self):
         """Clear all entries from targets overlay dict."""
-        self.overlays_dict['targets_dict'] = dict()
-        self.publish_status()
-        self.needs_update()
-        if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+        if len(list(self.overlays_dict['targets_dict'].keys())) > 0:
+            self.overlays_dict['targets_dict'] = dict()
+            self.publish_status()
+            self.needs_update()
+            if self.node_if is not None:
+                self.node_if.set_param('overlays_dict', self.overlays_dict)
 
 
 

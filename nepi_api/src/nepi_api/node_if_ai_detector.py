@@ -1912,28 +1912,28 @@ class AiDetectorIF:
         # Create Pubs and Subs IF Dict 
 
         img_pubs_dict = {
-            source_topic + '/detections_pub': {
+            'detections_pub': {
                 'msg': Detections,
                 'namespace': source_topic,
                 'topic': 'detections',
                 'qsize': 1,
                 'latch': False
             },
-            source_topic + '/detections_status_pub': {
+            'detections_status_pub': {
                 'msg': Targets,
                 'namespace': source_topic + '/detections',
                 'topic': 'status',
                 'qsize': 1,
                 'latch': False
             },
-            source_topic + '/targets_pub': {
+            'targets_pub': {
                 'msg': Targets,
                 'namespace': source_topic,
                 'topic': 'targets',
                 'qsize': 1,
                 'latch': False
             },
-            source_topic + '/targets_status_pub': {
+            'targets_status_pub': {
                 'msg': Targets,
                 'namespace': source_topic + '/targets',
                 'topic': 'status',
@@ -1943,7 +1943,7 @@ class AiDetectorIF:
         }
 
         img_subs_dict = {
-            source_topic + '/image_sub': {
+            'image_sub': {
                     'namespace': source_topic,
                     'msg': Image,
                     'topic': '',
@@ -1951,7 +1951,7 @@ class AiDetectorIF:
                     'callback': self.imageCb,
                     'callback_args': (source_topic)
             },
-            source_topic + '/status_sub': {
+            'status_sub': {
                     'namespace': source_topic,
                     'msg': ImageStatus,
                     'topic': 'status',
@@ -1972,7 +1972,7 @@ class AiDetectorIF:
             # Try and Reregister subs and pubs
             self.img_ifs_lock.acquire()
             self.img_ifs_dict[source_topic]['subs_if'].register_subs(img_subs_dict)
-            #self.img_ifs_dict[source_topic]['pubs_if'].register_pubs(img_pubs_dict)
+            self.img_ifs_dict[source_topic]['pubs_if'].register_pubs(img_pubs_dict)
             self.img_ifs_lock.release()
             self.msg_if.pub_warn('Registered : ' + source_topic +  ' ' + str(self.img_ifs_dict[source_topic]))
             # Set back to active
@@ -2095,7 +2095,7 @@ class AiDetectorIF:
             self.msg_if.pub_warn('Unregistering image topic subs for: ' + source_topic)
             self.img_ifs_lock.acquire()
             self.img_ifs_dict[source_topic]['subs_if'].unregister_subs()
-            #self.img_ifs_dict[source_topic]['pubs_if'].unregister_pubs()
+            self.img_ifs_dict[source_topic]['pubs_if'].unregister_pubs()
             self.img_ifs_lock.release()
             #Leave img pub running in case it is switched back on
         if source_topic in self.img_ifs_dict.keys():
@@ -2663,7 +2663,10 @@ class AiDetectorIF:
             # DetectionsIF; the collective 'all' fan-out stays inline.
             self.detections_if.publish_data(detections_msg, timestamp = timestamp)
             self.node_if.publish_pub('all_detections', detections_msg)
-            self.node_if.publish_pub(source_topic + '/detections_pub', detections_msg)
+            try:
+               self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('detections_pub',detections_msg)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to publish detections to source topic: " + str(e), throttle_s = 5)
 
             if det_count > 0:
                 if 'detections_trigger' in self.triggers_dict.keys():
@@ -2687,7 +2690,6 @@ class AiDetectorIF:
         #self.msg_if.pub_warn("Publisher got img_dict: " + str(img_dict))
         det_count = len(detect_dict_list)
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
-        source_topic = source_topic
         active_source_topics = copy.deepcopy(self.active_source_topics)
         if source_topic in active_source_topics:
 
@@ -2800,12 +2802,16 @@ class AiDetectorIF:
 
             targets_msg.targets = targets_msg_list
 
-            #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
+            #self.msg_if.pub_warn("Publisher targets msg " + str(targets_msg))
             # targets data product (publish + rate-gated save) is owned by
             # TargetsIF; the collective 'all' fan-out stays inline.
             self.targets_if.publish_data(targets_msg, timestamp = timestamp)
             self.node_if.publish_pub('all_targets', targets_msg)
-            self.node_if.publish_pub(source_topic + '/targets_pub', targets_msg)
+
+            try:
+               self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('targets_pub',targets_msg)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to publish targets to source topic: " + str(e), throttle_s = 5)
 
             if det_count > 0:
                 if 'targeting_trigger' in self.triggers_dict.keys():
@@ -3031,9 +3037,12 @@ class AiDetectorIF:
             for source_topic in self.imgs_info_dict.keys():
                 if self.imgs_info_dict[source_topic]['img_connected']:
                     sources_connected.append(source_topic)
-            if self.node_if is not None:
-                for source_topic in sources_connected:
-                    self.node_if.publish_pub(source_topic + '/detections_statu_pub', self.detector_status_msg)
+
+            for source_topic in sources_connected:
+                try:
+                    self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('detections_status_pub',self.detector_status_msg)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish detections status to source topic: " + str(e), throttle_s = 5)
 
 
 
@@ -3071,6 +3080,8 @@ class AiDetectorIF:
             for source_topic in self.imgs_info_dict.keys():
                 if self.imgs_info_dict[source_topic]['img_connected']:
                     sources_connected.append(source_topic)
-            if self.node_if is not None:
-                for source_topic in sources_connected:
-                    self.node_if.publish_pub(source_topic + '/detections_statu_pub', self.targeting_status_msg)
+            for source_topic in sources_connected:
+                try:
+                    self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('targets_status_pub',self.targeting_status_msg)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish targets status to source topic: " + str(e), throttle_s = 5)

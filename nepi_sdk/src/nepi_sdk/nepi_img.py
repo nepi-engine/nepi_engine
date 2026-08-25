@@ -78,7 +78,7 @@ def get_image_publisher_namespaces(name):
 #########################
 ### Misc Functions
 
-def create_cv2_blank_img(width=900, height=630, color = (255, 255, 255) ):
+def create_cv2_blank_img(width=900, height=630, color_rgb = (255, 255, 255) ):
   # Create a black image (all zeros)
   img = np.zeros((height, width, 3), dtype=np.uint8)
 
@@ -87,7 +87,8 @@ def create_cv2_blank_img(width=900, height=630, color = (255, 255, 255) ):
   radius = 100
     # White color in BGR
   thickness = -1  # Fill the circle
-  cv2.circle(img, center_coordinates, radius, color, thickness)
+  color_bgr = (color_rgb[2],color_rgb[1],color_rgb[0])
+  cv2.circle(img, center_coordinates, radius, color_bgr, thickness)
 
   # Draw a blue rectangle
   start_point = (width // 4, height // 4)
@@ -926,12 +927,12 @@ def overlay_contours(cv2_img,contours3, color_rgb = (0, 255, 0)):
     return cv2_img_out
 
 
-def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3):
+def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3, scale_ratio = 1):
     shape = cv2_img.shape
     h=shape[0]
     w=shape[1]
-    font_scale = min(w, h) * font_scale
-    thickness = math.ceil(min(w, h) * thickness_scale)
+    font_scale = min(w, h) * font_scale * scale_ratio
+    thickness = math.ceil(min(w, h) * thickness_scale * scale_ratio)
     return font_scale, thickness  
 
 def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None, thickness = None, background_rgb = None, apply_shadow = True):
@@ -1054,9 +1055,10 @@ def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0
     if thickness < 1:
        thickness = 1 
     size_ratio = nepi_utils.check_ratio(size_ratio)
-    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color_rgb, thickness)
+    color_bgr = (color_rgb[2],color_rgb[1],color_rgb[0])
+    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px + size), color_bgr, thickness)
     # Draw horizontal line
-    cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color_rgb, thickness)
+    cv2.line(cv2_img, (x_px - size, y_px), (x_px + size, y_px), color_bgr, thickness)
     if len(text_list) > 0:
         x_px = x_px
         y_padding = math.ceil((0.02 * h) + size / 2 ) 
@@ -1090,15 +1092,16 @@ def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5,
        thickness = 1 
     
     # Draw vetical lines
-    cv2.line(cv2_img, (x_px, y_px + size), (x_px, y_px + 2 * size), color_rgb, thickness)
-    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px - 2 * size), color_rgb, thickness)
+    color_bgr = (color_rgb[2],color_rgb[1],color_rgb[0])
+    cv2.line(cv2_img, (x_px, y_px + size), (x_px, y_px + 2 * size), color_bgr, thickness)
+    cv2.line(cv2_img, (x_px, y_px - size), (x_px, y_px - 2 * size), color_bgr, thickness)
     # Draw horizontal lines
-    cv2.line(cv2_img, (x_px + size, y_px), (x_px + 2 * size, y_px), color_rgb, thickness)
-    cv2.line(cv2_img, (x_px - size, y_px), (x_px - 2 * size, y_px), color_rgb, thickness)
+    cv2.line(cv2_img, (x_px + size, y_px), (x_px + 2 * size, y_px), color_bgr, thickness)
+    cv2.line(cv2_img, (x_px - size, y_px), (x_px - 2 * size, y_px), color_bgr, thickness)
     # Draw circle
     center_coordinates = (x_px, y_px)
     radius = int(size + size/2)
-    cv2.circle(cv2_img, center_coordinates, radius, color_rgb, thickness)
+    cv2.circle(cv2_img, center_coordinates, radius, color_bgr, thickness)
 
     if len(text_list) > 0:
         x_px = x_px
