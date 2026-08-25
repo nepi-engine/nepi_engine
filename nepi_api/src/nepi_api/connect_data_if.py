@@ -124,6 +124,7 @@ class ConnectDataIF(ConnectNodeIF):
                 connect_id = CONNECT_ID,
                 connect_name = CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = True,
                 connect_status_msg = CONNECT_STATUS_MSG,
                 connect_status_msg_class = CONNECT_STATUS_MSG_CLASS,
                 status_callback = None,
@@ -164,7 +165,7 @@ class ConnectDataIF(ConnectNodeIF):
                 connect_status_msg = connect_status_msg,
                 connect_name = connect_name,
                 selected_topic = namespace,
-                auto_select_enabled = True,
+                auto_select_enabled = auto_select_enabled,
                 filter_topics_list = filter_topic_list,
                 show_selector = show_selector,
                 show_controls = show_controls,
@@ -244,6 +245,7 @@ class ConnectDataIF(ConnectNodeIF):
             str: The fully-qualified namespace string used for topic and service resolution.
         """
         return self.selected_topic
+
 
     def check_connection(self):
         """Check whether the data source is currently connected.
@@ -609,6 +611,7 @@ class ConnectNavPoseIF(ConnectDataIF):
     def __init__(self,
                 connect_name = NAVPOSE_CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = False,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -646,6 +649,7 @@ class ConnectNavPoseIF(ConnectDataIF):
                 connect_id = NAVPOSE_CONNECT_ID,
                 connect_name = connect_name,
                 namespace = namespace,
+                auto_select_enabled = auto_select_enabled,
                 connect_status_msg = NAVPOSE_CONNECT_STATUS_MSG,
                 connect_status_msg_class = NAVPOSE_CONNECT_STATUS_MSG_CLASS,
                 status_callback = status_callback,
@@ -783,6 +787,7 @@ class ConnectBaseImageIF(ConnectDataIF):
     def __init__(self,
                 connect_name = BASE_IMAGE_CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = True,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -1395,6 +1400,7 @@ class ConnectBaseImageIF(ConnectDataIF):
                 connect_id = BASE_IMAGE_CONNECT_ID,
                 connect_name = connect_name,
                 namespace = namespace,
+                auto_select_enabled = auto_select_enabled,
                 connect_status_msg = BASE_IMAGE_CONNECT_STATUS_MSG,
                 connect_status_msg_class = BASE_IMAGE_CONNECT_STATUS_MSG_CLASS,
                 status_callback = status_callback,
@@ -2764,6 +2770,7 @@ class ConnectImageIF(ConnectBaseImageIF):
     def __init__(self,
                 connect_name = IMAGE_CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = True,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -2779,6 +2786,7 @@ class ConnectImageIF(ConnectBaseImageIF):
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
+                auto_select_enabled = auto_select_enabled,
                 status_callback = status_callback,
                 connect_data = connect_data,
                 data_callback = data_callback,
@@ -2815,6 +2823,7 @@ class ConnectColorImageIF(ConnectBaseImageIF):
     def __init__(self,
                 connect_name = COLOR_IMAGE_CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = True,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -2830,6 +2839,7 @@ class ConnectColorImageIF(ConnectBaseImageIF):
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
+                auto_select_enabled = auto_select_enabled,
                 status_callback = status_callback,
                 connect_data = connect_data,
                 data_callback = data_callback,
@@ -2875,6 +2885,7 @@ class ConnectDepthMapIF(ConnectDataIF):
     def __init__(self,
                 connect_name = DEPTH_MAP_CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = True,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -2891,6 +2902,7 @@ class ConnectDepthMapIF(ConnectDataIF):
                 connect_id = DEPTH_MAP_CONNECT_ID,
                 connect_name = connect_name,
                 namespace = namespace,
+                auto_select_enabled = auto_select_enabled,
                 connect_status_msg = DEPTH_MAP_CONNECT_STATUS_MSG,
                 connect_status_msg_class = DEPTH_MAP_CONNECT_STATUS_MSG_CLASS,
                 status_callback = status_callback,
@@ -3022,6 +3034,7 @@ class ConnectDepthMapImageIF(ConnectBaseImageIF):
     def __init__(self,
                 connect_name = DEPTH_MAP_IMAGE_CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = True,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -3037,6 +3050,7 @@ class ConnectDepthMapImageIF(ConnectBaseImageIF):
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
+                auto_select_enabled = auto_select_enabled,
                 status_callback = status_callback,
                 connect_data = connect_data,
                 data_callback = data_callback,
@@ -3082,6 +3096,7 @@ class ConnectPointcloudIF(ConnectDataIF):
     def __init__(self,
                 connect_name = POINTCLOUD_CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = True,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -3168,6 +3183,7 @@ class ConnectPointcloudIF(ConnectDataIF):
                 connect_id = POINTCLOUD_CONNECT_ID,
                 connect_name = connect_name,
                 namespace = namespace,
+                auto_select_enabled = auto_select_enabled,
                 connect_status_msg = POINTCLOUD_CONNECT_STATUS_MSG,
                 connect_status_msg_class = POINTCLOUD_CONNECT_STATUS_MSG_CLASS,
                 status_callback = status_callback,
@@ -3465,6 +3481,7 @@ class ConnectPointcloudImageIF(ConnectBaseImageIF):
     def __init__(self,
                 connect_name = POINTCLOUD_IMAGE_CONNECT_NAME,
                 namespace = None,
+                auto_select_enabled = True,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -3480,6 +3497,7 @@ class ConnectPointcloudImageIF(ConnectBaseImageIF):
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
+                auto_select_enabled = auto_select_enabled,
                 status_callback = status_callback,
                 connect_data = connect_data,
                 data_callback = data_callback,

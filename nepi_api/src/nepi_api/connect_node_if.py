@@ -334,7 +334,10 @@ class ConnectNodeIF:
 
     def get_available_topics(self):
         return self.available_topics
-    
+
+    def set_auto_connect_enable(self, enabled):
+        self.auto_select_enabled = enabled
+            
     def get_selected_topic(self):
         return self.selected_topic
     
