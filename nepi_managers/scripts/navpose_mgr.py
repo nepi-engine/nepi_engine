@@ -45,7 +45,7 @@ from nepi_interfaces.msg import MgrNavPoseStatus, NavPoseComponent, NavPoseSolut
 
 
 from nepi_interfaces.msg import UpdateString, UpdateFloat, UpdateFloats, UpdateBool, UpdateInt, UpdateNavPose, UpdateTransform
-from nepi_interfaces.msg import NavPose, NavPoses, NavPosesStatus
+from nepi_interfaces.msg import NavPose, NavPoses, NavPoseStatus, NavPosesStatus
 
 
 from nepi_interfaces.srv import MgrNavPoseCapabilitiesQuery, MgrNavPoseCapabilitiesQueryRequest, MgrNavPoseCapabilitiesQueryResponse
@@ -1305,6 +1305,12 @@ class NavPoseMgr(object):
                     'msg': NavPose,
                     'qsize': 1,
                 }
+                PUBS_DICT['navpose_status'] = {
+                    'namespace': namespace,
+                    'topic': 'status',
+                    'msg': NavPoseStatus,
+                    'qsize': 1,
+                }
                 for navpose_name in self.NAVPOSE_COMPONENT_NAMES:
                     PUBS_DICT[navpose_name] = {
                         'namespace': namespace,
@@ -2479,7 +2485,7 @@ class NavPoseMgr(object):
                             filename = None
                         self.navposes_filenames_dict[frame_name] = filename
                         self.navposes_save_dict[frame_name] = copy.deepcopy(navpose_solution)
-        
+
 
     def _publishStatusCb(self,timer):
         self.publish_status()
@@ -2503,6 +2509,33 @@ class NavPoseMgr(object):
             self.node_if.publish_pub('status_pub',self.status_msg)
             self.status_published = True
             self.node_if.publish_pub('navposes_status_pub',self.navposes_status_msg)
+
+
+            navpose_status_msg = NavPoseStatus()
+            navpose_status_msg.node_name = self.node_name
+            navpose_status_msg.save_data_topic = self.status_msg.save_data_topic
+            navpose_status_msg.data_source_description = 'NavPose Mgr'
+            navpose_status_msg.frame_nav = self.frame_nav
+            navpose_status_msg.frame_altitude = self.frame_alt
+            navpose_status_msg.frame_depth = self.frame_depth
+            navposes_settings_dict = copy.deepcopy(self.navposes_settings_dict)
+            for frame_name in navposes_settings_dict.keys():
+                if frame_name in self.navposes_pubs_dict.keys():
+                    navpose_status_msg.frame_name = frame_name
+                    navpose_status_msg.data_ref_description = frame_name
+                    navpose_status_msg.navpose_topic = self.base_namespace + '/navposes/' + frame_name + '/navpose'
+                    try:
+
+                        times = self.navposes_pub_times_dict[frame_name]['times']
+                        last_time = self.navposes_pub_times_dict[frame_name]['last_time']           
+                        navpose_status_msg.avg_pub_rate = sum(times) / len(times)
+                        navpose_status_msg.last_pub_sec = last_time
+                        navpose_status_msg.stats_message = ""
+                        self.navposes_pubs_dict[frame_name].publish_pub('navpose_status',navpose_status_msg)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Navpose Publishing Failed: " + str(e))
+                        pass
+        
 
 
 

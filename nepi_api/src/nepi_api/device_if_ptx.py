@@ -140,6 +140,7 @@ class PTXActuatorIF:
     speed_ratio = 0.5
     speed_pan_ratio = speed_ratio
     speed_tilt_ratio = speed_ratio
+    set_max_dps_disabled = False
     speed_max_dps = 10
 
     # Intended continuous-motion direction per motor for the standard motor
@@ -340,6 +341,7 @@ class PTXActuatorIF:
         self.setSpeedMaxCb = setSpeedMaxCb
         self.getSpeedMaxCb = getSpeedMaxCb
         if self.getSpeedMaxCb is not None:
+            self.set_max_dps_disabled = True
             self.speed_max_dps = self.getSpeedMaxCb()
 
 
@@ -1860,6 +1862,7 @@ class PTXActuatorIF:
         self.status_msg.reverse_pan_enabled = self.reverse_pan_enabled
         self.status_msg.reverse_tilt_enabled = self.reverse_tilt_enabled
 
+        self.status_msg.set_max_dps_disabled = self.set_max_dps_disabled
         self.status_msg.speed_max_dps = self.speed_max_dps
         self.status_msg.speed_ratio = self.speed_ratio
         self.status_msg.has_seperate_pan_tilt_speed = self.has_seperate_pan_tilt_speed
