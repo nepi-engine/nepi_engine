@@ -501,114 +501,111 @@ class NetworkMgr:
             #     success = self.enable_dhcp(self.dhcp_enabled)
             
 
-            # Update WiFi System
-            # self.updateWifiDevice()
-            # if self.wifi_iface is None:
-            #     self.msg_if.pub_warn("No Wifi Device Detected")
-            # else:
-            if True:
-                wifi_iface = self.nepi_config['NEPI_WIFI_INTERFACE']  
-                if wifi_iface == 'unknown' or wifi_iface == 'NONE':
-                    self.wifi_iface = None
+            wifi_iface = self.nepi_config['NEPI_WIFI_INTERFACE']  
+            if wifi_iface == 'unknown' or wifi_iface == 'NONE':
+                self.wifi_iface = None
+            else:
+                self.wifi_iface = wifi_iface
 
-                # Update WiFi Enabled settings
-                cwifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED'] == 1
-                self.wifi_enabled = cwifi_enabled and self.wifi_iface is not None
+            # Update WiFi Enabled settings
+            cwifi_enabled = self.nepi_config['NEPI_WIFI_ENABLED'] == 1
+            self.wifi_enabled = cwifi_enabled and self.wifi_iface is not None
 
 
-                # Stop WiFi updates if not enabled
-                if self.wifi_enabled == False:
-                    self.msg_if.pub_warn("WiFi Not Enabled")
-                else:
-                    # Update WiFi Low Power settings
-                    nlow_power_enabled = False #self.node_if.get_param('wifi_low_power_enabled')
-                    low_power_enabled = copy.deepcopy(nlow_power_enabled)
-                    clow_power_enabled = self.nepi_config['NEPI_WIFI_LOW_POWER_ENABLED'] == 1
-                    self.low_power_enabled = nlow_power_enabled or clow_power_enabled
-                    # if self.low_power_enabled != nlow_power_enabled:
-                    #     self.enable_wifi_low_power(self.low_power_enabled)
-                    #     self.node_if.set_param('low_power_enabled',self.low_power_enabled)    
+            # Stop WiFi updates if not enabled
+            if self.wifi_enabled == True:
 
-                    # Update WiFi Client settings
-                    nclient_enabled = False #self.node_if.get_param('wifi_client_enabled')
-                    client_enabled = copy.deepcopy(nclient_enabled)
-                    cclient_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
-                    self.wifi_client_enabled = nclient_enabled or cclient_enabled
+                # Update WiFi Low Power settings
+                nlow_power_enabled = False #self.node_if.get_param('wifi_low_power_enabled')
+                low_power_enabled = copy.deepcopy(nlow_power_enabled)
+                clow_power_enabled = self.nepi_config['NEPI_WIFI_LOW_POWER_ENABLED'] == 1
+                self.low_power_enabled = nlow_power_enabled or clow_power_enabled
+                # if self.low_power_enabled != nlow_power_enabled:
+                #     self.enable_wifi_low_power(self.low_power_enabled)
+                #     self.node_if.set_param('low_power_enabled',self.low_power_enabled)    
 
-
-                    # if self.wifi_client_enabled != nclient_enabled:
-                    #     self.node_if.set_param('wifi_client_enabled',self.wifi_client_enabled)    
-                    # if self.wifi_client_enabled == True: 
-                    #     self.msg_if.pub_warn("Initializing WiFi Client with NONE")
-                    #     self.wifi_client_passphrase = 'NONE'
-                    #     self.wifi_client_ssid = 'NONE'
-                    #     self.enable_wifi_client(self.wifi_client_enabled)
-                    
-                    nwifi_client_ssid = 'NONE' #self.node_if.get_param('wifi_client_ssid')
-                    cwifi_client_ssid = self.nepi_config['NEPI_WIFI_CLIENT_ID']
-                    if nwifi_client_ssid == 'NONE' or nwifi_client_ssid == '' or nwifi_client_ssid is None:
-                        nwifi_client_ssid=cwifi_client_ssid
-                    if nwifi_client_ssid == '' or nwifi_client_ssid is None:
-                        nwifi_client_ssid='NONE'
-                    self.wifi_client_ssid = nwifi_client_ssid
-                    
-                    nwifi_client_passphrase = 'NONE' #self.node_if.get_param('wifi_client_passphrase')
-                    cwifi_client_passphrase = self.nepi_config['NEPI_WIFI_CLIENT_PW']
-                    if nwifi_client_passphrase == 'NONE' or nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
-                        nwifi_client_passphrase=cwifi_client_passphrase
-                    if nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
-                        nwifi_client_passphrase='NONE'
-                    self.wifi_client_passphrase = nwifi_client_passphrase
-                    
+                # Update WiFi Client settings
+                nclient_enabled = False #self.node_if.get_param('wifi_client_enabled')
+                client_enabled = copy.deepcopy(nclient_enabled)
+                cclient_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
+                self.wifi_client_enabled = nclient_enabled or cclient_enabled
 
 
-
-                    self.msg_if.pub_warn("Starting Init with Wifi Client Enabled: " + str(self.wifi_client_enabled))
-                    self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
-                    self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))
-
-                    
-
-                    
-                    # Update WiFi Access Point settings
-                    nap_enabled = False #self.node_if.get_param('wifi_ap_enabled')
-                    cap_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
-                    self.ap_enabled = nap_enabled or cap_enabled
-
-                           
-                    nwifi_ap_ssid = 'NONE' #self.node_if.get_param('wifi_ap_ssid')
-                    cwifi_ap_ssid = 'NONE'
-                    try:
-                        cwifi_ap_ssid = self.nepi_config['NEPI_HOTSPOT_ID']
-                    except:
-                        pass
-                    if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '' or nwifi_ap_ssid is None:
-                        nwifi_ap_ssid=cwifi_ap_ssid
-                    if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '' or nwifi_ap_ssid is None:
-                        nwifi_ap_ssid='nepi_device_ap'
-                    self.wifi_ap_ssid = nwifi_ap_ssid
-                    
-                    nwifi_ap_passphrase = 'NONE' # self.node_if.get_param('wifi_ap_passphrase')
-                    cwifi_ap_passphrase = 'NONE'
-                    try:
-                        cwifi_ap_passphrase = self.nepi_config['NEPI_HOTSPOT_PW']
-                    except:
-                        pass                    
-                    if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
-                        nwifi_ap_passphrase=cwifi_ap_passphrase
-                    if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
-                        nwifi_ap_passphrase='nepi_device_ap'
-                    self.wifi_ap_passphrase = nwifi_ap_passphrase
-
-                    # if self.ap_enabled != nap_enabled:
-                    #     self.node_if.set_param('wifi_ap_enabled',self.wifi_ap_enabled)       
-                    # if self.wifi_ap_enabled == True: 
-                    #     self.enable_wifi_access_point(self.wifi_ap_enabled)
-
-                    self.msg_if.pub_warn("Starting Init with Wifi AP Enabled: " + str(self.wifi_ap_enabled))
-                    self.msg_if.pub_warn("Starting Init with Wifi AP ssid: " + str(self.wifi_ap_ssid))
-                    self.msg_if.pub_warn("Starting Init with Wifi AP password: " + str(self.wifi_ap_passphrase))
+                # if self.wifi_client_enabled != nclient_enabled:
+                #     self.node_if.set_param('wifi_client_enabled',self.wifi_client_enabled)    
+                # if self.wifi_client_enabled == True: 
+                #     self.msg_if.pub_warn("Initializing WiFi Client with NONE")
+                #     self.wifi_client_passphrase = 'NONE'
+                #     self.wifi_client_ssid = 'NONE'
+                #     self.enable_wifi_client(self.wifi_client_enabled)
                 
+                nwifi_client_ssid = 'NONE' #self.node_if.get_param('wifi_client_ssid')
+                cwifi_client_ssid = self.nepi_config['NEPI_WIFI_CLIENT_ID']
+                if nwifi_client_ssid == 'NONE' or nwifi_client_ssid == '' or nwifi_client_ssid is None:
+                    nwifi_client_ssid=cwifi_client_ssid
+                if nwifi_client_ssid == '' or nwifi_client_ssid is None:
+                    nwifi_client_ssid='NONE'
+                self.wifi_client_ssid = nwifi_client_ssid
+                
+                nwifi_client_passphrase = 'NONE' #self.node_if.get_param('wifi_client_passphrase')
+                cwifi_client_passphrase = self.nepi_config['NEPI_WIFI_CLIENT_PW']
+                if nwifi_client_passphrase == 'NONE' or nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
+                    nwifi_client_passphrase=cwifi_client_passphrase
+                if nwifi_client_passphrase == '' or nwifi_client_passphrase is None:
+                    nwifi_client_passphrase='NONE'
+                self.wifi_client_passphrase = nwifi_client_passphrase
+                    
+
+
+
+                
+                # Update WiFi Access Point settings
+                nap_enabled = False #self.node_if.get_param('wifi_ap_enabled')
+                cap_enabled = self.nepi_config['NEPI_WIFI_CLIENT_ENABLED'] == 1
+                self.ap_enabled = nap_enabled or cap_enabled
+
+                        
+                nwifi_ap_ssid = 'NONE' #self.node_if.get_param('wifi_ap_ssid')
+                cwifi_ap_ssid = 'NONE'
+                try:
+                    cwifi_ap_ssid = self.nepi_config['NEPI_HOTSPOT_ID']
+                except:
+                    pass
+                if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '' or nwifi_ap_ssid is None:
+                    nwifi_ap_ssid=cwifi_ap_ssid
+                if nwifi_ap_ssid == 'NONE' or nwifi_ap_ssid == '' or nwifi_ap_ssid is None:
+                    nwifi_ap_ssid='nepi_device_ap'
+                self.wifi_ap_ssid = nwifi_ap_ssid
+                
+                nwifi_ap_passphrase = 'NONE' # self.node_if.get_param('wifi_ap_passphrase')
+                cwifi_ap_passphrase = 'NONE'
+                try:
+                    cwifi_ap_passphrase = self.nepi_config['NEPI_HOTSPOT_PW']
+                except:
+                    pass                    
+                if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
+                    nwifi_ap_passphrase=cwifi_ap_passphrase
+                if nwifi_ap_passphrase == 'NONE' or nwifi_ap_passphrase == '' or nwifi_ap_passphrase is None:
+                    nwifi_ap_passphrase='nepi_device_ap'
+                self.wifi_ap_passphrase = nwifi_ap_passphrase
+
+                # if self.ap_enabled != nap_enabled:
+                #     self.node_if.set_param('wifi_ap_enabled',self.wifi_ap_enabled)       
+                # if self.wifi_ap_enabled == True: 
+                #     self.enable_wifi_access_point(self.wifi_ap_enabled)
+
+
+            self.msg_if.pub_warn("Starting Init with Wifi Iface: " + str(self.wifi_iface))
+            self.msg_if.pub_warn("Starting Init with Wifi Enabled: " + str(self.wifi_enabled))
+
+            self.msg_if.pub_warn("Starting Init with Wifi Client Enabled: " + str(self.wifi_client_enabled))
+            self.msg_if.pub_warn("Starting Init with Wifi Client ssid: " + str(self.wifi_client_ssid))
+            self.msg_if.pub_warn("Starting Init with Wifi Client password: " + str(self.wifi_client_passphrase))
+
+            self.msg_if.pub_warn("Starting Init with Wifi AP Enabled: " + str(self.wifi_ap_enabled))
+            self.msg_if.pub_warn("Starting Init with Wifi AP ssid: " + str(self.wifi_ap_ssid))
+            self.msg_if.pub_warn("Starting Init with Wifi AP password: " + str(self.wifi_ap_passphrase))
+            
 
             
 
