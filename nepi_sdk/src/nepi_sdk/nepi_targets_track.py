@@ -30,7 +30,17 @@ from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_obstacles"
 logger = Logger(log_name = log_name)
 
-
+BLANK_SETTINGS_DICT = {
+    'targets_topic': 'None',
+    'source_topic': 'None',
+    'class_filters': [],
+    'size_min_filter': 0.01,
+    'size_max_filter': 0.99,
+    'range_min_filter': 0.01,
+    'range_max_filter': 1000,
+    'threshold_filter': 0.01,
+    'best_filter': 'LARGEST'
+}
 ########################
 ## Library Data
 
