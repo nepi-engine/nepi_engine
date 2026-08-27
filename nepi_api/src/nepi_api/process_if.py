@@ -231,63 +231,63 @@ class ProcessIF:
         self.process_node_subs_dict = {
              self.node_if_prefix + 'set_selection_control_value': {
                 'msg': UpdateString,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_selection_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_selections_control_value': {
                 'msg': UpdateStringArray,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_selections_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_int_control_value': {
                 'msg': UpdateInt,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_int_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_float_control_value': {
                 'msg': UpdateFloat,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_float_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_floatslider_control_value': {
                 'msg': UpdateFloat,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_floatslider_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_floatsliders_control_value': {
                 'msg': UpdateRangeWindow,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_floatsliders_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_trigger_control_value': {
                 'msg': UpdateTrigger,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_trigger_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_bool_control_value': {
                 'msg': UpdateBool,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_bool_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_string_control_value': {
                 'msg': UpdateString,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_string_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
@@ -609,7 +609,7 @@ class ProcessIF:
         status_msg.description = self.process_name
 
         status_msg.node_name = self.node_name
-        status_msg.namespace = self.namespace
+        status_msg.namespace = self.process_namespace
 
 
         if self.process_data_dict is not None:
@@ -655,7 +655,7 @@ class ProcessIF:
         else:
             self.unregister_pubs()
         time.sleep(1)
-        self.namespace = None
+        self.process_namespace = None
 
     def init(self, do_updates = False):
         """Initialize or re-initialize interface state and publish status.
