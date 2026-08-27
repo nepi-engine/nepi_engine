@@ -624,7 +624,7 @@ class ProcessIF:
         if self.process_controls_dict is not None:
             status_msg.has_process_controls = True
             process_controls_dict = copy.deepcopy(self.process_controls_dict)
-            self.process_controls_msg = nepi_controls.update_status_msg(self.process_controls_msg, process_controls_dict, self.controls_hidden)
+            self.process_controls_msg = nepi_controls.update_status_msg(self.process_controls_msg, process_controls_dict)
             status_msg.process_controls = self.process_controls_msg
             status_msg.show_controls = self.show_controls
 
