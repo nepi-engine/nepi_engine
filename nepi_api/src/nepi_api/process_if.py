@@ -615,7 +615,7 @@ class ProcessIF:
         if self.process_data_dict is not None:
             status_msg.has_process_data = True
             process_data_dict = copy.deepcopy(self.process_data_dict)
-            self.process_data_msg = nepi_data.update_status_msg(self.process_data_msg, process_data_dict, self.data_hidden)
+            self.process_data_msg = nepi_data.update_status_msg(self.process_data_msg, process_data_dict)
             status_msg.process_data = self.process_data_msg
             status_msg.show_data = self.show_data
 
