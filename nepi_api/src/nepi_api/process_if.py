@@ -197,7 +197,7 @@ class ProcessIF:
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
             'init_configs': True,
-            'namespace': self.namespace
+            'namespace': self.process_namespace
         }
 
         # Params Config Dict ####################
