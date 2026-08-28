@@ -1846,8 +1846,6 @@ class BaseImageIF:
     )
 
     BLANK_CROSSHAIR_DICT = dict(
-        x_ratio = 0.5,
-        y_ratio = 0.5,
         x_deg_offset = 0,
         y_deg_offset = 0,
         color_rgb = (0,255,0),
@@ -1855,8 +1853,6 @@ class BaseImageIF:
     )
 
     BLANK_TARGET_DICT = dict(
-        x_ratio = 0.5,
-        y_ratio = 0.5,
         x_deg_offset = 0,
         y_deg_offset = 0,
         color_rgb = (0,255,0),
@@ -4194,13 +4190,13 @@ class BaseImageIF:
         
 
 
-                                x_deg_offset = crosshair_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
-                                x_ratio = ((self.width_deg/2) + x_deg_offset)/self.width_deg
-                                x_offset_ratio = -1 * (0.5 - x_ratio)
+                                x_deg_offset = crosshair_dict['x_deg_offset'] 
+                                x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
+                                x_offset_ratio = (x_ratio - 0.5)
                                 x_scale = (self.width_proc/self.width_org)
                                 x_offset_pixel = int((x_offset_ratio * self.width_org))
                                 x_pixel = int((self.width_proc/2) + x_offset_pixel)
-                                #self.msg_if.pub_warn("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
+                                #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
                                 y_deg_offset = crosshair_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
@@ -4209,7 +4205,7 @@ class BaseImageIF:
                                 y_scale = (self.height_proc/self.height_org)
                                 y_offset_pixel = int((y_offset_ratio * self.height_org))
                                 y_pixel = int((self.height_proc/2) + y_offset_pixel)
-                                #self.msg_if.pub_warn("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
+                                #self.msg_if.pub_warn("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
                                 crosshair_rbg = crosshair_dict['color_rgb']
@@ -4254,12 +4250,12 @@ class BaseImageIF:
         
 
                                 x_deg_offset = target_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
-                                x_ratio = ((self.width_deg/2) + x_deg_offset)/self.width_deg
-                                x_offset_ratio = -1 * (0.5 - x_ratio)
+                                x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
+                                x_offset_ratio = (x_ratio - 0.5)
                                 x_scale = (self.width_proc/self.width_org)
                                 x_offset_pixel = int((x_offset_ratio * self.width_org))
                                 x_pixel = int((self.width_proc/2) + x_offset_pixel)
-                                #self.msg_if.pub_warn("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
+                                #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
                                 y_deg_offset = target_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
@@ -4268,7 +4264,7 @@ class BaseImageIF:
                                 y_scale = (self.height_proc/self.height_org)
                                 y_offset_pixel = int((y_offset_ratio * self.height_org))
                                 y_pixel = int((self.height_proc/2) + y_offset_pixel)
-                                #self.msg_if.pub_warn("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
+                                #self.msg_if.pub_warn("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
                                 target_rbg = target_dict['color_rgb']
@@ -5363,40 +5359,31 @@ class BaseImageIF:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
 
-
-    def add_crosshair(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
+    def add_crosshair_pixels(self, x_pixel, y_pixel, name = None, color_rgb = None, msg_str = ''):
         """Append a crosshair overlay at pixel location.
 
         Args:
             x pixel, y pixel, crosshair name str.
         """
-        crosshairs_dict = self.overlays_dict['crosshairs_dict']
-        crosshair_names = list(crosshairs_dict.keys())
-        num_crosshairs = len(crosshair_names)
+        x_ratio = float(x_pixel / self.width_org) 
+        y_ratio = float(y_pixel / self.height_org)
+        x_deg =  -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
+        y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
+        self.add_crosshair_degs(x_deg, y_deg, name, color_rgb, msg_str)
+
+
+    def add_crosshair_ratios(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
+        """Append a crosshair overlay at pixel location.
+
+        Args:
+            x pixel, y pixel, crosshair name str.
+        """
         x_ratio = nepi_utils.check_ratio(x_ratio)
         y_ratio = nepi_utils.check_ratio(y_ratio)
-        ch_name = str(num_crosshairs + 1)
-        if name is not None:
-            if name != '':
-                ch_name = name
-        if color_rgb is None:
-            color_rgb = self.overlays_dict['crosshairs_color_rgb']
-        crosshair_dict = copy.deepcopy(self.BLANK_CROSSHAIR_DICT)
-        crosshair_dict['x_deg_offset'] = round(  ((x_ratio - 0.5) * self.width_deg),1)
-        crosshair_dict['y_deg_offset'] = round(  ((y_ratio - 0.5) * self.height_deg),1)  
-        crosshair_dict['color_rgb'] = color_rgb
-        crosshair_dict['msg_str'] = msg_str
-
-        needs_update = True
-        if ch_name in self.overlays_dict['crosshairs_dict'].keys():
-            if self.overlays_dict['crosshairs_dict'][ch_name] == crosshair_dict:
-                needs_update = False
-        if needs_update == True:
-            self.overlays_dict['crosshairs_dict'][ch_name] = crosshair_dict
-            self.publish_status()
-            self.needs_update()
-            if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+        x_deg = -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
+        y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
+        # self.msg_if.pub_info("Adding Crosshair ratio to degs: " + str([x_ratio,x_deg,y_ratio,y_deg]), log_name_list = self.log_name_list)
+        self.add_crosshair_degs(x_deg, y_deg, name, color_rgb, msg_str)
 
 
     def add_crosshair_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = ''):
@@ -5419,7 +5406,7 @@ class BaseImageIF:
         crosshair_dict['y_deg_offset'] = y_deg
         crosshair_dict['color_rgb'] = color_rgb
         crosshair_dict['msg_str'] = msg_str
-
+        self.msg_if.pub_info("Adding Crosshair: " + str(crosshair_dict), log_name_list = self.log_name_list)
         needs_update = True
         if ch_name in self.overlays_dict['crosshairs_dict'].keys():
             if self.overlays_dict['crosshairs_dict'][ch_name] == crosshair_dict:
@@ -5600,63 +5587,53 @@ class BaseImageIF:
             self.node_if.set_param('overlays_dict', self.overlays_dict)
 
 
-    def add_target_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = ''):
+    def add_target_pixels(self, x_pixel, y_pixel, name = None, color_rgb = None, msg_str = ''):
         """Append a target overlay at pixel location.
 
         Args:
             x pixel, y pixel, target name str.
         """
+        x_ratio = float(x_pixel / self.width_org) 
+        y_ratio = float(y_pixel / self.height_org)
+        x_deg =  -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
+        y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
+        self.add_target_degs(x_deg, y_deg, name, color_rgb, msg_str)
+
+
+    def add_target_ratios(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
+        """Append a target overlay at pixel location.
+
+        Args:
+            x pixel, y pixel, target name str.
+        """
+        x_ratio = nepi_utils.check_ratio(x_ratio)
+        y_ratio = nepi_utils.check_ratio(y_ratio)
+        x_deg =  -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
+        y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
+        self.add_target_degs(x_deg, y_deg, name, color_rgb, msg_str)
+
+
+    def add_target_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = ''):
+        """Append a target overlay at degs offset location.
+
+        Args:
+            x deg, y deg, target name str.
+        """
         targets_dict = self.overlays_dict['targets_dict']
         target_names = list(targets_dict.keys())
         num_targets = len(target_names)
-    
         ch_name = str(num_targets + 1)
         if name is not None:
             if name != '':
                 ch_name = name
         if color_rgb is None:
             color_rgb = self.overlays_dict['targets_color_rgb']
-        target_dict = copy.deepcopy(self.BLANK_TARGET_DICT)
+        target_dict = copy.deepcopy(self.BLANK_CROSSHAIR_DICT)
         target_dict['x_deg_offset'] = x_deg
         target_dict['y_deg_offset'] = y_deg
         target_dict['color_rgb'] = color_rgb
         target_dict['msg_str'] = msg_str
-
-        needs_update = True
-        if ch_name in self.overlays_dict['targets_dict'].keys():
-            if self.overlays_dict['targets_dict'][ch_name] == target_dict:
-                needs_update = False
-        if needs_update == True:
-            self.overlays_dict['targets_dict'][ch_name] = target_dict
-            self.publish_status()
-            self.needs_update()
-            if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
-
-
-    def add_target(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
-        """Append a target overlay at pixel location.
-
-        Args:
-            x pixel, y pixel, target name str.
-        """
-        targets_dict = self.overlays_dict['targets_dict']
-        target_names = list(targets_dict.keys())
-        num_targets = len(target_names)
-        x_ratio = nepi_utils.check_ratio(x_ratio)
-        y_ratio = nepi_utils.check_ratio(y_ratio)
-        ch_name = str(num_targets + 1)
-        if name is not None:
-            if name != '':
-                ch_name = name
-        if color_rgb is None:
-            color_rgb = self.overlays_dict['targets_color_rgb']
-        target_dict = copy.deepcopy(self.BLANK_TARGET_DICT)
-        target_dict['x_deg_offset'] = round( ((x_ratio - 0.5) * self.width_deg),1)
-        target_dict['y_deg_offset'] = round( ((y_ratio - 0.5) * self.height_deg),1)   
-        target_dict['color_rgb'] = color_rgb
-        target_dict['msg_str'] = msg_str
-
+        self.msg_if.pub_info("Adding Target: " + str(target_dict), log_name_list = self.log_name_list)
         needs_update = True
         if ch_name in self.overlays_dict['targets_dict'].keys():
             if self.overlays_dict['targets_dict'][ch_name] == target_dict:
@@ -5995,8 +5972,8 @@ class BaseImageIF:
                 try:
 
                     x_deg_offset = crosshair_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
-                    x_ratio = ((self.width_deg/2) + x_deg_offset)/self.width_deg
-                    x_offset_ratio = -1 * (0.5 - x_ratio)
+                    x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
+                    x_offset_ratio = (0.5 - x_ratio)
                     x_scale = (self.width_proc/self.width_org)
                     x_offset_pixel = int((x_offset_ratio * self.width_org))
                     x_pixel = int((self.width_proc/2) + x_offset_pixel)
@@ -6061,8 +6038,8 @@ class BaseImageIF:
                 try:
 
                     x_deg_offset = target_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
-                    x_ratio = ((self.width_deg/2) + x_deg_offset)/self.width_deg
-                    x_offset_ratio = -1 * (0.5 - x_ratio)
+                    x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
+                    x_offset_ratio = (0.5 - x_ratio)
                     x_scale = (self.width_proc/self.width_org)
                     x_offset_pixel = int((x_offset_ratio * self.width_org))
                     x_pixel = int((self.width_proc/2) + x_offset_pixel)
@@ -6470,12 +6447,12 @@ class BaseImageIF:
                             if self.zoom_ratio < 0.01:
                                 click_color_rgb = self.overlays_dict['crosshairs_color_rgb']
                                 click_name = 'click'
-                                self.add_crosshair(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
+                                self.add_crosshair_ratios(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
             elif self.click_target_enabled == True and click_count == 1:
                             if self.zoom_ratio < 0.01:
                                 click_color_rgb = self.overlays_dict['targets_color_rgb']
                                 click_name = 'click'
-                                self.add_target(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
+                                self.add_target_ratios(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
             else:
                     if click_count == 1:
                         #self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
@@ -6885,6 +6862,8 @@ class BaseImageIF:
 
     def _addCrosshairPixelCb(self,msg):
         name = msg.name
+        if name != '':
+            name = 'Crosshair'
         x_px = msg.x_pixel
         x_ratio = nepi_utils.check_ratio(x_px/self.width_org)
         y_px = msg.y_pixel
@@ -6894,10 +6873,12 @@ class BaseImageIF:
         b = msg.b
         msg_str = msg.msg_str
         #self.click_crosshair_enabled = False
-        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_crosshair_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
     def _addCrosshairRatiosCb(self,msg):
         name = msg.name
+        if name != '':
+            name = 'Crosshair'
         x_ratio = msg.x_ratio
         y_ratio = msg.y_ratio
         r = msg.r
@@ -6905,26 +6886,23 @@ class BaseImageIF:
         b = msg.b
         msg_str = msg.msg_str
         #self.click_crosshair_enabled = False
-        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_crosshair_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
 
     def _addCrosshairDegreesCb(self,msg):
+        self.msg_if.pub_info("Got Add Crosshair Msg: " + str(msg), log_name_list = self.log_name_list)
         name = msg.name
-        x_deg_offset = msg.x_offset_deg
-        x_ratio = ((self.width_deg/2) - x_deg_offset) / self.width_deg
-        x_ratio = nepi_utils.check_ratio(x_ratio)
-
-        y_deg_offset = msg.y_offset_deg
-        y_ratio = ((self.height_deg/2) + y_deg_offset) / self.height_deg
-        y_ratio = nepi_utils.check_ratio(y_ratio)
-
+        if name != '':
+            name = 'Crosshair'
+        x_deg = msg.x_offset_deg
+        y_deg = msg.y_offset_deg
+       
         r = msg.r
         g = msg.g
         b = msg.b
         msg_str = msg.msg_str
         #self.click_crosshair_enabled = False
-        #self.msg_if.pub_info("Adding crosshair: " + str([name,x_ratio,y_ratio]), log_name_list = self.log_name_list)
-        self.add_crosshair(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_crosshair_degs(x_deg, y_deg, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
     def _removeCrosshairCb(self,msg):
         name = msg.data
@@ -6991,6 +6969,8 @@ class BaseImageIF:
 
     def _addTargetPixelCb(self,msg):
         name = msg.name
+        if name != '':
+            name = 'Target'
         x_px = msg.x_pixel
         x_ratio = nepi_utils.check_ratio(x_px/self.width_org)
         y_px = msg.y_pixel
@@ -7000,10 +6980,12 @@ class BaseImageIF:
         b = msg.b
         msg_str = msg.msg_str
         #self.click_target_enabled = False
-        self.add_target(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_target_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
     def _addTargetRatiosCb(self,msg):
         name = msg.name
+        if name != '':
+            name = 'Target'
         x_ratio = msg.x_ratio
         y_ratio = msg.y_ratio
         r = msg.r
@@ -7011,23 +6993,23 @@ class BaseImageIF:
         b = msg.b
         msg_str = msg.msg_str
         #self.click_target_enabled = False
-        self.add_target(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_target_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
 
     def _addTargetDegreesCb(self,msg):
+        self.msg_if.pub_info("Got Add Target Msg: " + str(msg), log_name_list = self.log_name_list)
         name = msg.name
-        x_deg_offset = msg.x_offset_deg
-        x_ratio = ((self.width_deg/2) - x_deg_offset) / self.width_deg
-        x_ratio = nepi_utils.check_ratio(x_ratio)
-        y_deg_offset = msg.y_offset_deg
-        y_ratio = ((self.height_deg/2) + y_deg_offset) / self.height_deg
-        y_ratio = nepi_utils.check_ratio(y_ratio)
+        if name != '':
+            name = 'Target'
+        x_deg = msg.x_offset_deg
+        y_deg = msg.y_offset_deg
+       
         r = msg.r
         g = msg.g
         b = msg.b
         msg_str = msg.msg_str
         #self.click_target_enabled = False
-        self.add_target(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_target_degs(x_deg, y_deg, name = name, color_rgb = (r,g,b), msg_str = msg_str)
 
     def _removeTargetCb(self,msg):
         name = msg.data

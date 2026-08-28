@@ -895,7 +895,8 @@ class NodePublishersIF:
                     if print_msg == True:
                         self.msg_if.pub_warn("Added Pub: " + pub_name, log_name_list = self.log_name_list)
             else:
-                self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name, log_name_list = self.log_name_list) 
+                #self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name, log_name_list = self.log_name_list) 
+                pass
 
 
     def _unregisterPub(self, pub_name):
