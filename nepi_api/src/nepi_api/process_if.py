@@ -93,6 +93,41 @@ class ProcessIF:
     max_process_rate_hz = 10
     process_ready = False
 
+    # Resolved process namespace. Every pub, sub and param this IF registers
+    # hangs off it, and it is what ProcessStatus.namespace reports -- the RUI's
+    # Nepi_IF_ConnectProcess matches incoming status on this field, so it has to
+    # be the same string the RUI subscribed with.
+    namespace = ''
+
+    # Run state. enabled is the operator's request, running is what the owning
+    # node reports back after acting on it. They are deliberately separate: an
+    # enabled process whose sources drop out is enabled and not running.
+    has_enable = False
+    enabled = False
+    running = False
+    state = False
+    msg_str = ''
+
+    enable_callback = None
+    controls_updated_callback = None
+    data_updated_callback = None
+
+    # Source management is not implemented on this IF yet. The fields are
+    # reported as empty rather than left undefined so publish_status() and the
+    # check_connection() helpers cannot raise.
+    manages_sources = False
+    available_sources = []
+    selected_sources = []
+    sources_connected = False
+    sources_connected_topics = []
+
+    controls_hidden = False
+    data_hidden = False
+
+    status_pub_rate_hz = 1.0
+    last_pub_time = None
+    time_list = [1.0] * 10
+
     active_nodes = []
     active_topics = []
     active_topic_types =  []
@@ -127,6 +162,12 @@ class ProcessIF:
                 process_status_msg = None,
                 show_controls = True,
                 show_data = True,
+                has_enable = False,
+                enabled = False,
+                enableCb = None,
+                controlsUpdatedCb = None,
+                dataUpdatedCb = None,
+                status_pub_rate_hz = 1.0,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -160,6 +201,12 @@ class ProcessIF:
             return
         self.msg_if.pub_info("Using Process Name: " + self.process_name)
         self.process_namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
+        # namespace is the name the rest of this class registers and reports
+        # against; process_namespace is kept as the historical accessor.
+        self.namespace = self.process_namespace
+        # Registry keys on a shared node_if must be domain-unique, so every key
+        # this IF adds carries the process name. Param wire names ARE
+        # namespace + key, so the prefix is part of the external param surface.
         self.node_if_prefix = self.process_name + '_'
 
        
@@ -170,21 +217,44 @@ class ProcessIF:
         self.process_description = str(process_description)
         # Check Process Status Msg Type
 
+        self.has_enable = (has_enable == True)
+        self.enabled = (enabled == True)
+        self.enable_callback = enableCb
+        self.controls_updated_callback = controlsUpdatedCb
+        self.data_updated_callback = dataUpdatedCb
+        if status_pub_rate_hz is not None and status_pub_rate_hz > 0.0:
+            self.status_pub_rate_hz = float(status_pub_rate_hz)
+
+        # The caller passes an init dict (the nepi_controls / nepi_data authoring
+        # form). Every accessor below and update_status_msg() operate on the
+        # created form, so the conversion happens once, here.
         if process_controls_dict is None:
-            process_controls_dict = dict()
+            self.process_controls_dict = dict()
+            self.has_process_controls = False
             show_controls = False
         else:
-            has_process_data = True
-        self.process_controls_dict = copy.deepcopy(process_controls_dict)
+            self.process_controls_dict = nepi_controls.create_controls_dict(
+                                            copy.deepcopy(process_controls_dict))
+            self.has_process_controls = len(self.process_controls_dict.keys()) > 0
         self.show_controls = show_controls
+        self.process_controls_msg = nepi_controls.create_status_msg(
+                                        name = self.process_name,
+                                        description = self.process_description,
+                                        show_controls = self.show_controls)
 
         if process_data_dict is None:
-            process_data_dict = dict()
+            self.process_data_dict = dict()
+            self.has_process_data = False
             show_data = False
         else:
-            has_process_data = True
-        self.process_data_dict = copy.deepcopy(process_data_dict)
+            self.process_data_dict = nepi_data.create_data_dict(
+                                            copy.deepcopy(process_data_dict))
+            self.has_process_data = len(self.process_data_dict.keys()) > 0
         self.show_data = show_data
+        self.process_data_msg = nepi_data.create_status_msg(
+                                        name = self.process_name,
+                                        description = self.process_description,
+                                        show_data = self.show_data)
 
                    
         ##############################   
@@ -204,8 +274,9 @@ class ProcessIF:
         # Persist the selected topic under the connect namespace so the
         # selection survives node restarts (via the config manager). Passing a
         # params_dict is what enables config management on NodeClassIF.
+        self.controls_param_name = self.node_if_prefix + 'process_controls_dict'
         PARAMS_DICT = {
-            self.node_if_prefix + 'process_controls_dict': {
+            self.controls_param_name: {
                 'namespace': self.process_namespace,
                 'factory_val': self.process_controls_dict
             }
@@ -216,19 +287,41 @@ class ProcessIF:
         self.process_node_pubs_dict = dict()
 
 
-        if process_status_msg is not None:
-            self.process_status_msg = process_status_msg
-            self.process_node_pubs_dict[self.node_if_prefix + 'status_pub'] = {
-                'namespace': self.process_namespace,
-                'topic': 'status',
-                'msg': self.process_status_msg,
-                'qsize': 1,
-                'latch': True
-            }
+        # The status publisher is unconditional. Nepi_IF_ConnectProcess renders
+        # nothing at all until a ProcessStatus arrives, so a process with no
+        # custom status message still has to publish the generic one.
+        if process_status_msg is None:
+            process_status_msg = ProcessStatus
+        self.process_status_msg = process_status_msg
+        self.process_node_pubs_dict[self.node_if_prefix + 'status_pub'] = {
+            'namespace': self.process_namespace,
+            'topic': 'status',
+            'msg': self.process_status_msg,
+            'qsize': 1,
+            'latch': True
+        }
 
 
         # Subscribers Config Dict ####################
+        # The full command surface registers here, once, regardless of
+        # has_enable or of whether the process has controls. set_enable is
+        # guarded inside its callback instead, so which topics exist never
+        # depends on run state.
         self.process_node_subs_dict = {
+             self.node_if_prefix + 'set_enable': {
+                'msg': Bool,
+                'namespace': self.namespace,
+                'topic': 'set_enable',
+                'qsize': 1,
+                'callback': self._setEnableCb
+            },
+             self.node_if_prefix + 'set_menu_control_value': {
+                'msg': UpdateInt,
+                'namespace': self.namespace,
+                'topic': 'set_menu_control_value',
+                'qsize': 5,
+                'callback': self._setValueCb
+            },
              self.node_if_prefix + 'set_selection_control_value': {
                 'msg': UpdateString,
                 'namespace': self.namespace,
@@ -314,8 +407,10 @@ class ProcessIF:
                 self.node_if = node_if
                 self.node_if.register_pubs(self.process_node_pubs_dict)
                 self.node_if.register_subs(self.process_node_subs_dict)
-                # Register the persisted selection param on the shared node_if too.
-                self.node_if.add_param('selected_sources', self.process_namespace, self.selected_sources)
+                # Register this IF's params on the shared node_if too, or
+                # get_param/set_param below resolve to no namespace and the
+                # controls dict and enable state never persist.
+                self.node_if.add_params(PARAMS_DICT)
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -325,6 +420,10 @@ class ProcessIF:
         ##############################
         # Complete Initialization
         self.process_ready = True
+        # Without this the status topic is advertised and never written, and the
+        # RUI process panel stays blank forever.
+        nepi_sdk.start_timer_process(float(1) / self.status_pub_rate_hz, self._publishStatusCb)
+        self.publish_status()
         self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
         ###############################
     
@@ -449,6 +548,86 @@ class ProcessIF:
         return self.sources_connected
 
     ##################
+    # Run State Functions
+
+    def get_process_enable(self):
+        """Return the operator-requested enable state for this process.
+
+        Returns:
+            bool: True if the process has been enabled, False otherwise.
+        """
+        return self.enabled
+
+    def set_process_enable(self, enabled):
+        """Set the enable state for this process and notify the owning node.
+
+        The injected enable callback is the node's chance to refuse: whatever it
+        returns becomes the reported state, so a node that cannot honour an
+        enable returns False and the RUI toggle falls back instead of showing an
+        enable that did nothing.
+
+        Args:
+            enabled (bool): True to enable the process, False to disable it.
+
+        Returns:
+            bool: The enable state actually adopted.
+        """
+        enabled = (enabled == True)
+        if self.enable_callback is not None:
+            try:
+                accepted = self.enable_callback(enabled)
+                if accepted is not None:
+                    enabled = (accepted == True)
+            except Exception as e:
+                self.msg_if.pub_warn("Enable callback failed: " + str(e))
+                enabled = False
+        self.set_process_enable_state(enabled)
+        return self.enabled
+
+    def set_process_enable_state(self, enabled):
+        """Report the enable state without invoking the enable callback.
+
+        The owning node uses this after it has already decided; set_process_enable
+        is the path from the RUI, which has to go through the callback. The node
+        owns persistence of the enable state -- this interface only reports it.
+
+        Args:
+            enabled (bool): The enable state to report.
+        """
+        enabled = (enabled == True)
+        changed = (enabled != self.enabled)
+        self.enabled = enabled
+        if changed == True:
+            self.publish_status()
+
+    def get_process_running(self):
+        """Return whether the owning node reports this process as actually running.
+
+        Returns:
+            bool: True if the process is running, False otherwise.
+        """
+        return self.running
+
+    def set_process_running(self, running, msg_str = ''):
+        """Report the actual run state of this process.
+
+        Called by the node that owns the process, not by the RUI. Kept separate
+        from the enable state so an enabled process that cannot run -- sources
+        dropped, hardware absent -- reports that difference instead of hiding it.
+
+        Args:
+            running (bool): True if the process loop is currently executing.
+            msg_str (str, optional): Short operator-facing reason or state note.
+        """
+        running = (running == True)
+        changed = (running != self.running or str(msg_str) != self.msg_str)
+        self.running = running
+        self.msg_str = str(msg_str)
+        self.state = running
+        if changed == True:
+            self.publish_status()
+
+    ##################
     # Controls Functions
 
     def get_controls_dict(self):
@@ -468,8 +647,7 @@ class ProcessIF:
         if self.controls_updated_callback is not None:
             self.controls_updated_callback(control_name)
         if self.node_if is not None:
-            param_name = self.node_if_prefix + 'controls_dict'
-            self.node_if.set_param(param_name, self.process_controls_dict)
+            self.node_if.set_param(self.controls_param_name, self.process_controls_dict)
 
     def get_control_default_value(self, control_name):
         controls_dict = copy.deepcopy(self.process_controls_dict)
@@ -522,8 +700,7 @@ class ProcessIF:
         self.process_controls_dict = controls_dict
         self.publish_status
         if self.node_if is not None:
-            param_name = self.node_if_prefix + 'controls_dict'
-            self.node_if.set_param(param_name, self.process_controls_dict)
+            self.node_if.set_param(self.controls_param_name, self.process_controls_dict)
 
     def get_control_bounds(self, control_name):
         controls_dict = copy.deepcopy(self.process_controls_dict)
@@ -536,8 +713,7 @@ class ProcessIF:
         self.process_controls_dict = controls_dict
         self.publish_status
         if self.node_if is not None:
-            param_name = self.node_if_prefix + 'controls_dict'
-            self.node_if.set_param(param_name, self.process_controls_dict)
+            self.node_if.set_param(self.controls_param_name, self.process_controls_dict)
 
 
     ##################
@@ -605,34 +781,53 @@ class ProcessIF:
         status_msg = ProcessStatus()
 
         status_msg.name = self.process_name
-        status_msg.group = self.node_name
-        status_msg.description = self.process_name
+        status_msg.group = self.process_group
+        status_msg.description = self.process_description
 
         status_msg.node_name = self.node_name
         status_msg.namespace = self.namespace
+        status_msg.has_config = False
 
+        # Run state. enabled is what the operator asked for and running is what
+        # the owning node reports back; the RUI shows both so an enable that
+        # could not take effect is visible rather than silently cosmetic.
+        status_msg.enabled = self.enabled
+        status_msg.running = self.running
+        status_msg.state = self.state
+        status_msg.msg_str = self.msg_str
+        status_msg.process_ready = self.process_ready
 
-        if self.process_data_dict is not None:
-            status_msg.has_process_data = True
+        status_msg.manages_sources = self.manages_sources
+        status_msg.available_source_topics = self.available_sources
+        status_msg.selected_sources = self.selected_sources
+        status_msg.source_connected = self.sources_connected
+
+        # has_process_data / has_process_controls gate whether the RUI renders
+        # those blocks at all, so an empty dict has to report False -- reporting
+        # True for an empty dict draws an empty panel with a toggle that does
+        # nothing.
+        status_msg.has_process_data = self.has_process_data
+        if self.has_process_data == True:
             process_data_dict = copy.deepcopy(self.process_data_dict)
             self.process_data_msg = nepi_data.update_status_msg(self.process_data_msg, process_data_dict, self.data_hidden)
             status_msg.process_data = self.process_data_msg
-            status_msg.show_data = self.show_data
+        status_msg.show_data = self.show_data
 
-
-
-        if self.process_controls_dict is not None:
-            status_msg.has_process_controls = True
+        status_msg.has_process_controls = self.has_process_controls
+        if self.has_process_controls == True:
             process_controls_dict = copy.deepcopy(self.process_controls_dict)
             self.process_controls_msg = nepi_controls.update_status_msg(self.process_controls_msg, process_controls_dict, self.controls_hidden)
             status_msg.process_controls = self.process_controls_msg
-            status_msg.show_controls = self.show_controls
+        status_msg.show_controls = self.show_controls
+
+        status_msg.show_selector = self.show_selector
+        status_msg.show_results = self.show_results
 
 
         ###########
         if self.node_if is not None:
             if self.status_has_published == False:
-                self.msg_if.pub_warn("Publishing Status: " + str(status_msg))
+                self.msg_if.pub_info("Publishing first status for process: " + str(self.process_name))
                 self.status_has_published = True
             self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
         return status_msg
@@ -664,7 +859,9 @@ class ProcessIF:
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
         if self.node_if is not None:
-            self.process_controls_dict = self.node_if.get_param('process_controls_dict')
+            controls_dict = self.node_if.get_param(self.controls_param_name)
+            if controls_dict is not None:
+                self.process_controls_dict = controls_dict
         if do_updates == True:
             pass
         self.publish_status()
@@ -713,6 +910,12 @@ class ProcessIF:
             else:
                 control_value = nepi_utils.get_time()
             self.set_control_value(control_name, control_value)
+
+    def _setEnableCb(self, msg):
+        if self.has_enable == False:
+            self.msg_if.pub_warn("Process does not support enable; ignoring: " + str(self.process_name))
+            return
+        self.set_process_enable(msg.data)
 
     def _publishStatusCb(self, timer):
         self.publish_status()
