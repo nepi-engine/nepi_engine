@@ -267,7 +267,7 @@ class ProcessIF:
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
             'init_configs': True,
-            'namespace': self.namespace
+            'namespace': self.process_namespace
         }
 
         # Params Config Dict ####################
@@ -324,63 +324,63 @@ class ProcessIF:
             },
              self.node_if_prefix + 'set_selection_control_value': {
                 'msg': UpdateString,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_selection_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_selections_control_value': {
                 'msg': UpdateStringArray,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_selections_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_int_control_value': {
                 'msg': UpdateInt,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_int_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_float_control_value': {
                 'msg': UpdateFloat,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_float_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_floatslider_control_value': {
                 'msg': UpdateFloat,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_floatslider_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_floatsliders_control_value': {
                 'msg': UpdateRangeWindow,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_floatsliders_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_trigger_control_value': {
                 'msg': UpdateTrigger,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_trigger_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_bool_control_value': {
                 'msg': UpdateBool,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_bool_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_string_control_value': {
                 'msg': UpdateString,
-                'namespace': self.namespace,
+                'namespace': self.process_namespace,
                 'topic': 'set_string_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
@@ -809,14 +809,14 @@ class ProcessIF:
         status_msg.has_process_data = self.has_process_data
         if self.has_process_data == True:
             process_data_dict = copy.deepcopy(self.process_data_dict)
-            self.process_data_msg = nepi_data.update_status_msg(self.process_data_msg, process_data_dict, self.data_hidden)
+            self.process_data_msg = nepi_data.update_status_msg(self.process_data_msg, process_data_dict)
             status_msg.process_data = self.process_data_msg
         status_msg.show_data = self.show_data
 
         status_msg.has_process_controls = self.has_process_controls
         if self.has_process_controls == True:
             process_controls_dict = copy.deepcopy(self.process_controls_dict)
-            self.process_controls_msg = nepi_controls.update_status_msg(self.process_controls_msg, process_controls_dict, self.controls_hidden)
+            self.process_controls_msg = nepi_controls.update_status_msg(self.process_controls_msg, process_controls_dict)
             status_msg.process_controls = self.process_controls_msg
         status_msg.show_controls = self.show_controls
 
@@ -850,7 +850,7 @@ class ProcessIF:
         else:
             self.unregister_pubs()
         time.sleep(1)
-        self.namespace = None
+        self.process_namespace = None
 
     def init(self, do_updates = False):
         """Initialize or re-initialize interface state and publish status.
