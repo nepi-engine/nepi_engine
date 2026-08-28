@@ -4190,7 +4190,7 @@ class BaseImageIF:
         
 
 
-                                x_deg_offset = crosshair_dict['x_deg_offset'] 
+                                x_deg_offset = round(crosshair_dict['x_deg_offset'], 1)
                                 x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
                                 x_offset_ratio = (x_ratio - 0.5)
                                 x_scale = (self.width_proc/self.width_org)
@@ -4203,7 +4203,7 @@ class BaseImageIF:
                                 #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
-                                y_deg_offset = crosshair_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
+                                y_deg_offset = round(crosshair_dict['y_deg_offset'], 1)
                                 y_ratio = ((self.height_deg/2) + y_deg_offset)/self.height_deg
                                 y_offset_ratio = -1 * (0.5 - y_ratio)
                                 y_scale = (self.height_proc/self.height_org)
@@ -4257,7 +4257,7 @@ class BaseImageIF:
                                 #self.msg_if.pub_warn("Rendering image with target_dict: " + str(target_dict) , log_name_list = self.log_name_list)
         
 
-                                x_deg_offset = target_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
+                                x_deg_offset = round(target_dict['x_deg_offset'], 1) 
                                 x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
                                 x_offset_ratio = (x_ratio - 0.5)
                                 x_scale = (self.width_proc/self.width_org)
@@ -4266,7 +4266,7 @@ class BaseImageIF:
                                 #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
-                                y_deg_offset = target_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
+                                y_deg_offset = round(target_dict['y_deg_offset'], 1)
                                 y_ratio = ((self.height_deg/2) + y_deg_offset)/self.height_deg
                                 y_offset_ratio = -1 * (0.5 - y_ratio)
                                 y_scale = (self.height_proc/self.height_org)
@@ -5411,8 +5411,8 @@ class BaseImageIF:
         if color_rgb is None:
             color_rgb = self.overlays_dict['crosshairs_color_rgb']
         crosshair_dict = copy.deepcopy(self.BLANK_CROSSHAIR_DICT)
-        crosshair_dict['x_deg_offset'] = x_deg
-        crosshair_dict['y_deg_offset'] = y_deg
+        crosshair_dict['x_deg_offset'] = round(x_deg, 2)
+        crosshair_dict['y_deg_offset'] = round(y_deg, 2)
         crosshair_dict['color_rgb'] = color_rgb
         crosshair_dict['msg_str'] = msg_str
         #self.msg_if.pub_info("Adding Crosshair: " + str(crosshair_dict), log_name_list = self.log_name_list)
@@ -5638,8 +5638,8 @@ class BaseImageIF:
         if color_rgb is None:
             color_rgb = self.overlays_dict['targets_color_rgb']
         target_dict = copy.deepcopy(self.BLANK_CROSSHAIR_DICT)
-        target_dict['x_deg_offset'] = x_deg
-        target_dict['y_deg_offset'] = y_deg
+        target_dict['x_deg_offset'] = round(x_deg)
+        target_dict['y_deg_offset'] = round(y_deg)
         target_dict['color_rgb'] = color_rgb
         target_dict['msg_str'] = msg_str
         #self.msg_if.pub_info("Adding Target: " + str(target_dict), log_name_list = self.log_name_list)

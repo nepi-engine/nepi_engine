@@ -944,9 +944,9 @@ def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), 
         else:
            thickness = thickness * (2 * scale)
 
-       
+    
     font = cv2.FONT_HERSHEY_SIMPLEX
-    fontColor              = color_rgb
+    fontColor              = (color_rgb[2],color_rgb[1],color_rgb[0])
     lineType               = 1
     bottomLeftCornerOfText = (x_px,y_px)
 
@@ -1063,7 +1063,7 @@ def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0
         x_px = x_px
         y_padding = math.ceil((0.02 * h) + size / 2 ) 
         y_px = y_px + y_padding
-        cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio / 2)
+        cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio / 3)
     return cv2_img
 
 
@@ -1109,7 +1109,7 @@ def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5,
         y_px = y_px + y_padding
         x_padding = math.ceil((0.02 * w) + size ) 
         x_px = x_px + x_padding
-        cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio / 2)
+        cv2_img  =  overlay_text_list(cv2_img, text_list, x_px = x_px , y_px = y_px, color_rgb = color_rgb, size_ratio = text_ratio / 3)
     return cv2_img
 
 def overlay_box(cv2_img, color_rgb = (255,255,255), x_px = 10, y_px = 10, w_px = 20, h_px = 20):
