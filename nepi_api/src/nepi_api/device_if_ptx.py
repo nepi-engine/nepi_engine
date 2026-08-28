@@ -573,20 +573,6 @@ class PTXActuatorIF:
                 'topic': 'motor_status',
                 'qsize': 10,
                 'latch': False
-            },
-            'stop_pan_callback_pub': {
-                'msg': Empty,
-                'namespace': self.namespace,
-                'topic': 'stop_pan_callback',
-                'qsize': 1,
-                'latch': False
-            },
-            'stop_tilt_callback_pub': {
-                'msg': Empty,
-                'namespace': self.namespace,
-                'topic': 'stop_tilt_callback',
-                'qsize': 1,
-                'latch': False
             }
 
         }
@@ -1305,12 +1291,10 @@ class PTXActuatorIF:
     def stopPanTilt(self,axis = 'All'):
         self.msg_if.pub_warn("Stopping Move for axis: " + str(axis))
         if axis == 'pan' or axis == 'All':
-            self.stopPanCb()
             pan_stop_deg = self.status_msg.pan_now_deg * self.rpi
         else:
             pan_stop_deg = self.status_msg.pan_goal_deg * self.rpi
         if axis == 'tilt' or axis == 'All':
-            self.stopTiltCb()
             tilt_stop_deg = self.status_msg.tilt_now_deg * self.rpi
         else:
             tilt_stop_deg = self.status_msg.tilt_goal_deg * self.rpi
@@ -1407,8 +1391,6 @@ class PTXActuatorIF:
 
     def _goHomeCb(self, _):
         self.msg_if.pub_warn("Got Go Home msg")
-        self.stopPanCb()
-        self.stopTiltCb()
         self.goHome()
 
     def goHome(self):
@@ -1470,7 +1452,6 @@ class PTXActuatorIF:
     
 
     def _gotoToPanRatioCb(self, msg):
-        self.stopPanCb()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid pan position ratio " + "%.2f" % ratio)
@@ -1488,7 +1469,6 @@ class PTXActuatorIF:
         
 
     def _gotoToTiltRatioCb(self, msg):
-        self.stopTiltCb()
         ratio = msg.data
         if (ratio < 0.0 or ratio > 1.0):
             self.msg_if.pub_warn("Invalid tilt position ratio " + "%.2f" % ratio)
@@ -1507,7 +1487,6 @@ class PTXActuatorIF:
         
 
     def _jogTimedPanCb(self, msg):
-        #self.stopPanCb()
         #self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanCb is not None:
             self.pan_goal_deg = -999
@@ -1519,7 +1498,6 @@ class PTXActuatorIF:
         
 
     def _jogTimedTiltCb(self, msg):
-        #self.stopTiltCb()
         #self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltCb is not None:
             self.tilt_goal_deg = -999
@@ -1530,7 +1508,6 @@ class PTXActuatorIF:
         self.publish_status()
 
     def _jogTimedPanSpeedRatioCb(self, msg):
-        #self.stopPanCb()
         #self.msg_if.pub_warn("Got job pan msg: " + str(msg))
         if self.movePanSpeedRatioCb is not None:
             self.pan_goal_deg = -999
@@ -1543,7 +1520,6 @@ class PTXActuatorIF:
         
 
     def _jogTimedTiltSpeedRatioCb(self, msg):
-        #self.stopTiltCb()
         #self.msg_if.pub_warn("Got job tilt msg: " + str(msg))
         if self.moveTiltSpeedRatioCb is not None:
             self.tilt_goal_deg = -999
@@ -1683,14 +1659,6 @@ class PTXActuatorIF:
         elif 'tilt' in axes:
             self.stopPanTilt('tilt')
 
-    def stopPanCb(self):
-        if self.node_if is not None:
-            self.node_if.publish_pub('stop_pan_callback_pub',Empty())
-
-
-    def stopTiltCb(self):
-        if self.node_if is not None:
-            self.node_if.publish_pub('stop_tilt_callback_pub',Empty())
 
     ### Info callback
     def info_query_callback(self, _):

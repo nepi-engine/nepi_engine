@@ -926,11 +926,11 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
     
 
     def _stopPanCb(self,msg):    
-        self.msg_if.pub_warn("Got Stop Pan msg: " + str(msg))
+        #self.msg_if.pub_warn("Got Stop Pan msg: " + str(msg))
         if self.stopPanCb is not None:
             self.stopPanCb()
 
     def _stopTiltCb(self,msg):    
-        self.msg_if.pub_warn("Got Stop Tilt msg: " + str(msg))
+        #self.msg_if.pub_warn("Got Stop Tilt msg: " + str(msg))
         if self.stopTiltCb is not None:
             self.stopTiltCb()
