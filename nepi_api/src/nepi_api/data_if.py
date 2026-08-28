@@ -5415,7 +5415,7 @@ class BaseImageIF:
         crosshair_dict['y_deg_offset'] = y_deg
         crosshair_dict['color_rgb'] = color_rgb
         crosshair_dict['msg_str'] = msg_str
-        self.msg_if.pub_info("Adding Crosshair: " + str(crosshair_dict), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Adding Crosshair: " + str(crosshair_dict), log_name_list = self.log_name_list)
         needs_update = True
         if ch_name in self.overlays_dict['crosshairs_dict'].keys():
             if self.overlays_dict['crosshairs_dict'][ch_name] == crosshair_dict:
@@ -5642,7 +5642,7 @@ class BaseImageIF:
         target_dict['y_deg_offset'] = y_deg
         target_dict['color_rgb'] = color_rgb
         target_dict['msg_str'] = msg_str
-        self.msg_if.pub_info("Adding Target: " + str(target_dict), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Adding Target: " + str(target_dict), log_name_list = self.log_name_list)
         needs_update = True
         if ch_name in self.overlays_dict['targets_dict'].keys():
             if self.overlays_dict['targets_dict'][ch_name] == target_dict:
