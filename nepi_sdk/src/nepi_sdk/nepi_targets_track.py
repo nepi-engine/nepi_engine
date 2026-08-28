@@ -304,29 +304,52 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
     return best_target
             
 
-def get_best_from_targets(targets_dict_list,tracking_dict = BLANK_SETTINGS_DICT):
-   filtered_targets = targets_dict_list
-   best_target = None
+# The settings get_best_from_targets applies, and the value each filter falls
+# back to when a caller does not supply it. Every default here is the filter
+# function's own default: an empty class filter passes every class, and the
+# area bounds match filter_by_area's signature.
+BLANK_SETTINGS_DICT = {
+    'class_filters': [],
+    'size_min_filter': 0.01,
+    'size_max_filter': 0.99,
+    'threshold_filter': 0.5,
+    'best_filter': 'LARGEST'
+}
+
+
+def get_best_from_targets(targets_dict_list, tracking_dict = None):
+   # tracking_dict is filled in and returned, so it must not default to the
+   # module-level dict itself -- one caller's missing key would otherwise be
+   # written into the defaults every later caller reads.
+   if tracking_dict is None:
+     tracking_dict = dict()
    for entry in BLANK_SETTINGS_DICT.keys():
-    if entry not in tracking_dict.keys():
-       tracking_dict[entry] = BLANK_SETTINGS_DICT[entry]
-    
-    class_filters = tracking_dict['class_filters']
-    filtered_targets = filter_by_classes(filtered_targets, class_filters)
+     if entry not in tracking_dict.keys():
+       tracking_dict[entry] = copy.deepcopy(BLANK_SETTINGS_DICT[entry])
 
-    size_max_filter = tracking_dict['size_max_filter']
-    size_min_filter = tracking_dict['size_min_filter']
-    filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
+   # The filter chain runs once over the full list. It used to sit inside the
+   # defaults loop above, which returned on the first key and applied the chain
+   # once per key until then.
+   filtered_targets = targets_dict_list
+   if filtered_targets is None:
+     filtered_targets = []
+   best_target = None
 
-    threshold_filter = tracking_dict['threshold_filter']
-    filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
-    
-    if len(filtered_targets) > 0:
-      best_filter = tracking_dict['best_filter']
-      best_target = find_best(filtered_targets, best_filter = best_filter)
+   class_filters = tracking_dict['class_filters']
+   filtered_targets = filter_by_classes(filtered_targets, class_filters)
 
-            
-    return best_target,tracking_dict    
+   size_max_filter = tracking_dict['size_max_filter']
+   size_min_filter = tracking_dict['size_min_filter']
+   filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
+
+   threshold_filter = tracking_dict['threshold_filter']
+   filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
+
+   if len(filtered_targets) > 0:
+     best_filter = tracking_dict['best_filter']
+     best_target = find_best(filtered_targets, best_filter = best_filter)
+
+   return best_target, tracking_dict
 
 
 
