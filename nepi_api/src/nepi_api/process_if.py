@@ -82,11 +82,11 @@ class ProcessIF:
     has_process_controls = False
     process_controls_msg = ControlsStatus()
     process_controls_dict = dict()
-    
-    has_process_results = False
-    prpcess_results_msg = ResultsStatus()
-    process_results_dict = dict()
 
+    has_process_results = False
+    process_results_namespace = ''
+
+    
     process_node_pubs_dict = None
     process_node_subs_dict = None
 
@@ -159,15 +159,11 @@ class ProcessIF:
                 process_description = 'Process',
                 process_data_dict = None,
                 process_controls_dict = None,
-                process_status_msg = None,
-                show_controls = True,
+                results_msg = None,
+                results_name = 'results',
                 show_data = True,
-                has_enable = False,
-                enabled = False,
-                enableCb = None,
-                controlsUpdatedCb = None,
-                dataUpdatedCb = None,
-                status_pub_rate_hz = 1.0,
+                show_controls = True,
+                show_results = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -216,14 +212,6 @@ class ProcessIF:
         self.process_group = str(process_group)
         self.process_description = str(process_description)
         # Check Process Status Msg Type
-
-        self.has_enable = (has_enable == True)
-        self.enabled = (enabled == True)
-        self.enable_callback = enableCb
-        self.controls_updated_callback = controlsUpdatedCb
-        self.data_updated_callback = dataUpdatedCb
-        if status_pub_rate_hz is not None and status_pub_rate_hz > 0.0:
-            self.status_pub_rate_hz = float(status_pub_rate_hz)
 
         # The caller passes an init dict (the nepi_controls / nepi_data authoring
         # form). Every accessor below and update_status_msg() operate on the
@@ -290,17 +278,29 @@ class ProcessIF:
         # The status publisher is unconditional. Nepi_IF_ConnectProcess renders
         # nothing at all until a ProcessStatus arrives, so a process with no
         # custom status message still has to publish the generic one.
-        if process_status_msg is None:
-            process_status_msg = ProcessStatus
-        self.process_status_msg = process_status_msg
+
         self.process_node_pubs_dict[self.node_if_prefix + 'status_pub'] = {
             'namespace': self.process_namespace,
             'topic': 'status',
-            'msg': self.process_status_msg,
+            'msg': ProcessStatus,
             'qsize': 1,
             'latch': True
         }
 
+        
+        if results_msg is not None and results_name is not None:
+            results_name = nepi_utils.get_clean_name(results_name)
+            if results_name != '':
+                self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
+                    'namespace': self.process_namespace,
+                    'topic': results_name,
+                    'msg': results_msg,
+                    'qsize': 1,
+                    'latch': True
+                }
+                self.process_results_namespace = self.process_namespace + '/results_name'
+                self.has_process_results = True
+                self.show_results = show_results
 
         # Subscribers Config Dict ####################
         # The full command surface registers here, once, regardless of
@@ -308,13 +308,6 @@ class ProcessIF:
         # guarded inside its callback instead, so which topics exist never
         # depends on run state.
         self.process_node_subs_dict = {
-             self.node_if_prefix + 'set_enable': {
-                'msg': Bool,
-                'namespace': self.namespace,
-                'topic': 'set_enable',
-                'qsize': 1,
-                'callback': self._setEnableCb
-            },
              self.node_if_prefix + 'set_menu_control_value': {
                 'msg': UpdateInt,
                 'namespace': self.namespace,
@@ -548,86 +541,6 @@ class ProcessIF:
         return self.sources_connected
 
     ##################
-    # Run State Functions
-
-    def get_process_enable(self):
-        """Return the operator-requested enable state for this process.
-
-        Returns:
-            bool: True if the process has been enabled, False otherwise.
-        """
-        return self.enabled
-
-    def set_process_enable(self, enabled):
-        """Set the enable state for this process and notify the owning node.
-
-        The injected enable callback is the node's chance to refuse: whatever it
-        returns becomes the reported state, so a node that cannot honour an
-        enable returns False and the RUI toggle falls back instead of showing an
-        enable that did nothing.
-
-        Args:
-            enabled (bool): True to enable the process, False to disable it.
-
-        Returns:
-            bool: The enable state actually adopted.
-        """
-        enabled = (enabled == True)
-        if self.enable_callback is not None:
-            try:
-                accepted = self.enable_callback(enabled)
-                if accepted is not None:
-                    enabled = (accepted == True)
-            except Exception as e:
-                self.msg_if.pub_warn("Enable callback failed: " + str(e))
-                enabled = False
-        self.set_process_enable_state(enabled)
-        return self.enabled
-
-    def set_process_enable_state(self, enabled):
-        """Report the enable state without invoking the enable callback.
-
-        The owning node uses this after it has already decided; set_process_enable
-        is the path from the RUI, which has to go through the callback. The node
-        owns persistence of the enable state -- this interface only reports it.
-
-        Args:
-            enabled (bool): The enable state to report.
-        """
-        enabled = (enabled == True)
-        changed = (enabled != self.enabled)
-        self.enabled = enabled
-        if changed == True:
-            self.publish_status()
-
-    def get_process_running(self):
-        """Return whether the owning node reports this process as actually running.
-
-        Returns:
-            bool: True if the process is running, False otherwise.
-        """
-        return self.running
-
-    def set_process_running(self, running, msg_str = ''):
-        """Report the actual run state of this process.
-
-        Called by the node that owns the process, not by the RUI. Kept separate
-        from the enable state so an enabled process that cannot run -- sources
-        dropped, hardware absent -- reports that difference instead of hiding it.
-
-        Args:
-            running (bool): True if the process loop is currently executing.
-            msg_str (str, optional): Short operator-facing reason or state note.
-        """
-        running = (running == True)
-        changed = (running != self.running or str(msg_str) != self.msg_str)
-        self.running = running
-        self.msg_str = str(msg_str)
-        self.state = running
-        if changed == True:
-            self.publish_status()
-
-    ##################
     # Controls Functions
 
     def get_controls_dict(self):
@@ -820,8 +733,14 @@ class ProcessIF:
             status_msg.process_controls = self.process_controls_msg
         status_msg.show_controls = self.show_controls
 
+        status_msg.has_process_results = self.has_process_results
+        if self.has_process_results == True:
+            status_msg.process_results_namespace = self.process_results_namespace
+
+        status_msg.show_results = self.show_results and self.has_process_results
+
         status_msg.show_selector = self.show_selector
-        status_msg.show_results = self.show_results
+
 
 
         ###########
@@ -831,6 +750,14 @@ class ProcessIF:
                 self.status_has_published = True
             self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
         return status_msg
+
+
+    def publish_results(self, results_msg):
+
+        ###########
+        if self.node_if is not None and self.has_process_results == True and results_msg is not None:
+            self.node_if.publish_pub(self.node_if_prefix + 'results_pub', results_msg) 
+
 
     def unregister_pubs(self):
         """Unregister all ROS publishers managed by this interface."""
@@ -910,12 +837,6 @@ class ProcessIF:
             else:
                 control_value = nepi_utils.get_time()
             self.set_control_value(control_name, control_value)
-
-    def _setEnableCb(self, msg):
-        if self.has_enable == False:
-            self.msg_if.pub_warn("Process does not support enable; ignoring: " + str(self.process_name))
-            return
-        self.set_process_enable(msg.data)
 
     def _publishStatusCb(self, timer):
         self.publish_status()
