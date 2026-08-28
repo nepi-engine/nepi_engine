@@ -4196,6 +4196,10 @@ class BaseImageIF:
                                 x_scale = (self.width_proc/self.width_org)
                                 x_offset_pixel = int((x_offset_ratio * self.width_org))
                                 x_pixel = int((self.width_proc/2) + x_offset_pixel)
+                                if x_pixel < 0:
+                                    x_pixel = 0
+                                if x_pixel > self.width_proc:
+                                    x_pixel = self.width_proc
                                 #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
@@ -4205,6 +4209,10 @@ class BaseImageIF:
                                 y_scale = (self.height_proc/self.height_org)
                                 y_offset_pixel = int((y_offset_ratio * self.height_org))
                                 y_pixel = int((self.height_proc/2) + y_offset_pixel)
+                                if y_pixel < 0:
+                                    y_pixel = 0
+                                if y_pixel > self.height_proc:
+                                    y_pixel = self.height_proc
                                 #self.msg_if.pub_warn("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
@@ -4264,6 +4272,7 @@ class BaseImageIF:
                                 y_scale = (self.height_proc/self.height_org)
                                 y_offset_pixel = int((y_offset_ratio * self.height_org))
                                 y_pixel = int((self.height_proc/2) + y_offset_pixel)
+
                                 #self.msg_if.pub_warn("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
