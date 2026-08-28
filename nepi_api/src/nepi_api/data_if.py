@@ -4190,7 +4190,7 @@ class BaseImageIF:
         
 
 
-                                x_deg_offset = round(crosshair_dict['x_deg_offset'], 1)
+                                x_deg_offset = round(crosshair_dict['x_deg_offset'] + 0.02, 1)
                                 x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
                                 x_offset_ratio = (x_ratio - 0.5)
                                 x_scale = (self.width_proc/self.width_org)
@@ -4203,7 +4203,7 @@ class BaseImageIF:
                                 #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
-                                y_deg_offset = round(crosshair_dict['y_deg_offset'], 1)
+                                y_deg_offset = round(crosshair_dict['y_deg_offset'] + 0.02, 1)
                                 y_ratio = ((self.height_deg/2) + y_deg_offset)/self.height_deg
                                 y_offset_ratio = -1 * (0.5 - y_ratio)
                                 y_scale = (self.height_proc/self.height_org)
@@ -4257,7 +4257,7 @@ class BaseImageIF:
                                 #self.msg_if.pub_warn("Rendering image with target_dict: " + str(target_dict) , log_name_list = self.log_name_list)
         
 
-                                x_deg_offset = round(target_dict['x_deg_offset'], 1) 
+                                x_deg_offset = round(target_dict['x_deg_offset'] + 0.02, 1) 
                                 x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
                                 x_offset_ratio = (x_ratio - 0.5)
                                 x_scale = (self.width_proc/self.width_org)
@@ -4266,7 +4266,7 @@ class BaseImageIF:
                                 #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
-                                y_deg_offset = round(target_dict['y_deg_offset'], 1)
+                                y_deg_offset = round(target_dict['y_deg_offset'] + 0.02, 1)
                                 y_ratio = ((self.height_deg/2) + y_deg_offset)/self.height_deg
                                 y_offset_ratio = -1 * (0.5 - y_ratio)
                                 y_scale = (self.height_proc/self.height_org)
