@@ -394,6 +394,19 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         if self.status_msg is not None:
             return self.status_msg.speed_ratio
 
+    def get_speed_dps(self):
+        """Return the servo speed in degrees per second reported by the connected SVX device.
+
+        This is the device's own speed_ratio multiplied by its current speed_max_dps,
+        computed on the device rather than at the call site.
+
+        Returns:
+            float: The commanded speed in degrees per second, or None if no status has
+                been received.
+        """
+        if self.status_msg is not None:
+            return self.status_msg.speed_now_dps
+
     def get_spin_direction(self):
         """Return the spin direction reported by the connected SVX device.
 
@@ -486,6 +499,11 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
 
         In continuous mode this is the rotation speed rather than the move speed.
 
+        See also set_speed_dps() for the same command in degrees per second,
+        set_speed_max_dps() and set_max_speed_dps() to change what a ratio of 1.0 means,
+        and set_max_speed_ratio(), which despite its name is another route to this same
+        command.
+
         Args:
             speed_ratio (float): Desired motion speed as a ratio from 0.0 (slowest) to 1.0 (fastest).
         """
@@ -493,8 +511,33 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         msg = float(speed_ratio)
         self.node_if.publish_pub(pub_name, msg)
 
+    def set_speed_dps(self, speed_dps):
+        """Publish a speed command to the servo in degrees per second.
+
+        The device converts the value against its current speed_max_dps and clamps the
+        result into the 0.0 to 1.0 ratio range, so a value above speed_max_dps saturates
+        at full speed rather than raising. In continuous mode this is the rotation speed
+        rather than the move speed.
+
+        See also set_speed_ratio() for the same command as a 0.0 to 1.0 dial,
+        set_speed_max_dps() and set_max_speed_dps() to change what full speed means, and
+        set_max_speed_ratio(), which despite its name is another speed ratio setter.
+
+        Args:
+            speed_dps (float): Desired motion speed in degrees per second.
+        """
+        pub_name = 'svx_set_speed_dps'
+        msg = float(speed_dps)
+        self.node_if.publish_pub(pub_name, msg)
+
     def set_speed_max_dps(self, speed_max_dps):
-        """Set the maximum servo speed in degrees per second.
+        """Set the maximum servo speed in degrees per second, the value a ratio of 1.0 means.
+
+        This changes the scale, not the current speed. To command a speed, use
+        set_speed_dps() or set_speed_ratio().
+
+        See also set_max_speed_dps(), the driver-facing name for this same command, and
+        set_max_speed_ratio(), which despite its name sets a speed ratio and no maximum.
 
         Args:
             speed_max_dps (float): Maximum speed in degrees per second, which is what a
@@ -505,10 +548,15 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         self.node_if.publish_pub(pub_name, msg)
 
     def set_max_speed_dps(self, speed_max_dps):
-        """Set the maximum servo speed in degrees per second.
+        """Set the maximum servo speed in degrees per second, the value a ratio of 1.0 means.
 
         Driver-facing name for set_speed_max_dps(). Publishes nothing and reports False
-        if no device is connected yet, rather than raising.
+        if no device is connected yet, rather than raising. This changes the scale, not
+        the current speed.
+
+        See also set_speed_dps() and set_speed_ratio() to command a speed, and
+        set_max_speed_ratio(), which despite its similar name sets a speed ratio and no
+        maximum.
 
         Args:
             speed_max_dps (float): Maximum speed in degrees per second, greater than 0,
@@ -525,6 +573,16 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
 
     def set_max_speed_ratio(self, speed_ratio = None):
         """Set the servo speed ratio, or read back the current one.
+
+        WARNING: despite its name this sets the speed ratio and not any maximum. It
+        publishes on the same set_speed_ratio topic that set_speed_ratio() does and
+        changes nothing about speed_max_dps. Confusing it with set_max_speed_dps() has
+        already caused a defect. The name is kept only because live external call sites
+        outside this workspace depend on it.
+
+        See also set_speed_ratio() for the same command without the misleading name,
+        set_speed_dps() to command a speed in real units, and set_speed_max_dps() /
+        set_max_speed_dps(), which are the two methods that really do set the maximum.
 
         Called with a ratio this publishes a speed command; called with no argument it
         publishes nothing and only reports. Either way it returns a usable number, so a
@@ -724,6 +782,12 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
             'svx_set_speed_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'set_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'svx_set_speed_dps': {
+                'namespace': self.selected_topic,
+                'topic': 'set_speed_dps',
                 'msg': Float32,
                 'qsize': 1,
             },

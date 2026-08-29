@@ -1830,6 +1830,18 @@ class PTXActuatorIF:
         self.status_msg.reverse_pan_enabled = self.reverse_pan_enabled
         self.status_msg.reverse_tilt_enabled = self.reverse_tilt_enabled
 
+        # Re-read the max here rather than trusting the single sample taken in __init__.
+        # getSpeedMaxCb can legitimately report a placeholder before the driver's own
+        # devices have connected -- ptx_servos_node returns a fallback until its SVX
+        # interfaces come up -- and sampling once at construction latched that placeholder
+        # permanently. Because supplying getSpeedMaxCb also sets set_max_dps_disabled,
+        # nothing downstream could correct it: the reported max was both wrong and locked.
+        # Only a positive value is accepted, so a transient None or 0 cannot poison it.
+        if self.getSpeedMaxCb is not None:
+            speed_max_dps = self.getSpeedMaxCb()
+            if speed_max_dps is not None and speed_max_dps > 0:
+                self.speed_max_dps = speed_max_dps
+
         self.status_msg.set_max_dps_disabled = self.set_max_dps_disabled
         self.status_msg.speed_max_dps = self.speed_max_dps
         self.status_msg.speed_ratio = self.speed_ratio
