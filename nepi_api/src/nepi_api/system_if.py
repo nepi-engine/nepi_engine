@@ -110,8 +110,9 @@ class ControlsIF:
                 controls_description = 'Controls',
                 controls_init_dict = dict(),
                 controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
-                controls_updater_max_rate = 1,# set to -1 to disable updater thread
+                controls_updater_max_rate = -1,# set to -1 to disable updater thread
                 controls_updater_callback = None, # if not None: Calls function at the begining of each loop
+                has_status_pub = True,
                 show_controls = True,
                 has_show_control = False,
                 hidden = False,
@@ -205,15 +206,18 @@ class ControlsIF:
 
 
         # Publishers Config Dict ####################
-        self.controls_node_pubs_dict = {
-             self.node_if_prefix + 'status_pub': {
-                'namespace': self.namespace,
-                'topic': 'status',
-                'msg': ControlsStatus,
-                'qsize': 1,
-                'latch': True
+        if has_status_pub == False:
+            self.controls_node_pubs_dict = dict()
+        else:
+            self.controls_node_pubs_dict = {
+                self.node_if_prefix + 'status_pub': {
+                    'namespace': self.namespace,
+                    'topic': 'status',
+                    'msg': ControlsStatus,
+                    'qsize': 1,
+                    'latch': True
+                }
             }
-        }
 
 
 
@@ -396,7 +400,8 @@ class ControlsIF:
         # Start updater controls
         if self.controls_updater_max_rate != -1:
             nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
+        if has_status_pub == True:
+            nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
         # Complete Initialization

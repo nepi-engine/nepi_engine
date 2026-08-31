@@ -246,6 +246,13 @@ def get_datum_value(data_dict, datum_name):
   return value
 
 
+def get_data_values(data_dict):
+  values_dict = dict()
+  if data_dict is not None:
+      for datum_name in data_dict.keys():
+         values_dict[datum_name] = get_datum_value(data_dict)
+  return values_dict
+
 def set_datum_value(data_dict, datum_name, update_value, timestamp = None):
   if datum_name in data_dict.keys():
       datum_dict = data_dict[datum_name]
@@ -353,6 +360,12 @@ def set_datum_value(data_dict, datum_name, update_value, timestamp = None):
       data_dict[datum_name] = datum_dict
   return data_dict
 
+
+def set_data_values(data_dict, data_values_dict, timestamp = None):
+    for datum_name in data_values_dict.keys():
+      update_value = data_values_dict[datum_name]
+      data_dict = set_datum_value(data_dict, datum_name, update_value, timestamp = None)
+    return data_dict
 
 def get_datum_timestamp(data_dict, datum_name):
   timestamp = 0.0
