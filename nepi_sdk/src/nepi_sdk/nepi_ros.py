@@ -1219,10 +1219,10 @@ def convert_msg2dict(msg):
     msg_dict = message_converter.convert_ros_message_to_dictionary(msg)
   return msg_dict
 
-def convert_dict2msg(msg_type_str, data_dict):
+def convert_dict2msg(msg_instanance, data_dict):
   msg = None
   try:
-    msg = message_converter.convert_dictionary_to_ros_message(msg_type_str,data_dict)
+    msg = message_converter.convert_dictionary_to_ros_message(msg_instanance,data_dict)
   except Exception as e:
     pass
   return msg
