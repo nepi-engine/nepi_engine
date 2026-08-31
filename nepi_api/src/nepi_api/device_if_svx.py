@@ -116,6 +116,9 @@ class SVXActuatorIF:
 
     speed_ratio = 0.5
     speed_max_dps = 10
+    # True when the driver supplies no speed max setter, so the UI must not offer the
+    # max speed input. Derived in the SPEED SETTINGS block of the constructor.
+    set_max_dps_disabled = False
 
 
     data_source_description = 'servo'
@@ -251,6 +254,13 @@ class SVXActuatorIF:
         # SPEED SETTINGS  #############
         self.setSpeedMaxCb = setSpeedMaxCb
         self.getSpeedMaxCb = getSpeedMaxCb
+        # Derived from the SETTER, deliberately unlike device_if_ptx.py, which derives the
+        # same flag from getSpeedMaxCb. Here the flag answers only one question -- is the
+        # user allowed to change the max -- and that is a question about the setter. The
+        # Maestro driver supplies both a getter and a setter and must keep its max user
+        # adjustable, so copying the PTX rule would lock out the only shipping SVX driver.
+        if self.setSpeedMaxCb is None:
+            self.set_max_dps_disabled = True
         if self.getSpeedMaxCb is not None:
             self.speed_max_dps = self.getSpeedMaxCb()
 
@@ -273,6 +283,7 @@ class SVXActuatorIF:
         self.caps_report.mode = 0
         self.caps_report.has_absolute_positioning = self.has_absolute_positioning
         self.caps_report.has_adjustable_speed = self.has_adjustable_speed
+        self.caps_report.set_max_dps_disabled = self.set_max_dps_disabled
         self.caps_report.has_limit_control = self.has_limit_controls
         self.caps_report.has_homing = self.has_homing
         self.caps_report.has_set_home = self.has_set_home
@@ -306,6 +317,7 @@ class SVXActuatorIF:
 
         self.status_msg.has_absolute_positioning = self.has_absolute_positioning
         self.status_msg.has_adjustable_speed = self.has_adjustable_speed
+        self.status_msg.set_max_dps_disabled = self.set_max_dps_disabled
         self.status_msg.has_limit_controls = self.has_limit_controls
         self.status_msg.has_homing = self.has_homing
         self.status_msg.has_set_home = self.has_set_home
@@ -422,6 +434,14 @@ class SVXActuatorIF:
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self._setSpeedRatioCb,
+                'callback_args': ()
+            },
+            'set_speed_dps': {
+                'namespace': self.namespace,
+                'topic': 'set_speed_dps',
+                'msg': Float32,
+                'qsize': 1,
+                'callback': self._setSpeedDpsCb,
                 'callback_args': ()
             },
             'set_speed_max_dps': {
@@ -585,8 +605,20 @@ class SVXActuatorIF:
             if self.setSoftLimitsCb is not None:
                 self.setSoftLimitsCb(self.min_softstop_deg, self.max_softstop_deg)
 
-            if self.getSpeedMaxCb is None:
-                self.speed_max_dps = self.node_if.get_param('speed_max_dps')
+            # Whether the saved max is authoritative is the same question as whether
+            # the operator was allowed to move it, so gate the restore on the same
+            # flag _setMaxSpeedCb gates the write on. Keying this off getSpeedMaxCb
+            # (the PTX rule) instead left a driver that supplies BOTH callbacks --
+            # the Maestro -- in the gap: the new max was accepted and saved, then
+            # never read back, so a restart silently reverted to the driver default.
+            if self.set_max_dps_disabled == False:
+                speed_max_dps = self.node_if.get_param('speed_max_dps')
+                if speed_max_dps is not None:
+                    self.speed_max_dps = speed_max_dps
+            elif self.getSpeedMaxCb is not None:
+                # No setter, so the driver owns the value outright -- re-read it
+                # rather than trust a param nothing could have legitimately moved.
+                self.speed_max_dps = self.getSpeedMaxCb()
             if self.setSpeedMaxCb is not None:
                 self.setSpeedMaxCb(self.speed_max_dps)
 
@@ -820,6 +852,12 @@ class SVXActuatorIF:
 
 
     def _setMaxSpeedCb(self, msg):
+        if self.set_max_dps_disabled == True:
+            # No driver setter, so the live max cannot move. Writing the param anyway
+            # would leave initCb restoring a max the device never actually adopted, so
+            # the live value and the value after a restart would disagree.
+            self.msg_if.pub_warn("Max speed is not adjustable on this device... ignoring", log_name_list = self.log_name_list)
+            return
         max_speed = msg.data
         if (max_speed > 0.0):
             if self.setSpeedMaxCb is not None:
@@ -832,6 +870,20 @@ class SVXActuatorIF:
 
     def _setSpeedRatioCb(self, msg):
         ratio = nepi_utils.check_ratio(msg.data)
+        self._setSpeedRatio(ratio)
+
+    def _setSpeedDpsCb(self, msg):
+        # Real-units front door onto the ratio dial: the conversion the callers were all
+        # doing by hand moves here. No new stored state and no new driver callback --
+        # drivers still only ever see setSpeedRatioCb.
+        if self.has_adjustable_speed == False:
+            return
+        if self.speed_max_dps is None or self.speed_max_dps <= 0.0:
+            self.msg_if.pub_warn("Speed max is not set... ignoring speed dps command", log_name_list = self.log_name_list)
+            return
+        ratio = nepi_utils.check_ratio(msg.data / self.speed_max_dps)
+        # Delegate rather than duplicate: _setSpeedRatio is what persists the speed_ratio
+        # param and what re-issues the spin command while in continuous mode.
         self._setSpeedRatio(ratio)
 
     def _setSpeedRatio(self,speed_ratio):
@@ -1117,6 +1169,8 @@ class SVXActuatorIF:
             self.speed_ratio = self.getSpeedRatioCb()
         self.status_msg.speed_max_dps = self.speed_max_dps
         self.status_msg.speed_ratio = self.speed_ratio
+        self.status_msg.speed_now_dps = self.speed_ratio * self.speed_max_dps
+        self.status_msg.set_max_dps_disabled = self.set_max_dps_disabled
 
 
         if self.node_if is not None:

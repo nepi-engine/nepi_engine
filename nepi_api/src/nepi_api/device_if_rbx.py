@@ -916,8 +916,16 @@ class RBXRobotIF:
 
     def initCb(self, do_updates = False):
       if self.node_if is not None:
-        ########   ADD INIT FROM PARAMS
-        pass
+        # cmd_timeout, max_error_m, max_error_deg, stabilized_sec, image_source and
+        # image_status_overlay are read straight from the param at their point of use
+        # (publishInfo, the image updater), so they need nothing here. navpose_frame
+        # is the exception: it is only ever held in this attribute, and it selects
+        # which system navpose frame feeds sys_navpose_dict and therefore the
+        # current_* values the goto/setpoint accuracy checks use. Without this read
+        # a restart silently reverted the robot to the default frame.
+        navpose_frame = self.node_if.get_param('navpose_frame')
+        if navpose_frame is not None:
+            self.navpose_frame = navpose_frame
       if do_updates == True:
         pass
       self.publish_status()

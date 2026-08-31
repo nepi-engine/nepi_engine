@@ -196,6 +196,13 @@ class ControlsIF:
             self.node_if_prefix + 'controls_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict
+            },
+            # controls_hidden lives outside controls_dict but is driven by the live
+            # set_controls_hidden topic and published in ControlsStatus, so it needs
+            # its own key or the hide-all toggle is lost on every restart.
+            self.node_if_prefix + 'controls_hidden': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_hidden
             }
         }
 
@@ -375,8 +382,14 @@ class ControlsIF:
                 self.node_if = node_if
                 self.node_if.register_pubs(self.controls_node_pubs_dict)
                 self.node_if.register_subs(self.controls_node_subs_dict)
-                # Register the persisted selection param on the shared node_if too.
-                self.node_if.add_param('selected_sources', self.namespace, self.selected_sources)
+                # Register the persisted controls dict on the shared node_if too,
+                # under the same prefixed key init() reads and set_control_value()
+                # writes. This registered a bare 'selected_sources' instead -- a name
+                # ControlsIF never reads or writes, and a generic key that would
+                # collide with the ProcessIF and detector params of the same name --
+                # so on a shared node_if every control value write resolved to no
+                # namespace and the controls box came back at factory defaults.
+                self.node_if.add_params(PARAMS_DICT)
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -601,12 +614,18 @@ class ControlsIF:
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.set_control_hidden(controls_dict, control_name, hidden)
         self.controls_dict = controls_dict
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
     def get_controls_hidden(self):
         return self.controls_hidden
 
     def set_controls_hidden(self, hidden):
         self.controls_hidden = bool(hidden)
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_hidden'
+            self.node_if.set_param(param_name, self.controls_hidden)
 
     def get_control_display_order(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
@@ -617,26 +636,41 @@ class ControlsIF:
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.set_control_display_order(controls_dict, control_name, update_order)
         self.controls_dict = controls_dict
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
     def move_control_display_top(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.move_control_display_top(controls_dict, control_name)
         self.controls_dict = controls_dict
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
     def move_control_display_bottom(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.move_control_display_bottom(controls_dict, control_name)
         self.controls_dict = controls_dict
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
     def move_control_display_up(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.move_control_display_up(controls_dict, control_name)
         self.controls_dict = controls_dict
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
     def move_control_display_down(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.move_control_display_down(controls_dict, control_name)
         self.controls_dict = controls_dict
+        if self.node_if is not None:
+            param_name = self.node_if_prefix + 'controls_dict'
+            self.node_if.set_param(param_name, self.controls_dict)
 
 
     ##################
@@ -670,6 +704,10 @@ class ControlsIF:
             controls_dict = self.node_if.get_param(param_name)
             if controls_dict is not None:
                 self.controls_dict = controls_dict
+            param_name = self.node_if_prefix + 'controls_hidden'
+            controls_hidden = self.node_if.get_param(param_name)
+            if controls_hidden is not None:
+                self.controls_hidden = controls_hidden
 
         if do_updates == True:
             pass

@@ -2298,6 +2298,29 @@ class BaseImageIF:
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["stop_range_ratio"]
             },
+            # The three 3-D render ratios and the render background sit beside
+            # cam_fov/cam_view/cam_pos/cam_rot in controls_dict and are resolved by
+            # the same renderer, but had no keys here, so set_zoom_3d_ratio,
+            # set_rotate_3d_ratio, set_tilt_3d_ratio and setWhiteBgCb all wrote into
+            # a name node_if did not know and the writes were dropped silently.
+            # use_wbg is only in PointcloudImageIF's DEFAULT_CONTROLS_DICT, hence the
+            # get() default here.
+            'zoom_3d_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict['zoom_3d_ratio']
+            },
+            'rotate_3d_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict['rotate_3d_ratio']
+            },
+            'tilt_3d_ratio': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict['tilt_3d_ratio']
+            },
+            'use_wbg': {
+                'namespace': self.namespace,
+                'factory_val': self.controls_dict.get('use_wbg', False)
+            },
             'live_adjust_enabled': {
                 'namespace': self.namespace,
                 'factory_val': self.live_adjust_enabled
@@ -4996,6 +5019,8 @@ class BaseImageIF:
         self.controls_dict['zoom_3d_ratio'] = nepi_utils.check_ratio(ratio)
         self.publish_status()
         self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('zoom_3d_ratio', self.controls_dict['zoom_3d_ratio'])
 
     def set_rotate_3d_ratio(self, ratio):
         """Set the 3-D rotation ratio, clamped to a valid ratio range.
@@ -5006,6 +5031,8 @@ class BaseImageIF:
         self.controls_dict['rotate_3d_ratio'] = nepi_utils.check_ratio(ratio)
         self.publish_status()
         self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('rotate_3d_ratio', self.controls_dict['rotate_3d_ratio'])
 
     def set_tilt_3d_ratio(self, ratio):
         """Set the 3-D tilt ratio, clamped to a valid ratio range.
@@ -5016,16 +5043,22 @@ class BaseImageIF:
         self.controls_dict['tilt_3d_ratio'] = nepi_utils.check_ratio(ratio)
         self.publish_status()
         self.needs_update()
+        if self.node_if is not None:
+            self.node_if.set_param('tilt_3d_ratio', self.controls_dict['tilt_3d_ratio'])
 
     ########################
 
     def set_aspect_adjust_enable(self,enabled):
         self.aspect_adjust_enabled = enabled and self.aspect_adjustment_disabled == False
+        if self.node_if is not None:
+            self.node_if.set_param('aspect_adjust_enabled', self.aspect_adjust_enabled)
 
     def set_aspect_adjust_ratio(self,aspect_ratio):
         if aspect_ratio is not None:
             if aspect_ratio >= 0.5 and aspect_ratio <= 2.5:
                 self.aspect_ratio_set = aspect_ratio #nepi_img.get_aspect_ratio_clean(aspect_ratio)
+                if self.node_if is not None:
+                    self.node_if.set_param('aspect_ratio_set', self.aspect_ratio_set)
 
     def set_aspect_adjust_by_ratio(self,ratio):
         ratio = nepi_utils.check_ratio(ratio)
@@ -5683,6 +5716,9 @@ class BaseImageIF:
 
     def set_live_adjust_enable(self,enabled):
         self.live_adjust_dict['live_adjust_enabled'] = enabled and self.live_adjustments_disabled == False
+        self.live_adjust_enabled = self.live_adjust_dict['live_adjust_enabled']
+        if self.node_if is not None:
+            self.node_if.set_param('live_adjust_enabled', self.live_adjust_enabled)
 
     def set_live_adjust_rotate_ratio(self,ratio):
         if self.live_adjust_dict['live_adjust_enabled'] == True:
@@ -6146,16 +6182,24 @@ class BaseImageIF:
 
 
             self.controls_dict['window_ratios'] = [0,1,0,1]
-            self.controls_dict['start_range_ratio'] = 0
-            self.controls_dict['stop_range_ratio'] = 1
+            # Read the range window back rather than hardcoding 0/1. Both keys are
+            # registered and both write paths persist them, so hardcoding here threw
+            # away a correctly saved range window on every restart.
+            self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
+            self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
 
 
             self.controls_dict['cam_fov'] = self.node_if.get_param('cam_fov')
-            
+
 
             self.controls_dict['cam_view'] =  self.node_if.get_param('cam_view')
             self.controls_dict['cam_pos'] =  self.node_if.get_param('cam_pos')
             self.controls_dict['cam_rot'] =  self.node_if.get_param('cam_rot')
+
+            self.controls_dict['zoom_3d_ratio'] = self.node_if.get_param('zoom_3d_ratio')
+            self.controls_dict['rotate_3d_ratio'] = self.node_if.get_param('rotate_3d_ratio')
+            self.controls_dict['tilt_3d_ratio'] = self.node_if.get_param('tilt_3d_ratio')
+            self.controls_dict['use_wbg'] = self.node_if.get_param('use_wbg')
 
             self.status_msg.camera_fov = self.controls_dict['cam_fov']
 
@@ -6727,9 +6771,16 @@ class BaseImageIF:
         min_ratio = msg.start_range
         max_ratio = msg.stop_range
         if min_ratio < max_ratio and min_ratio >= 0 and max_ratio <= 1:
+            # controls_dict is what publish_status reports and what the renderer
+            # resolves from; a param write alone left the slider snapping back to the
+            # old value in the status published on the next line, and the image never
+            # re-ranged. Same shape as the setWhiteBgCb note below.
+            self.controls_dict['start_range_ratio'] = min_ratio
+            self.controls_dict['stop_range_ratio'] = max_ratio
             self.node_if.set_param('start_range_ratio', min_ratio)
             self.node_if.set_param('stop_range_ratio', max_ratio)
             self.publish_status()
+            self.needs_update()
 
     def setWhiteBgCb(self,msg):
         enable = msg.data
@@ -8840,6 +8891,19 @@ class PointcloudIF:
                 'namespace': self.namespace,
                 'factory_val': False
             },
+            # setRotateRatioCb/setTiltRatioCb are wired to the live set_rotate_ratio
+            # and set_tilt_ratio topics below and PointcloudStatus declares matching
+            # fields, but neither key was registered: the writes were dropped, the
+            # factory_reset_param calls in resetRenderControls were no-ops, and the
+            # status fields never left 0.0.
+            'rotate_ratio': {
+                'namespace': self.namespace,
+                'factory_val': 0.5
+            },
+            'tilt_ratio': {
+                'namespace': self.namespace,
+                'factory_val': 0.5
+            },
             'frame_3d': {
                 'namespace': self.namespace,
                 'factory_val': self.frame3d_list[0]
@@ -9541,6 +9605,15 @@ class PointcloudIF:
                 self.status_msg.outlier_k_points = self.node_if.get_param('outlier_removal_num_neighbors')
 
                 self.status_msg.render_enable = self.node_if.get_param('render_enable')
+
+                # Degrees use the same conversion the renderer applies to its own
+                # rotate_3d_ratio/tilt_3d_ratio, so the two agree on what 0.5 means.
+                rotate_ratio = self.node_if.get_param('rotate_ratio')
+                self.status_msg.rotate_ratio = rotate_ratio
+                self.status_msg.rotate_deg = (0.5 - rotate_ratio) * 2 * 180
+                tilt_ratio = self.node_if.get_param('tilt_ratio')
+                self.status_msg.tilt_ratio = tilt_ratio
+                self.status_msg.tilt_deg = (0.5 - tilt_ratio) * 2 * 180
 
                 self.status_msg.range_min_max_m.start_range = self.min_range_m
                 self.status_msg.range_min_max_m.stop_range = self.max_range_m

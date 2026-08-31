@@ -921,8 +921,13 @@ class IDXDeviceIF:
             self.node_if.save_config()
 
       if do_updates == True and self.node_if is not None:
-        #self.ApplyConfigUpdates()
-        pass
+        # Push the values just restored above out to the driver. Without this the
+        # page reports the saved brightness/contrast/threshold/resolution/framerate/
+        # range after a restart while the camera still runs at the driver defaults,
+        # until the operator nudges any one slider. Every callback inside
+        # ApplyConfigUpdates guards on its own injected function being None, so a
+        # driver that supplies none of them is unaffected.
+        self.ApplyConfigUpdates()
         
       self.publish_status()
 
