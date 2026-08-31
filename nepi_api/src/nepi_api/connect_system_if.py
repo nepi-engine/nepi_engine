@@ -25,7 +25,7 @@ import inspect
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
-from nepi_sdk import nepi_settings
+from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_triggers
 from nepi_sdk import nepi_states
 
@@ -37,8 +37,7 @@ from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQ
 
 
 
-from nepi_interfaces.msg import Setting, SettingsStatus
-from nepi_interfaces.srv import SettingsCapabilitiesQuery, SettingsCapabilitiesQueryRequest, SettingsCapabilitiesQueryResponse
+from nepi_interfaces.msg import ControlsStatus, UpdateControl
 
 from nepi_interfaces.msg import SystemState, SystemStates
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
@@ -337,19 +336,26 @@ class ConnectSaveDataIF:
 
 
 
-SETTING_TYPES = ["Menu","Discnamespacee","String","Bool","Int","Float"]
+SETTING_TYPES = nepi_controls.SETTING_TYPES
 
 '''
-EXAMPLE_CAP_SETTINGS_DICT = {"None":{"name":"None","type":"None","optons":[]}}
+EXAMPLE_CAP_SETTINGS_DICT = {"None":{"name":"None","type":"None","options":[]}}
 EXAMPLE_SETTINGS_DICT = {"None":{"name":"None","type":"None","value":"None"}}
 '''
 
 class ConnectSettingsIF:
+    """Client side of a remote node's SettingsIF.
+
+    Settings are published as a nepi_controls ControlsStatus message, so both
+    the current values and their capabilities (type, options, bounds, default)
+    arrive in the same message. There is no capabilities query service to call.
+    """
 
     msg_if = None
     ready = False
     namespace = '~'
 
+    controls_dict = dict()
     settings_dict = None
     cap_settings_dict = None
     has_cap_updates = False
@@ -393,25 +399,16 @@ class ConnectSettingsIF:
         # Create NodeClassIF Class  
 
         # Services Config Dict ####################
-        self.SRVS_DICT = {
-            'setting_query': {
-                'namespace': self.namespace,
-                'topic': 'capabilities_query',
-                'msg': SettingsCapabilitiesQuery
-            }
-        }
+        # No capabilities_query. The capability report arrives in the status
+        # message, so there is nothing to call.
+        self.SRVS_DICT = None
 
         # Pubs Config Dict ####################
+        # 'reset_settings' is the topic SettingsIF subscribes; the previous
+        # 'reset'/'factory_reset' topics had no subscriber on the far end.
         self.PUBS_DICT = {
-            'cap_update_pub': {
-                'msg': Setting,
-                'namespace': self.namespace,
-                'topic': 'update_cap_setting',
-                'qsize': 1,
-                'latch': False
-            },
             'setting_update_pub': {
-                'msg': Setting,
+                'msg': UpdateControl,
                 'namespace': self.namespace,
                 'topic': 'update_setting',
                 'qsize': 1,
@@ -420,14 +417,7 @@ class ConnectSettingsIF:
             'reset_pub': {
                 'msg': Empty,
                 'namespace': self.namespace,
-                'topic': 'reset',
-                'qsize': 1,
-                'latch': False
-            },
-            'factory_reset_pub': {
-                'msg': Empty,
-                'namespace': self.namespace,
-                'topic': 'factory_reset',
+                'topic': 'reset_settings',
                 'qsize': 1,
                 'latch': False
             }
@@ -437,7 +427,7 @@ class ConnectSettingsIF:
         # Subs Config Dict ####################
         self.SUBS_DICT = {
             'status_sub': {
-                'msg': SettingsStatus,
+                'msg': ControlsStatus,
                 'namespace': self.namespace,
                 'topic': 'status',
                 'qsize': 1,
@@ -456,11 +446,6 @@ class ConnectSettingsIF:
 
         #self.con_node_if.wait_for_ready()
         nepi_sdk.wait()
-
-        ##############################
-        # Run Initialization Processes
-        self.cap_settings_dict = self._getCapSettings()   
-        #self.msg_if.pub_info("Cap Settings Message: " + str(self.cap_settings_dict))      
 
         ##############################
         # Complete Initialization
@@ -497,28 +482,75 @@ class ConnectSettingsIF:
         return self.namespace
 
     def get_settings_capabilities_dict(self):
-        """Return the capabilities dictionary describing available settings and their types."""
+        """Return the capabilities dictionary describing available settings and their types.
+
+        Read from the last status message, not from a service call.
+
+        Returns:
+            dict: setting name -> {'name', 'type', 'options', 'default_value'},
+                or None if no status has arrived yet.
+        """
         return self.cap_settings_dict
 
     def get_has_capabilities_updating(self):
-        """Return True if the remote node supports runtime capability setting updates."""
+        """Return True if the remote node supports runtime capability setting updates.
+
+        Always False: the runtime cap-update topic was retired along with the
+        capabilities query service. Capability changes are made node-side and
+        appear in the next status message.
+        """
         return self.has_cap_updates
 
     def get_settings_dict(self):
-        """Return the current settings dictionary as last received from the remote node."""
+        """Return the current settings dictionary as last received from the remote node.
+
+        Returns:
+            dict: setting name -> {'name', 'type', 'value'}, or None if no
+                status has arrived yet.
+        """
         return self.settings_dict
 
+    def get_controls_dict(self):
+        """Return the raw controls dict parsed from the last status message.
+
+        Returns:
+            dict: control name -> control dict, in nepi_controls form.
+        """
+        return copy.deepcopy(self.controls_dict)
+
     def update_cap_setting(self, cap_setting_dict):
-        """Publish a capability setting update if the remote node supports it, and return success."""
-        success = False
-        if self.has_cap_updates == True:
-            msg = nepi_settings.create_msg_from_cap_setting(cap_setting_dict)
-            success = self.con_node_if.publish_pub('cap_update_pub',msg)
-        return success
+        """Publish a capability setting update if the remote node supports it, and return success.
+
+        Always returns False. Kept so a caller written against the old client
+        still resolves; the remote cap-update topic no longer exists.
+
+        Args:
+            cap_setting_dict (dict): Ignored.
+
+        Returns:
+            bool: False.
+        """
+        self.msg_if.pub_warn("Runtime cap setting updates are retired; ignoring " + str(cap_setting_dict), log_name_list = self.log_name_list)
+        return False
 
     def update_setting(self, setting_dict):
-        """Publish a setting update to the remote node and return success."""
-        msg = nepi_settings.create_msg_from_setting(setting_dict)
+        """Publish a setting update to the remote node and return success.
+
+        Args:
+            setting_dict (dict): {'name', 'type', 'value'} with a string value,
+                in the device settings form.
+
+        Returns:
+            bool: True if the message was published.
+        """
+        string_options = []
+        try:
+            name = setting_dict['name']
+            if name in self.controls_dict.keys():
+                string_options = self.controls_dict[name]['string_options']
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to read options for setting " + str(setting_dict) + " : " + str(e), log_name_list = self.log_name_list)
+        msg = nepi_controls.create_update_control_msg_from_setting(setting_dict, string_options)
         success = self.con_node_if.publish_pub('setting_update_pub',msg)
         return success
 
@@ -529,10 +561,14 @@ class ConnectSettingsIF:
         return success
 
     def factory_reset_settings(self):
-        """Publish a factory reset command to restore all settings to their factory defaults."""
-        msg = Empty()
-        success = self.con_node_if.publish_pub('factory_reset_pub',msg)
-        return success
+        """Publish a factory reset command to restore all settings to their factory defaults.
+
+        SettingsIF exposes factory reset through the node config surface
+        (factory_reset_config), not through its own settings namespace, so this
+        routes there.
+        """
+        self.call_factory_reset_config()
+        return True
 
      #################
     ## Save Config Functions
@@ -553,15 +589,13 @@ class ConnectSettingsIF:
     # Class Private Methods
     ###############################
 
-    def _getCapSettings(self):
-        req = SettingsCapabilitiesQueryRequest()
-        response = self.con_node_if.call_service('capabilities_query',req)
-        if response is not None:
-            [self.cap_settings_dict,self.has_cap_updates] = nepi_settings.parse_capabilities_response(response)
-        return self.cap_settings_dict
-
     def _settingsCb(self,msg):
-        [self.settings_dict,self.cap_settings_dict,self.has_cap_updates] = nepi_settings.parse_status_msg(msg)
+        # One message carries both the values and their capabilities.
+        controls_dict = nepi_controls.parse_controls_status_msg(msg)
+        self.controls_dict = controls_dict
+        self.settings_dict = nepi_controls.get_settings_from_controls_dict(controls_dict)
+        self.cap_settings_dict = nepi_controls.get_cap_settings_from_controls_dict(controls_dict)
+        self.ready = True
 
 
 

@@ -34,7 +34,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
 from nepi_sdk import nepi_mgrs
 from nepi_sdk import nepi_keys
-from nepi_sdk import nepi_settings
+from nepi_sdk import nepi_controls
 
                  
 #####################
@@ -1007,16 +1007,16 @@ class SystemMgrNode():
     def getCapSettings(self, config_dict):
         cap_settings = dict()
         if config_dict is None:
-            cap_settings = copy.deepcopy(nepi_settings.NONE_CAP_SETTINGS)
+            cap_settings = copy.deepcopy(nepi_controls.NONE_CAP_SETTINGS)
         else:
             for key in config_dict.keys():
                 cap_setting = None
                 val = str(config_dict[key])
                 try:
                     val_int = int(val)
-                    cap_setting = {"name":key,"type":"Int","optons":[]}
+                    cap_setting = {"name":key,"type":"Int","options":[]}
                 except:
-                    cap_setting = {"name":key,"type":"String","optons":[]}
+                    cap_setting = {"name":key,"type":"String","options":[]}
                 if cap_setting is not None:
                     cap_settings[key] = cap_setting
         return cap_settings
@@ -1024,7 +1024,7 @@ class SystemMgrNode():
     def getSettings(self, config_dict):
         settings = dict()
         if config_dict is None:
-            settings = copy.deepcopy(nepi_settings.NONE_SETTINGS)
+            settings = copy.deepcopy(nepi_controls.NONE_SETTINGS)
         else:
             for key in config_dict.keys():
                 setting = None
@@ -1049,7 +1049,7 @@ class SystemMgrNode():
       msg = ""
       setting_str = str(setting)
       self.msg_if.pub_warn("Got Config Setting Update: " + str(setting))
-      [s_name, s_type, data] = nepi_settings.get_data_from_setting(setting)
+      [s_name, s_type, data] = nepi_controls.get_data_from_setting(setting)
       if data is not None:
         setting_name = setting['name']
         setting_data = data

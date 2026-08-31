@@ -27,7 +27,7 @@
 import time
 import sys
 from nepi_sdk import nepi_sdk
-from nepi_sdk import nepi_settings
+from nepi_sdk import nepi_controls
 
 from std_msgs.msg import Empty, Int8, UInt32, Int32, Bool, String, Float32, Float64, Float64MultiArray
 from nav_msgs.msg import Odometry
@@ -37,7 +37,7 @@ from geographic_msgs.msg import GeoPoint, GeoPose, GeoPoseStamped
 from mavros_msgs.msg import State, AttitudeTarget
 from mavros_msgs.srv import CommandBool, CommandBoolRequest, SetMode, SetModeRequest, CommandTOL, CommandHome
 from nepi_interfaces.msg import RBXInfo, RBXStatus, AxisControls, RBXErrorBounds, RBXGotoErrors, \
-    RBXGotoPose, RBXGotoPosition, RBXGotoLocation, Setting, Settings
+    RBXGotoPose, RBXGotoPosition, RBXGotoLocation, ControlsStatus, UpdateControl
 from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryRequest, RBXCapabilitiesQueryResponse
 from nepi_interfaces.srv import NPXCapabilitiesQuery, NPXCapabilitiesQueryRequest, NPXCapabilitiesQueryResponse
 
@@ -95,16 +95,19 @@ def rbx_initialize(self, rbx_namespace):
      nepi_sdk.log_msg_info("NEPI_RBX:  - " + action)
 
   ## Setup Settings Callback
-  self.NEPI_RBX_SETTINGS_TOPIC = NEPI_ROBOT_NAMESPACE + "settings_status"
+  # SettingsIF publishes its settings as a latched ControlsStatus message at
+  # '<robot_ns>/settings/status'. The previous 'settings_status' topic and the
+  # 'publish_settings' request topic that poked it no longer exist anywhere;
+  # the status is latched, so a subscriber gets the current value on connect
+  # and there is nothing to poke.
+  self.NEPI_RBX_SETTINGS_TOPIC = NEPI_ROBOT_NAMESPACE + "settings/status"
   nepi_sdk.log_msg_info("DRONE_INSPECT: Waiting for topic: " + self.NEPI_RBX_SETTINGS_TOPIC)
   nepi_sdk.wait_for_topic(self.NEPI_RBX_SETTINGS_TOPIC)
-  rbx_settings_pub = nepi_sdk.create_publisher(NEPI_ROBOT_NAMESPACE + 'publish_settings', Empty, queue_size=1)
   nepi_sdk.log_msg_info("DRONE_INSPECT: Starting rbx settings scubscriber callback")
-  nepi_sdk.create_subscriber(self.NEPI_RBX_SETTINGS_TOPIC, Settings, self.rbx_settings_callback, queue_size=None)
+  nepi_sdk.create_subscriber(self.NEPI_RBX_SETTINGS_TOPIC, ControlsStatus, self.rbx_settings_callback, queue_size=None)
   while self.rbx_settings is None and not nepi_sdk.is_shutdown():
     nepi_sdk.log_msg_info("DRONE_INSPECT: Waiting for current rbx settings to publish")
     time.sleep(1)
-    rbx_settings_pub.publish(Empty())
   settings_str = str(self.rbx_settings)
   nepi_sdk.log_msg_info("DRONE_INSPECT: Initial settings:" + settings_str)
 
@@ -138,9 +141,11 @@ def rbx_initialize(self, rbx_namespace):
   nepi_sdk.log_msg_info("DRONE_INSPECT: " + status_str)
 
  # NEPI RBX Driver Control Topics
-  NEPI_RBX_SETTINGS_UPDATE_TOPIC = NEPI_ROBOT_NAMESPACE + "update_setting" # Int to Defined Dictionary RBX_STATES
+  # Settings live under the device's settings namespace, not directly under the
+  # robot namespace, and the update message is now the typed UpdateControl.
+  NEPI_RBX_SETTINGS_UPDATE_TOPIC = NEPI_ROBOT_NAMESPACE + "settings/update_setting"
   nepi_sdk.log_msg_info("NEPI_RBX: Setting robot setting update topic to: " + NEPI_RBX_SETTINGS_UPDATE_TOPIC)
-  self.rbx_setting_update_pub = nepi_sdk.create_publisher(NEPI_RBX_SETTINGS_UPDATE_TOPIC, Setting, queue_size=1)
+  self.rbx_setting_update_pub = nepi_sdk.create_publisher(NEPI_RBX_SETTINGS_UPDATE_TOPIC, UpdateControl, queue_size=1)
 
   # NEPI RBX Driver Control Topics
   NEPI_RBX_SET_STATE_TOPIC = NEPI_RBX_NAMESPACE + "set_state" # Int to Defined Dictionary RBX_STATES
@@ -182,7 +187,10 @@ def rbx_initialize(self, rbx_namespace):
 #######################
 ### RBX Settings, Info, and Status Callbacks
 def rbx_settings_callback(self, msg):
-  self.rbx_settings = nepi_settings.parse_settings_msg_data(msg)
+  # Called nepi_settings.parse_settings_msg_data, a function that never existed
+  # in that module -- this callback raised on every message.
+  controls_dict = nepi_controls.parse_controls_status_msg(msg)
+  self.rbx_settings = nepi_controls.get_settings_from_controls_dict(controls_dict)
 
 
 def rbx_info_callback(self, msg):
