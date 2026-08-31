@@ -361,9 +361,9 @@ def set_datum_value(data_dict, datum_name, update_value, timestamp = None):
   return data_dict
 
 
-def set_data_values(data_dict, datum_name, update_value, timestamp = None):
-    for datum_name in data_dict.keys():
-      update_value = data_dict[datum_name]
+def set_data_values(data_dict, data_values_dict, timestamp = None):
+    for datum_name in data_values_dict.keys():
+      update_value = data_values_dict[datum_name]
       data_dict = set_datum_value(data_dict, datum_name, update_value, timestamp = None)
     return data_dict
 
