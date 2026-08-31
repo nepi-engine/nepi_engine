@@ -3885,8 +3885,8 @@ class SettingsIF:
             controls_dict = self.getControlsDict()
             # The persisted values are this node's defaults: 'reset' returns
             # here, 'factory_reset' goes past here to the factory tier.
-            controls_dict = nepi_controls.update_controls_dict_from_settings(controls_dict, init_settings, value_key = 'default')
-            controls_dict = nepi_controls.update_controls_dict_from_settings(controls_dict, init_settings, value_key = 'set')
+            controls_dict = nepi_controls.update_controls_dict_from_settings(controls_dict, init_settings, type_key = 'default')
+            controls_dict = nepi_controls.update_controls_dict_from_settings(controls_dict, init_settings, type_key = 'set')
             self.controls_dict = controls_dict
 
         if do_updates == True:

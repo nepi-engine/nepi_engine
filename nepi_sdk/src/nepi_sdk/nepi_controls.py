@@ -260,7 +260,7 @@ def create_controls_dict(init_dict):
 
 
 def get_control_value(controls_dict, control_name, type_key = 'set'):
-  if type_key != 'factory' or type_key != 'default' or type_key != 'set':
+  if type_key not in ('factory', 'default', 'set'):
     type_key = 'set'
   value = None
   if control_name in controls_dict.keys():
@@ -315,7 +315,7 @@ def get_controls_values_dict(controls_dict, type_key = 'set'):
 
 
 def set_control_value(controls_dict, control_name, update_value, type_key = 'set'):
-  if type_key != 'factory' or type_key != 'default' or type_key != 'set':
+  if type_key not in ('factory', 'default', 'set'):
     type_key = 'set'
   if control_name in controls_dict.keys():
       control_dict = controls_dict[control_name]
@@ -479,7 +479,7 @@ def set_controls_values(controls_dict, controls_values_dict, type_key = 'set'):
 def get_control_default_value(controls_dict, control_name):
   value = None
   if control_name in controls_dict.keys(): 
-    value = get_control_default_value(controls_dict, control_name)(controls_dict, control_name, type_key = 'default')
+    value = get_control_value(controls_dict, control_name, type_key = 'default')
   return value
 
 def set_control_default_value(controls_dict, control_name, update_value):
@@ -489,7 +489,7 @@ def set_control_default_value(controls_dict, control_name, update_value):
 def get_control_factory_value(controls_dict, control_name):
   value = None
   if control_name in controls_dict.keys(): 
-    value = get_control_default_value(controls_dict, control_name)(controls_dict, control_name, type_key = 'factory')
+    value = get_control_value(controls_dict, control_name, type_key = 'factory')
   return value
 
 def set_control_factory_value(controls_dict, control_name, update_value):
@@ -498,7 +498,7 @@ def set_control_factory_value(controls_dict, control_name, update_value):
 
 
 def reset_control_value(controls_dict, control_name, type_key = 'default'):
-  if type_key != 'factory' or type_key != 'default':
+  if type_key not in ('factory', 'default'):
     type_key = 'default'
   if type_key == 'default':
     update_str = 'set'
@@ -1166,7 +1166,7 @@ def create_controls_dict_from_settings(cap_settings, settings = None, factory_se
   return controls_dict
 
 
-def set_control_value_from_setting_str(controls_dict, control_name, value_str, value_key = 'set'):
+def set_control_value_from_setting_str(controls_dict, control_name, value_str, type_key = 'set'):
   if control_name not in controls_dict.keys():
     return controls_dict
   control_type = controls_dict[control_name]['type']
@@ -1185,10 +1185,10 @@ def set_control_value_from_setting_str(controls_dict, control_name, value_str, v
   except Exception as e:
     logger.log_warn("Failed to convert setting value " + str(value_str) + " for " + str(control_name) + " : " + str(e))
     return controls_dict
-  return set_control_value(controls_dict, control_name, update_value, value_key = value_key)
+  return set_control_value(controls_dict, control_name, update_value, type_key = type_key)
 
 
-def update_controls_dict_from_settings(controls_dict, settings, value_key = 'set'):
+def update_controls_dict_from_settings(controls_dict, settings, type_key = 'set'):
   if settings is None:
     return controls_dict
   for name in settings.keys():
@@ -1197,7 +1197,7 @@ def update_controls_dict_from_settings(controls_dict, settings, value_key = 'set
     setting = settings[name]
     if 'value' not in setting.keys():
       continue
-    controls_dict = set_control_value_from_setting_str(controls_dict, name, setting['value'], value_key = value_key)
+    controls_dict = set_control_value_from_setting_str(controls_dict, name, setting['value'], type_key = type_key)
   return controls_dict
 
 
@@ -1221,12 +1221,12 @@ def update_controls_dict_caps_from_settings(controls_dict, cap_settings):
   return controls_dict
 
 
-def get_setting_value_str(controls_dict, control_name, value_key = 'set'):
+def get_setting_value_str(controls_dict, control_name, type_key = 'set'):
   if control_name not in controls_dict.keys():
     return None
   control_dict = controls_dict[control_name]
   control_type = control_dict['type']
-  value = get_control_value(controls_dict, control_name, value_key = value_key)
+  value = get_control_value(controls_dict, control_name, type_key = type_key)
   if value is None:
     return None
   if control_type == "Menu":
@@ -1240,13 +1240,13 @@ def get_setting_value_str(controls_dict, control_name, value_key = 'set'):
   return str(value)
 
 
-def get_settings_from_controls_dict(controls_dict, value_key = 'set'):
+def get_settings_from_controls_dict(controls_dict, type_key = 'set'):
   settings = dict()
   for name in controls_dict.keys():
     control_type = controls_dict[name]['type']
     if control_type not in CONTROL_TYPE_2_SETTING_TYPE.keys():
       continue
-    value_str = get_setting_value_str(controls_dict, name, value_key = value_key)
+    value_str = get_setting_value_str(controls_dict, name, type_key = type_key)
     if value_str is None:
       continue
     settings[name] = {'name': name,
@@ -1273,7 +1273,7 @@ def get_cap_settings_from_controls_dict(controls_dict):
     cap_settings[name] = {'name': name,
                           'type': CONTROL_TYPE_2_SETTING_TYPE[control_type],
                           'options': options,
-                          'default_value': get_setting_value_str(controls_dict, name, value_key = 'default')}
+                          'default_value': get_setting_value_str(controls_dict, name, type_key = 'default')}
   return cap_settings
 
 
