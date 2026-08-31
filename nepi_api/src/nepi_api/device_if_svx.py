@@ -605,8 +605,20 @@ class SVXActuatorIF:
             if self.setSoftLimitsCb is not None:
                 self.setSoftLimitsCb(self.min_softstop_deg, self.max_softstop_deg)
 
-            if self.getSpeedMaxCb is None:
-                self.speed_max_dps = self.node_if.get_param('speed_max_dps')
+            # Whether the saved max is authoritative is the same question as whether
+            # the operator was allowed to move it, so gate the restore on the same
+            # flag _setMaxSpeedCb gates the write on. Keying this off getSpeedMaxCb
+            # (the PTX rule) instead left a driver that supplies BOTH callbacks --
+            # the Maestro -- in the gap: the new max was accepted and saved, then
+            # never read back, so a restart silently reverted to the driver default.
+            if self.set_max_dps_disabled == False:
+                speed_max_dps = self.node_if.get_param('speed_max_dps')
+                if speed_max_dps is not None:
+                    self.speed_max_dps = speed_max_dps
+            elif self.getSpeedMaxCb is not None:
+                # No setter, so the driver owns the value outright -- re-read it
+                # rather than trust a param nothing could have legitimately moved.
+                self.speed_max_dps = self.getSpeedMaxCb()
             if self.setSpeedMaxCb is not None:
                 self.setSpeedMaxCb(self.speed_max_dps)
 

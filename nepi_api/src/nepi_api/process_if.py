@@ -263,10 +263,19 @@ class ProcessIF:
         # selection survives node restarts (via the config manager). Passing a
         # params_dict is what enables config management on NodeClassIF.
         self.controls_param_name = self.node_if_prefix + 'process_controls_dict'
+        # set_selected_sources wrote a bare 'selected_sources', which was never
+        # registered here, so set_param resolved to no namespace and the write was
+        # dropped silently. Prefixed like controls_param_name so it cannot collide
+        # with the ControlsIF or detector params of the same name on a shared node_if.
+        self.sources_param_name = self.node_if_prefix + 'selected_sources'
         PARAMS_DICT = {
             self.controls_param_name: {
                 'namespace': self.process_namespace,
                 'factory_val': self.process_controls_dict
+            },
+            self.sources_param_name: {
+                'namespace': self.process_namespace,
+                'factory_val': self.selected_sources
             }
         }
 
@@ -493,7 +502,7 @@ class ProcessIF:
         # the ROS param; save_config asks the config manager to save it to file.
         if self.node_if is not None:
             self.msg_if.pub_warn("selected_sources: " + str(selected_sources))
-            self.node_if.set_param('selected_sources', self.selected_sources)
+            self.node_if.set_param(self.sources_param_name, self.selected_sources)
             self.node_if.save_config()
     
 
@@ -789,6 +798,9 @@ class ProcessIF:
             controls_dict = self.node_if.get_param(self.controls_param_name)
             if controls_dict is not None:
                 self.process_controls_dict = controls_dict
+            selected_sources = self.node_if.get_param(self.sources_param_name)
+            if selected_sources is not None:
+                self.selected_sources = selected_sources
         if do_updates == True:
             pass
         self.publish_status()

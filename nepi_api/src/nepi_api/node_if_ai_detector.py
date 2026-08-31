@@ -1354,9 +1354,15 @@ class AiDetectorIF:
             self.max_image_pub_rate_hz = self.node_if.get_param('max_image_pub_rate_hz')
             self.use_last_image = self.node_if.get_param('use_last_image')
 
-            self.selected_sources = self.node_if.get_param('selected_sources')
+            # Restore the auto-select flags directly, the way every other value in
+            # this method is restored. Routing them through setAutoSelectEnable ran
+            # its first statement -- self.selected_sources = [] -- and wiped the
+            # selection that had just been read back on the line above, so a saved
+            # image source always came back empty.
             auto_select_enabled = self.node_if.get_param('auto_select_enabled')
-            self.setAutoSelectEnable(auto_select_enabled)
+            self.auto_select_enabled = auto_select_enabled
+            self.auto_select_active = auto_select_enabled
+            self.selected_sources = self.node_if.get_param('selected_sources')
             self.msg_if.pub_info("Init selected images: " + str(self.selected_sources), log_name_list = self.log_name_list)
 
             

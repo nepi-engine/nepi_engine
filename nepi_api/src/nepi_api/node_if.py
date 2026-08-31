@@ -421,6 +421,21 @@ class NodeParamsIF:
     def load_params(self, file_path):
         self.nepi_sdk.load_params_from_file(file_path,self.namespace)        
 
+    def getNestedInitVal(self, ns_param_dict, param_name):
+        # A param key may contain '/' ('home_position/pan_deg'), and get_params returns
+        # the namespace as a NESTED dict, so a slashed key never matches a top-level
+        # key. Matching against the top level made every slashed param fall through to
+        # its factory_val and then overwrite the correctly reloaded server value, which
+        # is why svx and ptx home position could not survive a restart. Walk the
+        # segments instead. A flat key still resolves on the first pass.
+        val = ns_param_dict
+        for key in param_name.split('/'):
+            if isinstance(val, dict) and key in val.keys():
+                val = val[key]
+            else:
+                return None
+        return val
+
     def initialize_params(self):
         self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
         ns_params_dict = dict()
@@ -438,8 +453,7 @@ class NodeParamsIF:
             init_val = None
             if namespace in ns_params_dict.keys():
                 ns_param_dict = ns_params_dict[namespace]
-                if param_name in ns_param_dict.keys():
-                    init_val = ns_param_dict[param_name]
+                init_val = self.getNestedInitVal(ns_param_dict, param_name)
             if init_val is None:
                 init_val = param_dict['factory_val']
                 self.set_param(param_name, init_val)
@@ -1204,16 +1218,28 @@ class NodeClassIF:
         else:
             # Need to inject our own config callback functions that call the params_if functions first
             self.configs_dict = configs_dict
-            configs_dict = {
-                    'init_callback': self._initConfigCb,
-                    'reset_callback': self._resetConfigCb,
-                    'factory_reset_callback': self._factoryResetConfigCb,
-                    'init_configs': True,
-                    'namespace': configs_dict['namespace']
-            }
+            # Copy and override rather than rebuild from scratch, so alt_namespace,
+            # clear_params, manage_configs and anything else the caller set survive the
+            # injection. The rebuilt literal this replaced carried only namespace and
+            # silently dropped alt_namespace, which reset_params and delete_config_all
+            # both read. Copying also keeps NodeConfigsIF's own 'namespace' default
+            # assignment off the caller's dict.
+            configs_dict = dict(configs_dict)
+            configs_dict['init_callback'] = self._initConfigCb
+            configs_dict['reset_callback'] = self._resetConfigCb
+            configs_dict['factory_reset_callback'] = self._factoryResetConfigCb
 
         if self.configs_dict is not None:
-            self.configs_if = NodeConfigsIF(configs_dict = self.configs_dict, 
+            # Pass the INJECTED dict, not self.configs_dict. Passing the caller's dict
+            # here made the three wrappers above dead code: /init_config never re-ran
+            # initialize_params, and /reset_config and /factory_reset_config never reset
+            # a param. self.configs_dict deliberately stays the caller's dict, because
+            # each wrapper does its params work and then delegates to the caller's
+            # callback through it.
+            # params_if does not exist yet at this point, so the construction-time
+            # reset_config that init_configs triggers still no-ops on the params step
+            # exactly as it did before. Only the runtime topic callbacks change.
+            self.configs_if = NodeConfigsIF(configs_dict = configs_dict,
                                             wait_cfg_mgr = wait_cfg_mgr, 
                                             msg_if = self.msg_if, 
                                             log_name_list = self.log_name_list)

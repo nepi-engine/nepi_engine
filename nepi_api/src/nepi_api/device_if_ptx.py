@@ -941,16 +941,26 @@ class PTXActuatorIF:
             if self.setSpeedMaxCb is not None:
                 self.setSpeedMaxCb(self.speed_max_dps) 
 
-            if self.has_adjustable_speed == False:
-                if self.setSpeedRatioCb is not None and self.getSpeedRatioCb is not None:
-                    speed_ratios = self.node_if.get_param('speed_ratios')
-                    self.msg_if.pub_warn("Initializing speed_ratio: " + str(self.speed_ratio))
-
-                   
-                if self.has_seperate_pan_tilt_speed == True:
-                    self.setPanSpeedRatioCb(speed_ratios[0])
-                    self.setTiltSpeedRatioCb(speed_ratios[1])
+            # Restore on the same predicates the three write paths are gated on:
+            # _setSpeedRatio writes when has_adjustable_speed is True, and
+            # _setPanSpeedRatio/_setTiltSpeedRatio write when
+            # has_seperate_pan_tilt_speed is True. Gating the restore on
+            # has_adjustable_speed == False was the exact inverse, so on the units
+            # where the operator can move the speed it was saved and never read back.
+            # It also left speed_ratios assigned under one guard and consumed under a
+            # sibling guard -- a NameError on any driver with per-axis speed callbacks.
+            if self.has_adjustable_speed == True or self.has_seperate_pan_tilt_speed == True:
+                speed_ratios = self.node_if.get_param('speed_ratios')
+                if speed_ratios is not None and len(speed_ratios) == 2:
+                    self.speed_pan_ratio = speed_ratios[0]
+                    self.speed_tilt_ratio = speed_ratios[1]
                     self.speed_ratio = max(speed_ratios)
+                    self.msg_if.pub_warn("Initializing speed_ratios: " + str(speed_ratios))
+                    if self.has_seperate_pan_tilt_speed == True:
+                        self.setPanSpeedRatioCb(self.speed_pan_ratio)
+                        self.setTiltSpeedRatioCb(self.speed_tilt_ratio)
+                    elif self.setSpeedRatioCb is not None:
+                        self.setSpeedRatioCb(self.speed_ratio)
 
             self.home_pan_deg = self.node_if.get_param('home_position/pan_deg')
             self.home_tilt_deg = self.node_if.get_param('home_position/tilt_deg')
@@ -966,6 +976,18 @@ class PTXActuatorIF:
 
         
     
+            # Restore the reverse flags BEFORE deriving the direction multipliers from
+            # them. Reading the params after this derivation left rpi/rti computed from
+            # the pre-restore value while status_msg reported the restored one, so a
+            # restored reverse axis read correct on the page and still moved the wrong
+            # way.
+            reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
+            if reverse_pan_enabled is not None:
+                self.reverse_pan_enabled = reverse_pan_enabled
+            reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
+            if reverse_tilt_enabled is not None:
+                self.reverse_tilt_enabled = reverse_tilt_enabled
+
             # Set reverse int values
             rpi = 1
             if self.reverse_pan_enabled:
@@ -975,10 +997,6 @@ class PTXActuatorIF:
             if self.reverse_tilt_enabled:
                 rti = -1
             self.rti = rti
-
-            # Setup Joint Info
-            self.reverse_pan_enabled = self.node_if.get_param('reverse_pan_enabled')
-            self.reverse_tilt_enabled = self.node_if.get_param('reverse_tilt_enabled')
         if do_updates == True:
             pass
         self.publish_status()
@@ -1377,6 +1395,9 @@ class PTXActuatorIF:
 
         self.home_pan_deg = pan_deg_adj
         self.home_tilt_deg = tilt_deg_adj
+        if self.node_if is not None:
+            self.node_if.set_param('home_position/pan_deg', self.home_pan_deg)
+            self.node_if.set_param('home_position/tilt_deg', self.home_tilt_deg)
         self.msg_if.pub_info("Updated home position to " + "%.2f" % self.home_pan_deg + " " + "%.2f" %  self.home_tilt_deg)
         self.publish_status()
         if self.setHomePositionCb is not None:
@@ -1537,9 +1558,11 @@ class PTXActuatorIF:
         if msg.data == True:
             rpi = -1
         self.rpi = rpi
+        if self.node_if is not None:
+            self.node_if.set_param('reverse_pan_enabled', self.reverse_pan_enabled)
         self.msg_if.pub_info("Set pan control to reverse=" + str(self.reverse_pan_enabled))
         self.publish_status()
-        
+
 
     def _setReverseTiltEnableCb(self, msg):
         self.reverse_tilt_enabled = msg.data
@@ -1547,6 +1570,8 @@ class PTXActuatorIF:
         if msg.data == True:
             rti = -1
         self.rti = rti
+        if self.node_if is not None:
+            self.node_if.set_param('reverse_tilt_enabled', self.reverse_tilt_enabled)
         self.msg_if.pub_info("Set tilt control to reverse=" + str(self.reverse_tilt_enabled))
         self.publish_status()
         
@@ -1554,6 +1579,9 @@ class PTXActuatorIF:
     def _setHomePositionHereCb(self, _):
         self.home_pan_deg = self.status_msg.pan_now_deg * self.rpi
         self.home_tilt_deg = self.status_msg.tilt_now_deg * self.rti
+        if self.node_if is not None:
+            self.node_if.set_param('home_position/pan_deg', self.home_pan_deg)
+            self.node_if.set_param('home_position/tilt_deg', self.home_tilt_deg)
         self.msg_if.pub_info("Home positon set to: " + "%.2f" % self.home_pan_deg * self.rpi + " " + "%.2f" % self.home_tilt_deg * self.rti)
         self.publish_status()
         if self.setHomePositionHereCb is not None:
