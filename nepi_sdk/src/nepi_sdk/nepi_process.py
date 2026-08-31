@@ -60,7 +60,7 @@ def get_process_dicts(processes_dict, process_name):
 
 
 
-def convert_pub_results_dict2msg(results_pub_msg, results_pub_dict):
+def convert_results_pub_dict2msg(results_pub_msg, results_pub_dict):
     results_msg = None
     if results_pub_msg is not None and results_pub_dict is not None:
             results_dict = nepi_sdk.convert_msg2dict(results_pub_msg())

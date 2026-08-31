@@ -1012,7 +1012,7 @@ class ProcessIF:
     def _publishResults(self, results_dict):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg is None: " + str([results_dict, self.results_pub_msg]), throttle_s = 5) 
         if self.node_if is not None and results_dict is not None and self.results_pub_msg is not None:
-
+            results_pub_msg
             try:
                 results_pub_msg = nepi_process.convert_results_pub_dict2msg(self.results_pub_msg, results_dict)
             except Exception as e:
