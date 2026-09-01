@@ -30,16 +30,17 @@ from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data as nepi_data
 
 from nepi_interfaces.msg import ProcessResultsTrack
-
+from nepi_interfaces.msg import NavPose
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_obstacles"
+log_name = "nepi_process_track"
 logger = Logger(log_name = log_name)
 
 
 ########################
 
 RESULTS_PUB_MSG = ProcessResultsTrack
+RESULTS_PUB_TYPE = 'nepi_interfaces/ProcessResultsTrack'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
 RESULTS_PUB_TOPIC = 'track'
 
@@ -227,6 +228,7 @@ track_1_dict = {
    
     'data_dict': dict(
         targets_dict_list = [], 
+        navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
         last_track_time = 0,
         last_track_dict = None
     ),
@@ -234,7 +236,7 @@ track_1_dict = {
 
     'controls_dict': dict(
 
-        class_filters = {"type":"Selections", "default":['ALL'], "options":[], 
+        class_filters = {"type":"Selections", "default":[], "options":[], 
                    # OPTIONAL
                    'display_name':'Select Classes', 'description':'Set Class Filters', 'hidden':False}, 
 
@@ -290,36 +292,174 @@ def track_1_process(data_dict, controls_dict, results_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
-    #logger.log_warn("Process Results Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
+    controls_values_dict = nepi_controls.get_controls_values_dict(controls_dict)
+    #logger.log_warn("Got Data: " + str(data_dict), throttle_s = 5)
+    #logger.log_warn("Got Controls: " + str(controls_values_dict), throttle_s = 10)
+
+
+    #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
     results_pub_dict = None
-    
     track_dict = None
     filtered_targets = data_dict.get('targets_dict_list', [])
     if filtered_targets is None:
         filtered_targets = []
 
-    class_filters = nepi_controls.get_control_value(controls_dict, 'class_filters')
+    class_filters = controls_values_dict['class_filters']
     filtered_targets = filter_by_classes(filtered_targets, class_filters)
 
-    size_max_filter = nepi_controls.get_control_value(controls_dict, 'size_max_filter')
-    size_min_filter = nepi_controls.get_control_value(controls_dict, 'size_min_filter')
+    size_max_filter = controls_values_dict['size_max_filter']
+    size_min_filter = controls_values_dict['size_min_filter']
     filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
 
-    threshold_filter = nepi_controls.get_control_value(controls_dict, 'threshold_filter')
+    threshold_filter = controls_values_dict['threshold_filter']
     filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
 
+    
     if len(filtered_targets) > 0:
-        best_filter = nepi_controls.get_control_value(controls_dict, 'best_filter')
+        best_filter = controls_values_dict['best_filter']
         track_dict = find_best(filtered_targets, best_filter = best_filter)
-
+        data_dict['last_track_time'] = nepi_utils.get_time()
+        data_dict['last_track_dict'] = track_dict
+    #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
     [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
-    #logger.log_warn("Process Completed: " + str([data_dict, controls_dict, results_dict, results_pub_dict]), throttle_s = 5)
-    return data_dict, controls_dict, results_dict, results_pub_dict
+    results_pub_msg = None
+    if results_pub_dict is not None:
+        try:
+            results_pub_msg = nepi_process.convert_results_pub_dict2msg(RESULTS_PUB_MSG, RESULTS_PUB_TYPE, results_pub_dict)
+            #logger.log_warn("Created results_pub_msg: "  + str(results_pub_msg), throttle_s = 10)
+        except Exception as e:
+            logger.log_warn("Failed to convert results_pub_dict: "  + str(results_pub_dict) + " : " + str(e), throttle_s = 10) 
+            pass
+    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_msg]), throttle_s = 5)
+    return data_dict, controls_dict, results_dict, results_pub_msg
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_1', process_dict = track_1_dict)
 #logger.log_warn("Updated processes dict: " + str(processes_dict))
 functions_dict['track_1'] = track_1_process
+
+
+
+
+
+########################
+## Process 2  
+
+
+
+track_2_dict = {
+   
+    'data_dict': dict(
+        targets_dict_list = [], 
+        navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
+        last_track_time = 0,
+        last_track_dict = None
+    ),
+
+
+    'controls_dict': dict(
+
+        class_filters = {"type":"Selections", "default":[], "options":[], 
+                   # OPTIONAL
+                   'display_name':'Select Classes', 'description':'Set Class Filters', 'hidden':False}, 
+
+        size_min_filter = {
+            'type': 'FloatSlider', 'default': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
+            'display_name': 'Max Range (m)',
+            'description': 'Ignore targets with pixel areas less than min.', 'hidden': False},
+
+        size_max_filter = {
+            'type': 'FloatSlider', 'default': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
+            'display_name': 'Max Range (m)',
+            'description': 'Ignore targets with pixel areas larger than max.', 'hidden': False},
+
+        threshold_filter = {
+            'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
+            'display_name': 'Max Range (m)',
+            'description': 'Ignore targets with confidance lower than threshold.', 'hidden': False},
+
+        best_filter = {"type":"Selection", "default":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
+                   # OPTIONAL
+                   'display_name':'Best Filter', 'description':'Set Best Filte', 'hidden':False}, 
+
+    ),
+
+
+    'results_dict': dict(
+
+        timestamp = {"type":"Float", "value":-999,
+                    # OPTIONAL
+                    'display_name':'Timestamp', 'description':'Timestamp', 'hidden':True},
+
+        age_sec = {"type":"Float", "value":-999, 'round_value': 3,
+                    # OPTIONAL
+                    'display_name':'Age (Sec)', 'description':'Age in seconds', 'hidden':False, 'round_display': 3,},
+
+        azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to tracked target', 'hidden':False, 'round_display': 1,},
+
+        elevation_deg = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'hidden':False, 'round_display': 1,},
+
+        range_m = {"type":"Float", "value":2.0, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'hidden':False, 'round_display': 1,},
+    ),
+
+}
+
+
+def track_2_process(data_dict, controls_dict, results_dict):
+    start_time = nepi_utils.get_time()
+    last_data_dict = copy.deepcopy(data_dict)
+    last_results_dict = copy.deepcopy(results_dict)
+    controls_values_dict = nepi_controls.get_controls_values_dict(controls_dict)
+    #logger.log_warn("Got Data: " + str(data_dict), throttle_s = 5)
+    #logger.log_warn("Got Controls: " + str(controls_values_dict), throttle_s = 10)
+
+
+    #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
+    results_pub_dict = None
+    track_dict = None
+    filtered_targets = data_dict.get('targets_dict_list', [])
+    if filtered_targets is None:
+        filtered_targets = []
+
+    class_filters = controls_values_dict['class_filters']
+    filtered_targets = filter_by_classes(filtered_targets, class_filters)
+
+    size_max_filter = controls_values_dict['size_max_filter']
+    size_min_filter = controls_values_dict['size_min_filter']
+    filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
+
+    threshold_filter = controls_values_dict['threshold_filter']
+    filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
+
+    
+    if len(filtered_targets) > 0:
+        best_filter = controls_values_dict['best_filter']
+        track_dict = find_best(filtered_targets, best_filter = best_filter)
+        data_dict['last_track_time'] = nepi_utils.get_time()
+        data_dict['last_track_dict'] = track_dict
+    #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
+    [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
+    results_pub_msg = None
+    if results_pub_dict is not None:
+        try:
+            results_pub_msg = nepi_process.convert_results_pub_dict2msg(RESULTS_PUB_MSG, RESULTS_PUB_TYPE, results_pub_dict)
+            #logger.log_warn("Created results_pub_msg: "  + str(results_pub_msg), throttle_s = 10)
+        except Exception as e:
+            logger.log_warn("Failed to convert results_pub_dict: "  + str(results_pub_dict) + " : " + str(e), throttle_s = 10) 
+            pass
+    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_msg]), throttle_s = 5)
+    return data_dict, controls_dict, results_dict, results_pub_msg
+
+
+processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_2', process_dict = track_2_dict)
+#logger.log_warn("Updated processes dict: " + str(processes_dict))
+functions_dict['track_2'] = track_2_process
 
 ########################
 ## Processes Init Dict  
