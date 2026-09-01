@@ -1396,7 +1396,9 @@ class RBXRobotIF:
   
     def setCurrentAsDefault(self):
         if self.settings_if is not None:
-          self.settings_if.initialize_settings(do_updates = False)
+          # initialize_settings() has never existed on SettingsIF -- this raised
+          # AttributeError on every setCurrentAsDefault(). init() is the method.
+          self.settings_if.init(do_updates = False)
         pass # We only use the param server, no member variables to apply to param server
    
     ### Info callback
