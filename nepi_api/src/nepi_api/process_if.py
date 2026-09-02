@@ -500,6 +500,7 @@ class ProcessIF:
         if process_name in self.available_processes:
             cur_process = copy.deepcopy(self.selected_process)
             if process_name != cur_process or check_updates == False:
+                self.msg_if.pub_warn("Process Selected: " + str(process_name))
                 self.process_ready = False
                 self.selected_process = process_name
                 self.publish_status()
@@ -510,10 +511,9 @@ class ProcessIF:
                 self.process_function = self.processes_functions_dict[process_name]
                 nepi_sdk.sleep(1)
                 success = True
-                
-                self.msg_if.pub_warn("########################################################")
-                self.msg_if.pub_warn("Selected Process Ready: " + str([process_name, self.data_dict,self.controls_dict,self.results_dict,self.process_function]))
-                self.msg_if.pub_warn("########################################################")
+                self.msg_if.pub_warn("Process Ready: " + str(process_name))
+                #self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict,self.controls_dict,self.results_dict,self.process_function]))
+
         self.process_ready = self.selected_process in self.available_processes
         self.enabled = True
         return success
@@ -962,9 +962,9 @@ class ProcessIF:
             if success == False:
                 self.msg_if.pub_warn("PROCESS LOAD FAILED: " + str(self.processes_functions_dict))
             else:
-                self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict))
-                self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict))
-                self.msg_if.pub_warn("Process Selected: " + str(self.selected_process))
+                self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict.keys()))
+                # self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict))
+                # self.msg_if.pub_warn("Process Selected: " + str(self.selected_process))
         self.publish_status()
 
     def reset(self):
@@ -1097,7 +1097,7 @@ class ProcessIF:
                 control_value = [msg.start_range, msg.stop_range]
             else:
                 control_value = nepi_utils.get_time()
-            self.set_control(control_name, control_value)
+            self.set_control_value(control_name, control_value)
         
     def _publishResults(self, results_pub_msg):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 

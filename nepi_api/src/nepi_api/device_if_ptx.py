@@ -831,7 +831,7 @@ class PTXActuatorIF:
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if
+                        msg_if = self.msg_if
                         )
 
         success = nepi_sdk.wait()
@@ -880,11 +880,12 @@ class PTXActuatorIF:
         }
         self.settings_if = SettingsIF(namespace = settings_ns, 
                         settings_dict = self.SETTINGS_DICT,
+                        use_nodename_prefix=False,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+                        msg_if = self.msg_if,
+                        node_if = self.node_if
+                        )
+
         #####################
         # Update Status Message
         nepi_sdk.sleep(1)

@@ -417,12 +417,13 @@ class NPXDeviceIF:
         }
 
         self.settings_if = SettingsIF(namespace = settings_ns,
-                            settings_dict = self.SETTINGS_DICT,
-                            log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+                        settings_dict = self.SETTINGS_DICT,
+                        use_nodename_prefix=False,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if,
+                        node_if = self.node_if
+                        )
+
 
 
 
@@ -449,10 +450,9 @@ class NPXDeviceIF:
                             factory_filename_dict = factory_filename_dict,
                             namespace = sd_namespace,
                             log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
+                            )
 
 
         # Create the per-device 3D mount transform (where the camera is located/oriented).
@@ -462,10 +462,9 @@ class NPXDeviceIF:
                             end_ref_description = self.node_name,
                             get_3d_transform_function = None,
                             log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
+                            )
 
         # Create a NavPose IF, but only if the capability flags are actually known.
         # NavPoseIF decides its publisher set from these flags once, at construction,

@@ -43,7 +43,6 @@ from nepi_interfaces.msg import ControlsStatus, UpdateControl
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SettingsIF
 
 
 

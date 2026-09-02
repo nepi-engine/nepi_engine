@@ -151,7 +151,7 @@ class ControlsIF:
         # Built from the sanitized self.controls_name, not the raw argument -- the
         # namespace must match the name reported in ControlsStatus.
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
-        self.node_if_prefix = self.controls_name + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         ##############################    
         # Initialize Class Variables
@@ -1704,7 +1704,7 @@ class SaveDataIF:
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,save_data_name)
-        self.node_if_prefix = save_data_name + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
         
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
@@ -2864,7 +2864,7 @@ class Transform3DIF:
             return
         self.msg_if.pub_info("Using States Name: " + transform_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,transform_name)
-        self.node_if_prefix = transform_name + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         self.source = source_ref_description
         self.end = end_ref_description
@@ -3384,10 +3384,10 @@ class SettingsIF:
     # Registry keys are prefixed so they stay domain-unique on a shared
     # node_if. The ROS wire name comes from namespace+topic, not the key, so
     # these are wire-safe -- EXCEPT the param key, where the wire name IS
-    # namespace+key. The param stays 'settings' (see PARAM_KEY below), which is
+    # namespace+key. The param stays 'settings' (see SETTINGS_PARAM_KEY below), which is
     # what deployed config files hold.
-    node_if_prefix = 'settings_'
-    PARAM_KEY = 'settings'
+    node_if_prefix = ''
+    SETTINGS_PARAM_KEY = 'settings'
 
     cap_settings = None
     factory_settings = None
@@ -3416,6 +3416,7 @@ class SettingsIF:
                 enable_list = [],
                 disable_list = [],
                 save_params = True,
+                use_nodename_prefix = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -3461,6 +3462,12 @@ class SettingsIF:
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
+
+        if use_nodename_prefix == True:
+            self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_' 
+        else:
+            self.node_if_prefix = settings_name 
+        SETTINGS_PARAM_KEY = self.node_if_prefix
 
         self.allow_cap_updates = allow_cap_updates
         self.save_params = save_params
@@ -3530,7 +3537,7 @@ class SettingsIF:
                 'namespace': self.namespace
             }
             self.PARAMS_DICT = {
-                self.PARAM_KEY: {
+                self.SETTINGS_PARAM_KEY: {
                     'namespace': self.namespace,
                     'factory_val': self.factory_settings
                 }
@@ -3875,11 +3882,11 @@ class SettingsIF:
         """
         init_settings = None
         if self.node_if is not None and self.save_params == True:
-            init_settings = self.node_if.get_param(self.PARAM_KEY)
+            init_settings = self.node_if.get_param(self.SETTINGS_PARAM_KEY)
             if type(init_settings) != dict:
                 init_settings = self.getSettingsFunction()
                 if type(init_settings) == dict:
-                    self.node_if.set_param(self.PARAM_KEY, init_settings)
+                    self.node_if.set_param(self.SETTINGS_PARAM_KEY, init_settings)
 
         if type(init_settings) == dict:
             controls_dict = self.getControlsDict()
@@ -3949,7 +3956,7 @@ class SettingsIF:
     def saveSettingsParam(self):
         if self.node_if is not None and self.save_params == True:
             settings = nepi_controls.get_settings_from_controls_dict(self.getControlsDict())
-            self.node_if.set_param(self.PARAM_KEY, settings)
+            self.node_if.set_param(self.SETTINGS_PARAM_KEY, settings)
 
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
@@ -4076,7 +4083,8 @@ class StatesIF:
             return
         self.msg_if.pub_info("Using States Name: " + states_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,states_name)
-        self.node_if_prefix = states_name + '_'
+
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         ##############################  
         # Create NodeClassIF Class  
@@ -4292,7 +4300,7 @@ class TriggersIF:
         if triggers_name is None or triggers_name == '':
             self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
             return
-        self.node_if_prefix = triggers_name + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
         ##############################  
         # Create NodeClassIF Class  
 
