@@ -74,7 +74,7 @@ class ProcessIF:
     save_data_if = None
 
     process_name = None
-    process_namespace = ''
+    namespace = ''
 
     data_dict = dict()
     
@@ -109,9 +109,15 @@ class ProcessIF:
     state = False
     msg_str = ''
 
-    manages_processes = False
+    process_callback = None
     manages_process_rate = False
-    max_process_rate_hz = 10
+    min_max_process_rates = [0.1,100]
+    max_process_rate_hz = 10.0
+
+    manages_image_pub_rate = False
+    image_pub_topic = ''
+    min_max_image_pub_rates = [1,20]
+    max_image_pub_rate_hz = 10.0
 
     process_class_instance = None
     has_process_reload = False
@@ -200,14 +206,12 @@ class ProcessIF:
             self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name)) 
             return
         self.msg_if.pub_info("Using Process Name: " + self.process_name)
-        self.process_namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
-        # namespace is the name the rest of this class registers and reports
-        # against; process_namespace is kept as the historical accessor.
-        self.namespace = self.process_namespace
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
+
         # Registry keys on a shared node_if must be domain-unique, so every key
         # this IF adds carries the process name. Param wire names ARE
         # namespace + key, so the prefix is part of the external param surface.
-        self.node_if_prefix = self.process_name + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
        
         ##############################    
@@ -231,6 +235,28 @@ class ProcessIF:
         else:
             self.msg_if.pub_warn("INITIAL PROCESS LOAD SUCCEEDED: " + str(self.processes_functions_dict))
 
+
+        # if process_callback is not None:
+        #     self.process_callback = process_callback
+
+        # if min_max_process_rates is not None:
+        #     if len(min_max_process_rates) == 2:
+        #         self.min_max_process_rates = min_max_process_rates
+
+        # if max_process_rate_hz is not None:
+        #     self.max_process_rate_hz = max_process_rate_hz
+
+        # if image_pub_topic is not None:
+        #     self.image_pub_topic = image_pub_topic
+
+        # if min_max_image_pub_rates is not None:
+        #     if len(min_max_image_pub_rates) == 2:
+        #         self.min_max_image_pub_rates = min_max_image_pub_rates
+
+        # if max_image_pub_rate_hz is not None:
+        #     self.max_image_pub_rate_hz = max_image_pub_rate_hz
+
+
         self.show_enable = show_enable
         self.show_rates = show_rates
         self.show_selector = show_selector
@@ -249,7 +275,7 @@ class ProcessIF:
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
             'init_configs': True,
-            'namespace': self.process_namespace
+            'namespace': self.namespace
         }
 
         # Params Config Dict ####################
@@ -259,17 +285,25 @@ class ProcessIF:
         self.processes_param_name = self.node_if_prefix + 'processes_dict'
         PARAMS_DICT = {
             self.processes_param_name: {
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.processes_controls_dict
             },
             self.node_if_prefix + 'selected_process': {
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.selected_process
             },
             self.node_if_prefix + 'enabled': {
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.enabled
-            }
+            },
+            'max_process_rate_hz': {
+                'namespace': self.namespace,
+                'factory_val': self.max_process_rate_hz
+            },
+            'max_image_pub_rate_hz': {
+                'namespace': self.namespace,
+                'factory_val': self.max_image_pub_rate_hz
+            },
         }
 
 
@@ -282,7 +316,7 @@ class ProcessIF:
         # custom status message still has to publish the generic one.
 
         self.process_node_pubs_dict[self.node_if_prefix + 'status_pub'] = {
-            'namespace': self.process_namespace,
+            'namespace': self.namespace,
             'topic': 'status',
             'msg': ProcessStatus,
             'qsize': 1,
@@ -294,13 +328,13 @@ class ProcessIF:
             results_pub_topic = nepi_utils.get_clean_name(self.results_pub_topic)
             if results_pub_topic != '':
                 self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
-                    'namespace': self.process_namespace,
+                    'namespace': self.namespace,
                     'topic': results_pub_topic,
                     'msg': self.results_pub_msg,
                     'qsize': 1,
                     'latch': True
                 }
-                self.results_pub_namespace = self.process_namespace + '/' + results_pub_topic
+                self.results_pub_namespace = self.namespace + '/' + results_pub_topic
                 self.has_results_pub = True
 
 
@@ -337,63 +371,63 @@ class ProcessIF:
             },
             self.node_if_prefix + 'set_selection_control_value': {
                 'msg': UpdateString,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_selection_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
             self.node_if_prefix + 'set_selections_control_value': {
                 'msg': UpdateStringArray,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_selections_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
             self.node_if_prefix + 'set_int_control_value': {
                 'msg': UpdateInt,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_int_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
             self.node_if_prefix + 'set_float_control_value': {
                 'msg': UpdateFloat,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_float_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
             self.node_if_prefix + 'set_floatslider_control_value': {
                 'msg': UpdateFloat,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_floatslider_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
             self.node_if_prefix + 'set_floatsliders_control_value': {
                 'msg': UpdateRangeWindow,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_floatsliders_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
             self.node_if_prefix + 'set_trigger_control_value': {
                 'msg': UpdateTrigger,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_trigger_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
             self.node_if_prefix + 'set_bool_control_value': {
                 'msg': UpdateBool,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_bool_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
             self.node_if_prefix + 'set_string_control_value': {
                 'msg': UpdateString,
-                'namespace': self.process_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_string_control_value',
                 'qsize': 5,
                 'callback': self._setValueCb
@@ -484,7 +518,7 @@ class ProcessIF:
         Returns:
             str: The fully-qualified namespace string used for topic and service resolution.
         """
-        return self.process_namespace
+        return self.namespace
     
 
 
@@ -732,7 +766,7 @@ class ProcessIF:
                     controls_dict = nepi_controls.set_control_value(controls_dict, control_name, update_value)
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
-                        self.publish_status
+                        self.publish_status()
                         if process_name in self.processes_dict.keys():
                             self.processes_dict[process_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
@@ -756,7 +790,7 @@ class ProcessIF:
                     controls_dict = nepi_controls.set_control_options(controls_dict, control_name, update_options)
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
-                        self.publish_status
+                        self.publish_status()
 
                         if process_name in self.processes_dict.keys():
                             self.processes_dict[process_name]['controls_dict'] = self.controls_dict
@@ -788,7 +822,7 @@ class ProcessIF:
                     controls_dict = nepi_controls.set_control_bounds(controls_dict, control_name, update_bounds)
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
-                        self.publish_status
+                        self.self.publish_status()
 
                         if process_name in self.processes_dict.keys():
                             self.processes_dict[process_name]['controls_dict'] = self.controls_dict
@@ -829,7 +863,7 @@ class ProcessIF:
         if source_topic is not None:
             self.source_topic = source_topic
         #self.msg_if.pub_warn("Processing results: " + str( [self.data_dict, self.controls_dict, self.results_dict, self.process_function]), throttle_s = 5)
-        if self.process_ready == True:
+        if self.enabled == True:
             process_ready = self.wait_for_process_ready()
             if process_ready == True:
                 try:
@@ -872,8 +906,12 @@ class ProcessIF:
         status_msg.state = self.state
         status_msg.msg_str = self.msg_str
 
+
         status_msg.manages_process_rate = self.manages_process_rate
         status_msg.max_process_rate_hz = self.max_process_rate_hz
+
+        status_msg.manages_image_pub_rate = self.manages_image_pub_rate
+        status_msg.max_image_pub_rate_hz = self.max_image_pub_rate_hz
 
         status_msg.has_process_reload = True
         status_msg.available_processes = self.available_processes
@@ -941,7 +979,7 @@ class ProcessIF:
         else:
             self.unregister_pubs()
         time.sleep(1)
-        self.process_namespace = None
+        self.namespace = None
 
     def init(self, do_updates = False):
         """Initialize or re-initialize interface state and publish status.
@@ -2709,7 +2747,7 @@ class TargetsImageIF:
 #     save_data_if = None
 
 #     process_name = None
-#     process_namespace = ''
+#     namespace = ''
 #     process_data_products = []
 #     process_module = None
 
@@ -2843,7 +2881,7 @@ class TargetsImageIF:
 #             self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name)) 
 #             return
 #         self.msg_if.pub_info("Using Process Name: " + self.process_name)
-#         self.process_namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
+#         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
 #         self.node_if_prefix = self.process_name + '_'
 
 #         # Load Process Module
@@ -2909,7 +2947,7 @@ class TargetsImageIF:
 
 #         # Configs Config Dict ####################
 #         CFGS_DICT = {
-#                 'namespace': self.process_namespace
+#                 'namespace': self.namespace
 #         }
 
 #         # Params Config Dict ####################
@@ -2918,7 +2956,7 @@ class TargetsImageIF:
 #         # params_dict is what enables config management on NodeClassIF.
 #         PARAMS_DICT = {
 #             self.node_if_prefix + 'selected_sources': {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'factory_val': self.selected_sources
 #             }
 #         }
@@ -2931,7 +2969,7 @@ class TargetsImageIF:
 #         if process_status_msg is not None:
 #             self.process_status_msg = process_status_msg
 #             self.process_node_pubs_dict[self.node_if_prefix + 'status_pub'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'status',
 #                 'msg': self.process_status_msg,
 #                 'qsize': 1,
@@ -2942,7 +2980,7 @@ class TargetsImageIF:
 #         if process_data_msg is not None:
 #             self.process_data_msg = process_data_msg
 #             self.process_node_pubs_dict[self.node_if_prefix + 'data_pub'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'data',
 #                 'msg': self.process_data_msg,
 #                 'qsize': 1,
@@ -2953,7 +2991,7 @@ class TargetsImageIF:
 #         if process_results_msg is not None:
 #             self.process_results_msg = process_results_msg
 #             self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'results',
 #                 'msg': self.process_results_msg,
 #                 'qsize': 1,
@@ -2965,7 +3003,7 @@ class TargetsImageIF:
 #         # Subscribers Config Dict ####################
 #         self.process_node_subs_dict = {
 #             self.node_if_prefix + 'set_source': {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'set_source',
 #                 'msg': String,
 #                 'qsize': None,
@@ -2973,7 +3011,7 @@ class TargetsImageIF:
 #                 'callback_args': ()
 #             },
 #             self.node_if_prefix + 'remove_source': {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'clear_source',
 #                 'msg': String,
 #                 'qsize': None,
@@ -2991,7 +3029,7 @@ class TargetsImageIF:
 
 #         if self.multi_source_enabled == True:
 #             self.process_node_subs_dict[self.node_if_prefix + 'set_sources'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'set_sources',
 #                 'msg': StringArray,
 #                 'qsize': 10,
@@ -2999,7 +3037,7 @@ class TargetsImageIF:
 #                 'callback_args': ()
 #             }
 #             self.process_node_subs_dict[self.node_if_prefix + 'add_sources'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'add_sources',
 #                 'msg': String,
 #                 'qsize': 10,
@@ -3007,7 +3045,7 @@ class TargetsImageIF:
 #                 'callback_args': ()
 #             }
 #             self.process_node_subs_dict[self.node_if_prefix + 'remove_sources'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'add_sources',
 #                 'msg': Empty,
 #                 'qsize': 10,
@@ -3015,7 +3053,7 @@ class TargetsImageIF:
 #                 'callback_args': ()
 #             }
 #             self.process_node_subs_dict[self.node_if_prefix + 'clear_sources'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'clear_sources',
 #                 'msg': Empty,
 #                 'qsize': 10,
@@ -3034,7 +3072,7 @@ class TargetsImageIF:
 #             }
 
 #             self.process_node_subs_dict[self.node_if_prefix + 'set_process'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'set_process',
 #                 'msg': String,
 #                 'qsize': 10,
@@ -3043,7 +3081,7 @@ class TargetsImageIF:
 #             }
 
 #             self.process_node_subs_dict[self.node_if_prefix + 'set_process_max_rate'] = {
-#                 'namespace': self.process_namespace,
+#                 'namespace': self.namespace,
 #                 'topic': 'set_auto_update_rate',
 #                 'msg': Float32,
 #                 'qsize': 1,
@@ -3077,7 +3115,7 @@ class TargetsImageIF:
 #                 self.node_if.register_pubs(self.process_node_pubs_dict)
 #                 self.node_if.register_subs(self.process_node_subs_dict)
 #                 # Register the persisted selection param on the shared node_if too.
-#                 self.node_if.add_param('selected_sources', self.process_namespace, self.selected_sources)
+#                 self.node_if.add_param('selected_sources', self.namespace, self.selected_sources)
 #                 nepi_sdk.sleep(1)
 #             except Exception as e:
 #                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -3121,7 +3159,7 @@ class TargetsImageIF:
 #                 'add_node_name': True
 #                 }
 
-#             sd_namespace = self.process_namespace
+#             sd_namespace = self.namespace
 #             self.save_data_if = SaveDataIF(namespace = sd_namespace,
 #                                     data_products = list(self.process_data_products),
 #                                     factory_rate_dict = factory_data_rates,
@@ -3200,7 +3238,7 @@ class TargetsImageIF:
 #         Returns:
 #             str: The fully-qualified namespace string used for topic and service resolution.
 #         """
-#         return self.process_namespace
+#         return self.namespace
     
 
 #     def get_available_sources(self):

@@ -153,12 +153,30 @@ class ConnectDataIF(ConnectNodeIF):
                     "subscribe_topic always creates the status subscriber, so this "
                     "is required even when connect_data is False.")
 
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
 
         self.msg_if = msg_if
         self.node_if = node_if
         self.connect_name = connect_name
         self.connect_topic_controls_dict = connect_topic_controls_dict
         self.has_navpose = has_navpose
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         super().__init__(
                 connect_id = connect_id,
@@ -192,7 +210,7 @@ class ConnectDataIF(ConnectNodeIF):
 
         ##############################
         # Start updater process
-        self.node_if_prefix = self.node_namespace.replace(self.base_namespace + '/','').replace('/','_') + '_' + self.connect_name
+
         nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
         ##############################
@@ -622,22 +640,36 @@ class ConnectNavPoseIF(ConnectDataIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
         # Forward by keyword. These arguments used to be passed positionally into a
         # signature whose 3rd and 6th slots are connect_status_msg/connect_data_msg,
         # so every argument landed in the wrong slot and connect_status_msg received
         # None, which tripped the guard in ConnectDataIF.__init__ and left the
         # instance dead. msg_if and node_if never arrived at all.
 
-
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         # Controls Config Dict ####################
         # Mirrors data_if.NavPoseIF.SUBS_DICT, which advertises exactly one
         # subscriber. The 'unknown' namespace is the sentinel ConnectDataIF
         # replaces with the connected topic at subscribe time.
         connect_topic_controls_dict = {
-            'connect_navpose_reset': {
+            self.node_if_prefix + self.node_if_prefix + 'navpose_reset': {
                 'namespace': 'unknown',
                 'topic': 'reset',
                 'msg': Empty,
@@ -713,7 +745,7 @@ class ConnectNavPoseIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_navpose_reset', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'navpose_reset', Empty())
 
 
     ###############################
@@ -798,8 +830,24 @@ class ConnectBaseImageIF(ConnectDataIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         # Controls Config Dict ####################
         # Mirrors the data_if.BaseImageIF subscriber set. Only the subscribers
@@ -810,31 +858,31 @@ class ConnectBaseImageIF(ConnectDataIF):
         connect_topic_controls_dict = {
 
             # Reset commands
-            'connect_image_reset': {
+            self.node_if_prefix + 'image_reset': {
                 'namespace': 'unknown',
                 'topic': 'reset',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'connect_image_reset_filters': {
+            self.node_if_prefix + 'image_reset_filters': {
                 'namespace': 'unknown',
                 'topic': 'reset_filters',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'connect_image_reset_overlays': {
+            self.node_if_prefix + 'image_reset_overlays': {
                 'namespace': 'unknown',
                 'topic': 'reset_overlays',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'connect_image_reset_settings': {
+            self.node_if_prefix + 'image_reset_settings': {
                 'namespace': 'unknown',
                 'topic': 'reset_settings',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'connect_image_reset_renders': {
+            self.node_if_prefix + 'image_reset_renders': {
                 'namespace': 'unknown',
                 'topic': 'reset_renders',
                 'msg': Empty,
@@ -842,19 +890,19 @@ class ConnectBaseImageIF(ConnectDataIF):
             },
 
             # 3D render controls
-            'connect_image_render_3d_controls': {
+            self.node_if_prefix + 'image_render_3d_controls': {
                 'namespace': 'unknown',
                 'topic': 'render_3d_controls',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_reset_render_3d_controls': {
+            self.node_if_prefix + 'image_reset_render_3d_controls': {
                 'namespace': 'unknown',
                 'topic': 'reset_render_3d_controls',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'connect_image_reset_render_3d_position': {
+            self.node_if_prefix + 'image_reset_render_3d_position': {
                 'namespace': 'unknown',
                 'topic': 'reset_render_3d_position',
                 'msg': Empty,
@@ -862,7 +910,7 @@ class ConnectBaseImageIF(ConnectDataIF):
             },
 
             # Mouse event injection
-            'connect_image_mouse_event': {
+            self.node_if_prefix + 'image_mouse_event': {
                 'namespace': 'unknown',
                 'topic': 'mouse_event',
                 'msg': ImageMouseEvent,
@@ -870,85 +918,85 @@ class ConnectBaseImageIF(ConnectDataIF):
             },
 
             # Overlay text controls
-            'connect_image_set_overlay_text_enable': {
+            self.node_if_prefix + 'image_set_overlay_text_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_click_text_enable': {
+            self.node_if_prefix + 'image_click_text_enable': {
                 'namespace': 'unknown',
                 'topic': 'click_text_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_size_ratio': {
+            self.node_if_prefix + 'image_set_overlay_text_size_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_size_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_vert_ratio': {
+            self.node_if_prefix + 'image_set_overlay_text_vert_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_vert_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_horz_ratio': {
+            self.node_if_prefix + 'image_set_overlay_text_horz_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_horz_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_transparency_ratio': {
+            self.node_if_prefix + 'image_set_overlay_text_transparency_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_transparency_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_color_rgb': {
+            self.node_if_prefix + 'image_set_overlay_text_color_rgb': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_color_rgb',
                 'msg': ColorBGR,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_source_name': {
+            self.node_if_prefix + 'image_set_overlay_text_source_name': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_source_name',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_date_time': {
+            self.node_if_prefix + 'image_set_overlay_text_date_time': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_date_time',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_nav': {
+            self.node_if_prefix + 'image_set_overlay_text_nav': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_nav',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_pose': {
+            self.node_if_prefix + 'image_set_overlay_text_pose': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_pose',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_add_overlay_text': {
+            self.node_if_prefix + 'image_add_overlay_text': {
                 'namespace': 'unknown',
                 'topic': 'add_overlay_text',
                 'msg': String,
                 'qsize': 1,
             },
-            'connect_image_set_overlay_text_list': {
+            self.node_if_prefix + 'image_set_overlay_text_list': {
                 'namespace': 'unknown',
                 'topic': 'set_overlay_text_list',
                 'msg': StringArray,
                 'qsize': 1,
             },
-            'connect_image_clear_overlay_text_list': {
+            self.node_if_prefix + 'image_clear_overlay_text_list': {
                 'namespace': 'unknown',
                 'topic': 'clear_overlay_text_list',
                 'msg': Empty,
@@ -956,97 +1004,97 @@ class ConnectBaseImageIF(ConnectDataIF):
             },
 
             # Crosshair overlay controls
-            'connect_image_crosshairs_enable': {
+            self.node_if_prefix + 'image_crosshairs_enable': {
                 'namespace': 'unknown',
                 'topic': 'crosshairs_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_crosshairs_size_ratio': {
+            self.node_if_prefix + 'image_set_crosshairs_size_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_crosshairs_size_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_crosshairs_thickness_ratio': {
+            self.node_if_prefix + 'image_set_crosshairs_thickness_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_crosshairs_thickness_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_crosshairs_text_ratio': {
+            self.node_if_prefix + 'image_set_crosshairs_text_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_crosshairs_text_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_crosshairs_transparency_ratio': {
+            self.node_if_prefix + 'image_set_crosshairs_transparency_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_crosshairs_transparency_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_crosshairs_color_rgb': {
+            self.node_if_prefix + 'image_set_crosshairs_color_rgb': {
                 'namespace': 'unknown',
                 'topic': 'set_crosshairs_color_rgb',
                 'msg': ColorBGR,
                 'qsize': 1,
             },
-            'connect_image_overlay_crosshair_names': {
+            self.node_if_prefix + 'image_overlay_crosshair_names': {
                 'namespace': 'unknown',
                 'topic': 'overlay_crosshair_names',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_overlay_crosshair_pixels': {
+            self.node_if_prefix + 'image_overlay_crosshair_pixels': {
                 'namespace': 'unknown',
                 'topic': 'overlay_crosshair_pixels',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_overlay_crosshair_degrees': {
+            self.node_if_prefix + 'image_overlay_crosshair_degrees': {
                 'namespace': 'unknown',
                 'topic': 'overlay_crosshair_degrees',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_overlay_crosshair_messages': {
+            self.node_if_prefix + 'image_overlay_crosshair_messages': {
                 'namespace': 'unknown',
                 'topic': 'overlay_crosshair_messages',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_click_crosshair_enable': {
+            self.node_if_prefix + 'image_click_crosshair_enable': {
                 'namespace': 'unknown',
                 'topic': 'click_crosshair_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_add_crosshair_pixel': {
+            self.node_if_prefix + 'image_add_crosshair_pixel': {
                 'namespace': 'unknown',
                 'topic': 'add_crosshair_pixel',
                 'msg': ImageCrosshair,
                 'qsize': 1,
             },
-            'connect_image_add_crosshair_ratios': {
+            self.node_if_prefix + 'image_add_crosshair_ratios': {
                 'namespace': 'unknown',
                 'topic': 'add_crosshair_ratios',
                 'msg': ImageCrosshair,
                 'qsize': 1,
             },
-            'connect_image_add_crosshair_degree_offsets': {
+            self.node_if_prefix + 'image_add_crosshair_degree_offsets': {
                 'namespace': 'unknown',
                 'topic': 'add_crosshair_degree_offsets',
                 'msg': ImageCrosshair,
                 'qsize': 1,
             },
-            'connect_image_remove_crosshair': {
+            self.node_if_prefix + 'image_remove_crosshair': {
                 'namespace': 'unknown',
                 'topic': 'remove_crosshair',
                 'msg': String,
                 'qsize': 1,
             },
-            'connect_image_clear_crosshairs': {
+            self.node_if_prefix + 'image_clear_crosshairs': {
                 'namespace': 'unknown',
                 'topic': 'clear_crosshairs',
                 'msg': Empty,
@@ -1054,97 +1102,97 @@ class ConnectBaseImageIF(ConnectDataIF):
             },
 
             # Target overlay controls
-            'connect_image_targets_enable': {
+            self.node_if_prefix + 'image_targets_enable': {
                 'namespace': 'unknown',
                 'topic': 'targets_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_targets_size_ratio': {
+            self.node_if_prefix + 'image_set_targets_size_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_targets_size_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_targets_thickness_ratio': {
+            self.node_if_prefix + 'image_set_targets_thickness_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_targets_thickness_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_targets_text_ratio': {
+            self.node_if_prefix + 'image_set_targets_text_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_targets_text_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_targets_transparency_ratio': {
+            self.node_if_prefix + 'image_set_targets_transparency_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_targets_transparency_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_targets_color_rgb': {
+            self.node_if_prefix + 'image_set_targets_color_rgb': {
                 'namespace': 'unknown',
                 'topic': 'set_targets_color_rgb',
                 'msg': ColorBGR,
                 'qsize': 1,
             },
-            'connect_image_overlay_target_names': {
+            self.node_if_prefix + 'image_overlay_target_names': {
                 'namespace': 'unknown',
                 'topic': 'overlay_target_names',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_overlay_target_pixels': {
+            self.node_if_prefix + 'image_overlay_target_pixels': {
                 'namespace': 'unknown',
                 'topic': 'overlay_target_pixels',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_overlay_target_degrees': {
+            self.node_if_prefix + 'image_overlay_target_degrees': {
                 'namespace': 'unknown',
                 'topic': 'overlay_target_degrees',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_overlay_target_messages': {
+            self.node_if_prefix + 'image_overlay_target_messages': {
                 'namespace': 'unknown',
                 'topic': 'overlay_target_messages',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_click_target_enable': {
+            self.node_if_prefix + 'image_click_target_enable': {
                 'namespace': 'unknown',
                 'topic': 'click_target_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_add_target_pixel': {
+            self.node_if_prefix + 'image_add_target_pixel': {
                 'namespace': 'unknown',
                 'topic': 'add_target_pixel',
                 'msg': ImageTarget,
                 'qsize': 1,
             },
-            'connect_image_add_target_ratios': {
+            self.node_if_prefix + 'image_add_target_ratios': {
                 'namespace': 'unknown',
                 'topic': 'add_target_ratios',
                 'msg': ImageTarget,
                 'qsize': 1,
             },
-            'connect_image_add_target_degree_offsets': {
+            self.node_if_prefix + 'image_add_target_degree_offsets': {
                 'namespace': 'unknown',
                 'topic': 'add_target_degree_offsets',
                 'msg': ImageTarget,
                 'qsize': 1,
             },
-            'connect_image_remove_target': {
+            self.node_if_prefix + 'image_remove_target': {
                 'namespace': 'unknown',
                 'topic': 'remove_target',
                 'msg': String,
                 'qsize': 1,
             },
-            'connect_image_clear_targets': {
+            self.node_if_prefix + 'image_clear_targets': {
                 'namespace': 'unknown',
                 'topic': 'clear_targets',
                 'msg': Empty,
@@ -1152,31 +1200,31 @@ class ConnectBaseImageIF(ConnectDataIF):
             },
 
             # Aspect and stream controls
-            'connect_image_set_aspect_adjust_enable': {
+            self.node_if_prefix + 'image_set_aspect_adjust_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_aspect_adjust_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_aspect_adjust_ratio': {
+            self.node_if_prefix + 'image_set_aspect_adjust_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_aspect_adjust_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_aspect_adjust_by_ratio': {
+            self.node_if_prefix + 'image_set_aspect_adjust_by_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_aspect_adjust_by_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_stream_compression_enable': {
+            self.node_if_prefix + 'image_set_stream_compression_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_stream_compression_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_stream_compression_ratio': {
+            self.node_if_prefix + 'image_set_stream_compression_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_stream_compression_ratio',
                 'msg': Float32,
@@ -1184,55 +1232,55 @@ class ConnectBaseImageIF(ConnectDataIF):
             },
 
             # Live adjustment controls
-            'connect_image_set_live_adjust_enable': {
+            self.node_if_prefix + 'image_set_live_adjust_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_live_adjust_rotate_ratio': {
+            self.node_if_prefix + 'image_set_live_adjust_rotate_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_rotate_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_live_adjust_rotate_deg': {
+            self.node_if_prefix + 'image_set_live_adjust_rotate_deg': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_rotate_deg',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_live_adjust_x_ratio': {
+            self.node_if_prefix + 'image_set_live_adjust_x_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_x_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_live_adjust_x_pixel': {
+            self.node_if_prefix + 'image_set_live_adjust_x_pixel': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_x_pixel',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'connect_image_set_live_adjust_x_deg': {
+            self.node_if_prefix + 'image_set_live_adjust_x_deg': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_x_deg',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_live_adjust_y_ratio': {
+            self.node_if_prefix + 'image_set_live_adjust_y_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_y_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_live_adjust_y_pixel': {
+            self.node_if_prefix + 'image_set_live_adjust_y_pixel': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_y_pixel',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'connect_image_set_live_adjust_y_deg': {
+            self.node_if_prefix + 'image_set_live_adjust_y_deg': {
                 'namespace': 'unknown',
                 'topic': 'set_live_adjust_y_deg',
                 'msg': Float32,
@@ -1244,151 +1292,151 @@ class ConnectBaseImageIF(ConnectDataIF):
             # the matching caps_dict flag is set, and the connect side cannot know the
 
             # server's configuration, so they are always registered.
-            'connect_image_set_resolution_ratio': {
+            self.node_if_prefix + 'image_set_resolution_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_resolution_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_auto_adjust_enable': {
+            self.node_if_prefix + 'image_set_auto_adjust_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_auto_adjust_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_auto_adjust_ratio': {
+            self.node_if_prefix + 'image_set_auto_adjust_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_auto_adjust_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_brightness_ratio': {
+            self.node_if_prefix + 'image_set_brightness_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_brightness_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_contrast_ratio': {
+            self.node_if_prefix + 'image_set_contrast_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_contrast_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_threshold_ratio': {
+            self.node_if_prefix + 'image_set_threshold_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_threshold_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_rotate_2d': {
+            self.node_if_prefix + 'image_rotate_2d': {
                 'namespace': 'unknown',
                 'topic': 'rotate_2d',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'connect_image_set_rotate_2d_deg': {
+            self.node_if_prefix + 'image_set_rotate_2d_deg': {
                 'namespace': 'unknown',
                 'topic': 'set_rotate_2d_deg',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'connect_image_set_rotate_2d_swap_box': {
+            self.node_if_prefix + 'image_set_rotate_2d_swap_box': {
                 'namespace': 'unknown',
                 'topic': 'set_rotate_2d_swap_box',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_flip_horz': {
+            self.node_if_prefix + 'image_set_flip_horz': {
                 'namespace': 'unknown',
                 'topic': 'set_flip_horz',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_flip_vert': {
+            self.node_if_prefix + 'image_set_flip_vert': {
                 'namespace': 'unknown',
                 'topic': 'set_flip_vert',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_image_set_range_ratios': {
+            self.node_if_prefix + 'image_set_range_ratios': {
                 'namespace': 'unknown',
                 'topic': 'set_range_ratios',
                 'msg': RangeWindow,
                 'qsize': 1,
             },
-            'connect_image_set_zoom_ratio': {
+            self.node_if_prefix + 'image_set_zoom_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_zoom_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_pan_x_ratio': {
+            self.node_if_prefix + 'image_set_pan_x_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_pan_x_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_pan_y_ratio': {
+            self.node_if_prefix + 'image_set_pan_y_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_pan_y_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_zoom_3d_ratio': {
+            self.node_if_prefix + 'image_set_zoom_3d_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_zoom_3d_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_rotate_3d_ratio': {
+            self.node_if_prefix + 'image_set_rotate_3d_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_rotate_3d_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_tilt_3d_ratio': {
+            self.node_if_prefix + 'image_set_tilt_3d_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_tilt_3d_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_image_set_filter_enable': {
+            self.node_if_prefix + 'image_set_filter_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_filter_enable',
                 'msg': UpdateBool,
                 'qsize': 1,
             },
-            'connect_image_set_filter_ratio': {
+            self.node_if_prefix + 'image_set_filter_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_filter_ratio',
                 'msg': UpdateFloat,
                 'qsize': 1,
             },
-            'connect_image_set_camera_fov': {
+            self.node_if_prefix + 'image_set_camera_fov': {
                 'namespace': 'unknown',
                 'topic': 'set_camera_fov',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'connect_image_set_camera_view': {
+            self.node_if_prefix + 'image_set_camera_view': {
                 'namespace': 'unknown',
                 'topic': 'set_camera_view',
                 'msg': Vector3,
                 'qsize': 1,
             },
-            'connect_image_set_camera_position': {
+            self.node_if_prefix + 'image_set_camera_position': {
                 'namespace': 'unknown',
                 'topic': 'set_camera_position',
                 'msg': Vector3,
                 'qsize': 1,
             },
-            'connect_image_set_camera_rotation': {
+            self.node_if_prefix + 'image_set_camera_rotation': {
                 'namespace': 'unknown',
                 'topic': 'set_camera_rotation',
                 'msg': Vector3,
                 'qsize': 1,
             },
-            'connect_image_set_white_bg_enable': {
+            self.node_if_prefix + 'image_set_white_bg_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_white_bg_enable',
                 'msg': Bool,
@@ -1438,7 +1486,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_reset', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_reset', Empty())
 
     def reset_filters(self):
         """Publish a reset command for the image filter settings.
@@ -1449,7 +1497,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_reset_filters', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_reset_filters', Empty())
 
     def reset_overlays(self):
         """Publish a reset command for the image overlay settings.
@@ -1460,7 +1508,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_reset_overlays', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_reset_overlays', Empty())
 
     def reset_settings(self):
         """Publish a reset command for the image driver settings.
@@ -1471,7 +1519,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_reset_settings', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_reset_settings', Empty())
 
     def reset_renders(self):
         """Publish a reset command for the image render settings.
@@ -1482,7 +1530,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_reset_renders', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_reset_renders', Empty())
 
     # 3D render controls
 
@@ -1498,7 +1546,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_render_3d_controls', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_render_3d_controls', Bool(enable))
 
     def reset_render_3d_controls(self):
         """Publish a reset command for the 3D render controls.
@@ -1509,7 +1557,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_reset_render_3d_controls', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_reset_render_3d_controls', Empty())
 
     def reset_render_3d_position(self):
         """Publish a reset command for the 3D render camera position.
@@ -1520,7 +1568,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_reset_render_3d_position', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_reset_render_3d_position', Empty())
 
     # Mouse event injection
 
@@ -1536,7 +1584,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_mouse_event', mouse_event_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_mouse_event', mouse_event_msg)
 
     # Overlay text controls
 
@@ -1552,7 +1600,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_enable', Bool(enable))
 
     def set_click_text(self, enable):
         """Enable or disable click-driven overlay text placement.
@@ -1566,7 +1614,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_click_text_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_click_text_enable', Bool(enable))
 
     def set_overlay_text_size_ratio(self, ratio):
         """Set the overlay text size ratio.
@@ -1580,7 +1628,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_size_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_size_ratio', Float32(ratio))
 
     def set_overlay_text_vert_ratio(self, ratio):
         """Set the overlay text vertical position ratio.
@@ -1594,7 +1642,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_vert_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_vert_ratio', Float32(ratio))
 
     def set_overlay_text_horz_ratio(self, ratio):
         """Set the overlay text horizontal position ratio.
@@ -1608,7 +1656,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_horz_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_horz_ratio', Float32(ratio))
 
     def set_overlay_text_transparency_ratio(self, ratio):
         """Set the overlay text transparency ratio.
@@ -1622,7 +1670,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_transparency_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_transparency_ratio', Float32(ratio))
 
     def set_overlay_text_color_rgb(self, color_msg):
         """Set the overlay text color.
@@ -1636,7 +1684,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_color_rgb', color_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_color_rgb', color_msg)
 
     def set_overlay_text_image_name(self, enable):
         """Enable or disable the data source name in the overlay text.
@@ -1650,7 +1698,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_source_name', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_source_name', Bool(enable))
 
     def set_overlay_text_date_time(self, enable):
         """Enable or disable the date and time in the overlay text.
@@ -1664,7 +1712,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_date_time', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_date_time', Bool(enable))
 
     def set_overlay_text_nav(self, enable):
         """Enable or disable navigation data in the overlay text.
@@ -1678,7 +1726,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_nav', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_nav', Bool(enable))
 
     def set_overlay_text_pose(self, enable):
         """Enable or disable pose data in the overlay text.
@@ -1692,7 +1740,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_pose', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_pose', Bool(enable))
 
     def set_overlay_text(self, text):
         """Append a line to the overlay text list.
@@ -1706,7 +1754,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_add_overlay_text', String(text))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_add_overlay_text', String(text))
 
     def set_overlay_text_list(self, text_list_msg):
         """Replace the overlay text list.
@@ -1720,7 +1768,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_overlay_text_list', text_list_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_overlay_text_list', text_list_msg)
 
     def clear_overlay_text_list(self):
         """Clear the overlay text list.
@@ -1731,7 +1779,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_clear_overlay_text_list', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_clear_overlay_text_list', Empty())
 
     # Crosshair overlay controls
 
@@ -1747,7 +1795,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_crosshairs_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_crosshairs_enable', Bool(enable))
 
     def set_crosshairs_size_ratio(self, ratio):
         """Set the crosshair size ratio.
@@ -1761,7 +1809,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_crosshairs_size_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_crosshairs_size_ratio', Float32(ratio))
 
     def set_crosshairs_thickness_ratio(self, ratio):
         """Set the crosshair line thickness ratio.
@@ -1775,7 +1823,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_crosshairs_thickness_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_crosshairs_thickness_ratio', Float32(ratio))
 
     def set_crosshairs_text_ratio(self, ratio):
         """Set the crosshair label text size ratio.
@@ -1789,7 +1837,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_crosshairs_text_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_crosshairs_text_ratio', Float32(ratio))
 
     def set_crosshairs_transparency_ratio(self, ratio):
         """Set the crosshair transparency ratio.
@@ -1803,7 +1851,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_crosshairs_transparency_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_crosshairs_transparency_ratio', Float32(ratio))
 
     def set_crosshairs_color_rgb(self, color_msg):
         """Set the crosshair overlay color.
@@ -1817,7 +1865,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_crosshairs_color_rgb', color_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_crosshairs_color_rgb', color_msg)
 
     def set_overlay_crosshair_names(self, enable):
         """Enable or disable crosshair name labels.
@@ -1831,7 +1879,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_overlay_crosshair_names', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_crosshair_names', Bool(enable))
 
     def set_overlay_crosshair_pixels(self, enable):
         """Enable or disable crosshair pixel coordinate labels.
@@ -1845,7 +1893,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_overlay_crosshair_pixels', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_crosshair_pixels', Bool(enable))
 
     def set_overlay_crosshair_degrees(self, enable):
         """Enable or disable crosshair degree offset labels.
@@ -1859,7 +1907,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_overlay_crosshair_degrees', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_crosshair_degrees', Bool(enable))
 
     def set_overlay_crosshair_messages(self, enable):
         """Enable or disable crosshair message labels.
@@ -1873,7 +1921,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_overlay_crosshair_messages', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_crosshair_messages', Bool(enable))
 
     def set_click_crosshair(self, enable):
         """Enable or disable click-driven crosshair placement.
@@ -1887,7 +1935,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_click_crosshair_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_click_crosshair_enable', Bool(enable))
 
     def add_crosshair_pixel(self, crosshair_msg):
         """Add a crosshair positioned by pixel coordinates.
@@ -1901,7 +1949,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_add_crosshair_pixel', crosshair_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_add_crosshair_pixel', crosshair_msg)
 
     def add_crosshair_ratios(self, crosshair_msg):
         """Add a crosshair positioned by image ratios.
@@ -1915,7 +1963,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_add_crosshair_ratios', crosshair_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_add_crosshair_ratios', crosshair_msg)
 
     def add_crosshair_degree_offsets(self, crosshair_msg):
         """Add a crosshair positioned by degree offsets from image center.
@@ -1929,7 +1977,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_add_crosshair_degree_offsets', crosshair_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_add_crosshair_degree_offsets', crosshair_msg)
 
     def remove_crosshair(self, name):
         """Remove a named crosshair.
@@ -1943,7 +1991,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_remove_crosshair', String(name))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_remove_crosshair', String(name))
 
     def clear_crosshairs(self):
         """Remove every crosshair from the connected image source.
@@ -1954,7 +2002,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_clear_crosshairs', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_clear_crosshairs', Empty())
 
     # Target overlay controls
 
@@ -1970,7 +2018,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_targets_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_targets_enable', Bool(enable))
 
     def set_targets_size_ratio(self, ratio):
         """Set the target size ratio.
@@ -1984,7 +2032,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_targets_size_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_targets_size_ratio', Float32(ratio))
 
     def set_targets_thickness_ratio(self, ratio):
         """Set the target line thickness ratio.
@@ -1998,7 +2046,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_targets_thickness_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_targets_thickness_ratio', Float32(ratio))
 
     def set_targets_text_ratio(self, ratio):
         """Set the target label text size ratio.
@@ -2012,7 +2060,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_targets_text_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_targets_text_ratio', Float32(ratio))
 
     def set_targets_transparency_ratio(self, ratio):
         """Set the target transparency ratio.
@@ -2026,7 +2074,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_targets_transparency_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_targets_transparency_ratio', Float32(ratio))
 
     def set_targets_color_rgb(self, color_msg):
         """Set the target overlay color.
@@ -2040,7 +2088,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_targets_color_rgb', color_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_targets_color_rgb', color_msg)
 
     def set_overlay_target_names(self, enable):
         """Enable or disable target name labels.
@@ -2054,7 +2102,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_overlay_target_names', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_target_names', Bool(enable))
 
     def set_overlay_target_pixels(self, enable):
         """Enable or disable target pixel coordinate labels.
@@ -2068,7 +2116,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_overlay_target_pixels', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_target_pixels', Bool(enable))
 
     def set_overlay_target_degrees(self, enable):
         """Enable or disable target degree offset labels.
@@ -2082,7 +2130,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_overlay_target_degrees', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_target_degrees', Bool(enable))
 
     def set_overlay_target_messages(self, enable):
         """Enable or disable target message labels.
@@ -2096,7 +2144,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_overlay_target_messages', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_target_messages', Bool(enable))
 
     def set_click_target(self, enable):
         """Enable or disable click-driven target placement.
@@ -2110,7 +2158,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_click_target_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_click_target_enable', Bool(enable))
 
     def add_target_pixel(self, target_msg):
         """Add a target positioned by pixel coordinates.
@@ -2124,7 +2172,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_add_target_pixel', target_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_add_target_pixel', target_msg)
 
     def add_target_ratios(self, target_msg):
         """Add a target positioned by image ratios.
@@ -2138,7 +2186,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_add_target_ratios', target_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_add_target_ratios', target_msg)
 
     def add_target_degree_offsets(self, target_msg):
         """Add a target positioned by degree offsets from image center.
@@ -2152,7 +2200,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_add_target_degree_offsets', target_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_add_target_degree_offsets', target_msg)
 
     def remove_target(self, name):
         """Remove a named target.
@@ -2166,7 +2214,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_remove_target', String(name))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_remove_target', String(name))
 
     def clear_targets(self):
         """Remove every target from the connected image source.
@@ -2177,7 +2225,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_clear_targets', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_clear_targets', Empty())
 
     # Aspect and stream controls
 
@@ -2193,7 +2241,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_aspect_adjust_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_aspect_adjust_enable', Bool(enable))
 
     def set_aspect_adjust_ratio(self, ratio):
         """Set the image aspect adjustment ratio.
@@ -2207,7 +2255,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_aspect_adjust_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_aspect_adjust_ratio', Float32(ratio))
 
     def set_aspect_adjust_by_ratio(self, ratio):
         """Set the image aspect adjustment by relative ratio.
@@ -2221,7 +2269,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_aspect_adjust_by_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_aspect_adjust_by_ratio', Float32(ratio))
 
     def set_stream_compression_enable(self, enable):
         """Enable or disable image stream compression.
@@ -2235,7 +2283,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_stream_compression_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_stream_compression_enable', Bool(enable))
 
     def set_stream_compression_ratio(self, ratio):
         """Set the image stream compression ratio.
@@ -2249,7 +2297,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_stream_compression_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_stream_compression_ratio', Float32(ratio))
 
     # Live adjustment controls
 
@@ -2265,7 +2313,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_enable', Bool(enable))
 
     def set_live_adjust_rotate_ratio(self, ratio):
         """Set the live adjustment rotation ratio.
@@ -2279,7 +2327,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_rotate_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_rotate_ratio', Float32(ratio))
 
     def set_live_adjust_rotate_deg(self, deg):
         """Set the live adjustment rotation in degrees.
@@ -2293,7 +2341,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_rotate_deg', Float32(deg))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_rotate_deg', Float32(deg))
 
     def set_live_adjust_x_ratio(self, ratio):
         """Set the live adjustment horizontal translation ratio.
@@ -2307,7 +2355,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_x_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_x_ratio', Float32(ratio))
 
     def set_live_adjust_x_pixel(self, pixel):
         """Set the live adjustment horizontal translation in pixels.
@@ -2321,7 +2369,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_x_pixel', Int32(pixel))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_x_pixel', Int32(pixel))
 
     def set_live_adjust_x_deg(self, deg):
         """Set the live adjustment horizontal translation in degrees.
@@ -2335,7 +2383,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_x_deg', Float32(deg))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_x_deg', Float32(deg))
 
     def set_live_adjust_y_ratio(self, ratio):
         """Set the live adjustment vertical translation ratio.
@@ -2349,7 +2397,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_y_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_y_ratio', Float32(ratio))
 
     def set_live_adjust_y_pixel(self, pixel):
         """Set the live adjustment vertical translation in pixels.
@@ -2363,7 +2411,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_y_pixel', Int32(pixel))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_y_pixel', Int32(pixel))
 
     def set_live_adjust_y_deg(self, deg):
         """Set the live adjustment vertical translation in degrees.
@@ -2377,7 +2425,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_live_adjust_y_deg', Float32(deg))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_live_adjust_y_deg', Float32(deg))
 
     # Capability-gated controls. data_if.BaseImageIF advertises these only when
 
@@ -2397,7 +2445,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_resolution_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_resolution_ratio', Float32(ratio))
 
     def set_auto_adjust_enable(self, enable):
         """Enable or disable image auto adjustment.
@@ -2411,7 +2459,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_auto_adjust_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_auto_adjust_enable', Bool(enable))
 
     def set_auto_adjust_ratio(self, ratio):
         """Set the image auto adjustment ratio.
@@ -2425,7 +2473,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_auto_adjust_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_auto_adjust_ratio', Float32(ratio))
 
     def set_brightness_ratio(self, ratio):
         """Set the image brightness ratio.
@@ -2439,7 +2487,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_brightness_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_brightness_ratio', Float32(ratio))
 
     def set_contrast_ratio(self, ratio):
         """Set the image contrast ratio.
@@ -2453,7 +2501,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_contrast_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_contrast_ratio', Float32(ratio))
 
     def set_threshold_ratio(self, ratio):
         """Set the image threshold ratio.
@@ -2467,7 +2515,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_threshold_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_threshold_ratio', Float32(ratio))
 
     def rotate_2d(self):
         """Publish a single 2D rotation step command.
@@ -2478,7 +2526,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_rotate_2d', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_rotate_2d', Empty())
 
     def set_rotate_2d_deg(self, deg):
         """Set the 2D image rotation in degrees.
@@ -2492,7 +2540,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_rotate_2d_deg', Int32(deg))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_rotate_2d_deg', Int32(deg))
 
     def set_rotate_2d_swap_box(self, enable):
         """Enable or disable bounding box swapping on 2D rotation.
@@ -2506,7 +2554,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_rotate_2d_swap_box', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_rotate_2d_swap_box', Bool(enable))
 
     def set_flip_horz(self, enable):
         """Enable or disable horizontal image flip.
@@ -2520,7 +2568,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_flip_horz', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_flip_horz', Bool(enable))
 
     def set_flip_vert(self, enable):
         """Enable or disable vertical image flip.
@@ -2534,7 +2582,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_flip_vert', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_flip_vert', Bool(enable))
 
     def set_range_ratios(self, range_msg):
         """Set the image range window ratios.
@@ -2548,7 +2596,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_range_ratios', range_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_range_ratios', range_msg)
 
     def set_zoom_ratio(self, ratio):
         """Set the image zoom ratio.
@@ -2562,7 +2610,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_zoom_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_zoom_ratio', Float32(ratio))
 
     def set_pan_x_ratio(self, ratio):
         """Set the image horizontal pan ratio.
@@ -2576,7 +2624,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_pan_x_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_pan_x_ratio', Float32(ratio))
 
     def set_pan_y_ratio(self, ratio):
         """Set the image vertical pan ratio.
@@ -2590,7 +2638,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_pan_y_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_pan_y_ratio', Float32(ratio))
 
     def set_zoom_3d_ratio(self, ratio):
         """Set the 3D render zoom ratio.
@@ -2604,7 +2652,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_zoom_3d_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_zoom_3d_ratio', Float32(ratio))
 
     def set_rotate_3d_ratio(self, ratio):
         """Set the 3D render rotation ratio.
@@ -2618,7 +2666,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_rotate_3d_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_rotate_3d_ratio', Float32(ratio))
 
     def set_tilt_3d_ratio(self, ratio):
         """Set the 3D render tilt ratio.
@@ -2632,7 +2680,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_tilt_3d_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_tilt_3d_ratio', Float32(ratio))
 
     def set_filter_enable(self, update_msg):
         """Enable or disable a named image filter.
@@ -2646,7 +2694,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_filter_enable', update_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_filter_enable', update_msg)
 
     def set_filter_ratio(self, update_msg):
         """Set the ratio of a named image filter.
@@ -2660,7 +2708,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_filter_ratio', update_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_filter_ratio', update_msg)
 
     def set_camera_fov(self, fov_deg):
         """Set the 3D render camera field of view.
@@ -2676,7 +2724,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_camera_fov', Int32(fov_deg))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_camera_fov', Int32(fov_deg))
 
     def set_camera_view(self, vector3_msg):
         """Set the 3D render camera view vector.
@@ -2692,7 +2740,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_camera_view', vector3_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_camera_view', vector3_msg)
 
     def set_camera_position(self, vector3_msg):
         """Set the 3D render camera position.
@@ -2708,7 +2756,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_camera_position', vector3_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_camera_position', vector3_msg)
 
     def set_camera_rotation(self, vector3_msg):
         """Set the 3D render camera rotation.
@@ -2724,7 +2772,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_camera_rotation', vector3_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_camera_rotation', vector3_msg)
 
     def set_white_bg_enable(self, enable):
         """Enable or disable the white render background.
@@ -2740,7 +2788,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_image_set_white_bg_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_set_white_bg_enable', Bool(enable))
 
 
     ###############################
@@ -2781,8 +2829,24 @@ class ConnectImageIF(ConnectBaseImageIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
@@ -2834,8 +2898,24 @@ class ConnectColorImageIF(ConnectBaseImageIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
@@ -2896,8 +2976,24 @@ class ConnectDepthMapIF(ConnectDataIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+
         super().__init__(
                 connect_id = DEPTH_MAP_CONNECT_ID,
                 connect_name = connect_name,
@@ -3045,8 +3141,24 @@ class ConnectDepthMapImageIF(ConnectBaseImageIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
@@ -3107,71 +3219,86 @@ class ConnectPointcloudIF(ConnectDataIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         connect_topic_controls_dict = {
-            'connect_pointcloud_reset_controls': {
+            self.node_if_prefix + 'pointcloud_reset_controls': {
                 'namespace': 'unknown',
                 'topic': 'reset_controls',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'connect_pointcloud_set_clip_enable': {
+            self.node_if_prefix + 'pointcloud_set_clip_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_clip_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'connect_pointcloud_set_clip_selection': {
+            self.node_if_prefix + 'pointcloud_set_clip_selection': {
                 'namespace': 'unknown',
                 'topic': 'set_clip_selection',
                 'msg': String,
                 'qsize': 1,
             },
-            'connect_pointcloud_set_range_clip_m': {
+            self.node_if_prefix + 'pointcloud_set_range_clip_m': {
                 'namespace': 'unknown',
                 'topic': 'set_range_clip_m',
                 'msg': RangeWindow,
                 'qsize': 1,
             },
-            'connect_pointcloud_set_clip_bounding_box3d_topic': {
+            self.node_if_prefix + 'pointcloud_set_clip_bounding_box3d_topic': {
                 'namespace': 'unknown',
                 'topic': 'set_clip_bounding_box3d_topic',
                 'msg': String,
                 'qsize': 1,
             },
-            'connect_pointcloud_set_voxel_downsample_size': {
+            self.node_if_prefix + 'pointcloud_set_voxel_downsample_size': {
                 'namespace': 'unknown',
                 'topic': 'set_voxel_downsample_size',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_pointcloud_uniform_downsample_k_points': {
+            self.node_if_prefix + 'pointcloud_uniform_downsample_k_points': {
                 'namespace': 'unknown',
                 'topic': 'uniform_downsample_k_points',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'connect_pointcloud_outlier_removal_num_neighbors': {
+            self.node_if_prefix + 'pointcloud_outlier_removal_num_neighbors': {
                 'namespace': 'unknown',
                 'topic': 'outlier_removal_num_neighbors',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'connect_pointcloud_set_rotate_ratio': {
+            self.node_if_prefix + 'pointcloud_set_rotate_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_rotate_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_pointcloud_set_tilt_ratio': {
+            self.node_if_prefix + 'pointcloud_set_tilt_ratio': {
                 'namespace': 'unknown',
                 'topic': 'set_tilt_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'connect_pointcloud_set_render_enable': {
+            self.node_if_prefix + 'pointcloud_set_render_enable': {
                 'namespace': 'unknown',
                 'topic': 'set_render_enable',
                 'msg': Bool,
@@ -3265,7 +3392,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_reset_controls', Empty())
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_reset_controls', Empty())
 
     def set_clip_enable(self, enable):
         """Enable or disable pointcloud clipping.
@@ -3279,7 +3406,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_set_clip_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_clip_enable', Bool(enable))
 
     def set_clip_selection(self, selection):
         """Select which clipping mode is applied.
@@ -3294,7 +3421,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_set_clip_selection', String(selection))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_clip_selection', String(selection))
 
     def set_range_clip_m(self, range_window_msg):
         """Set the clipping range window in meters.
@@ -3309,7 +3436,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_set_range_clip_m', range_window_msg)
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_range_clip_m', range_window_msg)
 
     def set_clip_bounding_box3d_topic(self, topic):
         """Set the topic supplying the 3D bounding box used for clipping.
@@ -3323,7 +3450,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_set_clip_bounding_box3d_topic', String(topic))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_clip_bounding_box3d_topic', String(topic))
 
     def set_voxel_downsample_size(self, size_m):
         """Set the voxel downsample size.
@@ -3338,7 +3465,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_set_voxel_downsample_size', Float32(size_m))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_voxel_downsample_size', Float32(size_m))
 
     def uniform_downsample_k_points(self, k_points):
         """Set the uniform downsample point count.
@@ -3353,7 +3480,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_uniform_downsample_k_points', Int32(k_points))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_uniform_downsample_k_points', Int32(k_points))
 
     def outlier_removal_num_neighbors(self, num_neighbors):
         """Set the outlier removal neighbor count.
@@ -3368,7 +3495,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_outlier_removal_num_neighbors', Int32(num_neighbors))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_outlier_removal_num_neighbors', Int32(num_neighbors))
 
     def set_rotate_ratio(self, ratio):
         """Set the pointcloud render rotation ratio.
@@ -3382,7 +3509,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_set_rotate_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_rotate_ratio', Float32(ratio))
 
     def set_tilt_ratio(self, ratio):
         """Set the pointcloud render tilt ratio.
@@ -3396,7 +3523,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_set_tilt_ratio', Float32(ratio))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_tilt_ratio', Float32(ratio))
 
     def set_render_enable(self, enable):
         """Enable or disable pointcloud render image publishing.
@@ -3410,7 +3537,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub('connect_pointcloud_set_render_enable', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_render_enable', Bool(enable))
 
 
     ###############################
@@ -3492,8 +3619,23 @@ class ConnectPointcloudImageIF(ConnectBaseImageIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+
+        
+        if msg_if is None:
+            self.msg_if = MsgIF(log_name = self.class_name)
+        else:
+            self.msg_if = msg_if
+        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,

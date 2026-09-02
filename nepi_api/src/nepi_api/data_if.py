@@ -122,7 +122,7 @@ class DataIF:
     node_if_prefix = 'data_'
 
     data_name = 'data'
-    data_namespace = ''
+    namespace = ''
     data_display_name = ''
     data_description = ''
     data_dict = dict()
@@ -190,14 +190,14 @@ class DataIF:
             return
         self.msg_if.pub_info("Using Data Name: " + self.data_name)
         # get_node_namespace() is already fully resolved, so this is an absolute
-        # namespace. The RUI subscribes to <data_namespace>/status, so it must
+        # namespace. The RUI subscribes to <namespace>/status, so it must
         # never be a relative path.
-        self.data_namespace = nepi_sdk.create_namespace(self.node_namespace,self.data_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.data_name)
 
         # Registry keys are prefixed with the data domain so a shared node_if
         # cannot have a sibling IF silently overwrite this IF's entries
         # (see the 2026-07 registry-key decision in the top-level CLAUDE.md).
-        self.node_if_prefix = self.data_name + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         ##############################
         # Initialize Class Variables
@@ -222,7 +222,7 @@ class DataIF:
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
             'init_configs': True,
-            'namespace': self.data_namespace
+            'namespace': self.namespace
         }
 
         # Params Config Dict ####################
@@ -232,7 +232,7 @@ class DataIF:
         # config management on NodeClassIF.
         PARAMS_DICT = {
             self.node_if_prefix + 'data_dict': {
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.data_dict
             }
         }
@@ -240,7 +240,7 @@ class DataIF:
         # Publishers Config Dict ####################
         self.data_node_pubs_dict = {
              self.node_if_prefix + 'status_pub': {
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'status',
                 'msg': DataStatus,
                 'qsize': 1,
@@ -259,42 +259,42 @@ class DataIF:
             ####################
              self.node_if_prefix + 'set_bool_datum_value': {
                 'msg': UpdateBool,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_bool_datum_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_bools_datum_value': {
                 'msg': UpdateBools,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_bools_datum_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_string_datum_value': {
                 'msg': UpdateString,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_string_datum_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_strings_datum_value': {
                 'msg': UpdateStringArray,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_strings_datum_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_int_datum_value': {
                 'msg': UpdateInt,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_int_datum_value',
                 'qsize': 5,
                 'callback': self._setValueCb
             },
              self.node_if_prefix + 'set_ints_datum_value': {
                 'msg': UpdateInts,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_ints_datum_value',
                 'qsize': 5,
                 'callback': self._setValueCb
@@ -302,7 +302,7 @@ class DataIF:
 
              self.node_if_prefix + 'set_float_datum_value': {
                 'msg': UpdateFloat,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_float_datum_value',
                 'qsize': 5,
                 'callback': self._setValueCb
@@ -312,7 +312,7 @@ class DataIF:
              # other Update* msg; _setValueCb handles both spellings.
              self.node_if_prefix + 'set_floats_datum_value': {
                 'msg': UpdateFloats,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_floats_datum_value',
                 'qsize': 5,
                 'callback': self._setValueCb
@@ -323,49 +323,49 @@ class DataIF:
             #####################
              self.node_if_prefix + 'set_datum_hidden': {
                 'msg': UpdateBool,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_datum_hidden',
                 'qsize': 5,
                 'callback': self._setHiddenValueCb
             },
              self.node_if_prefix + 'set_data_hidden': {
                 'msg': UpdateBool,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_data_hidden',
                 'qsize': 5,
                 'callback': self._setDataHiddenCb
             },
              self.node_if_prefix + 'set_datum_order': {
                 'msg': UpdateInt,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_datum_order',
                 'qsize': 5,
                 'callback': self._setOrderValueCb
             },
              self.node_if_prefix + 'set_datum_up': {
                 'msg': UpdateTrigger,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_datum_up',
                 'qsize': 5,
                 'callback': self._setOrderUpCb
             },
              self.node_if_prefix + 'set_datum_down': {
                 'msg': UpdateTrigger,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_datum_down',
                 'qsize': 5,
                 'callback': self._setOrderDownCb
             },
              self.node_if_prefix + 'set_datum_top': {
                 'msg': UpdateTrigger,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_datum_top',
                 'qsize': 5,
                 'callback': self._setOrderTopCb
             },
              self.node_if_prefix + 'set_datum_bottom': {
                 'msg': UpdateTrigger,
-                'namespace': self.data_namespace,
+                'namespace': self.namespace,
                 'topic': 'set_datum_bottom',
                 'qsize': 5,
                 'callback': self._setOrderBottomCb
@@ -404,7 +404,7 @@ class DataIF:
                 self.node_if.register_subs(self.data_node_subs_dict)
                 # Register the persisted data dict on the shared node_if too,
                 # under the same prefixed key init() reads back.
-                self.node_if.add_param(self.node_if_prefix + 'data_dict', self.data_namespace, self.data_dict)
+                self.node_if.add_param(self.node_if_prefix + 'data_dict', self.namespace, self.data_dict)
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -469,7 +469,7 @@ class DataIF:
         Returns:
             str: The fully-qualified data namespace.
         """
-        return self.data_namespace
+        return self.namespace
 
     def unregister(self):
         """Unregister every publisher and subscriber this interface registered.
@@ -736,7 +736,7 @@ class DataIF:
         self.data_status_msg = nepi_data.update_status_msg(self.data_status_msg, data_dict, self.data_hidden)
         if self.node_if is not None:
             if self.status_has_published == False:
-                self.msg_if.pub_info("Publishing first Data Status on: " + str(self.data_namespace) + "/status")
+                self.msg_if.pub_info("Publishing first Data Status on: " + str(self.namespace) + "/status")
                 self.status_has_published = True
             self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.data_status_msg)
 
@@ -1040,7 +1040,7 @@ class NavPoseIF:
         if os.path.basename(namespace) != self.data_product:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         if data_source_description is None:
             data_source_description = self.data_source_description
@@ -2102,7 +2102,7 @@ class BaseImageIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
           
         if perspective is not None:
@@ -7654,7 +7654,7 @@ class DepthMapIF:
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         '''
                 default_min_meters = 0.0,
@@ -8831,7 +8831,7 @@ class PointcloudIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         self.init_overlay_text_list = init_overlay_text_list
 

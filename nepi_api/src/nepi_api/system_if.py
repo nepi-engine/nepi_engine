@@ -151,7 +151,7 @@ class ControlsIF:
         # Built from the sanitized self.controls_name, not the raw argument -- the
         # namespace must match the name reported in ControlsStatus.
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         ##############################    
         # Initialize Class Variables
@@ -1704,7 +1704,7 @@ class SaveDataIF:
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,save_data_name)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
         
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
@@ -2864,7 +2864,7 @@ class Transform3DIF:
             return
         self.msg_if.pub_info("Using States Name: " + transform_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,transform_name)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         self.source = source_ref_description
         self.end = end_ref_description
@@ -3464,7 +3464,7 @@ class SettingsIF:
         self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
 
         if use_nodename_prefix == True:
-            self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_' 
+            self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_' 
         else:
             self.node_if_prefix = settings_name 
         SETTINGS_PARAM_KEY = self.node_if_prefix
@@ -4084,7 +4084,7 @@ class StatesIF:
         self.msg_if.pub_info("Using States Name: " + states_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,states_name)
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
 
         ##############################  
         # Create NodeClassIF Class  
@@ -4300,7 +4300,7 @@ class TriggersIF:
         if triggers_name is None or triggers_name == '':
             self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
             return
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
         ##############################  
         # Create NodeClassIF Class  
 

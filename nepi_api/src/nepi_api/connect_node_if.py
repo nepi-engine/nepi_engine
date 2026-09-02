@@ -74,6 +74,7 @@ class ConnectNodeIF:
     node_if_shared = False
     connect_if = None
     connect_ready = False
+    namespace = '~'
 
     active_nodes = []
     active_topics = []
@@ -184,6 +185,10 @@ class ConnectNodeIF:
         self.show_data = show_data
 
         self.filter_topics_list = filter_topics_list          
+
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+
         ##############################   
         ## Node Setup
 
@@ -197,7 +202,7 @@ class ConnectNodeIF:
         # selection survives node restarts (via the config manager). Passing a
         # params_dict is what enables config management on ConnectNodeClassIF.
         CONNECT_PARAMS_DICT = {
-            'selected_topic': {
+            self.node_if_prefix + 'selected_topic': {
                 'namespace': self.connect_namespace,
                 'factory_val': self.selected_topic
             }
@@ -206,7 +211,7 @@ class ConnectNodeIF:
 
         # Publishers Config Dict ####################
         self.connect_node_pubs_dict = {
-            'status_pub': {
+            self.node_if_prefix + 'status_pub': {
                 'namespace': self.connect_namespace,
                 'topic': 'status',
                 'msg': ConnectIFStatus,
@@ -220,7 +225,7 @@ class ConnectNodeIF:
 
         # Subscribers Config Dict ####################
         self.connect_node_subs_dict = {
-            'select_topic': {
+            self.node_if_prefix + 'select_topic': {
                 'namespace': self.connect_namespace,
                 'topic': 'select_topic',
                 'msg': String,
@@ -228,7 +233,7 @@ class ConnectNodeIF:
                 'callback': self._selectTopicCb, 
                 'callback_args': ()
             },
-            'system_status': {
+            self.node_if_prefix + 'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
                 'topic': 'status',
@@ -256,7 +261,7 @@ class ConnectNodeIF:
                 self.node_if.register_pubs(self.connect_node_pubs_dict)
                 self.node_if.register_subs(self.connect_node_subs_dict)
                 # Register the persisted selection param on the shared node_if too.
-                self.node_if.add_param('selected_topic', self.connect_namespace, self.selected_topic)
+                self.node_if.add_param(self.node_if_prefix + 'selected_topic', self.connect_namespace, self.selected_topic)
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -266,7 +271,7 @@ class ConnectNodeIF:
         # Restore any persisted selection. When no explicit topic was requested
         # (selected_topic == "None"), use the value the config manager restored
         # for this connect namespace. Otherwise honor the explicit request.
-        self.selected_topic_param = 'selected_topic'
+        self.selected_topic_param = self.node_if_prefix + 'selected_topic'
         if selected_topic == "None":
             persisted = self.node_if.get_param(self.selected_topic_param)
             if persisted is not None and persisted != '' and persisted != "None":
@@ -363,7 +368,7 @@ class ConnectNodeIF:
         # the ROS param; save_config asks the config manager to save it to file.
         if self.node_if is not None:
             self.msg_if.pub_debug("selected_topic: " + str(selected_topic))
-            self.node_if.set_param('selected_topic', self.selected_topic)
+            self.node_if.set_param(self.node_if_prefix + 'selected_topic', self.selected_topic)
             self.node_if.save_config()
     
 
@@ -589,7 +594,7 @@ class ConnectNodeIF:
             if self.status_has_published == False:
                 self.msg_if.pub_warn("Publishing Status: " + str(status_msg))
                 self.status_has_published = True
-            self.node_if.publish_pub('status_pub', status_msg) 
+            self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
             #self.node_if.save_config()
 
 
