@@ -54,15 +54,13 @@ BEST_FILTER_OPTIONS = ['SMALLEST','LARGEST']
 def filter_by_classes(targets_dict_list, class_filter_list):
     #print(targets_dict_list)
 
-    if len(class_filter_list) == 0:
-      filtered_targets = targets_dict_list
-    else:
-      filtered_targets = []
-      for name in class_filter_list:
-          for target_dict in targets_dict_list:
-              if target_dict['name'] == name:
-                  filtered_targets.append(target_dict)
-                  #logger.log_info("Added target with name: " + str(name))
+
+    filtered_targets = []
+    for name in class_filter_list:
+        for target_dict in targets_dict_list:
+            if target_dict['name'] == name:
+                filtered_targets.append(target_dict)
+                #logger.log_info("Added target with name: " + str(name))
 
     # for target_dict in filtered_targets:   
     #     logger.log_info("Returning target with name: " + str(name))
