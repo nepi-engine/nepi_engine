@@ -93,11 +93,15 @@ def create_controls_dict(init_dict):
       input_type = input_dict['type']
       if input_type in CONTROL_TYPES:
         control_dict = copy.deepcopy(BLANK_CONTROL_DICT)
+        control_dict['type'] = input_type
         control_dict['round_value'] = -1
+        control_dict['display_name'] = name
+        control_dict['description'] = name
         control_dict['round_display'] = 2
         for key in control_dict.keys():
           if key in input_dict.keys():
             control_dict[key] = input_dict[key]
+          
         # Control.name was left blank unless the caller happened to repeat the
         # dict key inside its own entry. The key IS the control name.
         control_dict['name'] = name
@@ -249,6 +253,7 @@ def create_controls_dict(init_dict):
             control_dict['set_string'] = value
 
         # ADD TO CONTROLS if try has not failed
+
         controls_dict[name] = control_dict
     except:
       pass
@@ -260,7 +265,7 @@ def create_controls_dict(init_dict):
 
 
 def get_control_value(controls_dict, control_name, type_key = 'set'):
-  if type_key not in ('factory', 'default', 'set'):
+  if type_key not in ['factory', 'default', 'set']:
     type_key = 'set'
   value = None
   if control_name in controls_dict.keys():
@@ -280,7 +285,7 @@ def get_control_value(controls_dict, control_name, type_key = 'set'):
         value_str = type_key + '_strings'
         value = control_dict[value_str]
 
-      if control_type == "Int":  ###########################################################
+      elif control_type == "Int":  ###########################################################
         value_str = type_key + '_int'
         value = control_dict[value_str] 
 
@@ -314,7 +319,7 @@ def get_controls_values_dict(controls_dict, type_key = 'set'):
   return controls_values_dict
 
 
-def set_control_value(controls_dict, control_name, update_value, type_key = 'set'):
+def set_control_value(controls_dict, control_name, update_value, type_key = 'set' , check_valid = True):
   if type_key not in ('factory', 'default', 'set'):
     type_key = 'set'
   if control_name in controls_dict.keys():
@@ -338,7 +343,7 @@ def set_control_value(controls_dict, control_name, update_value, type_key = 'set
         string_options = control_dict['string_options']
         try:
           value  = str(update_value)
-          if value in string_options:
+          if value in string_options or check_valid == False:
             control_dict[value_str] = value
           else:
             logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Not in options" + str(string_options), throttle_s = 5)
@@ -354,7 +359,7 @@ def set_control_value(controls_dict, control_name, update_value, type_key = 'set
           # desired list of selected options. Keep only valid options.
           values = []
           for value in [str(item) for item in update_value]:
-            if value in string_options:
+            if value in string_options or check_valid == False:
               values.append(value)
             else:
               logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Not in options" + str(string_options), throttle_s = 5)
@@ -449,7 +454,7 @@ def set_control_value(controls_dict, control_name, update_value, type_key = 'set
       elif control_type == "Bool": ###########################################################
           value_str = type_key + '_bool'
           try:
-              value  = (update_value == True)
+              value  = (update_value == True or update_value == 'True' or update_value == 'true')
               control_dict[value_str] = value
           except Exception as e:
             logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)
@@ -469,6 +474,127 @@ def set_controls_values(controls_dict, controls_values_dict, type_key = 'set'):
      control_value = controls_values_dict[control_name]
      controls_dict = set_control_value(controls_dict, control_name, control_value, type_key = type_key)
   return controls_dict
+
+
+def check_valid_value(controls_dict, control_name, update_value):
+  valid = False
+  if control_name in controls_dict.keys():
+      control_dict = controls_dict[control_name]
+      control_type = control_dict['type']
+      
+      if control_type == "Menu": ###########################################################
+        string_options = control_dict['string_options']
+        try:
+          value  = int(update_value)
+          valid = True
+        except Exception as e:
+          pass
+    
+      elif control_type == "Selection": ###########################################################
+        string_options = control_dict['string_options']
+        try:
+          value  = str(update_value)
+          if value in string_options:
+            valid = True
+        except Exception as e:
+          pass
+
+        
+      elif control_type == "Selections": ###########################################################
+        string_options = control_dict['string_options']
+        try:
+          # Declarative full-selection update: the message carries the complete
+          # desired list of selected options. Keep only valid options.
+          values = []
+          for value in [str(item) for item in update_value]:
+            if value in string_options:
+              values.append(value)
+          
+          valid = values == update_value
+        except Exception as e:
+          pass
+
+      if control_type == "Int":  ###########################################################
+        int_bounds = control_dict['int_bounds']
+        if len(int_bounds) < 2:
+          int_bounds = [-999,-999]
+        try:
+          value = int(update_value)
+          valid = True
+          if int(int_bounds[0]) != -999 and value < int_bounds[0]:
+            valid = False
+          if int(int_bounds[1]) != -999 and value > int_bounds[1]:
+            valid = False
+        except Exception as e:
+          pass
+
+      elif control_type == "Float" or control_type == "FloatSlider": ###########################################################
+        float_bounds = control_dict['float_bounds']
+        if len(float_bounds) < 2:
+          float_bounds = [-999,-999]
+
+        try:
+          value = float(update_value)
+          round_value = control_dict['round_value']
+          if round_value >= 0:
+            value = round(value,round_value)
+          valid = True
+          if float(float_bounds[0]) != -999 and value < float_bounds[0]:
+            valid = False
+          if float(float_bounds[1]) != -999 and value > float_bounds[1]:
+            valid = False
+        except Exception as e:
+          pass
+
+
+      elif control_type == "FloatSliders": ###########################################################      
+        float_bounds = control_dict['float_bounds']
+        if len(float_bounds) < 2:
+          float_bounds = [-999,-999]
+
+        try:
+          value  = float(update_value[0])
+          round_value = control_dict['round_value']
+          if round_value >= 0:
+            value0 = round(value0,round_value)
+          valid = True
+          if float(float_bounds[0]) != -999 and value0 < float_bounds[0]:
+            valid = False
+          if float(float_bounds[1]) != -999 and value0 > float_bounds[1]:
+            valid = False
+
+
+          value1  = float(update_value[1])
+          round_value = control_dict['round_value']
+          if round_value >= 0:
+            value1 = round(value1,round_value)
+          valid = True
+          if float(float_bounds[0]) != -999 and value1 < float_bounds[0]:
+            valid = False
+          if float(float_bounds[1]) != -999 and value1 > float_bounds[1]:
+            valid = False
+          if value0 > value1:
+            valid = False
+
+        except Exception as e:
+          pass
+
+      elif control_type == "Trigger": ###########################################################
+          valid = True
+
+      elif control_type == "Bool": ###########################################################
+          try:
+              value  = (update_value == True)
+              valid = True
+          except Exception as e:
+            pass
+          
+      elif control_type == "String": ###########################################################
+        valid = True
+
+    
+  return valid
+
 
 
 def get_control_default_value(controls_dict, control_name):
@@ -661,7 +787,8 @@ def get_control_bounds(controls_dict, control_name):
 
   return bounds
 
-def set_control_bounds(controls_dict, control_name, bounds = []):
+def set_control_bounds(controls_dict, control_name, min_bound = None, max_bound = None):
+
 
   if control_name in controls_dict.keys():
       control_dict = controls_dict[control_name]
@@ -669,12 +796,16 @@ def set_control_bounds(controls_dict, control_name, bounds = []):
 
       if control_type == "Int": ###########################################################
         int_bounds = [-999,-999]
+        cur_bounds = control_dict['int_bounds']
+        if len(cur_bounds) == 2:
+          int_bounds = cur_bounds
+
         try:
-          int_bounds[0] = int(bounds[0])
+          int_bounds[0] = int(min_bound)
         except:
           pass
         try:
-          int_bounds[1] = int(bounds[1])
+          int_bounds[1] = int(max_bound)
         except:
           pass
         control_dict['int_bounds'] = int_bounds
@@ -695,12 +826,17 @@ def set_control_bounds(controls_dict, control_name, bounds = []):
 
       elif control_type == "Float" or control_type == "FloatSlider": ###########################################################      
         float_bounds = [-999,-999]
+
+        cur_bounds = control_dict['float_bounds']
+        if len(cur_bounds) == 2:
+          int_bounds = cur_bounds
+
         try:
-          float_bounds[0] = float(bounds[0])
+          float_bounds[0] = float(min_bound)
         except:
           pass
         try:
-          float_bounds[1] = float(bounds[1])
+          float_bounds[1] = float(max_bound)
         except:
           pass
         control_dict['float_bounds'] = float_bounds
@@ -721,12 +857,16 @@ def set_control_bounds(controls_dict, control_name, bounds = []):
 
       elif control_type == "FloatSliders": ###########################################################      
         float_bounds = [-999,-999]
+        cur_bounds = control_dict['float_bounds']
+        if len(cur_bounds) == 2:
+          int_bounds = cur_bounds
+
         try:
-          float_bounds[0] = float(bounds[0])
+          float_bounds[0] = float(min_bound)
         except:
           pass
         try:
-          float_bounds[1] = float(bounds[1])
+          float_bounds[1] = float(max_bound)
         except:
           pass
         control_dict['float_bounds'] = float_bounds
@@ -937,429 +1077,40 @@ def update_status_msg( status_msg, controls_dict, hidden = False):
     status_msg.controls_hidden_list = hidden_list
   return status_msg
 
+def apply_update_control_msg( controls_dict, msg):
+  name = msg.name
 
-############################################################
-# Settings Compatibility Functions
-#
-# NEPI device drivers, and system_mgr for the system config, describe their
-# settings as string-valued dicts:
-#
-#   cap setting : {'name': str, 'type': str, 'options': [str, ...]}
-#                 (optionally 'default_value': str)
-#   setting     : {'name': str, 'type': str, 'value': str}
-#
-# with setting types "Menu", "Discrete", "String", "Bool", "Int", "Float".
-# SettingsIF adapts that form to and from a controls dict, so a device's
-# settings ride the same Control/ControlsStatus messages every other control
-# in the platform uses and the capability report travels in the status message
-# instead of a separate query service. The driver-facing dict contract is
-# unchanged -- these helpers exist so no driver has to know about controls.
+  if name not in controls_dict.keys():
+    return controls_dict
 
-SETTING_TYPES = ["Menu","Discrete","String","Bool","Int","Float"]
+  control_dict = controls_dict[name]
 
-# Returned by a device that exposes no settings. The 'None' type maps to no
-# control type, so such a device reports an empty controls list.
-NONE_CAP_SETTINGS = {"None":{"name":"None","type":"None","options":[]}}
-NONE_SETTINGS = {"None":{"name":"None","type":"None","value":"None"}}
+  display_name = msg.display_name
+  if display_name != '':
+    controls_dict[name]['display_name'] = display_name
 
-SETTING_TYPE_2_CONTROL_TYPE = {
-  'Menu': 'Menu',
-  'Discrete': 'Selection',
-  'String': 'String',
-  'Bool': 'Bool',
-  'Int': 'Int',
-  'Float': 'Float'
-}
+  description = msg.description
+  if description != '':
+    controls_dict[name]['description'] = description
 
-CONTROL_TYPE_2_SETTING_TYPE = {
-  'Menu': 'Menu',
-  'Selection': 'Discrete',
-  'String': 'String',
-  'Bool': 'Bool',
-  'Int': 'Int',
-  'Float': 'Float'
-}
+  value = msg.value
+  if value != '':
+    controls_dict = set_control_value(controls_dict, name, value)
+    
+  values = msg.values
+  if values != ['']:
+    controls_dict = set_control_value(controls_dict, name, values)
 
+  min_bound = msg.min_bound
+  if min_bound != '':
+    controls_dict = set_control_bounds(controls_dict, name, min_bound = min_bound)
 
-def get_data_from_setting(setting):
-  s_name = 'Missing'
-  s_type = 'Missing'
-  data = None
+  min_bound = msg.min_bound
+  if min_bound != '':
+    controls_dict = set_control_bounds(controls_dict, name, min_bound = min_bound)
 
-  setting_str = str(setting)
-  try:
-    s_name = setting['name']
-    s_type = setting['type']
-    s_value = setting['value']
-  except Exception as e:
-    logger.log_warn("Failed to check setting: " + setting_str + " with exception: " + str(e))
-    return s_name, s_type, data
+  options = msg.options
+  if options != ['']:
+    controls_dict = set_control_options(controls_dict, name, options)
 
-  if s_type is not None and s_value is not None:
-    try:
-      if s_type == "Bool":
-        data = (s_value == "True")
-      elif s_type == "Int":
-        data = int(float(s_value))
-      elif s_type == "Float":
-        data = float(s_value)
-      elif s_type == "String":
-        data = s_value
-      elif s_type == "Discrete":
-        data = s_value
-      elif s_type == "Menu":
-        data = int(s_value.split(":")[1])
-    except Exception as e:
-      logger.log_info("Setting conversion failed for setting " + setting_str + " with exception " + str(e))
-  return s_name, s_type, data
-
-
-def check_valid_setting(setting, cap_settings):
-  valid = False
-  setting_str = str(setting)
-  try:
-    s_name = setting['name']
-    s_type = setting['type']
-    s_value = setting['value']
-  except Exception as e:
-    logger.log_warn("Failed to check setting: " + setting_str + " with exception: " + str(e))
-    return False
-  if s_name in cap_settings.keys():
-      cap_setting = cap_settings[s_name]
-      c_type = cap_setting['type']
-      c_options = cap_setting['options'] if 'options' in cap_setting.keys() else []
-      if s_type == c_type:
-        if c_type == "Bool" and (s_value == 'True' or s_value == 'False'):
-          valid = True
-        elif c_type == "String" and isinstance(s_value,str):
-          valid = True
-        elif c_type == "Menu" and isinstance(s_value,str):
-          if s_value in c_options:
-            valid = True
-        elif c_type == "Discrete" and isinstance(s_value,str):
-          if s_value in c_options:
-            valid = True
-        elif c_type == "Int":
-          try:
-            val = int(float(s_value))
-            valid = True
-          except Exception as e:
-            logger.log_debug("Invalid Int setting value: " + setting_str + " : " + str(e))
-          if valid == True and len(c_options) == 2:
-            try:
-              if val < int(c_options[0]) or val > int(c_options[1]):
-                valid = False
-            except:
-              pass
-        elif c_type == "Float":
-          try:
-            val = float(s_value)
-            valid = True
-          except Exception as e:
-            logger.log_debug("Invalid Float setting value: " + setting_str + " : " + str(e))
-          if valid == True and len(c_options) == 2:
-            try:
-              if val < float(c_options[0]) or val > float(c_options[1]):
-                valid = False
-            except Exception as e:
-              logger.log_debug("Invalid Float setting bounds: " + str(c_options) + " : " + str(e))
-  return valid
-
-
-def get_setting_from_settings(setting_name, settings):
-  setting = None
-  if setting_name in settings.keys():
-    setting = settings[setting_name]
-  return setting
-
-
-def get_settings_by_type(settings, type_str):
-  settings_of_type = dict()
-  for setting_name in settings.keys():
-    setting = settings[setting_name]
-    if setting['type'] == type_str:
-        settings_of_type[setting['name']] = setting
-  return settings_of_type
-
-
-def get_menu_option_index(string_options, value_str):
-  # A settings Menu option string is "name:device_index", and the setting value
-  # is one whole option string. The control carries the *list position*, so the
-  # value string round-trips as string_options[set_index] with no information
-  # lost. Fall back to matching on the name half, for a device that reports a
-  # bare name, then to the first option.
-  value_str = str(value_str)
-  if value_str in string_options:
-    return string_options.index(value_str)
-  name_only = value_str.split(":")[0]
-  for i, option in enumerate(string_options):
-    if option.split(":")[0] == name_only:
-      return i
-  return 0
-
-
-def create_controls_init_dict_from_settings(cap_settings, factory_settings = None, settings = None):
-  init_dict = dict()
-  if cap_settings is None:
-    return init_dict
-  for name in cap_settings.keys():
-    try:
-      cap_setting = cap_settings[name]
-      setting_type = cap_setting['type']
-      if setting_type not in SETTING_TYPE_2_CONTROL_TYPE.keys():
-        continue
-      control_type = SETTING_TYPE_2_CONTROL_TYPE[setting_type]
-      options = [str(item) for item in cap_setting['options']] if 'options' in cap_setting.keys() else []
-
-      # Factory value, most specific source first: the cap setting's own
-      # declared default, then the device's factory settings, then its live
-      # settings.
-      default_str = None
-      if 'default_value' in cap_setting.keys():
-        default_str = str(cap_setting['default_value'])
-      elif factory_settings is not None and name in factory_settings.keys() and 'value' in factory_settings[name].keys():
-        default_str = str(factory_settings[name]['value'])
-      elif settings is not None and name in settings.keys() and 'value' in settings[name].keys():
-        default_str = str(settings[name]['value'])
-
-      entry = {'type': control_type, 'description': str(name), 'hidden': False}
-
-      if control_type == "Menu":
-        entry['options'] = options
-        entry['default'] = get_menu_option_index(options, default_str) if default_str is not None else 0
-      elif control_type == "Selection":
-        entry['options'] = options
-        entry['default'] = default_str if default_str is not None else (options[0] if len(options) > 0 else '')
-      elif control_type == "Bool":
-        entry['default'] = (default_str == 'True')
-      elif control_type == "String":
-        entry['default'] = default_str if default_str is not None else ''
-      elif control_type == "Int":
-        entry['bounds'] = options if len(options) == 2 else []
-        try:
-          entry['default'] = int(float(default_str))
-        except:
-          entry['default'] = 0
-      elif control_type == "Float":
-        entry['bounds'] = options if len(options) == 2 else []
-        try:
-          entry['default'] = float(default_str)
-        except:
-          entry['default'] = 0.0
-
-      init_dict[name] = entry
-    except Exception as e:
-      logger.log_warn("Failed to convert cap setting: " + str(name) + " : " + str(e))
-  return init_dict
-
-
-def create_controls_dict_from_settings(cap_settings, settings = None, factory_settings = None):
-  init_dict = create_controls_init_dict_from_settings(cap_settings, factory_settings, settings)
-  controls_dict = create_controls_dict(init_dict)
-  if settings is not None:
-    controls_dict = update_controls_dict_from_settings(controls_dict, settings)
   return controls_dict
-
-
-def set_control_value_from_setting_str(controls_dict, control_name, value_str, type_key = 'set'):
-  if control_name not in controls_dict.keys():
-    return controls_dict
-  control_type = controls_dict[control_name]['type']
-  try:
-    if control_type == "Menu":
-      string_options = controls_dict[control_name]['string_options']
-      update_value = get_menu_option_index(string_options, value_str)
-    elif control_type == "Bool":
-      update_value = (str(value_str) == 'True')
-    elif control_type == "Int":
-      update_value = int(float(value_str))
-    elif control_type == "Float":
-      update_value = float(value_str)
-    else:
-      update_value = str(value_str)
-  except Exception as e:
-    logger.log_warn("Failed to convert setting value " + str(value_str) + " for " + str(control_name) + " : " + str(e))
-    return controls_dict
-  return set_control_value(controls_dict, control_name, update_value, type_key = type_key)
-
-
-def update_controls_dict_from_settings(controls_dict, settings, type_key = 'set'):
-  if settings is None:
-    return controls_dict
-  for name in settings.keys():
-    if name not in controls_dict.keys():
-      continue
-    setting = settings[name]
-    if 'value' not in setting.keys():
-      continue
-    controls_dict = set_control_value_from_setting_str(controls_dict, name, setting['value'], type_key = type_key)
-  return controls_dict
-
-
-def update_controls_dict_caps_from_settings(controls_dict, cap_settings):
-  # Re-apply a device's live capability report (a getCapSettingsFunction that
-  # re-reads, e.g. the V4L2 resolution and framerate option lists, which change
-  # while the node runs) onto an existing controls dict, keeping the set,
-  # default and factory values that are already in it.
-  if cap_settings is None:
-    return controls_dict
-  for name in cap_settings.keys():
-    if name not in controls_dict.keys():
-      continue
-    cap_setting = cap_settings[name]
-    options = [str(item) for item in cap_setting['options']] if 'options' in cap_setting.keys() else []
-    control_type = controls_dict[name]['type']
-    if control_type in ("Menu","Selection","Selections"):
-      controls_dict = set_control_options(controls_dict, name, options)
-    elif control_type in ("Int","Float","FloatSlider") and len(options) == 2:
-      controls_dict = set_control_bounds(controls_dict, name, options)
-  return controls_dict
-
-
-def get_setting_value_str(controls_dict, control_name, type_key = 'set'):
-  if control_name not in controls_dict.keys():
-    return None
-  control_dict = controls_dict[control_name]
-  control_type = control_dict['type']
-  value = get_control_value(controls_dict, control_name, type_key = type_key)
-  if value is None:
-    return None
-  if control_type == "Menu":
-    string_options = control_dict['string_options']
-    try:
-      return str(string_options[int(value)])
-    except:
-      return ''
-  if control_type == "Bool":
-    return "True" if value == True else "False"
-  return str(value)
-
-
-def get_settings_from_controls_dict(controls_dict, type_key = 'set'):
-  settings = dict()
-  for name in controls_dict.keys():
-    control_type = controls_dict[name]['type']
-    if control_type not in CONTROL_TYPE_2_SETTING_TYPE.keys():
-      continue
-    value_str = get_setting_value_str(controls_dict, name, type_key = type_key)
-    if value_str is None:
-      continue
-    settings[name] = {'name': name,
-                      'type': CONTROL_TYPE_2_SETTING_TYPE[control_type],
-                      'value': value_str}
-  return settings
-
-
-def get_cap_settings_from_controls_dict(controls_dict):
-  cap_settings = dict()
-  for name in controls_dict.keys():
-    control_dict = controls_dict[name]
-    control_type = control_dict['type']
-    if control_type not in CONTROL_TYPE_2_SETTING_TYPE.keys():
-      continue
-    if control_type in ("Menu","Selection"):
-      options = [str(item) for item in control_dict['string_options']]
-    elif control_type == "Int":
-      options = [str(item) for item in control_dict['int_bounds']] if len(control_dict['int_bounds']) == 2 else []
-    elif control_type == "Float":
-      options = [str(item) for item in control_dict['float_bounds']] if len(control_dict['float_bounds']) == 2 else []
-    else:
-      options = []
-    cap_settings[name] = {'name': name,
-                          'type': CONTROL_TYPE_2_SETTING_TYPE[control_type],
-                          'options': options,
-                          'default_value': get_setting_value_str(controls_dict, name, type_key = 'default')}
-  return cap_settings
-
-
-def parse_controls_status_msg(status_msg):
-  controls_dict = dict()
-  if status_msg is None:
-    return controls_dict
-  try:
-    names_list = status_msg.controls_name_list
-    msgs_list = status_msg.controls_msg_list
-  except Exception as e:
-    logger.log_warn("Failed to parse controls status msg: " + str(e))
-    return controls_dict
-  for i, name in enumerate(names_list):
-    try:
-      controls_dict[name] = nepi_sdk.convert_msg2dict(msgs_list[i])
-    except Exception as e:
-      logger.log_warn("Failed to parse control msg for " + str(name) + " : " + str(e))
-  return controls_dict
-
-
-def create_update_control_msg(control_name, control_type, value):
-  # One typed update message for one control. The set_* field that matters is
-  # chosen by control_type; the rest stay at their message defaults.
-  msg = UpdateControl()
-  msg.name = str(control_name)
-  msg.type = str(control_type)
-  try:
-    if control_type == "Menu":
-      msg.set_index = int(value)
-    elif control_type == "Selection":
-      msg.set_string = str(value)
-    elif control_type == "Selections":
-      msg.set_strings = [str(item) for item in value]
-    elif control_type == "Bool":
-      msg.set_bool = (value == True)
-    elif control_type == "String":
-      msg.set_string = str(value)
-    elif control_type == "Int":
-      msg.set_int = int(float(value))
-    elif control_type in ("Float","FloatSlider","Trigger"):
-      msg.set_float = float(value)
-    elif control_type == "FloatSliders":
-      msg.set_floats = [float(value[0]), float(value[1])]
-  except Exception as e:
-    logger.log_warn("Failed to build update control msg for " + str(control_name) + " : " + str(e))
-  return msg
-
-
-def parse_update_control_msg(msg):
-  # Returns (name, type, value) with value read out of the set_* field the
-  # declared type selects. Value is None for an unknown type.
-  control_name = msg.name
-  control_type = msg.type
-  value = None
-  if control_type == "Menu":
-    value = msg.set_index
-  elif control_type in ("Selection","String"):
-    value = msg.set_string
-  elif control_type == "Selections":
-    value = list(msg.set_strings)
-  elif control_type == "Bool":
-    value = msg.set_bool
-  elif control_type == "Int":
-    value = msg.set_int
-  elif control_type in ("Float","FloatSlider"):
-    value = msg.set_float
-  elif control_type == "FloatSliders":
-    value = list(msg.set_floats)
-  elif control_type == "Trigger":
-    value = msg.set_float
-  return control_name, control_type, value
-
-
-def create_update_control_msg_from_setting(setting, string_options = []):
-  # Bridge for a caller that still holds a settings-form dict
-  # ({'name','type','value'} with a string value). The string is converted to
-  # the control type's own value form before it goes on the wire -- a Menu
-  # setting value is one whole "name:index" option string, so it needs the
-  # option list to become a list position.
-  setting_type = setting['type']
-  control_type = SETTING_TYPE_2_CONTROL_TYPE.get(setting_type, setting_type)
-  value_str = str(setting['value'])
-  if control_type == "Menu":
-    value = get_menu_option_index(string_options, value_str)
-  elif control_type == "Bool":
-    value = (value_str == 'True')
-  elif control_type == "Int":
-    value = value_str
-  elif control_type == "Float":
-    value = value_str
-  else:
-    value = value_str
-  return create_update_control_msg(setting['name'], control_type, value)

@@ -44,9 +44,8 @@ from nepi_sdk import nepi_controls
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_interfaces.msg import UpdateOrder, UpdateRangeWindow, UpdateFloat, UpdateFloats, UpdateInt, UpdateBool, UpdateString, UpdateStringArray, UpdateTrigger
 
-from nepi_interfaces.msg import Control, ControlsStatus, UpdateControl, MgrSystemStatus
+from nepi_interfaces.msg import Control, ControlsStatus, SettingsStatus, UpdateControl, MgrSystemStatus
 
 from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, FilenameConfig
 from nepi_interfaces.srv import SaveDataCapabilitiesQuery, SaveDataCapabilitiesQueryRequest, SaveDataCapabilitiesQueryResponse
@@ -77,6 +76,7 @@ class ControlsIF:
     msg_if = None
     node_if = None
     node_if_shared = False
+    config_topic = ''
     node_if_prefix = 'controls_'
     namespace = ''
 
@@ -220,134 +220,70 @@ class ControlsIF:
             }
 
 
-
         # Subscribers Config Dict ####################
         self.controls_node_subs_dict = {
             #####################
             # Control Subs
             ####################
-             self.node_if_prefix + 'set_menu_control_value': {
-                'msg': UpdateInt,
+            self.node_if_prefix + 'update_control': {
+                'msg': UpdateControl,
                 'namespace': self.namespace,
-                'topic': 'set_menu_control_value',
+                'topic': 'update_control',
                 'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_selection_control_value': {
-                'msg': UpdateString,
-                'namespace': self.namespace,
-                'topic': 'set_selection_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_selections_control_value': {
-                'msg': UpdateStringArray,
-                'namespace': self.namespace,
-                'topic': 'set_selections_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_int_control_value': {
-                'msg': UpdateInt,
-                'namespace': self.namespace,
-                'topic': 'set_int_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_float_control_value': {
-                'msg': UpdateFloat,
-                'namespace': self.namespace,
-                'topic': 'set_float_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_floatslider_control_value': {
-                'msg': UpdateFloat,
-                'namespace': self.namespace,
-                'topic': 'set_floatslider_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_floatsliders_control_value': {
-                'msg': UpdateRangeWindow,
-                'namespace': self.namespace,
-                'topic': 'set_floatsliders_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_trigger_control_value': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_trigger_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_bool_control_value': {
-                'msg': UpdateBool,
-                'namespace': self.namespace,
-                'topic': 'set_bool_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_string_control_value': {
-                'msg': UpdateString,
-                'namespace': self.namespace,
-                'topic': 'set_string_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
+                'callback': self._updateControlCb
             },
             #####################
             # Display Subs
             #####################
-             self.node_if_prefix + 'set_control_hidden': {
-                'msg': UpdateBool,
-                'namespace': self.namespace,
-                'topic': 'set_control_hidden',
-                'qsize': 5,
-                'callback': self._setHiddenValueCb
-            },
-             self.node_if_prefix + 'set_controls_hidden': {
-                'msg': UpdateBool,
-                'namespace': self.namespace,
-                'topic': 'set_controls_hidden',
-                'qsize': 5,
-                'callback': self._setControlsHiddenCb
-            },
-             self.node_if_prefix + 'set_control_order': {
-                'msg': UpdateInt,
-                'namespace': self.namespace,
-                'topic': 'set_control_order',
-                'qsize': 5,
-                'callback': self._setOrderValueCb
-            },
-             self.node_if_prefix + 'set_control_up': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_control_up',
-                'qsize': 5,
-                'callback': self._setOrderTopCb
-            },
-             self.node_if_prefix + 'set_control_down': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_control_down',
-                'qsize': 5,
-                'callback': self._setOrderDownCb
-            },
-             self.node_if_prefix + 'set_control_top': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_control_top',
-                'qsize': 5,
-                'callback': self._setOrderTopCb
-            },
-             self.node_if_prefix + 'set_control_bottom': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_control_bottom',
-                'qsize': 5,
-                'callback': self._setOrderBottomCb
-            },
+            #  self.node_if_prefix + 'set_control_hidden': {
+            #     'msg': UpdateBool,
+            #     'namespace': self.namespace,
+            #     'topic': 'set_control_hidden',
+            #     'qsize': 5,
+            #     'callback': self._setHiddenValueCb
+            # },
+            #  self.node_if_prefix + 'set_controls_hidden': {
+            #     'msg': UpdateBool,
+            #     'namespace': self.namespace,
+            #     'topic': 'set_controls_hidden',
+            #     'qsize': 5,
+            #     'callback': self._setControlsHiddenCb
+            # },
+            #  self.node_if_prefix + 'set_control_order': {
+            #     'msg': UpdateInt,
+            #     'namespace': self.namespace,
+            #     'topic': 'set_control_order',
+            #     'qsize': 5,
+            #     'callback': self._setOrderValueCb
+            # },
+            #  self.node_if_prefix + 'set_control_up': {
+            #     'msg': UpdateTrigger,
+            #     'namespace': self.namespace,
+            #     'topic': 'set_control_up',
+            #     'qsize': 5,
+            #     'callback': self._setOrderTopCb
+            # },
+            #  self.node_if_prefix + 'set_control_down': {
+            #     'msg': UpdateTrigger,
+            #     'namespace': self.namespace,
+            #     'topic': 'set_control_down',
+            #     'qsize': 5,
+            #     'callback': self._setOrderDownCb
+            # },
+            #  self.node_if_prefix + 'set_control_top': {
+            #     'msg': UpdateTrigger,
+            #     'namespace': self.namespace,
+            #     'topic': 'set_control_top',
+            #     'qsize': 5,
+            #     'callback': self._setOrderTopCb
+            # },
+            #  self.node_if_prefix + 'set_control_bottom': {
+            #     'msg': UpdateTrigger,
+            #     'namespace': self.namespace,
+            #     'topic': 'set_control_bottom',
+            #     'qsize': 5,
+            #     'callback': self._setOrderBottomCb
+            # },
 
             #####################
             # Misc Subs
@@ -364,6 +300,7 @@ class ControlsIF:
     
         
         if node_if is None:
+            self.config_topic = self.namespace
             self.node_if = NodeClassIF(
                             configs_dict = self.CONFIGS_DICT,
                             params_dict = PARAMS_DICT,
@@ -575,12 +512,12 @@ class ControlsIF:
         bounds = nepi_controls.get_control_bounds(controls_dict, control_name)
         return bounds
 
-    def set_control_bounds(self, control_name, bounds = []):
+    def set_control_bounds(self, control_name, min_bound = None, max_bound = None):
         # Called set_control_options here, which writes the string option list
         # instead of the numeric bounds -- so setting bounds on an Int or Float
         # control changed nothing and clobbered its options.
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_bounds(controls_dict, control_name, bounds)
+        controls_dict = nepi_controls.set_control_bounds(controls_dict, control_name, min_bound = min_bound, max_bound = max_bound)
         self.controls_dict = controls_dict
         self.publish_status()
         if self.node_if is not None:
@@ -688,6 +625,7 @@ class ControlsIF:
         ###########
         controls_dict = copy.deepcopy(self.controls_dict)
         self.controls_status_msg = nepi_controls.update_status_msg(self.controls_status_msg, controls_dict, self.controls_hidden)
+        self.controls_status_msg.config_topic = self.config_topic
         if self.node_if is not None:
             if self.status_has_published == False:
                 self.msg_if.pub_warn("Publishing Status: " + str(self.controls_status_msg))
@@ -779,18 +717,19 @@ class ControlsIF:
         nepi_sdk.start_timer_process(next_time, self._updaterCb, oneshot = True)
 
 
-    def _setValueCb(self,msg):
+    def _updateControlCb(self,msg):
             control_name = msg.name
             # The value setters share this single callback. Most Update* msgs carry
             # a 'value' field; UpdateRangeWindow (FloatSliders) carries start/stop_range
             # and UpdateTrigger (Trigger) carries no value at all.
-            if hasattr(msg, 'value'):
-                control_value = msg.value
-            elif hasattr(msg, 'start_range'):
-                control_value = [msg.start_range, msg.stop_range]
-            else:
-                control_value = nepi_utils.get_time()
-            self.set_control_value(control_name, control_value)
+            self.controls_dict = nepi_controls.apply_update_control_msg(self.controls_dict, msg)
+            self.publish_status()
+            if self.controls_updated_callback is not None:
+                self.controls_updated_callback(control_name)
+            if self.node_if is not None:
+                param_name = self.node_if_prefix + 'controls_dict'
+                self.node_if.set_param(param_name, self.controls_dict)
+    
 
     def _setHiddenValueCb(self,msg):
             self.set_control_hidden(msg.name, msg.value)
@@ -840,6 +779,7 @@ class ReadWriteIF:
 
     node_if = None
     node_if_shared = False
+    config_topic = ''
     node_if_prefix = 'read_write_'
 
 
@@ -1617,6 +1557,7 @@ class SaveDataIF:
     status_msg = SaveDataStatus
     node_if = None
     node_if_shared = False
+    config_topic = ''
     node_if_prefix = 'save_data'
     read_write_if = None
  
@@ -2017,6 +1958,7 @@ class SaveDataIF:
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
         else:
+            self.config_topic = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             configs_dict = self.CONFIGS_DICT,
@@ -2579,6 +2521,7 @@ class SaveDataIF:
             status_msg = SaveDataStatus()
             status_msg.node_name = self.node_name
             status_msg.save_data_topic = self.namespace
+            status_msg.config_topic = self.config_topic
             status_msg.filename_config = self.create_filename_msg()
             status_msg.data_dir = self.save_path
             if self.filename_dict is not None:
@@ -2813,6 +2756,7 @@ class Transform3DIF:
 
     node_if = None
     node_if_shared = False
+    config_topic = ''
     node_if_prefix = 'transform_'
 
     transform = copy.deepcopy(ZERO_TRANSFORM)
@@ -2963,6 +2907,7 @@ class Transform3DIF:
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
         else:
+            self.config_topic = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             configs_dict = self.CONFIGS_DICT,
@@ -3214,6 +3159,7 @@ class Transform3DIF:
         No-ops if node_if is None.
         """
         if self.node_if is not None:
+            self.status_msg.config_topic = self.config_topic
             self.status_msg.has_transform = self.has_transform
             self.node_if.publish_pub('transform_status_pub',self.status_msg)
 
@@ -3242,7 +3188,7 @@ class Transform3DIF:
             end = self.node_if.get_param(self.node_if_prefix + 'end')
             if end is not None:
                 self.end = end
-            #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings), log_name_list = self.log_name_list)
+            #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings_dict), log_name_list = self.log_name_list)
             if do_updates:
                 pass
             self.publish_status()
@@ -3326,50 +3272,28 @@ class Transform3DIF:
 # is what it publishes -- so the capability report that used to require a
 # SettingsCapabilitiesQuery round trip now rides the status message.
 
-SETTING_TYPES = nepi_controls.SETTING_TYPES
-EXAMPLE_CAP_SETTINGS = {"setting_name":{"name":"setting_name","type":"Int","options":["0","10"]}}
-EXAMPLE_SETTING  = {"name":"setting_name","type":"Int","value":"0"}
-EXAMPLE_FACTORY_SETTINGS = {"setting_name":EXAMPLE_SETTING}
-EXAMPLE_SETTINGS = {"setting_name":EXAMPLE_SETTING}
 
-def EXAMPLE_SET_SETTING_FUNCTION(setting):
-    success = True
-    msg = 'Success'
-    return success, msg
-
-def EXAMPLE_GET_SETTINGS_FUNCTION():
-    return EXAMPLE_SETTINGS
-
-'''
-EXAMPLE_SETTINGS_DICT = {
-                    'capSettings': EXAMPLE_CAP_SETTINGS, 
-                    'factorySettings': EXAMPLE_FACTORY_SETTINGS,
-                    'setSettingFunction': EXAMPLE_SET_SETTING_FUNCTION, 
-                    'getSettingsFunction': EXAMPLE_GET_SETTINGS_FUNCTION
-}
-'''
-
-def UPDATE_NONE_SETTINGS_FUNCTION(setting):
+def SET_NONE_SETTINGS_FUNCTION(setting):
     return False, "No settings update function available"
 
 def GET_NONE_SETTINGS_FUNCTION():
-    return nepi_controls.NONE_SETTINGS
+    return dict()
 
 
 class SettingsIF:
-    """Publishes a node's settings as a nepi_controls controls set.
+    """Publishes a node's settings as a nepi_settings settings set.
 
-    A device's settings are controls: named, typed, bounded values with a
+    A device's settings are settings: named, typed, bounded values with a
     factory, default and set tier. This interface keeps the string-valued
     settings dict contract that drivers implement, holds the live state as a
-    nepi_controls controls dict, and publishes it as a ControlsStatus message
+    nepi_settings settings dict, and publishes it as a SettingsStatus message
     on '<namespace>/settings/status'. The capability information that the
     retired SettingsCapabilitiesQuery service used to return (type, options,
     bounds, default) is carried in that status message.
 
     ROS interface, all under '<namespace>/<settings_name>':
-        status              (ControlsStatus, latched)  the settings and their capabilities
-        update_setting      (UpdateControl)            change one setting
+        status              (SettingsStatus, latched)  the settings and their capabilities
+        update_setting_value      (UpdateSetting)            change one setting
         reset_settings      (Empty)                    restore last-saved values
     """
 
@@ -3381,6 +3305,7 @@ class SettingsIF:
 
     node_if = None
     node_if_shared = False
+    config_topic = ''
     # Registry keys are prefixed so they stay domain-unique on a shared
     # node_if. The ROS wire name comes from namespace+topic, not the key, so
     # these are wire-safe -- EXCEPT the param key, where the wire name IS
@@ -3389,17 +3314,16 @@ class SettingsIF:
     node_if_prefix = ''
     SETTINGS_PARAM_KEY = 'settings'
 
-    cap_settings = None
-    factory_settings = None
+    settings_dict_values = None
     getCapSettingsFunction = None
     getSettingsFunction = None
     setSettingFunction = None
+    callback_arg = None
 
-    controls_dict = dict()
-    controls_status_msg = None
+    settings_dict = dict()
+    settings_status_msg = None
 
     settings_name = 'settings'
-    allow_cap_updates = False
 
     enable_list = []
     disable_list = []
@@ -3411,8 +3335,9 @@ class SettingsIF:
     def __init__(self, 
                 namespace = None,
                 settings_name = 'settings',
-                settings_dict = None,
-                allow_cap_updates = False,
+                getSettingsFunction=None, 
+                setSettingFunction=None, 
+                callback_arg = None,
                 enable_list = [],
                 disable_list = [],
                 save_params = True,
@@ -3444,6 +3369,8 @@ class SettingsIF:
 
         #############################
 
+        self.callback_arg = callback_arg
+
         self.enable_list = enable_list
         self.disable_list = disable_list
 
@@ -3469,55 +3396,31 @@ class SettingsIF:
             self.node_if_prefix = settings_name 
         SETTINGS_PARAM_KEY = self.node_if_prefix
 
-        self.allow_cap_updates = allow_cap_updates
         self.save_params = save_params
 
-        if settings_dict is None:
-            self.msg_if.pub_warn("Exiting, No Settings_Dict provided", log_name_list = self.log_name_list)
-            return
-        else:
-            try:
-                capSettings = settings_dict['capSettings']
-                factorySettings = settings_dict['factorySettings']
-                setSettingFunction = settings_dict['setSettingFunction']
-                getSettingsFunction = settings_dict['getSettingsFunction']
-            except Exception as e:
-                self.msg_if.pub_warn("Exiting, None Valid Settings Dict: " + str(settings_dict) + " : " + str(e), log_name_list = self.log_name_list)
-                return
 
-        if 'getCapSettingsFunction' in settings_dict.keys():
-            self.getCapSettingsFunction = settings_dict['getCapSettingsFunction']
-
-        #  Initialize capabilities info
-        if capSettings is None:
-            self.cap_settings = copy.deepcopy(nepi_controls.NONE_CAP_SETTINGS)
-        else:
-            self.cap_settings = capSettings   
-
-        if setSettingFunction is None:
-            self.setSettingFunction = UPDATE_NONE_SETTINGS_FUNCTION
-        else:
-            self.setSettingFunction = setSettingFunction
-        
         if getSettingsFunction is None:
             self.getSettingsFunction = GET_NONE_SETTINGS_FUNCTION
         else:
             self.getSettingsFunction = getSettingsFunction
 
-        if factorySettings is None:
-            self.factory_settings = self.getSettingsFunction()
-        else:
-            self.factory_settings = factorySettings
-        if self.factory_settings is None:
-            self.factory_settings = copy.deepcopy(nepi_controls.NONE_SETTINGS)
 
-        # Build the controls dict. The factory and default tiers come from the
+        if setSettingFunction is None:
+            self.setSettingFunction = SET_NONE_SETTINGS_FUNCTION
+        else:
+            self.setSettingFunction = setSettingFunction
+        
+        # Build the settings dict. The factory and default tiers come from the
         # device's factory settings (or a cap setting's own declared default);
         # the set tier is seeded from whatever the device currently reports.
-        current_settings = self.getSettingsFunction()
-        self.controls_dict = nepi_controls.create_controls_dict_from_settings(
-                                    self.cap_settings, current_settings, self.factory_settings)
-        self.controls_status_msg = nepi_controls.create_status_msg(
+
+        if self.callback_arg is None:
+            self.settings_dict = self.getSettingsFunction()
+        else:
+            self.settings_dict = self.getSettingsFunction(self.callback_arg)
+
+      
+        self.settings_status_msg = nepi_controls.create_status_msg(
                                     self.settings_name, 'Settings', 'Device Settings',
                                     show_controls = True, has_show_control = False)
 
@@ -3539,7 +3442,7 @@ class SettingsIF:
             self.PARAMS_DICT = {
                 self.SETTINGS_PARAM_KEY: {
                     'namespace': self.namespace,
-                    'factory_val': self.factory_settings
+                    'factory_val': self.settings_dict_values
                 }
             }
         else:
@@ -3555,7 +3458,7 @@ class SettingsIF:
         self.PUBS_DICT = {
             self.node_if_prefix + 'status_pub': {
                 'namespace': self.namespace,
-                'msg': ControlsStatus,
+                'msg': SettingsStatus,
                 'topic': 'status',
                 'qsize': 1,
                 'latch': True
@@ -3569,8 +3472,7 @@ class SettingsIF:
                 'namespace': self.namespace,
                 'topic': 'update_setting',
                 'qsize': 5,
-                'callback': self._updateSettingCb,
-                'callback_args': None
+                'callback': self._updateSettingCb
             },
             self.node_if_prefix + 'reset_settings': {
                 'msg': Empty,
@@ -3591,6 +3493,7 @@ class SettingsIF:
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
         else:
+            self.config_topic = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             configs_dict = self.CONFIGS_DICT,
@@ -3683,13 +3586,6 @@ class SettingsIF:
                             self.node_if.unregister_pub(pub_name)
                 self.PUBS_DICT = None
 
-    def get_controls_dict(self):
-        """Return a copy of the controls dict this interface publishes.
-
-        Returns:
-            dict: control name -> control dict, in nepi_controls form.
-        """
-        return copy.deepcopy(self.controls_dict)
 
     def get_settings_dict(self):
         """Return the current settings in the string-valued device settings form.
@@ -3697,113 +3593,30 @@ class SettingsIF:
         Returns:
             dict: setting name -> {'name', 'type', 'value'}.
         """
-        return nepi_controls.get_settings_from_controls_dict(self.getControlsDict())
-
-    def get_cap_settings_dict(self):
-        """Return the settings capability report in the device cap settings form.
-
-        This is the information the retired SettingsCapabilitiesQuery service
-        used to answer; it is also published in every status message.
-
-        Returns:
-            dict: setting name -> {'name', 'type', 'options', 'default_value'}.
-        """
-        return nepi_controls.get_cap_settings_from_controls_dict(self.getControlsDict())
+        return nepi_controls.get_controls_values_dict(self.getSettingsDict())
 
     def publish_status(self):
-        """Build and publish the settings ControlsStatus message.
+        """Build and publish the settings SettingsStatus message.
 
-        Refreshes the controls dict from the device (its live values, and its
+        Refreshes the settings dict from the device (its live values, and its
         capability report if it provides a getCapSettingsFunction), then
         publishes. No-ops if node_if is None.
         """
         if self.node_if is None:
             return
-        controls_dict = self.getControlsDict()
+        self.settings_status_msg.config_topic = self.config_topic
+        settings_dict = self.getSettingsDict()
 
-        # A device that re-reports its capabilities while running (V4L2
-        # resolution and framerate option lists, for example) gets its options
-        # and bounds refreshed in place, keeping the set/default/factory values.
-        if self.getCapSettingsFunction is not None:
-            try:
-                cap_settings = self.getCapSettingsFunction()
-                if cap_settings is not None:
-                    self.cap_settings = cap_settings
-                    controls_dict = self.syncNewCapSettings(controls_dict, cap_settings)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to refresh cap settings: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        # Track what the device actually reports, so a value the hardware
-        # clamped or refused shows up in the status instead of the request.
-        try:
-            current_settings = self.getSettingsFunction()
-            controls_dict = nepi_controls.update_controls_dict_from_settings(controls_dict, current_settings)
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to read current settings: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
-
-        self.controls_dict = controls_dict
-        self.controls_status_msg = nepi_controls.update_status_msg(self.controls_status_msg, controls_dict)
-        self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.controls_status_msg)
-
-    def update_cap_setting(self,cap_setting):
-        """Apply a runtime capability update for one setting.
-
-        Rewrites the setting's options (Menu, Discrete) or bounds (Int, Float)
-        in place, keeping its set, default and factory values, and republishes
-        the status. No-ops and returns False if allow_cap_updates is False.
-
-        Args:
-            cap_setting (dict): {'name', 'type', 'options'}, optionally
-                'default_value'.
-
-        Returns:
-            bool: True if the cap setting was applied, False otherwise.
-        """
-        success = False
-        if self.allow_cap_updates == False:
-            self.msg_if.pub_warn("Ignoring cap update request. Cap updates not enabled", log_name_list = self.log_name_list)
-            return success
-        if 'name' not in cap_setting.keys():
-            self.msg_if.pub_warn("Ignoring cap update request with no name: " + str(cap_setting), log_name_list = self.log_name_list)
-            return success
-        name = cap_setting['name']
-        if name not in self.controls_dict.keys():
-            self.msg_if.pub_warn("Ignoring cap update for unknown setting: " + str(name), log_name_list = self.log_name_list)
-            return success
-        controls_dict = self.syncNewCapSettings(self.getControlsDict(), {name: cap_setting})
-        self.controls_dict = controls_dict
-        self.cap_settings[name] = cap_setting
-        self.publish_status()
-        success = True
-        self.msg_if.pub_info("Updated Cap Setting: " + str(cap_setting), log_name_list = self.log_name_list)
-        return success
+        self.settings_status_msg = nepi_controls.update_status_msg(self.settings_status_msg, settings_dict)
+        self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.settings_status_msg)
 
 
-    def update_setting_value(self, key_str, value_str):
-        """Apply one setting update given its name and its value as a string.
 
-        Args:
-            key_str (str): The setting name.
-            value_str (str): The new value, in the setting's string form.
-
-        Returns:
-            bool: True if the setting was successfully applied.
-        """
-        name = str(key_str)
-        if name not in self.controls_dict.keys():
-            self.msg_if.pub_warn("Ignoring update for unknown setting: " + name, log_name_list = self.log_name_list)
-            return False
-        setting_type = nepi_controls.CONTROL_TYPE_2_SETTING_TYPE.get(self.controls_dict[name]['type'], None)
-        if setting_type is None:
-            return False
-        setting = {'name': name, 'type': setting_type, 'value': str(value_str)}
-        return self.update_setting(setting)
-
-    def update_setting(self,setting,do_updates = True, update_param = True):
+    def update_setting_value(self,setting_name, setting_value, do_updates = True, update_param = True):
         """Apply a single setting update using the registered setSettingFunction.
 
         Compares the incoming value against the value currently held in the
-        controls dict and only calls down to the device if it has changed.
+        settings dict and only calls down to the device if it has changed.
         Optionally persists the settings dict to the ROS param server and
         publishes an updated status message.
 
@@ -3818,53 +3631,43 @@ class SettingsIF:
             bool: True if the setting was successfully applied, False otherwise.
         """
         success = False
+        self.msg_if.pub_info("Updating setting : " + str([setting_name,setting_value]), log_name_list = self.log_name_list)
         if self.setSettingFunction is None:
             self.msg_if.pub_debug("Settings updates ignored. No settings update function defined ", log_name_list = self.log_name_list)
             return success
 
-        try:
-            s_name = setting['name']
-            s_value = str(setting['value'])
-        except Exception as e:
-            self.msg_if.pub_warn("Ignoring malformed setting: " + str(setting) + " : " + str(e), log_name_list = self.log_name_list)
-            return success
+        settings_dict = self.getSettingsDict()
+        if setting_name not in settings_dict.keys():
+            self.msg_if.pub_warn("Ignoring update for unknown setting: " + str(setting_name), log_name_list = self.log_name_list)
+            return
 
-        if s_name == 'None':
-            return True
+      
+        if nepi_controls.check_valid_value(settings_dict, setting_name, setting_value) == False:
+            self.msg_if.pub_warn("Setting update rejected as invalid: " + str([setting_name, setting_value]), log_name_list = self.log_name_list)
 
-        if s_name not in self.controls_dict.keys():
-            self.msg_if.pub_warn("Ignoring update for unknown setting: " + str(s_name), log_name_list = self.log_name_list)
-            return success
-
-        controls_dict = self.getControlsDict()
-
-        # Reject an out-of-type or out-of-range value before it reaches the
-        # device, using the capability report the controls dict itself carries.
-        cap_settings = nepi_controls.get_cap_settings_from_controls_dict(controls_dict)
-        if nepi_controls.check_valid_setting(setting, cap_settings) == False:
-            self.msg_if.pub_warn("Setting update rejected as invalid: " + str(setting) + " against caps " + str(cap_settings.get(s_name)), log_name_list = self.log_name_list)
-            return success
-
-        current_value = nepi_controls.get_setting_value_str(controls_dict, s_name)
-        if current_value is not None and str(current_value) == s_value:
-            # Already at the requested value. Nothing to send.
+        current_value = nepi_controls.get_control_value(self.settings_dict, setting_name)
+        if current_value == setting_value:
+            #self.msg_if.pub_warn("Setting allready set: " + str([current_value, setting_value]), log_name_list = self.log_name_list)
             return True
 
         try:
-            [success, msg] = self.setSettingFunction(setting)
+            if self.callback_arg is None:
+                [success, msg, self.settings_dict] = self.setSettingFunction(setting_name, setting_value)
+            else:
+                [success, msg, self.settings_dict] = self.setSettingFunction(setting_name, setting_value, self.callback_arg)
         except Exception as e:
+            self.msg_if.pub_warn("setSettingFunction callback failed: " + str(e), log_name_list = self.log_name_list)
             success = False
             msg = str(e)
+        #self.msg_if.pub_warn("setSettingFunction returned: " + str(self.settings_dict), log_name_list = self.log_name_list)
+        if do_updates == True:
+            self.publish_status()
         if success == True:
-            self.msg_if.pub_info("Setting Updated: " + str(setting), log_name_list = self.log_name_list)
-            controls_dict = nepi_controls.set_control_value_from_setting_str(controls_dict, s_name, s_value)
-            self.controls_dict = controls_dict
+            self.msg_if.pub_info("Setting Updated: " + str([setting_name, setting_value]), log_name_list = self.log_name_list)
             if update_param == True:
                 self.saveSettingsParam()
-            if do_updates == True:
-                self.publish_status()
         else:
-            self.msg_if.pub_warn("Setting update failed: " + str(setting) + " : " + str(msg), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Setting update failed: " + str([setting_name, setting_value]) + " : " + str(msg), log_name_list = self.log_name_list)
         return success
 
 
@@ -3872,7 +3675,7 @@ class SettingsIF:
         """Load settings from the ROS param server and optionally apply them.
 
         Reads the persisted string-valued settings dict from the param server,
-        seeds the controls dict default and set tiers from it, and if
+        seeds the settings dict default and set tiers from it, and if
         do_updates is True pushes each stored value down to the device before a
         final status publish.
 
@@ -3880,36 +3683,49 @@ class SettingsIF:
             do_updates (bool, optional): If True, apply all stored settings to the
                 hardware after loading. Defaults to True.
         """
-        init_settings = None
+        init_settings_values_dict = None
         if self.node_if is not None and self.save_params == True:
-            init_settings = self.node_if.get_param(self.SETTINGS_PARAM_KEY)
-            if type(init_settings) != dict:
-                init_settings = self.getSettingsFunction()
-                if type(init_settings) == dict:
-                    self.node_if.set_param(self.SETTINGS_PARAM_KEY, init_settings)
+            init_settings_values_dict = self.node_if.get_param(self.SETTINGS_PARAM_KEY)
 
-        if type(init_settings) == dict:
-            controls_dict = self.getControlsDict()
-            # The persisted values are this node's defaults: 'reset' returns
-            # here, 'factory_reset' goes past here to the factory tier.
-            controls_dict = nepi_controls.update_controls_dict_from_settings(controls_dict, init_settings, type_key = 'default')
-            controls_dict = nepi_controls.update_controls_dict_from_settings(controls_dict, init_settings, type_key = 'set')
-            self.controls_dict = controls_dict
+        if self.callback_arg is None:
+            init_settings_dict = self.getSettingsFunction()
+        else:
+            init_settings_dict = self.getSettingsFunction(self.callback_arg)
+
+        if type(init_settings_dict) == dict:
+            if type(init_settings_values_dict) == dict:
+                for setting_name in init_settings_values_dict.keys():
+                    if setting_name in init_settings_dict.keys():
+                        setting_value = init_settings_values_dict[setting_name]
+                        init_settings_dict = nepi_controls.set_control_value(init_settings_dict, setting_name, setting_value, setting_value)
+        else:
+            init_settings_dict = dict()
+
+        self.settings_dict = init_settings_dict
+        settings_values_dict = nepi_controls.get_controls_values_dict(init_settings_dict)
+        if init_settings_values_dict != settings_values_dict:
+            self.node_if.set_param(self.SETTINGS_PARAM_KEY, init_settings_values_dict)
+
 
         if do_updates == True:
-            self.msg_if.pub_info("Applying Init Settings", log_name_list = self.log_name_list)
-            settings = nepi_controls.get_settings_from_controls_dict(self.getControlsDict())
-            for setting_name in settings.keys():
-                self.update_setting(settings[setting_name], do_updates = False, update_param = False)
+            settings_dict = self.getSettingsDict()
+            settings_values_dict = nepi_controls.get_controls_values_dict(settings_dict)
+            self.msg_if.pub_info("Applying Init Settings: " + str(settings_values_dict), log_name_list = self.log_name_list)
+            for setting_name in settings_dict.keys():
+                setting_value = nepi_controls.get_control_value(settings_dict, setting_name)
+                if self.callback_arg is None:
+                    self.setSettingFunction(setting_name, setting_value)
+                else:
+                    self.setSettingFunction(setting_name, setting_value, self.callback_arg)
         self.publish_status()
 
     def reset(self):
         """Reset settings to their last-saved (user) values and reinitialize.
 
-        Restores the default tier of every control, reloads the user
+        Restores the default tier of every setting, reloads the user
         configuration tier via node_if.reset_params(), then reapplies.
         """
-        self.controls_dict = nepi_controls.reset_control_values(self.getControlsDict())
+        self.settings_dict = nepi_controls.reset_control_values(self.getSettingsDict())
         if self.node_if is not None and self.save_params == True:
             self.node_if.reset_params()
         self.init(do_updates = True)
@@ -3917,11 +3733,11 @@ class SettingsIF:
     def factory_reset(self):
         """Reset settings to factory defaults and reinitialize.
 
-        Restores the factory tier of every control (factory -> default -> set),
+        Restores the factory tier of every setting (factory -> default -> set),
         restores the factory param values via node_if.factory_reset_params(),
         then reapplies.
         """
-        self.controls_dict = nepi_controls.factory_reset_control_values(self.getControlsDict())
+        self.settings_dict = nepi_controls.factory_reset_control_values(self.getSettingsDict())
         if self.node_if is not None and self.save_params == True:
             # factory_reset_params() puts the param back to its registered
             # factory_val, which IS the factory settings dict, so the init()
@@ -3934,29 +3750,15 @@ class SettingsIF:
     # Class Private Methods
     ###############################
 
-    def getControlsDict(self):
-        return copy.deepcopy(self.controls_dict)
+    def getSettingsDict(self):
+        return copy.deepcopy(self.settings_dict)
 
-    def syncNewCapSettings(self, controls_dict, cap_settings):
-        # Fold a capability report into an existing controls dict: refresh
-        # options and bounds for a setting already present, and build a control
-        # for one that is new (a device can grow a setting while running).
-        new_caps = dict()
-        for name in cap_settings.keys():
-            if name in controls_dict.keys():
-                continue
-            new_caps[name] = cap_settings[name]
-        controls_dict = nepi_controls.update_controls_dict_caps_from_settings(controls_dict, cap_settings)
-        if len(new_caps) > 0:
-            added = nepi_controls.create_controls_dict_from_settings(new_caps, None, self.factory_settings)
-            for name in added.keys():
-                controls_dict[name] = added[name]
-        return controls_dict
 
     def saveSettingsParam(self):
         if self.node_if is not None and self.save_params == True:
-            settings = nepi_controls.get_settings_from_controls_dict(self.getControlsDict())
-            self.node_if.set_param(self.SETTINGS_PARAM_KEY, settings)
+            settings_dict = self.getSettingsDict()
+            settings_values_dict = nepi_controls.get_controls_values_dict(settings_dict)
+            self.node_if.set_param(self.SETTINGS_PARAM_KEY, settings_values_dict)
 
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
@@ -3973,28 +3775,17 @@ class SettingsIF:
     def _publishStatusCb(self, timer):
         self.publish_status()
 
+
     def _updateSettingCb(self,msg):
-        self.msg_if.pub_info("Received setting update msg: " + str(msg), log_name_list = self.log_name_list)
-        [name, control_type, value] = nepi_controls.parse_update_control_msg(msg)
-        if value is None:
-            self.msg_if.pub_warn("Ignoring setting update msg with unusable type: " + str(control_type), log_name_list = self.log_name_list)
-            return
-        # The device-facing contract is the string-valued settings dict, so the
-        # typed wire value is converted back to that form here. A Menu index
-        # becomes the whole "name:index" option string the device expects.
-        controls_dict = self.getControlsDict()
-        if name not in controls_dict.keys():
-            self.msg_if.pub_warn("Ignoring update for unknown setting: " + str(name), log_name_list = self.log_name_list)
-            return
-        staged = nepi_controls.set_control_value(controls_dict, name, value)
-        value_str = nepi_controls.get_setting_value_str(staged, name)
-        if value_str is None:
-            return
-        setting_type = nepi_controls.CONTROL_TYPE_2_SETTING_TYPE.get(controls_dict[name]['type'], None)
-        if setting_type is None:
-            return
-        self.update_setting({'name': name, 'type': setting_type, 'value': value_str},
-                            do_updates = True, update_param = True)
+            #self.msg_if.pub_info("Received setting update msg: " + str(msg), log_name_list = self.log_name_list)
+            setting_name = msg.name
+            settings_dict = copy.deepcopy(self.settings_dict)
+            cur_value = nepi_controls.get_control_value(settings_dict, setting_name )
+            settings_dict = nepi_controls.apply_update_control_msg(settings_dict, msg)
+            setting_value = nepi_controls.get_control_value(settings_dict, setting_name )
+            #self.msg_if.pub_info("Sending Updated Val from/to: " + str([cur_value, setting_value]), log_name_list = self.log_name_list)
+            self.update_setting_value(setting_name, setting_value, do_updates = True, update_param = True)
+
 
 
 
@@ -4028,6 +3819,7 @@ class StatesIF:
 
     node_if = None
     node_if_shared = False
+    config_topic = ''
     node_if_prefix = 'states_'
     
 
@@ -4118,6 +3910,7 @@ class StatesIF:
             self.node_if.register_services(self.SRVS_DICT)
 
         else:
+            self.config_topic = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             services_dict = self.SRVS_DICT,
@@ -4250,6 +4043,7 @@ class TriggersIF:
 
     node_if = None
     node_if_shared = False
+    config_topic = ''
     node_if_prefix = 'triggers_'
 
     msg_if = None
@@ -4322,6 +4116,7 @@ class TriggersIF:
             self.node_if.register_services(self.SRVS_DICT)
             self.node_if.register_pubs(self.PUBS_DICT)
         else:
+            self.config_topic = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             pubs_dict = self.PUBS_DICT,

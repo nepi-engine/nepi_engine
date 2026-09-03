@@ -787,24 +787,20 @@ class SystemMgrNode():
         self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = [self.node_name])
         system_settings_ns = self.base_namespace
 
-        self.SYSTEM_SETTINGS_DICT = {
-                    'capSettings': self.system_capSettings, 
-                    'factorySettings': self.system_factorySettings,
-                    'setSettingFunction': self.systemSettingUpdateFunction, 
-                    'getSettingsFunction': self.systemGetSettingsFunction
+        # self.SYSTEM_SETTINGS_DICT = {
+        #             'setSettingFunction': self.systemSettingUpdateFunction, 
+        #             'getSettingsFunction': self.systemGetSettingsFunction
                     
-        }
+        # }
 
     
-        self.system_settings_if = SettingsIF(namespace = system_settings_ns,
-                        settings_dict = self.SYSTEM_SETTINGS_DICT,
-                        enable_list = self.SYSTEM_ENABLE_KEYS,
-                        disable_list = self.SYSTEM_ENABLE_KEYS,
-                        log_name_list = [self.node_name],
-                        save_params = False,
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                        )
+        # self.settings_if = SettingsIF(namespace = system_settings_ns,
+        #                       getSettingsFunction=self.systemSettingUpdateFunction, 
+        #                       setSettingFunction=self.systemGetSettingsFunction, 
+        #                       save_params = False,
+        #                       msg_if = self.msg_if,
+        #                       node_if = self.node_if
+        #                       )
 
         #######################
         # Setup NEPI Managers Updater Process

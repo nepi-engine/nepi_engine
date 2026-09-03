@@ -37,7 +37,6 @@ from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
 
 
-from nepi_interfaces.msg import UpdateOrder, UpdateRangeWindow, UpdateFloat, UpdateFloats, UpdateInt, UpdateBool, UpdateString, UpdateStringArray, UpdateTrigger
 
 
 from nepi_interfaces.msg import ProcessStatus, MgrSystemStatus
@@ -68,6 +67,7 @@ class ProcessIF:
     
     msg_if = None
     node_if = None
+    config_topic = ''
     node_if_shared = False
     ready = False
 
@@ -362,75 +362,12 @@ class ProcessIF:
                 'qsize': 10,
                 'callback': self._setEnableCb
             },
-            self.node_if_prefix + 'set_menu_control_value': {
-                'msg': UpdateInt,
+            self.node_if_prefix + 'update_control': {
+                'msg': UpdateControl,
                 'namespace': self.namespace,
-                'topic': 'set_menu_control_value',
+                'topic': 'update_control',
                 'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_selection_control_value': {
-                'msg': UpdateString,
-                'namespace': self.namespace,
-                'topic': 'set_selection_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_selections_control_value': {
-                'msg': UpdateStringArray,
-                'namespace': self.namespace,
-                'topic': 'set_selections_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_int_control_value': {
-                'msg': UpdateInt,
-                'namespace': self.namespace,
-                'topic': 'set_int_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_float_control_value': {
-                'msg': UpdateFloat,
-                'namespace': self.namespace,
-                'topic': 'set_float_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_floatslider_control_value': {
-                'msg': UpdateFloat,
-                'namespace': self.namespace,
-                'topic': 'set_floatslider_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_floatsliders_control_value': {
-                'msg': UpdateRangeWindow,
-                'namespace': self.namespace,
-                'topic': 'set_floatsliders_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_trigger_control_value': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_trigger_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_bool_control_value': {
-                'msg': UpdateBool,
-                'namespace': self.namespace,
-                'topic': 'set_bool_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-            self.node_if_prefix + 'set_string_control_value': {
-                'msg': UpdateString,
-                'namespace': self.namespace,
-                'topic': 'set_string_control_value',
-                'qsize': 5,
-                'callback': self._setValueCb
+                'callback': self._updateControlCb
             }
         }
 
@@ -449,6 +386,7 @@ class ProcessIF:
             )
             self.node_if.wait_for_ready()
         else:
+            self.config_if = self.namespace
             self.node_if_shared = True
             try:
                 self.node_if = node_if
@@ -813,13 +751,13 @@ class ProcessIF:
             options = nepi_controls.get_control_options(controls_dict, control_name)
         return options
 
-    def set_control_bounds(self, control_name, update_bounds):
+    def set_control_bounds(self, control_name, min_bound = None, max_bound = None):
         if self.get_process_ready() == True:
             process_name = copy.deepcopy(self.selected_process)
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
-                    controls_dict = nepi_controls.set_control_bounds(controls_dict, control_name, update_bounds)
+                    controls_dict = nepi_controls.set_control_bounds(controls_dict, control_name, min_bound = min_bound, max_bound = max_bound)
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
                         self.self.publish_status()
@@ -896,7 +834,7 @@ class ProcessIF:
 
         status_msg.node_name = self.node_name
         status_msg.namespace = self.namespace
-        status_msg.has_config = False
+        status_msg.config_topic = self.config_topic
 
         # Run state. enabled is what the operator asked for and running is what
         # the owning node reports back; the RUI shows both so an enable that
@@ -1124,18 +1062,12 @@ class ProcessIF:
         return success
 
 
-    def _setValueCb(self,msg):
-            control_name = msg.name
-            # The value setters share this single callback. Most Update* msgs carry
-            # a 'value' field; UpdateRangeWindow (FloatSliders) carries start/stop_range
-            # and UpdateTrigger (Trigger) carries no value at all.
-            if hasattr(msg, 'value'):
-                control_value = msg.value
-            elif hasattr(msg, 'start_range'):
-                control_value = [msg.start_range, msg.stop_range]
-            else:
-                control_value = nepi_utils.get_time()
-            self.set_control_value(control_name, control_value)
+    def _updateControlCb(self,msg):
+        self.msg_if.pub_info("Received control update msg: " + str(msg), log_name_list = self.log_name_list)
+        control_name = msg.name
+        controls_dict = nepi_controls.apply_update_control_msg(self.controls_dict, msg)
+        control_value = nepi_controls.get_control_value(controls_dict, control_name )
+        self.set_control_value(control_name, control_value, do_updates = True, update_param = True)
         
     def _publishResults(self, results_pub_msg):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 
@@ -1181,6 +1113,7 @@ class DetectionsIF:
     namespace = '~/detections'
 
     node_if = None
+    config_topic = ''
     node_if_shared = True
 
     save_data_if = None
@@ -1287,6 +1220,7 @@ class DetectionsIF:
             self.node_if = node_if
             self.node_if.register_pubs(self.PUBS_DICT)
         else:
+            self.config_if = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             configs_dict = self.CONFIGS_DICT,
@@ -1463,6 +1397,7 @@ class DetectionsIF:
         if status_msg is not None:
             self.status_msg = status_msg
         if self.status_msg is not None:
+            self.status_msg.process_status.config_topic = self.config_topic
             self.node_if.publish_pub(self.status_pub_name, self.status_msg)
 
     def unregister_pubs(self):
@@ -1565,6 +1500,7 @@ class DetectionsImageIF:
     namespace = '~/detections_image'
 
     node_if = None
+    config_topic = ''
     node_if_shared = True
 
     save_data_if = None
@@ -1671,6 +1607,7 @@ class DetectionsImageIF:
             self.node_if = node_if
             self.node_if.register_pubs(self.PUBS_DICT)
         else:
+            self.config_if = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             configs_dict = self.CONFIGS_DICT,
@@ -1869,6 +1806,7 @@ class DetectionsImageIF:
         if status_msg is not None:
             self.status_msg = status_msg
         if self.status_msg is not None:
+            self.status_msg.config_topic = self.config_topic
             self.node_if.publish_pub(self.status_pub_name, self.status_msg)
 
     def unregister_pubs(self):
@@ -1972,6 +1910,7 @@ class TargetsIF:
     namespace = '~/targets'
 
     node_if = None
+    config_topic = ''
     node_if_shared = True
 
     save_data_if = None
@@ -2078,6 +2017,7 @@ class TargetsIF:
             self.node_if = node_if
             self.node_if.register_pubs(self.PUBS_DICT)
         else:
+            self.config_if = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             configs_dict = self.CONFIGS_DICT,
@@ -2254,6 +2194,7 @@ class TargetsIF:
         if status_msg is not None:
             self.status_msg = status_msg
         if self.status_msg is not None:
+            self.status_msg.process_status.config_topic = self.config_topic
             self.node_if.publish_pub(self.status_pub_name, self.status_msg)
 
     def unregister_pubs(self):
@@ -2355,6 +2296,7 @@ class TargetsImageIF:
     namespace = '~/targets_image'
 
     node_if = None
+    config_topic = ''
     node_if_shared = True
 
     save_data_if = None
@@ -2461,6 +2403,7 @@ class TargetsImageIF:
             self.node_if = node_if
             self.node_if.register_pubs(self.PUBS_DICT)
         else:
+            self.config_if = self.namespace
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             configs_dict = self.CONFIGS_DICT,
@@ -2659,6 +2602,7 @@ class TargetsImageIF:
         if status_msg is not None:
             self.status_msg = status_msg
         if self.status_msg is not None:
+            self.status_msg.config_topic = self.config_topic
             self.node_if.publish_pub(self.status_pub_name, self.status_msg)
 
     def unregister_pubs(self):

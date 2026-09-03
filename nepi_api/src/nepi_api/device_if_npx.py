@@ -150,8 +150,7 @@ class NPXDeviceIF:
   def __init__(self, 
                 device_info,
                 node_namespace = None,
-                capSettings=None, factorySettings=None, 
-                settingUpdateFunction=None, getSettingsFunction=None,
+                getSettingsFunction=None, setSettingFunction=None, 
                 data_source_description = 'navpose_sensor',
                 data_ref_description = 'data_reference',
                 navpose_frame = 'sensor_frame', frame_nav = 'ENU',
@@ -404,25 +403,22 @@ class NPXDeviceIF:
         
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
+        ###############################
         # Setup Settings IF Class ####################
-        self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = self.namespace
-        
-        self.SETTINGS_DICT = {
-                    'capSettings': capSettings, 
-                    'factorySettings': factorySettings,
-                    'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction
-                    
-        }
+        self.getSettingsFunction = getSettingsFunction
+        self.setSettingFunction = setSettingFunction
+        if self.getSettingsFunction is not None and self.setSettingFunction is not None:
+            self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+            settings_ns = self.namespace
 
-        self.settings_if = SettingsIF(namespace = settings_ns,
-                        settings_dict = self.SETTINGS_DICT,
-                        use_nodename_prefix=False,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if,
-                        node_if = self.node_if
-                        )
+            self.settings_if = SettingsIF(namespace = settings_ns,
+                            getSettingsFunction=self.getSettingsFunction, 
+                            setSettingFunction=self.setSettingFunction, 
+                            use_nodename_prefix=False,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
+                            )
 
 
 

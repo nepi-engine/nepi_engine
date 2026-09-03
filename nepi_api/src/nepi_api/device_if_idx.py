@@ -184,9 +184,7 @@ class IDXDeviceIF:
     #######################
     ### IF Initialization
     def __init__(self, device_info, 
-                 capSettings=None, factorySettings=None, 
-                 getCapSettingsFunction = None,
-                 settingUpdateFunction=None, getSettingsFunction=None,
+                 getSettingsFunction=None, setSettingFunction=None, 
                  factoryControls = None, 
                  data_source_description = 'imaging_sensor',
                  data_ref_description = 'sensor',
@@ -652,25 +650,20 @@ class IDXDeviceIF:
 
         ###############################
         # Setup Settings IF Class ####################
-        self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = self.namespace
+        self.getSettingsFunction = getSettingsFunction
+        self.setSettingFunction = setSettingFunction
+        if self.getSettingsFunction is not None and self.setSettingFunction is not None:
+            self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+            settings_ns = self.namespace
 
-        self.SETTINGS_DICT = {
-                    'capSettings': capSettings, 
-                    'factorySettings': factorySettings,
-                    'getCapSettingsFunction': getCapSettingsFunction,
-                    'setSettingFunction': settingUpdateFunction, 
-                    'getSettingsFunction': getSettingsFunction
-                    
-        }
-
-        self.settings_if = SettingsIF(namespace = settings_ns,
-                        settings_dict = self.SETTINGS_DICT,
-                        use_nodename_prefix=False,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if,
-                        node_if = self.node_if
-                        )
+            self.settings_if = SettingsIF(namespace = settings_ns,
+                            getSettingsFunction=self.getSettingsFunction, 
+                            setSettingFunction=self.setSettingFunction, 
+                            use_nodename_prefix=False,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
+                            )
 
 
         ##################################
@@ -1309,10 +1302,9 @@ class IDXDeviceIF:
                             save_data_if = self.save_data_if,
                             log_name = data_product,
                             log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
+                            )
                 ready = dp_if.wait_for_ready()
                 self.data_products_dict[data_product]['image_topic'] = dp_if.get_namespace()
 
@@ -1427,10 +1419,9 @@ class IDXDeviceIF:
                         save_data_if = self.save_data_if,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
+                            )
             ready = dp_if.wait_for_ready()
             self.data_products_dict[data_product]['image_topic'] = dp_if.get_namespace()
 
@@ -1554,10 +1545,9 @@ class IDXDeviceIF:
                         save_data_if = self.save_data_if,
                         log_name = data_product,
                         log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
+                            )
             ready = dp_if.wait_for_ready()
 
             if dp_if is None:

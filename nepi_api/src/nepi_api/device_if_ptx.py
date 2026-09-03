@@ -183,9 +183,8 @@ class PTXActuatorIF:
 
     ### IF Initialization
     def __init__(self,  device_info,
-                 capSettings, factorySettings,
-                 settingUpdateFunction, getSettingsFunction,
                  factoryControls , # Dictionary to be supplied by parent, specific key set is required
+                 getSettingsFunction=None, setSettingFunction=None, 
                  getCapSettingsFunction = None,
                  factoryLimits = None,
                  data_source_description = 'pan_tilt',
@@ -858,33 +857,23 @@ class PTXActuatorIF:
         ##############################
         # Start Additional System Processes
 
-        ################################
+        ###############################
         # Setup Settings IF Class ####################
-        self.msg_if.pub_info("Starting Settings IF Initialization", log_name_list = self.log_name_list)
-        settings_ns = self.namespace
+        self.getSettingsFunction = getSettingsFunction
+        self.setSettingFunction = setSettingFunction
+        if self.getSettingsFunction is not None and self.setSettingFunction is not None:
+            self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+            settings_ns = self.namespace
 
-        # getCapSettingsFunction is optional and only matters for a device whose
-        # cap settings are not knowable at construction -- ptx_servos builds its
-        # pan_servo/tilt_servo option lists from whatever SVX servo devices were
-        # discovered, so the options change while the node runs. SettingsIF
-        # re-reads through this callback when present and otherwise keeps using
-        # the capSettings value passed once here, which is what every other PTX
-        # driver wants. Same plumbing as device_if_idx.py.
-        self.SETTINGS_DICT = {
-                    'capSettings': capSettings,
-                    'factorySettings': factorySettings,
-                    'getCapSettingsFunction': getCapSettingsFunction,
-                    'setSettingFunction': settingUpdateFunction,
-                    'getSettingsFunction': getSettingsFunction
+            self.settings_if = SettingsIF(namespace = settings_ns,
+                            getSettingsFunction=self.getSettingsFunction, 
+                            setSettingFunction=self.setSettingFunction, 
+                            use_nodename_prefix=False,
+                            log_name_list = self.log_name_list,
+                            msg_if = self.msg_if,
+                            node_if = self.node_if
+                            )
 
-        }
-        self.settings_if = SettingsIF(namespace = settings_ns, 
-                        settings_dict = self.SETTINGS_DICT,
-                        use_nodename_prefix=False,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if,
-                        node_if = self.node_if
-                        )
 
         #####################
         # Update Status Message
