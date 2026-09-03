@@ -101,6 +101,7 @@ class LSXDeviceIF:
                  factoryControls = None, 
                  data_source_description = 'lighting_device',
                  data_ref_description = 'device',
+                 getStatusFunction = None,
                  standbyEnableFunction = None, turnOnOffFunction = None,
                  setIntensityRatioFunction = None, 
                  color_options_list =  None, setColorFunction = None,

@@ -780,12 +780,4 @@ class NPXDeviceIF:
     self.msg_if.pub_info("Shutting down: Executing script cleanup actions", log_name_list = self.log_name_list)
 
 
-#########################################
-# Main
-#########################################
-
-
-if __name__ == '__main__':
-    NavPosePublisher()
-
 

@@ -42,7 +42,11 @@ logger = Logger(log_name = log_name)
 
 
 
-CONTROL_TYPES = ["Menu","Selection","Selections","Trigger","Bool", "String", "Int","Float","FloatSlider","FloatSliders"]
+# "Discrete" is an alias of "Selection": a named list of options, one of which is
+# current. Driver params yaml files and several driver nodes have always spelled
+# it that way, so every dispatch on "Selection" below matches "Discrete" too.
+# Note it aliases "Selection" singular, never "Selections" plural.
+CONTROL_TYPES = ["Menu","Selection","Discrete","Selections","Trigger","Bool", "String", "Int","Float","FloatSlider","FloatSliders"]
 
 BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(Control())
 
@@ -84,7 +88,11 @@ def create_controls_dict(init_dict):
 
   try:
     names = list(init_dict.keys())
-  except:
+  except Exception as e:
+    # Dropped every control at once, with no log line. Not throttled: this runs
+    # once per controls set at registration, so a throttle would hide it.
+    logger.log_warn("create_controls_dict: could not read control names from init dict: " +
+                    type(e).__name__ + ": " + str(e))
     names = []
 
   for name in names:
@@ -119,7 +127,7 @@ def create_controls_dict(init_dict):
             control_dict['default_index'] = value
             control_dict['set_index'] = value
 
-        elif input_type == "Selection": ###########################################################
+        elif input_type == "Selection" or input_type == "Discrete": ###########################################################
             string_options = [str(item) for item in input_dict['options']]
             control_dict['string_options'] = string_options
 
@@ -205,24 +213,32 @@ def create_controls_dict(init_dict):
               pass
             control_dict['float_bounds'] = float_bounds
 
-            values  = [float(input_dict['default'][0]),float(input_dict['default'][0])]
+            # Both handles read their own default: the second read
+            # input_dict['default'][0] too, so the high handle silently took the
+            # low handle's value. Every clamp below read a bare `value`, a name
+            # this branch never binds, and two of them clamped to `int_bounds`,
+            # a name it never binds either -- so this branch could not complete
+            # for any input and no FloatSliders control ever registered.
+            values  = [float(input_dict['default'][0]),float(input_dict['default'][1])]
             round_value = control_dict['round_value']
             if round_value >= 0:
               values[0] = round(values[0],round_value)
               values[1] = round(values[1],round_value)
 
             if float(float_bounds[0]) != -999 and values[0] < float_bounds[0]:
-              value[0] = float(float_bounds[0])
-            if float(float_bounds[1]) != -999 and value[0] > float_bounds[1]:
-              value[0] = float(int_bounds[1])
+              values[0] = float(float_bounds[0])
+            if float(float_bounds[1]) != -999 and values[0] > float_bounds[1]:
+              values[0] = float(float_bounds[1])
 
-            if float(float_bounds[0]) != -999 and values[0] < float_bounds[0]:
-              value[1] = float(float_bounds[0])
-            if float(float_bounds[1]) != -999 and value[1] > float_bounds[1]:
-              value[1] = float(int_bounds[1])
+            # Tested values[0] here as well, so the high handle never got a
+            # floor check at all.
+            if float(float_bounds[0]) != -999 and values[1] < float_bounds[0]:
+              values[1] = float(float_bounds[0])
+            if float(float_bounds[1]) != -999 and values[1] > float_bounds[1]:
+              values[1] = float(float_bounds[1])
 
-            if value[0] > value[1]:
-              value[0] = value[1]
+            if values[0] > values[1]:
+              values[0] = values[1]
             control_dict['factory_floats'] = values
             control_dict['default_floats'] = values
             control_dict['set_floats'] = values
@@ -255,8 +271,32 @@ def create_controls_dict(init_dict):
         # ADD TO CONTROLS if try has not failed
 
         controls_dict[name] = control_dict
-    except:
-      pass
+
+      else:
+        # Not an exception path: an unrecognized type simply fails the `if` above
+        # and the control is never added. Silent in exactly the same way, and the
+        # way every 'Discrete' control was lost, so it gets the same log line.
+        logger.log_warn("create_controls_dict: dropped control '" + str(name) +
+                        "' of declared type '" + str(input_type) +
+                        "': type is not one of " + str(CONTROL_TYPES))
+    except Exception as e:
+      # A failing control is still skipped and the loop still continues, exactly
+      # as before -- the only change is that the failure is now audible. This
+      # bare except:pass is why every other defect in this file went unnoticed:
+      # a control that raised here vanished from the dict with no error, no log
+      # line, and no absence anyone could see except in the RUI.
+      #
+      # Not throttled. A controls set registers all of its controls in one pass,
+      # so a throttle window would report the first failure and swallow the rest
+      # -- which is the behavior being fixed.
+      declared_type = '<unreadable>'
+      try:
+        declared_type = str(init_dict[name]['type'])
+      except Exception:
+        pass
+      logger.log_warn("create_controls_dict: dropped control '" + str(name) +
+                      "' of declared type '" + declared_type + "': " +
+                      type(e).__name__ + ": " + str(e))
     
   return controls_dict
 
@@ -276,7 +316,7 @@ def get_control_value(controls_dict, control_name, type_key = 'set'):
         value_str = type_key + '_index'
         value = control_dict[value_str]
     
-      elif control_type == "Selection": ###########################################################
+      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
         value_str = type_key + '_string'
         value = control_dict[value_str] 
 
@@ -338,7 +378,7 @@ def set_control_value(controls_dict, control_name, update_value, type_key = 'set
         except Exception as e:
           logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)  
     
-      elif control_type == "Selection": ###########################################################
+      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
         value_str = type_key + '_string'
         string_options = control_dict['string_options']
         try:
@@ -417,7 +457,9 @@ def set_control_value(controls_dict, control_name, update_value, type_key = 'set
           float_bounds = [-999,-999]
 
         try:
-          value  = float(update_value[0])
+          # Bound `value` and then read `value0`, a name never assigned, so
+          # every FloatSliders update raised UnboundLocalError.
+          value0  = float(update_value[0])
           round_value = control_dict['round_value']
           if round_value >= 0:
             value0 = round(value0,round_value)
@@ -432,7 +474,8 @@ def set_control_value(controls_dict, control_name, update_value, type_key = 'set
           round_value = control_dict['round_value']
           if round_value >= 0:
             value1 = round(value1,round_value)
-          valid = True
+          # Reset valid = True here, discarding the low handle's verdict. Both
+          # handles have to pass for the pair to be accepted.
           if float(float_bounds[0]) != -999 and value1 < float_bounds[0]:
             valid = False
           if float(float_bounds[1]) != -999 and value1 > float_bounds[1]:
@@ -490,7 +533,7 @@ def check_valid_value(controls_dict, control_name, update_value):
         except Exception as e:
           pass
     
-      elif control_type == "Selection": ###########################################################
+      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
         string_options = control_dict['string_options']
         try:
           value  = str(update_value)
@@ -553,7 +596,10 @@ def check_valid_value(controls_dict, control_name, update_value):
           float_bounds = [-999,-999]
 
         try:
-          value  = float(update_value[0])
+          # Same value/value0 defect as set_control_value. This one gates the
+          # settings update path (system_if.py), so it rejected every
+          # FloatSliders update before set_control_value was ever reached.
+          value0  = float(update_value[0])
           round_value = control_dict['round_value']
           if round_value >= 0:
             value0 = round(value0,round_value)
@@ -568,7 +614,7 @@ def check_valid_value(controls_dict, control_name, update_value):
           round_value = control_dict['round_value']
           if round_value >= 0:
             value1 = round(value1,round_value)
-          valid = True
+          # Reset valid = True here, discarding the low handle's verdict.
           if float(float_bounds[0]) != -999 and value1 < float_bounds[0]:
             valid = False
           if float(float_bounds[1]) != -999 and value1 > float_bounds[1]:
@@ -636,7 +682,7 @@ def reset_control_value(controls_dict, control_name, type_key = 'default'):
         reset_str = reset_str + '_index'  
         control_dict[update_str] = control_dict[reset_str]        
         
-      elif control_type == "Selection": ###########################################################
+      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
         update_str = update_str + '_string'
         reset_str = reset_str + '_string'  
         control_dict[update_str] = control_dict[reset_str] 
@@ -734,7 +780,7 @@ def set_control_options(controls_dict, control_name, options):
             #     value = 1
             # control_dict['set_index'] = value        
         
-      elif control_type == "Selection": ###########################################################
+      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
         control_dict['string_options'] = string_options
 
         # value  = str(control_dict['default_string'])
@@ -1056,7 +1102,9 @@ def update_status_msg( status_msg, controls_dict, hidden = False):
 
   try:
     names = list(controls_dict.keys())
-  except:
+  except Exception as e:
+    logger.log_warn("update_status_msg: could not read control names from controls dict: " +
+                    type(e).__name__ + ": " + str(e))
     names = []
   for name in names:
     try:
@@ -1069,8 +1117,21 @@ def update_status_msg( status_msg, controls_dict, hidden = False):
         types_list.append(control_type)
         msgs_list.append(control_msg)
         hidden_list.append(control_msg.hidden)
-    except:
-      pass
+      else:
+        # Same silent fall-through as create_controls_dict: a control that made
+        # it into the dict but carries a type this list does not know is simply
+        # left out of the status message, so the RUI never sees it.
+        logger.log_warn("update_status_msg: left control '" + str(name) +
+                        "' of declared type '" + str(control_type) +
+                        "' out of the status message: type is not one of " + str(CONTROL_TYPES),
+                        throttle_s = 5)
+    except Exception as e:
+      # Dropped the control from the published status with no log. Throttled,
+      # unlike create_controls_dict: this runs on every status publish, not once
+      # at registration.
+      logger.log_warn("update_status_msg: left control '" + str(name) +
+                      "' out of the status message: " +
+                      type(e).__name__ + ": " + str(e), throttle_s = 5)
     status_msg.controls_name_list = names_list
     status_msg.controls_type_list = types_list
     status_msg.controls_msg_list = msgs_list
