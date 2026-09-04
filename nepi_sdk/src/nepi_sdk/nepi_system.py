@@ -378,12 +378,12 @@ def update_nepi_system_configs(config_dict):
 
 def update_nepi_system_config(config_key, config_value, config_dict = None):
     success=False
-    logger.log_warn('Got System Config update ' + str([config_dict,config_key]))
+    #logger.log_warn('Got System Config update ' + str([config_dict,config_key]))
     if config_dict is None:
         config_dict=load_nepi_system_config()
     if config_dict is not None:
         config_dict[config_key] = config_value
-        logger.log_warn('Updating System Config file with ' + str(config_dict[config_key]))
+        #logger.log_warn('Updating System Config file with ' + str(config_dict[config_key]))
         success=save_nepi_system_config(config_dict)
     return config_dict
 
