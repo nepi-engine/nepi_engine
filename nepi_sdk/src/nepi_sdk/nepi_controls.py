@@ -488,16 +488,21 @@ def clear_control_max_bound(controls_dict, control_name):
   controls_dict = set_control_max_bound(controls_dict, control_name)
   return controls_dict
 
-def set_control_bounds(controls_dict, control_name, min_bound = None, max_bound = None):
-  if min_bound is None:
-    min_bound = -999
-  if max_bound is None:
-    max_bound = -999
-  if int(min_bound) == -999 or int(max_bound) == -999 or min_bound <  max_bound:
+def set_control_bounds(controls_dict, control_name, bounds = [-999,-999]):
+  if len(bounds) == 2:
+    [min_bound,max_bound] = bounds
+    if min_bound is None:
+      min_bound = -999
+    if max_bound is None:
+      max_bound = -999
+    try:
+      if int(min_bound) == -999 or int(max_bound) == -999 or min_bound <  max_bound:
 
-    if control_name in controls_dict.keys():
-        controls_dict = set_control_min_bound(controls_dict, control_name, min_bound)
-        controls_dict = set_control_max_bound(controls_dict, control_name, max_bound)
+        if control_name in controls_dict.keys():
+            controls_dict = set_control_min_bound(controls_dict, control_name, min_bound)
+            controls_dict = set_control_max_bound(controls_dict, control_name, max_bound)
+    except:
+      pass
 
   return controls_dict
 
