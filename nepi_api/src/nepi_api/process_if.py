@@ -1396,7 +1396,7 @@ class DetectionsIF:
             return
         if status_msg is not None:
             #self.status_msg = status_msg
-            self.msg_if.pub_warn("Publishing Detections Status: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 20.0)
+            #self.msg_if.pub_warn("Publishing Detections Status: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 20.0)
             self.node_if.publish_pub(self.status_pub_name, status_msg)
 
     def unregister_pubs(self):
