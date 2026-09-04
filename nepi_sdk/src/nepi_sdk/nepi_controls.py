@@ -151,16 +151,16 @@ def create_controls_dict(init_dict):
             pass
         elif input_type in INT_TYPES:
           try:
-            min_bound = int(init_control_dict['min_bound'])
+            min_bound = int(float(init_control_dict['min_bound']))
           except:
             pass
           try:
-            max_bound = int(init_control_dict['max_bound'])
+            max_bound = int(float(init_control_dict['max_bound']))
           except:
             pass
           try:
-            min_bound = int(init_control_dict['bounds'][0])
-            max_bound = int(init_control_dict['bounds'][1])
+            min_bound = int(float(init_control_dict['bounds'][0]))
+            max_bound = int(float(init_control_dict['bounds'][1]))
           except:
             pass
         control_dict['min_bound'] = min_bound
@@ -259,7 +259,7 @@ def get_clean_value(controls_dict, control_name, control_value):
       if control_type == "Menu": ###########################################################
         options = control_dict['options']
         try:
-          value  = int(control_value)
+          value  = int(float(control_value))
         except Exception as e:
           pass
     
@@ -288,10 +288,10 @@ def get_clean_value(controls_dict, control_name, control_value):
 
       elif control_type == "Int":  ###########################################################
         try:
-          value = int(control_value)
-          if int(control_dict['min_bound']) != -999 and value < control_dict['min_bound']:
+          value = int(float(control_value))
+          if int(float(control_dict['min_bound'])) != -999 and value < control_dict['min_bound']:
             value = control_dict['min_bound']
-          if int(control_dict['max_bound']) != -999 and value > control_dict['max_bound']:
+          if int(float(control_dict['max_bound'])) != -999 and value > control_dict['max_bound']:
             value = control_dict['max_bound']
         except Exception as e:
           pass
@@ -452,10 +452,10 @@ def set_control_min_bound(controls_dict, control_name, min_bound = None):
      
       elif input_type in INT_TYPES:
         try:
-          min_bound = int(min_bound)
+          min_bound = int(float(min_bound))
         except:
           pass
-      if int(min_bound) == -999 or int(max_bound) == -999 or min_bound <  max_bound:
+      if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
         controls_dict[control_name]['min_bound'] = min_bound
   return controls_dict
 
@@ -480,7 +480,7 @@ def set_control_max_bound(controls_dict, control_name, max_bound = None):
           max_bound = int(max_bound)
         except:
           pass
-      if int(min_bound) == -999 or int(max_bound) == -999 or min_bound <  max_bound:
+      if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
         controls_dict[control_name]['max_bound'] = max_bound
   return controls_dict
 
@@ -496,7 +496,7 @@ def set_control_bounds(controls_dict, control_name, bounds = [-999,-999]):
     if max_bound is None:
       max_bound = -999
     try:
-      if int(min_bound) == -999 or int(max_bound) == -999 or min_bound <  max_bound:
+      if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
 
         if control_name in controls_dict.keys():
             controls_dict = set_control_min_bound(controls_dict, control_name, min_bound)
