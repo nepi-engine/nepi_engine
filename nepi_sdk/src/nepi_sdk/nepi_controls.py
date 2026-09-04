@@ -46,7 +46,16 @@ logger = Logger(log_name = log_name)
 # current. Driver params yaml files and several driver nodes have always spelled
 # it that way, so every dispatch on "Selection" below matches "Discrete" too.
 # Note it aliases "Selection" singular, never "Selections" plural.
-CONTROL_TYPES = ["Menu","Selection","Discrete","Selections","Trigger","Bool", "String", "Int","Float","FloatSlider","FloatSliders"]
+# "SelectionsDD" is a presentation variant of "Selections", not a new value
+# shape: identical semantics (a list of chosen option strings, carried in
+# set_strings), identical handling everywhere in this file. The two differ only
+# in how the RUI draws them -- "Selections" is a row of per-option toggles,
+# "SelectionsDD" is a collapsible multi-select dropdown, which is the readable
+# choice once an option list runs long. Because the value shape is identical,
+# every branch below pairs the two rather than adding a parallel branch, so they
+# cannot drift. Note it pairs the PLURAL "Selections" only -- never the singular
+# "Selection", whose value is one string in set_string.
+CONTROL_TYPES = ["Menu","Selection","Discrete","Selections","SelectionsDD","Trigger","Bool", "String", "Int","Float","FloatSlider","FloatSliders"]
 
 BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(Control())
 
@@ -140,7 +149,7 @@ def create_controls_dict(init_dict):
             control_dict['default_string'] = value
             control_dict['set_string'] = value
 
-        elif input_type == "Selections": ###########################################################
+        elif input_type == "Selections" or input_type == "SelectionsDD": ###########################################################
             string_options = [str(item) for item in input_dict['options']]
             control_dict['string_options'] = string_options
 
@@ -321,7 +330,7 @@ def get_control_value(controls_dict, control_name, type_key = 'set'):
         value = control_dict[value_str] 
 
         
-      elif control_type == "Selections": ###########################################################
+      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
         value_str = type_key + '_strings'
         value = control_dict[value_str]
 
@@ -391,7 +400,7 @@ def set_control_value(controls_dict, control_name, update_value, type_key = 'set
           logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)
 
         
-      elif control_type == "Selections": ###########################################################
+      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
         value_str = type_key + '_strings'
         string_options = control_dict['string_options']
         try:
@@ -543,7 +552,7 @@ def check_valid_value(controls_dict, control_name, update_value):
           pass
 
         
-      elif control_type == "Selections": ###########################################################
+      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
         string_options = control_dict['string_options']
         try:
           # Declarative full-selection update: the message carries the complete
@@ -687,7 +696,7 @@ def reset_control_value(controls_dict, control_name, type_key = 'default'):
         reset_str = reset_str + '_string'  
         control_dict[update_str] = control_dict[reset_str] 
         
-      elif control_type == "Selections": ###########################################################
+      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
         update_str = update_str + '_strings'
         reset_str = reset_str + '_strings'  
         control_dict[update_str] = control_dict[reset_str] 
@@ -793,7 +802,7 @@ def set_control_options(controls_dict, control_name, options):
         #   value = string_options[0]
         # control_dict['set_string'] = value
         
-      elif control_type == "Selections": ###########################################################
+      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
         control_dict['string_options'] = string_options
 
         # check_values  = [str(item) for item in control_dict['default_strings']]

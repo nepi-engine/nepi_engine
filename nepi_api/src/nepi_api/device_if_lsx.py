@@ -594,6 +594,16 @@ class LSXDeviceIF:
 
 
     def updateDevice(self):
+        # Reachable before self.node_if is bound: NodeClassIF.__init__ builds a
+        # NodeConfigsIF, whose __init__ calls reset_config() -> this class's
+        # resetCb -> initCb(do_updates=True) -> here, all while the
+        # 'self.node_if = NodeClassIF(...)' assignment is still evaluating.
+        # initCb and resetCb each guard on node_if for that reason; this did not,
+        # so every param read below raised AttributeError on None. The premature
+        # call is redundant anyway -- initCb(do_updates=True) runs again right
+        # after node_if is assigned, which is when the device actually gets pushed.
+        if self.node_if is None:
+            return
         if self.standbyEnableFunction is not None:
           val = self.node_if.get_param('standby_enabled')
           self.standbyEnableFunction(val)
