@@ -141,8 +141,7 @@ class SystemMgrNode():
     SYSTEM_SETTINGS_DICT = dict()
     SYSTEM_ENABLE_KEYS = ['NEPI_DEVICE_ID','NEPI_DEVICE_MD','NEPI_DEVICE_SN','IP']
     SYSTEM_DISABLE_KEYS = ['ROS']
-    system_capSettings = None
-    system_factorySettings = None
+   
     system_update_time = 0
     system_update_delay = 60
     nepi_service_running = False
@@ -231,6 +230,8 @@ class SystemMgrNode():
     timezone_str = 'UTC'
     internet_connected = False
     date_time_str = ''
+
+    settings_initialized = False
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -273,20 +274,7 @@ class SystemMgrNode():
             self.msg_if.pub_warn("Failed to Read NEPI config file")
             nepi_sdk.signal_shutdown("Shutting Down: Failed to Read NEPI config file")
             return
-        self.system_capSettings = self.getCapSettings(self.system_config)
-        self.system_factorySettings = self.getSettings(self.system_config)
-        
-        # self.factory_config = nepi_system.load_nepi_factory_config()
-        # self.msg_if.pub_warn("Got System Config: " + str(self.factory_config))
-        # if self.factory_config is None:
-        #     self.factory_config = dict()
-        # if len(self.factory_config.keys()) == 0:
-        #     self.factory_config = self.system_config
-        # else:
-        #     for key in self.system_config.keys():
-        #         if key not in self.factory_config.keys():
-        #             self.factory_config[key] = self.system_config[key]
-        # self.system_factorySettings = self.getSettings(self.factory_config)
+      
        
         
 
@@ -787,20 +775,13 @@ class SystemMgrNode():
         self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = [self.node_name])
         system_settings_ns = self.base_namespace
 
-        # self.SYSTEM_SETTINGS_DICT = {
-        #             'setSettingFunction': self.systemSettingUpdateFunction, 
-        #             'getSettingsFunction': self.systemGetSettingsFunction
-                    
-        # }
-
-    
-        # self.settings_if = SettingsIF(namespace = system_settings_ns,
-        #                       getSettingsFunction=self.systemSettingUpdateFunction, 
-        #                       setSettingFunction=self.systemGetSettingsFunction, 
-        #                       save_params = False,
-        #                       msg_if = self.msg_if,
-        #                       node_if = self.node_if
-        #                       )
+        self.settings_if = SettingsIF(namespace = system_settings_ns,
+                              getSettingsFunction=self.systemGetSettingsFunction,
+                              setSettingFunction=self.systemSettingUpdateFunction, 
+                              save_params = False,
+                              msg_if = self.msg_if,
+                              node_if = self.node_if
+                              )
 
         #######################
         # Setup NEPI Managers Updater Process
@@ -1000,77 +981,61 @@ class SystemMgrNode():
     ###################################
     # System Settings Functions
 
-    def getCapSettings(self, config_dict):
-        cap_settings = dict()
-        if config_dict is None:
-            cap_settings = copy.deepcopy(nepi_controls.NONE_CAP_SETTINGS)
-        else:
-            for key in config_dict.keys():
-                cap_setting = None
-                val = str(config_dict[key])
-                try:
-                    val_int = int(val)
-                    cap_setting = {"name":key,"type":"Int","options":[]}
-                except:
-                    cap_setting = {"name":key,"type":"String","options":[]}
-                if cap_setting is not None:
-                    cap_settings[key] = cap_setting
-        return cap_settings
+
     
-    def getSettings(self, config_dict):
-        settings = dict()
-        if config_dict is None:
-            settings = copy.deepcopy(nepi_controls.NONE_SETTINGS)
-        else:
-            for key in config_dict.keys():
-                setting = None
-                val = str(config_dict[key])
-                try:
-                    val_int = int(val)
-                    setting = {"name":key,"type":"Int","value":val}
-                except:
-                    val_str = val
-                    setting = {"name":key,"type":"String","value":val}
-                if setting is not None:
-                    settings[key] = setting
-        return settings
-                
         
     def systemGetSettingsFunction(self):
-        settings = self.getSettings(self.system_config)
-        return settings
+        config_dict = copy.deepcopy(self.system_config)
+        settings_dict = dict()
+        if config_dict is not None:
+            for key in config_dict.keys():
+                setting_dict = copy.deepcopy(nepi_controls.BLANK_CONTROL_DICT)
+                val = str(config_dict[key])
+                setting_dict['name'] = key
+                try:
+                    val_int = int(val)
+                    setting_dict['type'] = 'Int'
+                    setting_dict['value'] = val
+                except:
+                    val_str = str(val)
+                    setting_dict['type'] = 'String'
+                    setting_dict['value'] = val
 
-    def systemSettingUpdateFunction(self, setting):
+                if self.settings_initialized == False:
+                    setting_dict['default'] = setting_dict['value']
+                settings_dict[key] = setting_dict
+            self.settings_initialized = True
+        return settings_dict
+
+    def systemSettingUpdateFunction(self, setting_name, setting_value):
       success = False
       msg = ""
-      setting_str = str(setting)
-      self.msg_if.pub_warn("Got Config Setting Update: " + str(setting))
-      [s_name, s_type, data] = nepi_controls.get_data_from_setting(setting)
-      if data is not None:
-        setting_name = setting['name']
-        setting_data = data
+      setting_str = setting_name + ":" + setting_value
+      #self.msg_if.pub_warn("Got Config Setting Update: " + str(setting_str))
+      if setting_value is not None:
+        
         # NONE is the config file's sentinel for an unset entry and is the shipped
         # value for NEPI_GATEWAY_IP, NEPI_ALIAS_IP_2/3, and NEPI_NAV_IP, so it has to
         # survive the IP check or those keys can never be cleared once set.
-        if 'IP' in setting_name and setting_data != self.CONFIG_NONE_VALUE:
-            if nepi_utils.is_valid_ip(setting_data) == False:
+        if 'IP' in setting_name and setting_value != self.CONFIG_NONE_VALUE:
+            if nepi_utils.is_valid_ip(setting_value) == False:
                 msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
                 self.add_info_string(msg, StampedString.PRI_HIGH)
                 return success, msg
         if 'NEPI_DEVICE_SN' == setting_name:
-            if nepi_utils.is_valid_serial_number(setting_data) == False:
+            if nepi_utils.is_valid_serial_number(setting_value) == False:
                 msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
                 self.add_info_string(msg, StampedString.PRI_HIGH)
                 return success, msg
 
-        self.msg_if.pub_warn("Updating Config Setting File with: " + str([setting_name,setting_data]))
-        self.system_config[setting_name] = setting_data
-        nepi_system.update_nepi_system_config(setting_name,setting_data)         
+        #self.msg_if.pub_warn("Updating Config Setting File with: " + str([setting_name,setting_value]))
+        self.system_config[setting_name] = setting_value
+        nepi_system.update_nepi_system_config(setting_name,setting_value)         
         success = True
         msg = ( self.node_name  + " UPDATED SETTINGS " + setting_str)   
       else:
         msg = (self.node_name  + " Setting data" + setting_str + " is None")
-      self.msg_if.pub_warn("Setting Update returned msg: " + str(msg))
+      #self.msg_if.pub_warn("Setting Update returned msg: " + str(msg))
       return success, msg
 
     def setNepiConfigsCb(self, msg):
@@ -1083,7 +1048,7 @@ class SystemMgrNode():
                 value_strs = msg.value_strs
                 if len(key_strs) == len(value_strs):
                     for i, key_str in enumerate(key_strs):
-                        self.system_settings_if.update_setting_value(key_str, value_strs[i])
+                        #self.system_settings_if.update_setting_value(key_str, value_strs[i])
                         nepi_sdk.sleep(0.2)
             self.nepi_config_updating = False
         
