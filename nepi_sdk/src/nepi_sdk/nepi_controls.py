@@ -42,43 +42,42 @@ logger = Logger(log_name = log_name)
 
 
 
-# "Discrete" is an alias of "Selection": a named list of options, one of which is
-# current. Driver params yaml files and several driver nodes have always spelled
-# it that way, so every dispatch on "Selection" below matches "Discrete" too.
-# Note it aliases "Selection" singular, never "Selections" plural.
-# "SelectionsDD" is a presentation variant of "Selections", not a new value
-# shape: identical semantics (a list of chosen option strings, carried in
-# set_strings), identical handling everywhere in this file. The two differ only
-# in how the RUI draws them -- "Selections" is a row of per-option toggles,
-# "SelectionsDD" is a collapsible multi-select dropdown, which is the readable
-# choice once an option list runs long. Because the value shape is identical,
-# every branch below pairs the two rather than adding a parallel branch, so they
-# cannot drift. Note it pairs the PLURAL "Selections" only -- never the singular
-# "Selection", whose value is one string in set_string.
-CONTROL_TYPES = ["Menu","Selection","Discrete","Selections","SelectionsDD","Trigger","Bool", "String", "Int","Float","FloatSlider","FloatSliders"]
+
+CONTROL_TYPES = ["Menu","Selection","Selections","Trigger", "Toggle", "Toggles", "String", "Int","Float","FloatSlider","RangeSlider"]
+
+LIST_TYPES = ["Selections","Toggles","RangeSlider"]
+OPTIONS_TYPES =  ["Menu","Selection","Selections","Toggles"]
+BOUNDS_TYPES = ["Int","Float","FloatSlider","RangeSlider"]
+STRING_TYPES = ["Selection","Selections","Toggles"]
+BOOL_TYPES = ["Toggle", "Toggles"]
+INT_TYPES = ["Int"]
+FLOAT_TYPES = ["Float","FloatSlider","RangeSlider"]
+EMPTY_TYPES = ['Trigger']
 
 BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(Control())
 
 BLANK_CNTROLS_DICT = dict()
 
 EXAMPLE_INIT_DICT = dict(
-      pub_rate = {"type":"Float", "default":2, "bounds":[0.1, 15], 'value_round': 2,
+      pub_rate = {"type":"Float", "default":2, 
                   # OPTIONAL
-                  'display_name':'Pub Rate', 'description':'Set pub rate', 'hidden':False, 'display_round': 2,}, 
+                  "min_bound": 0.1, "max_bound":15, 'value_round': 2,
+                  'display_name':'Pub Rate', 'description':'Value pub rate', 'hidden':False, 'display_round': 2,}, 
 
-      index = {"type":"Int", "default":3, "bounds":[3, 10], 
+      index = {"type":"Int", "default":3,  
                # OPTIONAL
-               'display_name':'Select Index', 'description':'Set index', 'hidden':False}, 
+               "min_bound": 3, "max_bound": 10, 'value_round': 2,
+               'display_name':'Select Index', 'description':'Value index', 'hidden':False}, 
 
       topic_sel = {"type":"Selection", "default":'Topic1', "options":['Topic1', 'Topic2'], 
                    # OPTIONAL
-                   'display_name':'Select Topic', 'description':'Set selected topic', 'hidden':False}, 
+                   'display_name':'Select Topic', 'description':'Value selected topic', 'hidden':False}, 
 
       topics_sel = {"type":"Selection", "default":['Topic1', 'Topic2'], "options":['Topic1', 'Topic2'], 
                     # OPTIONAL
-                    'display_name':'Select Topics', 'description':'Set selected topics', 'hidden':False}, 
+                    'display_name':'Select Topics', 'description':'Value selected topics', 'hidden':False}, 
 
-      event_trigger = {"type":"Trigger", "default":0, 
+      event_trigger = {"type":"Trigger", 
                        # OPTIONAL
                        'display_name':'Event Trigger', 'description':'Event trigger', 'hidden':False}
     )
@@ -99,195 +98,103 @@ def create_controls_dict(init_dict):
     names = list(init_dict.keys())
   except Exception as e:
     # Dropped every control at once, with no log line. Not throttled: this runs
-    # once per controls set at registration, so a throttle would hide it.
+    # once per controls value at registration, so a throttle would hide it.
     logger.log_warn("create_controls_dict: could not read control names from init dict: " +
                     type(e).__name__ + ": " + str(e))
     names = []
 
   for name in names:
     try:
-      input_dict = init_dict[name]
-      input_type = input_dict['type']
+      init_control_dict = init_dict[name]
+      input_type = init_control_dict['type']
+      if input_type == 'Discrete':
+        input_type = 'Selection'
       if input_type in CONTROL_TYPES:
         control_dict = copy.deepcopy(BLANK_CONTROL_DICT)
+        control_dict['type'] = input_type
+        control_dict['min_bound'] = -999
+        control_dict['max_bound'] = -999
         control_dict['type'] = input_type
         control_dict['round_value'] = -1
         control_dict['display_name'] = name
         control_dict['description'] = name
         control_dict['round_display'] = 2
+
         for key in control_dict.keys():
-          if key in input_dict.keys():
-            control_dict[key] = input_dict[key]
-          
-        # Control.name was left blank unless the caller happened to repeat the
-        # dict key inside its own entry. The key IS the control name.
+          if key in init_control_dict.keys():
+            control_dict[key] = init_control_dict[key]
+
+        #############
+        # Clean Name
         control_dict['name'] = name
 
-        if input_type == "Menu": ###########################################################
-            string_options = [str(item) for item in input_dict['options']]
-            control_dict['string_options'] = string_options
 
-            value  = int(input_dict['default'])
-            # Out-of-range fell back to index 1 when any option existed, which
-            # silently selected the *second* option. Index 0 is the first.
-            if value < 0 or value >= len(string_options):
-              value = 0
-            control_dict['factory_index'] = value
-            control_dict['default_index'] = value
-            control_dict['set_index'] = value
+        #############
+        # Clean Bounds
+        #############
+        # Clean Bounds
+        min_bound = -999
+        max_bound = -999
+        if input_type in FLOAT_TYPES:
+          try:
+            min_bound = float(init_control_dict['min_bound'])
+          except:
+            pass
+          try:
+            max_bound = float(init_control_dict['max_bound'])
+          except:
+            pass
+          try:
+            min_bound = float(init_control_dict['bounds'][0])
+            max_bound = float(init_control_dict['bounds'][1])
+          except:
+            pass
+        elif input_type in INT_TYPES:
+          try:
+            min_bound = int(init_control_dict['min_bound'])
+          except:
+            pass
+          try:
+            max_bound = int(init_control_dict['max_bound'])
+          except:
+            pass
+          try:
+            min_bound = int(init_control_dict['bounds'][0])
+            max_bound = int(init_control_dict['bounds'][1])
+          except:
+            pass
+        control_dict['min_bound'] = min_bound
+        control_dict['max_bound'] = max_bound
 
-        elif input_type == "Selection" or input_type == "Discrete": ###########################################################
-            string_options = [str(item) for item in input_dict['options']]
-            control_dict['string_options'] = string_options
+        #############
+        # Clean Options
+        options = []
+        if 'options' in init_control_dict.keys():
+          options = init_control_dict['options']
+        try:
+          options = options.remove(None)
+        except:
+          pass
+        control_dict['options'] = options
 
-            value  = str(input_dict['default'])
-            if value not in string_options:
-              # Indexed [0] unguarded before: IndexError on an empty options
-              # list, swallowed by the outer except, dropping the control.
-              value = string_options[0] if len(string_options) > 0 else ''
-            control_dict['factory_string'] = value
-            control_dict['default_string'] = value
-            control_dict['set_string'] = value
+        #############
+        # Clean Value
+        value  = init_control_dict['default']
 
-        elif input_type == "Selections" or input_type == "SelectionsDD": ###########################################################
-            string_options = [str(item) for item in input_dict['options']]
-            control_dict['string_options'] = string_options
+        check_dict = dict()
+        check_dict[name] = control_dict
 
-            check_values  = [str(item) for item in input_dict['default']]
-            values = []
-            for value in check_values:
-              if value in string_options:
-                values.append(value)
-            control_dict['factory_strings'] = values
-            control_dict['default_strings'] = values
-            control_dict['set_strings'] = values
+        check_value = copy.deepcopy(value)
+        value = get_clean_value(check_dict, name, value)
+        logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(value) + ": " + str(check_value))
+        if value is None:
+          continue
+        control_dict['default'] = value
+        control_dict['value'] = value
 
-        elif input_type == "Int": ###########################################################
-            int_bounds = [-999,-999]
-            try:
-              int_bounds[0] = int(input_dict['bounds'][0])
-            except:
-              pass
-            try:
-              int_bounds[1] = int(input_dict['bounds'][1])
-            except:
-              pass
-            control_dict['int_bounds'] = int_bounds
-
-            value  = int(input_dict['default'])
-            if int(int_bounds[0]) != -999 and value < int_bounds[0]:
-              value = int(int_bounds[0])
-            if int(int_bounds[1]) != -999 and value > int_bounds[1]:
-              value = int(int_bounds[1])
-            control_dict['factory_int'] = value
-            control_dict['default_int'] = value
-            control_dict['set_int'] = value
-
-        elif input_type == "Float" or input_type == "FloatSlider": ###########################################################
-            float_bounds = [-999,-999]
-            try:
-              float_bounds[0] = float(input_dict['bounds'][0])
-            except:
-              pass
-            try:
-              float_bounds[1] = float(input_dict['bounds'][1])
-            except:
-              pass
-            control_dict['float_bounds'] = float_bounds
-
-            value  = float(input_dict['default'])
-            round_value = control_dict['round_value']
-            if round_value >= 0:
-              value = round(value,round_value)
-            if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-              value = float(float_bounds[0])
-            if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-              # Clamped with int_bounds[1] here, a name this branch never binds:
-              # NameError on any out-of-range Float default, swallowed by the
-              # outer except, which dropped the control from the dict entirely.
-              value = float(float_bounds[1])
-            control_dict['factory_float'] = value
-            control_dict['default_float'] = value
-            control_dict['set_float'] = value
-
-        elif input_type == "FloatSliders": ###########################################################
-            float_bounds = [-999,-999]
-            try:
-              float_bounds[0] = float(input_dict['bounds'][0])
-            except:
-              pass
-            try:
-              float_bounds[1] = float(input_dict['bounds'][1])
-            except:
-              pass
-            control_dict['float_bounds'] = float_bounds
-
-            # Both handles read their own default: the second read
-            # input_dict['default'][0] too, so the high handle silently took the
-            # low handle's value. Every clamp below read a bare `value`, a name
-            # this branch never binds, and two of them clamped to `int_bounds`,
-            # a name it never binds either -- so this branch could not complete
-            # for any input and no FloatSliders control ever registered.
-            values  = [float(input_dict['default'][0]),float(input_dict['default'][1])]
-            round_value = control_dict['round_value']
-            if round_value >= 0:
-              values[0] = round(values[0],round_value)
-              values[1] = round(values[1],round_value)
-
-            if float(float_bounds[0]) != -999 and values[0] < float_bounds[0]:
-              values[0] = float(float_bounds[0])
-            if float(float_bounds[1]) != -999 and values[0] > float_bounds[1]:
-              values[0] = float(float_bounds[1])
-
-            # Tested values[0] here as well, so the high handle never got a
-            # floor check at all.
-            if float(float_bounds[0]) != -999 and values[1] < float_bounds[0]:
-              values[1] = float(float_bounds[0])
-            if float(float_bounds[1]) != -999 and values[1] > float_bounds[1]:
-              values[1] = float(float_bounds[1])
-
-            if values[0] > values[1]:
-              values[0] = values[1]
-            control_dict['factory_floats'] = values
-            control_dict['default_floats'] = values
-            control_dict['set_floats'] = values
-
-        elif input_type == "Trigger": ###########################################################
-          control_dict['factory_bool'] = 0
-          control_dict['default_bool'] = 0
-          control_dict['set_bool'] = 0
-
-        elif input_type == "Bool": ###########################################################
-            value = False
-            try:
-                value  = (input_dict['default'] == True)
-            except:
-              pass
-            control_dict['factory_bool'] = value
-            control_dict['default_bool'] = value
-            control_dict['set_bool'] = value
-
-        elif input_type == "String": ###########################################################
-            value = ''
-            try:
-                value  = str(input_dict['default'])
-            except:
-              pass
-            control_dict['factory_string'] = value
-            control_dict['default_string'] = value
-            control_dict['set_string'] = value
-
-        # ADD TO CONTROLS if try has not failed
-
-        controls_dict[name] = control_dict
-
-      else:
-        # Not an exception path: an unrecognized type simply fails the `if` above
-        # and the control is never added. Silent in exactly the same way, and the
-        # way every 'Discrete' control was lost, so it gets the same log line.
-        logger.log_warn("create_controls_dict: dropped control '" + str(name) +
-                        "' of declared type '" + str(input_type) +
-                        "': type is not one of " + str(CONTROL_TYPES))
+      #############
+      # Add to dict
+      controls_dict[name] = control_dict
     except Exception as e:
       # A failing control is still skipped and the loop still continues, exactly
       # as before -- the only change is that the failure is now audible. This
@@ -295,7 +202,7 @@ def create_controls_dict(init_dict):
       # a control that raised here vanished from the dict with no error, no log
       # line, and no absence anyone could see except in the RUI.
       #
-      # Not throttled. A controls set registers all of its controls in one pass,
+      # Not throttled. A controls value registers all of its controls in one pass,
       # so a throttle window would report the first failure and swallow the rest
       # -- which is the behavior being fixed.
       declared_type = '<unreadable>'
@@ -312,55 +219,159 @@ def create_controls_dict(init_dict):
 ##################
 # Controls Functions
 
-
-def get_control_value(controls_dict, control_name, type_key = 'set'):
-  if type_key not in ['factory', 'default', 'set']:
-    type_key = 'set'
+def get_clean_value(controls_dict, control_name, control_value):
+  valid = False
   value = None
   if control_name in controls_dict.keys():
       control_dict = controls_dict[control_name]
       control_type = control_dict['type']
 
+      if control_type == 'Discrete':
+        control_type = 'Selection'
+
+      if control_type in LIST_TYPES:
+        if isinstance(control_value, list):
+            pass
+        else:
+            control_value = [control_value]
+        # try:
+        #   control_value = control_value.remove('')
+        # except:
+        #   pass
+        # try:
+        #   control_value = control_value.remove(None)
+        # except:
+        #   pass
+        # if len(control_value) == 0 and control_type != 'Selections' and control_type != 'Toggles' :
+        #   return value
+      else:
+        if isinstance(control_value, list):
+            try:
+              control_value = control_value[0]
+            except:
+              pass
+        else:
+            pass
+      # if control_value is None or None in control_value:
+      #   return value
+
+      
       if control_type == "Menu": ###########################################################
-        value_str = type_key + '_index'
-        value = control_dict[value_str]
+        options = control_dict['options']
+        try:
+          value  = int(control_value)
+        except Exception as e:
+          pass
     
       elif control_type == "Selection" or control_type == "Discrete": ###########################################################
-        value_str = type_key + '_string'
-        value = control_dict[value_str] 
+        options = control_dict['options']
+        try:
+          value  = str(control_value)
+          if value not in options:
+            value = None
+        except Exception as e:
+          pass
 
         
-      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
-        value_str = type_key + '_strings'
-        value = control_dict[value_str]
+      elif control_type == "Selections" or control_type == "Toggles": ###########################################################
+        options = control_dict['options']
+        try:
+          # Declarative full-selection update: the message carries the complete
+          # desired list of selected options. Keep only valid options.
+          values = []
+          for value in [str(item) for item in control_value]:
+            if value in options:
+              values.append(value)
+
+        except Exception as e:
+          pass
 
       elif control_type == "Int":  ###########################################################
-        value_str = type_key + '_int'
-        value = control_dict[value_str] 
+        try:
+          value = int(control_value)
+          if int(control_dict['min_bound']) != -999 and value < control_dict['min_bound']:
+            value = control_dict['min_bound']
+          if int(control_dict['max_bound']) != -999 and value > control_dict['max_bound']:
+            value = control_dict['max_bound']
+        except Exception as e:
+          pass
 
       elif control_type == "Float" or control_type == "FloatSlider": ###########################################################
-        value_str = type_key + '_float'   
-        value = control_dict[value_str] 
 
-      elif control_type == "FloatSliders": ###########################################################      
-        value_str = type_key + '_floats'
-        value = control_dict[value_str]
+
+        try:
+          value  = float(control_value)
+          round_value = control_dict['round_value']
+          if round_value >= 0:
+            value = round(value,round_value)
+          # Reset valid = True here, discarding the low handle's verdict.
+          if float(control_dict['min_bound']) != -999 and value < control_dict['min_bound']:
+            value = control_dict['max_bound']
+          if float(control_dict['max_bound']) != -999 and value > control_dict['max_bound']:
+            value = control_dict['max_bound']
+        except Exception as e:
+          pass
+
+
+      elif control_type == "RangeSlider": ###########################################################      
+        try:
+          # Same value/value0 defect as set_control_value. This one gates the
+          # settings update path (system_if.py), so it rejected every
+          # RangeSlider update before set_control_value was ever reached.
+          value0  = float(control_value[0])
+          round_value = control_dict['round_value']
+          if round_value >= 0:
+            value0 = round(value0,round_value)
+          if float(control_dict['min_bound']) != -999 and value0 < control_dict['min_bound']:
+            value0 = control_dict['min_bound']
+          if float(control_dict['max_bound']) != -999 and value0 > control_dict['max_bound']:
+            value0 = control_dict['min_bound']
+
+
+          value1  = float(control_value[1])
+          round_value = control_dict['round_value']
+          if round_value >= 0:
+            value1 = round(value1,round_value)
+          # Reset valid = True here, discarding the low handle's verdict.
+          if float(control_dict['min_bound']) != -999 and value1 < control_dict['min_bound']:
+            value1 = control_dict['max_bound']
+          if float(control_dict['max_bound']) != -999 and value1 > control_dict['max_bound']:
+            value1 = control_dict['max_bound']
+
+
+          if value0 > value1:
+            value0 = control_dict['min_bound']
+            value1 = control_dict['max_bound']
+
+          value = [value0,value1]
+
+        except Exception as e:
+          pass
 
       elif control_type == "Trigger": ###########################################################
-          value_str = type_key + '_float'
-          value = control_dict[value_str]
+          value = nepi_utils.get_time()
 
-      elif control_type == "Bool": ###########################################################
-          value_str = type_key + '_bool'
-          value = control_dict[value_str]
+      elif control_type == "Toggle": ###########################################################
+          try:
+              value  = (control_value == True or control_value == 'True' or control_value == 'true')
+          except Exception as e:
+            pass
           
       elif control_type == "String": ###########################################################
-        value_str = type_key + '_string'
-        value = control_dict[value_str]
-    
+        value = str(control_value)
+
   return value
 
-def get_controls_values_dict(controls_dict, type_key = 'set'):
+
+def get_control_value(controls_dict, control_name, type_key = 'value'):
+  if type_key not in ['default', 'value']:
+    type_key = 'value'
+  value = None
+  if control_name in controls_dict.keys():
+      value = controls_dict[control_name][type_key]
+  return value
+
+def get_controls_values_dict(controls_dict, type_key = 'value'):
   controls_values_dict = dict()
   for control_name in controls_dict.keys():
      control_value = get_control_value(controls_dict, control_name, type_key = type_key)
@@ -368,159 +379,17 @@ def get_controls_values_dict(controls_dict, type_key = 'set'):
   return controls_values_dict
 
 
-def set_control_value(controls_dict, control_name, update_value, type_key = 'set' , check_valid = True):
-  if type_key not in ('factory', 'default', 'set'):
-    type_key = 'set'
+def set_control_value(controls_dict, control_name, update_value, type_key = 'value' , check_valid = True):
+  if type_key not in ('default', 'value'):
+    type_key = 'value'
   if control_name in controls_dict.keys():
-      control_dict = controls_dict[control_name]
-      control_type = control_dict['type']
-      
-      if control_type == "Menu": ###########################################################
-        value_str = type_key + '_index'  
-        string_options = control_dict['string_options']
-        try:
-          value  = int(update_value)
-          if 0 <= value < len(string_options):
-            control_dict[value_str] = value
-          else:
-            logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Index out of range" + str(len(string_options)), throttle_s = 5)
-        except Exception as e:
-          logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)  
-    
-      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
-        value_str = type_key + '_string'
-        string_options = control_dict['string_options']
-        try:
-          value  = str(update_value)
-          if value in string_options or check_valid == False:
-            control_dict[value_str] = value
-          else:
-            logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Not in options" + str(string_options), throttle_s = 5)
-        except Exception as e:
-          logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)
-
-        
-      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
-        value_str = type_key + '_strings'
-        string_options = control_dict['string_options']
-        try:
-          # Declarative full-selection update: the message carries the complete
-          # desired list of selected options. Keep only valid options.
-          values = []
-          for value in [str(item) for item in update_value]:
-            if value in string_options or check_valid == False:
-              values.append(value)
-            else:
-              logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Not in options" + str(string_options), throttle_s = 5)
-          control_dict[value_str] = values
-        except Exception as e:
-          logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)
-
-      if control_type == "Int":  ###########################################################
-        value_str = type_key + '_int'
-        int_bounds = control_dict['int_bounds']
-        if len(int_bounds) < 2:
-          int_bounds = [-999,-999]
-        try:
-          value = int(update_value)
-          valid = True
-          if int(int_bounds[0]) != -999 and value < int_bounds[0]:
-            valid = False
-          if int(int_bounds[1]) != -999 and value > int_bounds[1]:
-            valid = False
-          if valid == True:
-            control_dict[value_str] = value
-          else:
-            logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Value out of range: " + str(int_bounds), throttle_s = 5)
-        except Exception as e:
-          logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)
-
-      elif control_type == "Float" or control_type == "FloatSlider": ###########################################################
-        value_str = type_key + '_float'   
-        float_bounds = control_dict['float_bounds']
-        if len(float_bounds) < 2:
-          float_bounds = [-999,-999]
-
-        try:
-          value = float(update_value)
-          round_value = control_dict['round_value']
-          if round_value >= 0:
-            value = round(value,round_value)
-          valid = True
-          if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-            valid = False
-          if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-            valid = False
-          if valid == True:
-            control_dict[value_str] = value
-          else:
-            logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Value out of range: " + str(float_bounds), throttle_s = 5)
-        except Exception as e:
-          logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)
-
-
-      elif control_type == "FloatSliders": ###########################################################      
-        value_str = type_key + '_floats'
-        float_bounds = control_dict['float_bounds']
-        if len(float_bounds) < 2:
-          float_bounds = [-999,-999]
-
-        try:
-          # Bound `value` and then read `value0`, a name never assigned, so
-          # every FloatSliders update raised UnboundLocalError.
-          value0  = float(update_value[0])
-          round_value = control_dict['round_value']
-          if round_value >= 0:
-            value0 = round(value0,round_value)
-          valid = True
-          if float(float_bounds[0]) != -999 and value0 < float_bounds[0]:
-            valid = False
-          if float(float_bounds[1]) != -999 and value0 > float_bounds[1]:
-            valid = False
-
-
-          value1  = float(update_value[1])
-          round_value = control_dict['round_value']
-          if round_value >= 0:
-            value1 = round(value1,round_value)
-          # Reset valid = True here, discarding the low handle's verdict. Both
-          # handles have to pass for the pair to be accepted.
-          if float(float_bounds[0]) != -999 and value1 < float_bounds[0]:
-            valid = False
-          if float(float_bounds[1]) != -999 and value1 > float_bounds[1]:
-            valid = False
-          if value0 > value1:
-            valid = False
-          if valid == True:
-            control_dict[value_str][0] = value0
-            control_dict[value_str][1] = value1
-          else:
-            logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : Value out of range: " + str(float_bounds), throttle_s = 5)
-        except Exception as e:
-          logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)
-
-      elif control_type == "Trigger": ###########################################################
-          value_str = type_key + '_float'
-          control_dict[value_str] = nepi_utils.get_time()
-
-      elif control_type == "Bool": ###########################################################
-          value_str = type_key + '_bool'
-          try:
-              value  = (update_value == True or update_value == 'True' or update_value == 'true')
-              control_dict[value_str] = value
-          except Exception as e:
-            logger.log_warn('Failed to update ' + str(control_name) + " to " + str(update_value) + " : " + str(e), throttle_s = 5)
-          
-      elif control_type == "String": ###########################################################
-        value_str = type_key + '_string'
-        value = str(update_value)
-        control_dict[value_str] = value
-
-      ###########################################################
-      controls_dict[control_name] = control_dict
+      if check_valid == False:
+        update_value = get_clean_value(controls_dict, control_name, update_value)
+      if update_value is not None:
+        controls_dict[control_name][type_key] = update_value
   return controls_dict
 
-def set_controls_values(controls_dict, controls_values_dict, type_key = 'set'):
+def set_controls_values(controls_dict, controls_values_dict, type_key = 'value'):
   controls_values_dict = dict()
   for control_name in controls_values_dict.keys():
      control_value = controls_values_dict[control_name]
@@ -528,211 +397,8 @@ def set_controls_values(controls_dict, controls_values_dict, type_key = 'set'):
   return controls_dict
 
 
-def check_valid_value(controls_dict, control_name, update_value):
-  valid = False
-  if control_name in controls_dict.keys():
-      control_dict = controls_dict[control_name]
-      control_type = control_dict['type']
-      
-      if control_type == "Menu": ###########################################################
-        string_options = control_dict['string_options']
-        try:
-          value  = int(update_value)
-          valid = True
-        except Exception as e:
-          pass
-    
-      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
-        string_options = control_dict['string_options']
-        try:
-          value  = str(update_value)
-          if value in string_options:
-            valid = True
-        except Exception as e:
-          pass
-
-        
-      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
-        string_options = control_dict['string_options']
-        try:
-          # Declarative full-selection update: the message carries the complete
-          # desired list of selected options. Keep only valid options.
-          values = []
-          for value in [str(item) for item in update_value]:
-            if value in string_options:
-              values.append(value)
-          
-          valid = values == update_value
-        except Exception as e:
-          pass
-
-      if control_type == "Int":  ###########################################################
-        int_bounds = control_dict['int_bounds']
-        if len(int_bounds) < 2:
-          int_bounds = [-999,-999]
-        try:
-          value = int(update_value)
-          valid = True
-          if int(int_bounds[0]) != -999 and value < int_bounds[0]:
-            valid = False
-          if int(int_bounds[1]) != -999 and value > int_bounds[1]:
-            valid = False
-        except Exception as e:
-          pass
-
-      elif control_type == "Float" or control_type == "FloatSlider": ###########################################################
-        float_bounds = control_dict['float_bounds']
-        if len(float_bounds) < 2:
-          float_bounds = [-999,-999]
-
-        try:
-          value = float(update_value)
-          round_value = control_dict['round_value']
-          if round_value >= 0:
-            value = round(value,round_value)
-          valid = True
-          if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-            valid = False
-          if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-            valid = False
-        except Exception as e:
-          pass
-
-
-      elif control_type == "FloatSliders": ###########################################################      
-        float_bounds = control_dict['float_bounds']
-        if len(float_bounds) < 2:
-          float_bounds = [-999,-999]
-
-        try:
-          # Same value/value0 defect as set_control_value. This one gates the
-          # settings update path (system_if.py), so it rejected every
-          # FloatSliders update before set_control_value was ever reached.
-          value0  = float(update_value[0])
-          round_value = control_dict['round_value']
-          if round_value >= 0:
-            value0 = round(value0,round_value)
-          valid = True
-          if float(float_bounds[0]) != -999 and value0 < float_bounds[0]:
-            valid = False
-          if float(float_bounds[1]) != -999 and value0 > float_bounds[1]:
-            valid = False
-
-
-          value1  = float(update_value[1])
-          round_value = control_dict['round_value']
-          if round_value >= 0:
-            value1 = round(value1,round_value)
-          # Reset valid = True here, discarding the low handle's verdict.
-          if float(float_bounds[0]) != -999 and value1 < float_bounds[0]:
-            valid = False
-          if float(float_bounds[1]) != -999 and value1 > float_bounds[1]:
-            valid = False
-          if value0 > value1:
-            valid = False
-
-        except Exception as e:
-          pass
-
-      elif control_type == "Trigger": ###########################################################
-          valid = True
-
-      elif control_type == "Bool": ###########################################################
-          try:
-              value  = (update_value == True)
-              valid = True
-          except Exception as e:
-            pass
-          
-      elif control_type == "String": ###########################################################
-        valid = True
-
-    
-  return valid
-
-
-
-def get_control_default_value(controls_dict, control_name):
-  value = None
-  if control_name in controls_dict.keys(): 
-    value = get_control_value(controls_dict, control_name, type_key = 'default')
-  return value
-
-def set_control_default_value(controls_dict, control_name, update_value):
-  controls_dict = set_control_value(controls_dict, control_name, update_value, type_key = 'default' )
-  return controls_dict
-
-def get_control_factory_value(controls_dict, control_name):
-  value = None
-  if control_name in controls_dict.keys(): 
-    value = get_control_value(controls_dict, control_name, type_key = 'factory')
-  return value
-
-def set_control_factory_value(controls_dict, control_name, update_value):
-  controls_dict = set_control_value(controls_dict, control_name, update_value, type_key = 'factory' )
-  return controls_dict
-
-
-def reset_control_value(controls_dict, control_name, type_key = 'default'):
-  if type_key not in ('factory', 'default'):
-    type_key = 'default'
-  if type_key == 'default':
-    update_str = 'set'
-    reset_str = 'default'
-  else:
-    update_str = 'default'
-    reset_str = 'factory'
-  if control_name in controls_dict.keys():
-      control_dict = controls_dict[control_name]
-      control_type = control_dict['type']
-      
-      if control_type == "Menu": ###########################################################
-        update_str = update_str + '_index'  
-        reset_str = reset_str + '_index'  
-        control_dict[update_str] = control_dict[reset_str]        
-        
-      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
-        update_str = update_str + '_string'
-        reset_str = reset_str + '_string'  
-        control_dict[update_str] = control_dict[reset_str] 
-        
-      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
-        update_str = update_str + '_strings'
-        reset_str = reset_str + '_strings'  
-        control_dict[update_str] = control_dict[reset_str] 
-
-      if control_type == "Int":  ###########################################################
-        update_str = update_str + '_int'
-        reset_str = reset_str + '_int'  
-        control_dict[update_str] = control_dict[reset_str] 
-
-      elif control_type == "Float" or control_type == "FloatSlider": ###########################################################
-        update_str = update_str + '_float'   
-        reset_str = reset_str + '_float'  
-        control_dict[update_str] = control_dict[reset_str] 
-
-
-      elif control_type == "FloatSliders": ###########################################################      
-        update_str = update_str + '_floats'
-        reset_str = reset_str + '_floats'  
-        control_dict[update_str] = control_dict[reset_str] 
-
-      elif control_type == "Trigger": ###########################################################
-        update_str = update_str + '_float'
-        control_dict[update_str] = 0
-
-      elif control_type == "Bool": ###########################################################
-        update_str = update_str + '_bool'
-        reset_str = reset_str + '_bool'  
-        control_dict[update_str] = control_dict[reset_str] 
-
-      elif control_type == "String": ###########################################################
-        update_str = update_str + '_string'
-        reset_str = reset_str + '_string'
-        control_dict[update_str] = control_dict[reset_str]
-
-      ###########################################################
-      controls_dict[control_name] = control_dict
+def reset_control_value(controls_dict, control_name):
+  controls_dict[control_name]['value'] = controls_dict[control_name]['default']
   return controls_dict
 
 def reset_control_values(controls_dict):
@@ -741,230 +407,102 @@ def reset_control_values(controls_dict):
       controls_dict = reset_control_value(controls_dict, control_name)
     return controls_dict
 
-
-def factory_reset_control_value(controls_dict, control_name):
-  controls_dict = reset_control_value(controls_dict, control_name, type_key = 'factory')
-  controls_dict = reset_control_value(controls_dict, control_name, type_key = 'default')
-  return controls_dict
-
-def factory_reset_control_values(controls_dict):
-    control_names = list(controls_dict.keys())
-    for control_name in control_names:
-      controls_dict = factory_reset_control_value(controls_dict, control_name)
-    return controls_dict
-
-
-
 def get_control_options(controls_dict, control_name):
   # Read 'options' before, a key Control.msg does not define and
   # BLANK_CONTROL_DICT therefore never carries -- so this raised KeyError for
-  # every control. The field is 'string_options'.
+  # every control. The field is 'options'.
   options = []
   if control_name in controls_dict.keys():
-      options = controls_dict[control_name].get('string_options',[])
+      options = controls_dict[control_name].get('options',[])
   return options
 
 def set_control_options(controls_dict, control_name, options):
-  string_options = [str(item) for item in options]
+  options = [str(item) for item in options]
   if control_name in controls_dict.keys():
-      control_dict = controls_dict[control_name]
-      control_type = control_dict['type']
-      if control_type == "Menu": ###########################################################
-            # Wrote 'options', which is not a Control.msg field. convert_dict2msg
-            # rejects a dict with an unknown key and returns None, so updating a
-            # control's options used to delete it from the status message.
-            control_dict['string_options'] = string_options
-
-            # value  = int(controls_dict['default_index'])
-            # if value >= len(string_options):
-            #   value = 0
-            #   if len(string_options) > 0:
-            #     value = 1
-            # control_dict['default_index'] = value
-
-            # value  = int(controls_dict['set_index'])
-            # if value >= len(string_options):
-            #   value = 0
-            #   if len(string_options) > 0:
-            #     value = 1
-            # control_dict['set_index'] = value        
-        
-      elif control_type == "Selection" or control_type == "Discrete": ###########################################################
-        control_dict['string_options'] = string_options
-
-        # value  = str(control_dict['default_string'])
-        # if value not in string_options:
-        #   value = string_options[0]
-        # control_dict['default_string'] = value
-
-        # value  = str(control_dict['set_string'])
-        # if value not in string_options:
-        #   value = string_options[0]
-        # control_dict['set_string'] = value
-        
-      elif control_type == "Selections" or control_type == "SelectionsDD": ###########################################################
-        control_dict['string_options'] = string_options
-
-        # check_values  = [str(item) for item in control_dict['default_strings']]
-        # values = []
-        # for value in check_values:
-        #   if value in string_options:
-        #     values.append(value)
-        # control_dict['default_strings'] = values
-
-        # check_values  = [str(item) for item in control_dict['set_strings']]
-        # values = []
-        # for value in check_values:
-        #   if value in string_options:
-        #     values.append(value)
-        # control_dict['set_strings'] = values
-
-      ###########################################################
-      controls_dict[control_name] = control_dict
+      try:
+        options = options.remove(None)
+      except:
+        pass
+      controls_dict[control_name]['options'] = options
   return controls_dict
 
 
 
 
 def get_control_bounds(controls_dict, control_name):
-  bounds = []
+  bounds = [-999,-999]
   if control_name in controls_dict.keys():
-      control_dict = controls_dict[control_name]
-      control_type = control_dict['type']
-      if control_type == "Int":
-        bounds = controls_dict[control_name]['int_bounds']
+      min_bound = controls_dict[control_name]['min_bound']
+      max_bound = controls_dict[control_name]['max_bound']
+  return [min_bound, max_bound]
 
-      elif control_type == "Float" or control_type == "FloatSlider":      
-        bounds = controls_dict[control_name]['float_bounds']
 
-      elif control_type == "FloatSliders":      
-        bounds = controls_dict[control_name]['float_bounds']
 
-  return bounds
+def set_control_min_bound(controls_dict, control_name, min_bound = None):
+  if min_bound is None:
+    min_bound = -999
+  if control_name in controls_dict.keys():
+      input_type = controls_dict[control_name]['type']
+      max_bound = controls_dict[control_name]['max_bound']
+      if input_type in FLOAT_TYPES:
+        try:
+          min_bound = float(min_bound)
+        except:
+          pass
+     
+      elif input_type in INT_TYPES:
+        try:
+          min_bound = int(min_bound)
+        except:
+          pass
+      if int(min_bound) == -999 or int(max_bound) == -999 or min_bound <  max_bound:
+        controls_dict[control_name]['min_bound'] = min_bound
+  return controls_dict
+
+def clear_control_min_bound(controls_dict, control_name):
+  controls_dict = set_control_min_bound(controls_dict, control_name)
+  return controls_dict
+
+def set_control_max_bound(controls_dict, control_name, max_bound = None):
+  if max_bound is None:
+    max_bound = -999
+  if control_name in controls_dict.keys():
+      input_type = controls_dict[control_name]['type']
+      min_bound = controls_dict[control_name]['min_bound']
+      if input_type in FLOAT_TYPES:
+        try:
+          max_bound = float(max_bound)
+        except:
+          pass
+     
+      elif input_type in INT_TYPES:
+        try:
+          max_bound = int(max_bound)
+        except:
+          pass
+      if int(min_bound) == -999 or int(max_bound) == -999 or min_bound <  max_bound:
+        controls_dict[control_name]['max_bound'] = max_bound
+  return controls_dict
+
+def clear_control_max_bound(controls_dict, control_name):
+  controls_dict = set_control_max_bound(controls_dict, control_name)
+  return controls_dict
 
 def set_control_bounds(controls_dict, control_name, min_bound = None, max_bound = None):
+  if min_bound is None:
+    min_bound = -999
+  if max_bound is None:
+    max_bound = -999
+  if int(min_bound) == -999 or int(max_bound) == -999 or min_bound <  max_bound:
 
+    if control_name in controls_dict.keys():
+        controls_dict = set_control_min_bound(controls_dict, control_name, min_bound)
+        controls_dict = set_control_max_bound(controls_dict, control_name, max_bound)
 
-  if control_name in controls_dict.keys():
-      control_dict = controls_dict[control_name]
-      control_type = control_dict['type']
-
-      if control_type == "Int": ###########################################################
-        int_bounds = [-999,-999]
-        cur_bounds = control_dict['int_bounds']
-        if len(cur_bounds) == 2:
-          int_bounds = cur_bounds
-
-        try:
-          int_bounds[0] = int(min_bound)
-        except:
-          pass
-        try:
-          int_bounds[1] = int(max_bound)
-        except:
-          pass
-        control_dict['int_bounds'] = int_bounds
-
-        value  = int(control_dict['default_int'])
-        if int(int_bounds[0]) != -999 and value < int_bounds[0]:
-          value = int(int_bounds[0])
-        if int(int_bounds[1]) != -999 and value > int_bounds[1]:
-          value = int(int_bounds[1])
-        control_dict['default_int'] = value
-
-        value  = int(control_dict['set_int'])
-        if int(int_bounds[0]) != -999 and value < int_bounds[0]:
-          value = int(int_bounds[0])
-        if int(int_bounds[1]) != -999 and value > int_bounds[1]:
-          value = int(int_bounds[1])
-        control_dict['set_int'] = value
-
-      elif control_type == "Float" or control_type == "FloatSlider": ###########################################################      
-        float_bounds = [-999,-999]
-
-        cur_bounds = control_dict['float_bounds']
-        if len(cur_bounds) == 2:
-          int_bounds = cur_bounds
-
-        try:
-          float_bounds[0] = float(min_bound)
-        except:
-          pass
-        try:
-          float_bounds[1] = float(max_bound)
-        except:
-          pass
-        control_dict['float_bounds'] = float_bounds
-
-        value  = float(control_dict['default_float'])
-        if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-          value = float(float_bounds[0])
-        if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-          value = float(float_bounds[1])
-        control_dict['default_float'] = value
-
-        value  = float(control_dict['set_float'])
-        if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-          value = float(float_bounds[0])
-        if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-          value = float(float_bounds[1])
-        control_dict['set_float'] = value
-
-      elif control_type == "FloatSliders": ###########################################################      
-        float_bounds = [-999,-999]
-        cur_bounds = control_dict['float_bounds']
-        if len(cur_bounds) == 2:
-          int_bounds = cur_bounds
-
-        try:
-          float_bounds[0] = float(min_bound)
-        except:
-          pass
-        try:
-          float_bounds[1] = float(max_bound)
-        except:
-          pass
-        control_dict['float_bounds'] = float_bounds
-
-        value  = float(control_dict['default_floats'][0])
-        if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-          value = float(float_bounds[0])
-        if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-          value = float(float_bounds[1])
-        control_dict['default_floats'][0] = value
-
-        value  = float(control_dict['default_floats'][1])
-        if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-          value = float(float_bounds[0])
-        if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-          value = float(float_bounds[1])
-
-        control_dict['default_floats'][1] = value
-
-        if control_dict['default_floats'][0] > control_dict['default_floats'][1]:
-          control_dict['default_floats'][0] = control_dict['default_floats'][1]
-
-        value  = float(control_dict['set_floats'][0])
-        if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-          value = float(float_bounds[0])
-        if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-          value = float(float_bounds[1])
-        control_dict['set_floats'][0] = value
-
-        value  = float(control_dict['set_floats'][1])
-        if float(float_bounds[0]) != -999 and value < float_bounds[0]:
-          value = float(float_bounds[0])
-        if float(float_bounds[1]) != -999 and value > float_bounds[1]:
-          value = float(float_bounds[1])
-
-        control_dict['set_floats'][1] = value
-
-        if control_dict['set_floats'][0] > control_dict['set_floats'][1]:
-          control_dict['set_floats'][0] = control_dict['set_floats'][1]
-
-      ###########################################################
-      controls_dict[control_name] = control_dict
   return controls_dict
+
+
+
 
 ##################
 # Display Functions
@@ -1001,7 +539,7 @@ def get_control_hidden(controls_dict, control_name):
   return hidden
 
 def set_control_hidden(controls_dict, control_name, hidden):
-  # str() here wrote the strings 'True'/'False' into Control.hidden, a bool
+  # str() here wrote the strings 'True'/'False' into Control.hidden, a toggle
   # field. convert_dict2msg then rejected the dict and the control vanished
   # from the status message instead of being hidden in it.
   hidden = (hidden == True)
@@ -1119,7 +657,27 @@ def update_status_msg( status_msg, controls_dict, hidden = False):
     try:
       control_dict = controls_dict[name]
       control_type = control_dict['type']
+      if control_type == 'Discrete':
+        control_type = 'Selection'
+      control_dict['type'] = control_type
       if control_type in CONTROL_TYPES:
+
+        # Convert default and value to string lists for Controls Msg
+        value = control_dict['value']
+        default = control_dict['default']
+        if control_type in LIST_TYPES:
+          if isinstance(value, list):
+              msg_value = [str(item) for item in value]
+              msg_default = [str(item) for item in default]
+          else:
+              msg_value = [value]
+              msg_default = [value]
+        else:
+          msg_value = [str(value)]
+          msg_default = [str(value)]
+        control_dict['value'] = msg_value
+        control_dict['default'] = msg_default
+
         msg_type = 'nepi_interfaces/Control'
         control_msg = nepi_sdk.convert_dict2msg(msg_type,control_dict)
         names_list.append(name)
@@ -1154,6 +712,7 @@ def apply_update_control_msg( controls_dict, msg):
     return controls_dict
 
   control_dict = controls_dict[name]
+  control_type = control_dict['type']
 
   display_name = msg.display_name
   if display_name != '':
@@ -1164,20 +723,16 @@ def apply_update_control_msg( controls_dict, msg):
     controls_dict[name]['description'] = description
 
   value = msg.value
-  if value != '':
+  if value != ['']:
     controls_dict = set_control_value(controls_dict, name, value)
-    
-  values = msg.values
-  if values != ['']:
-    controls_dict = set_control_value(controls_dict, name, values)
 
   min_bound = msg.min_bound
   if min_bound != '':
-    controls_dict = set_control_bounds(controls_dict, name, min_bound = min_bound)
+    controls_dict = set_control_min_bound(controls_dict, name, min_bound = min_bound)
 
-  min_bound = msg.min_bound
-  if min_bound != '':
-    controls_dict = set_control_bounds(controls_dict, name, min_bound = min_bound)
+  max_bound = msg.max_bound
+  if max_bound != '':
+    controls_dict = set_control_max_bound(controls_dict, name, max_bound = max_bound)
 
   options = msg.options
   if options != ['']:

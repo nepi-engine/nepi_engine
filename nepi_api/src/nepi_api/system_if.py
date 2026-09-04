@@ -3642,7 +3642,7 @@ class SettingsIF:
             return
 
       
-        if nepi_controls.check_valid_value(settings_dict, setting_name, setting_value) == False:
+        if nepi_controls.get_clean_value(settings_dict, setting_name, setting_value) is None:
             self.msg_if.pub_warn("Setting update rejected as invalid: " + str([setting_name, setting_value]), log_name_list = self.log_name_list)
 
         current_value = nepi_controls.get_control_value(self.settings_dict, setting_name)
