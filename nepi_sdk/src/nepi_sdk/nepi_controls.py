@@ -192,9 +192,9 @@ def create_controls_dict(init_dict):
         control_dict['default'] = value
         control_dict['value'] = value
 
-      #############
-      # Add to dict
-      controls_dict[name] = control_dict
+        #############
+        # Add to dict
+        controls_dict[name] = control_dict
     except Exception as e:
       # A failing control is still skipped and the loop still continues, exactly
       # as before -- the only change is that the failure is now audible. This
