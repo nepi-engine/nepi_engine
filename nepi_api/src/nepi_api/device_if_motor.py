@@ -38,9 +38,14 @@ from nepi_api.node_if import NodeClassIF
 # Producer-side interface for the standard NEPI multi-motor device, modeled
 # structurally on device_if_rbx.py (RBXRobotIF). It owns a NodeClassIF that
 # publishes the standard nepi_interfaces/MotorsStatus message on the dedicated
-# 'motor_status' topic and subscribes to the four standard motor command topics
-# (set_speed, set_direction, go_direction, stop_motor), each carrying a
-# nepi_interfaces/MotorCommand message.
+# 'motor_status' topic and subscribes to the six standard motor command topics
+# (set_speed, set_direction, go_direction, stop_motor, goto_rotation,
+# set_rotation_speed), each carrying a nepi_interfaces/MotorCommand message.
+#
+# goto_rotation and set_rotation_speed drive a rotatable (steering) wheel about
+# its steering axis. They are additive: a device that supplies no rotation
+# callbacks still registers both subscribers and simply ignores the commands,
+# and reports has_rotation false in every MotorStatus.
 #
 # This is the wire contract the connect-side ConnectMotorsDeviceIF
 # (connect_device_if_motor.py) discovers and drives: it finds devices by the
@@ -54,8 +59,9 @@ STATUS_UPDATE_RATE_HZ = 2
 # The dedicated topic every motorized NEPI device publishes MotorsStatus on.
 STATUS_TOPIC = 'motor_status'
 
-# The four standard motor command topics, each carrying a MotorCommand message.
-COMMAND_TOPICS = ['set_speed', 'set_direction', 'go_direction', 'stop_motor']
+# The six standard motor command topics, each carrying a MotorCommand message.
+COMMAND_TOPICS = ['set_speed', 'set_direction', 'go_direction', 'stop_motor',
+                  'goto_rotation', 'set_rotation_speed']
 
 
 class MotorsDeviceIF:
@@ -78,6 +84,8 @@ class MotorsDeviceIF:
                  setDirectionFunction = None,
                  goDirectionFunction = None,
                  stopMotorFunction = None,
+                 gotoRotationFunction = None,
+                 setRotationSpeedFunction = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None
@@ -117,6 +125,8 @@ class MotorsDeviceIF:
         self.setDirectionFunction = setDirectionFunction
         self.goDirectionFunction = goDirectionFunction
         self.stopMotorFunction = stopMotorFunction
+        self.gotoRotationFunction = gotoRotationFunction
+        self.setRotationSpeedFunction = setRotationSpeedFunction
 
         # Initialize status message
         self.status_msg.device_name = self.device_name
@@ -184,6 +194,22 @@ class MotorsDeviceIF:
                 'msg': MotorCommand,
                 'qsize': 20,
                 'callback': self.stopMotorCb,
+                'callback_args': ()
+            },
+            'goto_rotation': {
+                'namespace': self.namespace,
+                'topic': 'goto_rotation',
+                'msg': MotorCommand,
+                'qsize': 20,
+                'callback': self.gotoRotationCb,
+                'callback_args': ()
+            },
+            'set_rotation_speed': {
+                'namespace': self.namespace,
+                'topic': 'set_rotation_speed',
+                'msg': MotorCommand,
+                'qsize': 20,
+                'callback': self.setRotationSpeedCb,
                 'callback_args': ()
             }
         }
@@ -261,7 +287,11 @@ class MotorsDeviceIF:
         Populates one MotorStatus per motor from the driver-supplied
         getMotorsStatusFunction, which returns an ordered list of per-motor
         dictionaries. Missing dictionary keys fall back to safe defaults
-        (motor_enable True, motor_dir 1, speeds/position 0.0).
+        (motor_enable True, motor_dir 1, speeds/position 0.0). The rotatable-wheel
+        (steering) keys default to has_rotation False, has_continuous_rotation
+        False, and 0.0 for every rotation limit, speed and angle, so a
+        non-steering device that supplies none of them reports has_rotation
+        False and is otherwise unaffected.
 
         Returns:
             MotorsStatus: Message published on the dedicated motor_status topic.
@@ -289,6 +319,13 @@ class MotorsDeviceIF:
             motor.motor_speed_ratio = motor_dict.get('motor_speed_ratio', 0.0)
             motor.motor_speed = motor_dict.get('motor_speed', 0.0)
             motor.motor_position = motor_dict.get('motor_position', 0.0)
+            motor.has_rotation = motor_dict.get('has_rotation', False)
+            motor.has_continuous_rotation = motor_dict.get('has_continuous_rotation', False)
+            motor.rotation_min_limit = motor_dict.get('rotation_min_limit', 0.0)
+            motor.rotation_max_limit = motor_dict.get('rotation_max_limit', 0.0)
+            motor.rotation_max_speed = motor_dict.get('rotation_max_speed', 0.0)
+            motor.rotation_speed_ratio = motor_dict.get('rotation_speed_ratio', 0.0)
+            motor.rotation = motor_dict.get('rotation', 0.0)
             motors.append(motor)
         msg.motors = motors
 
@@ -341,3 +378,11 @@ class MotorsDeviceIF:
     def stopMotorCb(self, motor_msg):
         if self.stopMotorFunction is not None:
             self.stopMotorFunction(motor_msg.motor_name)
+
+    def gotoRotationCb(self, motor_msg):
+        if self.gotoRotationFunction is not None:
+            self.gotoRotationFunction(motor_msg.motor_name, motor_msg.rotation)
+
+    def setRotationSpeedCb(self, motor_msg):
+        if self.setRotationSpeedFunction is not None:
+            self.setRotationSpeedFunction(motor_msg.motor_name, motor_msg.rotation_speed_ratio)
