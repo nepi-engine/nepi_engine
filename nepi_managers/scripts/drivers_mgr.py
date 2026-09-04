@@ -976,7 +976,7 @@ class NepiDriversMgr(object):
           #self.msg_if.pub_info("Updating driver discovery settings with : " + str([option_name,value,options]))
           setting_type = settings_dict[option_name]['type']
           if (setting_type == 'Int' or setting_type == 'Float') and len(options) > 1:
-              settings_dict = nepi_controls.set_control_bounds(settings_dict, option_name, options[0], options[1])
+              settings_dict = nepi_controls.set_control_bounds(settings_dict, option_name, [options[0], options[1]])
           if setting_type == 'Selection':
               settings_dict = nepi_controls.set_control_options(settings_dict, option_name, options)
           
