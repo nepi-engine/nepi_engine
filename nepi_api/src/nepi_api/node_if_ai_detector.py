@@ -2900,7 +2900,7 @@ class AiDetectorIF:
             max_process_rate= 1.0 / avg_process_time
         else:
             max_process_rate= 0
-        self.process_status_msg.max_process_rate_hz = max_process_rate
+        self.process_status_msg.max_process_rate = max_process_rate
         return self.process_status_msg
     
 
@@ -2929,8 +2929,8 @@ class AiDetectorIF:
 
         process_status_msg = self.getProcessStatus()
     
-        self.detector_status_msg.process_status = process_status_msg
-        self.detector_status_msg.process_status.namespace = self.detections_namespace
+        # self.detector_status_msg.process_status = process_status_msg
+        # self.detector_status_msg.process_status.namespace = self.detections_namespace
         self.detector_status_msg.available_classes = self.classes
         self.detector_status_msg.selected_classes = self.selected_classes
         self.detector_status_msg.threshold_filter = self.threshold

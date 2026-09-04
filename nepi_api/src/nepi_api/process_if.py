@@ -1397,7 +1397,7 @@ class DetectionsIF:
         if status_msg is not None:
             self.status_msg = status_msg
         if self.status_msg is not None:
-            self.status_msg.process_status.config_topic = self.config_topic
+            # self.msg_if.pub_warn("Publishing Detections Status: " + str(self.status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
             self.node_if.publish_pub(self.status_pub_name, self.status_msg)
 
     def unregister_pubs(self):
@@ -1806,7 +1806,6 @@ class DetectionsImageIF:
         if status_msg is not None:
             self.status_msg = status_msg
         if self.status_msg is not None:
-            self.status_msg.config_topic = self.config_topic
             self.node_if.publish_pub(self.status_pub_name, self.status_msg)
 
     def unregister_pubs(self):
@@ -2194,7 +2193,6 @@ class TargetsIF:
         if status_msg is not None:
             self.status_msg = status_msg
         if self.status_msg is not None:
-            self.status_msg.process_status.config_topic = self.config_topic
             self.node_if.publish_pub(self.status_pub_name, self.status_msg)
 
     def unregister_pubs(self):
@@ -2602,7 +2600,6 @@ class TargetsImageIF:
         if status_msg is not None:
             self.status_msg = status_msg
         if self.status_msg is not None:
-            self.status_msg.config_topic = self.config_topic
             self.node_if.publish_pub(self.status_pub_name, self.status_msg)
 
     def unregister_pubs(self):
