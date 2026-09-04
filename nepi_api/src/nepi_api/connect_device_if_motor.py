@@ -42,9 +42,10 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 # publishing nepi_interfaces/MotorsStatus, and connects to the selected device.
 #
 # The Nepi_IF_ConnectMotor RUI component talks to that connect namespace
-# directly. This pass is MONITORING + SELECTION only: subscribe, store the
-# latest message, and expose read-only getters over the MotorStatus[] array.
-# No motor set/control methods are provided (see the control follow-up plan).
+# directly. Alongside monitoring and selection -- subscribe, store the latest
+# message, and expose read-only getters over the MotorStatus[] array -- this
+# class publishes each of the standard motor command topics through a matching
+# public method.
 
 CONNECT_ID = 'MOTOR'
 CONNECT_STATUS_MSG = 'MotorsStatus'
@@ -55,9 +56,12 @@ CONNECT_NAME = 'motor_connect'
 # _updaterCb and subscribe_topic below override the base namespace/topic logic.
 STATUS_TOPIC = 'motor_status'
 
-# The four standard motor command topics published alongside 'motor_status' on
+# The six standard motor command topics published alongside 'motor_status' on
 # each device namespace, each carrying a nepi_interfaces/MotorCommand message.
-COMMAND_TOPICS = ['set_speed', 'set_direction', 'go_direction', 'stop_motor']
+# goto_rotation and set_rotation_speed drive a rotatable (steering) wheel and
+# are ignored by a device whose motors report has_rotation false.
+COMMAND_TOPICS = ['set_speed', 'set_direction', 'go_direction', 'stop_motor',
+                  'goto_rotation', 'set_rotation_speed']
 
 CONNECTED_TIMEOUT = 2
 
@@ -366,6 +370,110 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
             return motor.motor_position
         return None
 
+    def get_motor_has_rotation(self, name_or_index):
+        """Return whether a single motor can rotate its wheel about the steering axis.
+
+        Args:
+            name_or_index (str or int): The motor_name string, or the integer index into
+                the motors array.
+
+        Returns:
+            bool: The has_rotation flag for the motor, or None if the motor was not
+                found or no status has been received yet.
+        """
+        motor = self.get_motor(name_or_index)
+        if motor is not None:
+            return motor.has_rotation
+        return None
+
+    def get_motor_has_continuous_rotation(self, name_or_index):
+        """Return whether a single motor's wheel rotation is unlimited.
+
+        When True, rotation_min_limit and rotation_max_limit are not meaningful.
+
+        Args:
+            name_or_index (str or int): The motor_name string, or the integer index into
+                the motors array.
+
+        Returns:
+            bool: The has_continuous_rotation flag for the motor, or None if the motor
+                was not found or no status has been received yet.
+        """
+        motor = self.get_motor(name_or_index)
+        if motor is not None:
+            return motor.has_continuous_rotation
+        return None
+
+    def get_motor_rotation_limits(self, name_or_index):
+        """Return the wheel rotation limits for a single motor.
+
+        Meaningful only where the motor reports has_rotation True and
+        has_continuous_rotation False.
+
+        Args:
+            name_or_index (str or int): The motor_name string, or the integer index into
+                the motors array.
+
+        Returns:
+            list: A two-element [rotation_min_limit, rotation_max_limit] list in degrees,
+                or None if the motor was not found or no status has been received yet.
+        """
+        motor = self.get_motor(name_or_index)
+        if motor is not None:
+            return [motor.rotation_min_limit, motor.rotation_max_limit]
+        return None
+
+    def get_motor_rotation_max_speed(self, name_or_index):
+        """Return the max wheel rotation rate for a single motor.
+
+        This is the rate that rotation_speed_ratio = 1.0 maps to. It is a separate
+        axis from motor_max_speed, which governs how fast the wheel drives.
+
+        Args:
+            name_or_index (str or int): The motor_name string, or the integer index into
+                the motors array.
+
+        Returns:
+            float: The rotation_max_speed in deg/sec for the motor, or None if the motor
+                was not found or no status has been received yet.
+        """
+        motor = self.get_motor(name_or_index)
+        if motor is not None:
+            return motor.rotation_max_speed
+        return None
+
+    def get_motor_rotation_speed_ratio(self, name_or_index):
+        """Return the commanded wheel rotation speed ratio for a single motor.
+
+        Args:
+            name_or_index (str or int): The motor_name string, or the integer index into
+                the motors array.
+
+        Returns:
+            float: The rotation_speed_ratio (0.0-1.0) for the motor, or None if the motor
+                was not found or no status has been received yet.
+        """
+        motor = self.get_motor(name_or_index)
+        if motor is not None:
+            return motor.rotation_speed_ratio
+        return None
+
+    def get_motor_rotation(self, name_or_index):
+        """Return the current wheel rotation for a single motor.
+
+        Args:
+            name_or_index (str or int): The motor_name string, or the integer index into
+                the motors array.
+
+        Returns:
+            float: The rotation in degrees for the motor, or None if the motor was not
+                found or no status has been received yet.
+        """
+        motor = self.get_motor(name_or_index)
+        if motor is not None:
+            return motor.rotation
+        return None
+
     def set_speed(self, motor, speed_ratio):
         """Publish a set_speed command to a motor.
 
@@ -380,6 +488,8 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
         msg.motor_name = str(motor)
         msg.speed_ratio = float(speed_ratio)
         msg.direction = 0
+        msg.rotation = 0.0
+        msg.rotation_speed_ratio = 0.0
         self.publishCommand('set_speed', msg)
 
     def set_direction(self, motor, direction):
@@ -393,6 +503,8 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
         msg.motor_name = str(motor)
         msg.speed_ratio = 0.0
         msg.direction = 1 if direction >= 0 else -1
+        msg.rotation = 0.0
+        msg.rotation_speed_ratio = 0.0
         self.publishCommand('set_direction', msg)
 
     def go_direction(self, motor):
@@ -408,6 +520,8 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
         msg.motor_name = str(motor)
         msg.speed_ratio = 0.0
         msg.direction = 0
+        msg.rotation = 0.0
+        msg.rotation_speed_ratio = 0.0
         self.publishCommand('go_direction', msg)
 
     def stop_motor(self, motor):
@@ -422,7 +536,49 @@ class ConnectMotorsDeviceIF(ConnectNodeIF):
         msg.motor_name = str(motor)
         msg.speed_ratio = 0.0
         msg.direction = 0
+        msg.rotation = 0.0
+        msg.rotation_speed_ratio = 0.0
         self.publishCommand('stop_motor', msg)
+
+    def goto_rotation(self, motor, rotation):
+        """Publish a goto_rotation command to drive a motor's wheel to a rotation angle.
+
+        Applies only where the motor reports has_rotation True; ignored otherwise
+        by the device. Where the motor reports has_continuous_rotation False, the
+        device clamps the target to the motor's rotation_min_limit and
+        rotation_max_limit.
+
+        Args:
+            motor (str): Target motor_name ("motor_0", "motor_1", ...) or "all".
+            rotation (float): Target rotation about the steering axis, in degrees.
+        """
+        msg = MotorCommand()
+        msg.motor_name = str(motor)
+        msg.speed_ratio = 0.0
+        msg.direction = 0
+        msg.rotation = float(rotation)
+        msg.rotation_speed_ratio = 0.0
+        self.publishCommand('goto_rotation', msg)
+
+    def set_rotation_speed(self, motor, rotation_speed_ratio):
+        """Publish a set_rotation_speed command to a motor.
+
+        Sets how fast the wheel steers, a separate axis from set_speed, which sets
+        how fast the wheel drives. Applies only where the motor reports
+        has_rotation True; ignored otherwise by the device.
+
+        Args:
+            motor (str): Target motor_name ("motor_0", "motor_1", ...) or "all".
+            rotation_speed_ratio (float): Desired rotation speed as a ratio from 0.0
+                (off) to 1.0 (max), scaled by the motor's rotation_max_speed.
+        """
+        msg = MotorCommand()
+        msg.motor_name = str(motor)
+        msg.speed_ratio = 0.0
+        msg.direction = 0
+        msg.rotation = 0.0
+        msg.rotation_speed_ratio = float(rotation_speed_ratio)
+        self.publishCommand('set_rotation_speed', msg)
 
     ###############################
     # Class Private Methods
