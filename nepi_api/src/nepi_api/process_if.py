@@ -1395,10 +1395,9 @@ class DetectionsIF:
         if self.node_if is None:
             return
         if status_msg is not None:
-            self.status_msg = status_msg
-        if self.status_msg is not None:
-            # self.msg_if.pub_warn("Publishing Detections Status: " + str(self.status_msg), log_name_list = self.log_name_list, throttle_s = 5.0)
-            self.node_if.publish_pub(self.status_pub_name, self.status_msg)
+            #self.status_msg = status_msg
+            self.msg_if.pub_warn("Publishing Detections Status: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 20.0)
+            self.node_if.publish_pub(self.status_pub_name, status_msg)
 
     def unregister_pubs(self):
         """Unregister all ROS publishers managed by this interface."""
@@ -2191,9 +2190,9 @@ class TargetsIF:
         if self.node_if is None:
             return
         if status_msg is not None:
-            self.status_msg = status_msg
-        if self.status_msg is not None:
-            self.node_if.publish_pub(self.status_pub_name, self.status_msg)
+            #self.status_msg = status_msg
+            #self.msg_if.pub_warn("Publishing Detections Status: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 20.0)
+            self.node_if.publish_pub(self.status_pub_name, status_msg)
 
     def unregister_pubs(self):
         """Unregister all ROS publishers managed by this interface."""

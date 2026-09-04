@@ -316,9 +316,7 @@ class AiDetectorIF:
         self.enable_image_pub = enable_image_pub
 
         
-        ## Init Status Messages
-        self.process_status_msg.node_name = self.node_name
-        self.process_status_msg.namespace = self.namespace
+
 
         model_name = nepi_utils.get_clean_name(model_name)
         self.model_name = model_name
@@ -339,6 +337,18 @@ class AiDetectorIF:
 
 
         self.node_if_prefix =self.model_name + '_'
+
+
+        ## Init Status Messages
+        self.process_status_msg.node_name = self.node_name
+        self.process_status_msg.namespace = self.namespace
+
+        self.process_status_msg.name = self.model_name
+        self.process_status_msg.group = self.model_framework
+        self.process_status_msg.description = self.model_description
+
+        self.process_status_msg.config_topic = self.node_namespace
+
      
         self.initCb(do_updates = False)
 
@@ -2813,17 +2823,7 @@ class AiDetectorIF:
         return resp
 
 
-    def getProcessStatus(self):
-        self.process_status_msg.name = self.model_name
-        self.process_status_msg.group = self.model_framework
-        self.process_status_msg.description = self.model_description
-
-        self.process_status_msg.node_name = self.node_name
-        self.process_status_msg.namespace = self.namespace
-
-        self.process_status_msg.save_data_topic = self.save_data_namespace
-        self.process_status_msg.config_topic = self.node_namespace
-
+    def updateProcessStatus(self):
 
         self.process_status_msg.max_process_rate_hz = self.max_process_rate_hz
 
@@ -2839,16 +2839,11 @@ class AiDetectorIF:
         active_source_topics = copy.deepcopy(self.active_source_topics)
         
 
-        img_has_ranges = []
-        img_hfovs = []
-        img_vfovs = []
+
         img_connects = []
         for source_topic in imgs_info_dict.keys():
             img_connected = imgs_info_dict[source_topic]['img_connected']
             img_connects.append(img_connected)
-            img_has_ranges.append(imgs_info_dict[source_topic]['has_range'])
-            img_hfovs.append(imgs_info_dict[source_topic]['width_deg'])
-            img_vfovs.append(imgs_info_dict[source_topic]['height_deg'])
         self.process_status_msg.sources_connected = img_connects
         img_selected = len(img_connects) > 0 or self.source_file_processing
         self.process_status_msg.source_selected = img_selected 
@@ -2901,16 +2896,17 @@ class AiDetectorIF:
         else:
             max_process_rate= 0
         self.process_status_msg.max_process_rate = max_process_rate
-        return self.process_status_msg
+
     
 
     def publishStatusCb(self,timer):
+        self.updateProcessStatus()
         self.publish_status()
         self.process_state = False
 
     def publish_status(self):
         self.publish_detector_status()
-        self.publish_targeting_status()
+        #self.publish_targeting_status()
 
 
     def publish_detector_status(self):
@@ -2927,13 +2923,12 @@ class AiDetectorIF:
         """
         #self.msg_if.pub_warn("Starting Detector Status Pub")
 
-        process_status_msg = self.getProcessStatus()
-    
-        # self.detector_status_msg.process_status = process_status_msg
-        # self.detector_status_msg.process_status.namespace = self.detections_namespace
-        self.detector_status_msg.available_classes = self.classes
-        self.detector_status_msg.selected_classes = self.selected_classes
-        self.detector_status_msg.threshold_filter = self.threshold
+        detector_status_msg = DetectorStatus()
+        detector_status_msg.process_status = self.process_status_msg
+        detector_status_msg.process_status.namespace = self.detections_namespace
+        detector_status_msg.available_classes = self.classes
+        detector_status_msg.selected_classes = self.selected_classes
+        detector_status_msg.threshold_filter = self.threshold
 
 
         #self.msg_if.pub_warn("Ending Detector Status Pub")
@@ -2943,10 +2938,10 @@ class AiDetectorIF:
         # inline pub).
 
 
-
+        
         detections_if = getattr(self, 'detections_if', None)
         if detections_if is not None:
-            detections_if.publish_status(self.detector_status_msg)
+            detections_if.publish_status(detector_status_msg)
             # Publish for each connected image
             sources_connected = []
             for source_topic in self.imgs_info_dict.keys():
@@ -2955,7 +2950,7 @@ class AiDetectorIF:
 
             for source_topic in sources_connected:
                 try:
-                    self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('detections_status_pub',self.detector_status_msg)
+                    self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('detections_status_pub',detector_status_msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish detections status to source topic: " + str(e), throttle_s = 5)
 
@@ -2975,21 +2970,21 @@ class AiDetectorIF:
         """
         #self.msg_if.pub_warn("Starting Detector Status Pub")
 
-        process_status_msg = self.getProcessStatus()
-    
-        self.targeting_status_msg = TargetingStatus()
-        self.targeting_status_msg.process_status = process_status_msg
-        self.targeting_status_msg.process_status.namespace = self.targets_namespace
-        self.targeting_status_msg.available_classes = self.classes
-        self.targeting_status_msg.selected_classes = self.selected_classes
-        self.targeting_status_msg.threshold_filter = self.threshold
         
-        #self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(self.targeting_status_msg), throttle_s = 5)
+    
+        targeting_status_msg = TargetingStatus()
+        # targeting_status_msg.process_status = self.process_status_msg
+        # targeting_status_msg.process_status.namespace = self.targets_namespace
+        targeting_status_msg.available_classes = self.classes
+        targeting_status_msg.selected_classes = self.selected_classes
+        targeting_status_msg.threshold_filter = self.threshold
+        
+        #self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(targeting_status_msg), throttle_s = 5)
         # TargetingStatus is published on <node_ns>/targets/status by TargetsIF
         # (same wire topic/type as the removed 'targeting_status' inline pub).
         targets_if = getattr(self, 'targets_if', None)
         if targets_if is not None:
-            targets_if.publish_status(self.targeting_status_msg)
+            targets_if.publish_status(targeting_status_msg)
             # Publish for each connected image
             sources_connected = []
             for source_topic in self.imgs_info_dict.keys():
@@ -2997,6 +2992,6 @@ class AiDetectorIF:
                     sources_connected.append(source_topic)
             for source_topic in sources_connected:
                 try:
-                    self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('targets_status_pub',self.targeting_status_msg)
+                    self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('targets_status_pub',targeting_status_msg)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to publish targets status to source topic: " + str(e), throttle_s = 5)
