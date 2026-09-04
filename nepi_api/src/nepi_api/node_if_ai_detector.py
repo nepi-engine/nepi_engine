@@ -2822,7 +2822,7 @@ class AiDetectorIF:
         self.process_status_msg.namespace = self.namespace
 
         self.process_status_msg.save_data_topic = self.save_data_namespace
-
+        self.process_status_msg.config_topic = self.node_namespace
 
 
         self.process_status_msg.max_process_rate_hz = self.max_process_rate_hz
@@ -2900,7 +2900,7 @@ class AiDetectorIF:
             max_process_rate= 1.0 / avg_process_time
         else:
             max_process_rate= 0
-        self.process_status_msg.max_process_rate = max_process_rate
+        self.process_status_msg.max_process_rate_hz = max_process_rate
         return self.process_status_msg
     
 
