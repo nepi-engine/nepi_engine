@@ -654,8 +654,6 @@ class LSXDeviceIF:
                 status_msg.on_off_state = self.node_if.get_param('on_off_state')
                 try:
                     if self.node_if is not None:
-                        self.msg_if.pub_warn("*************node_if: " + str(self.node_if))    
-
                         self.node_if.publish_pub('status_pub',status_msg)
 
                 except Exception as e:
