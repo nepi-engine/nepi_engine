@@ -232,6 +232,7 @@ class SystemMgrNode():
     date_time_str = ''
 
     settings_initialized = False
+    settings_values_dict = dict()
     #######################
     ### Node Initialization
     DEFAULT_NODE_NAME = "system_mgr" # Can be overwitten by luanch command
@@ -776,8 +777,8 @@ class SystemMgrNode():
         system_settings_ns = self.base_namespace
 
         self.settings_if = SettingsIF(namespace = system_settings_ns,
-                              getSettingsFunction=self.systemGetSettingsFunction,
-                              setSettingFunction=self.systemSettingUpdateFunction, 
+                              getSettingsFunction=self.getSettingsFunction,
+                              setSettingFunction=self.setSettingFunction, 
                               save_params = False,
                               msg_if = self.msg_if,
                               node_if = self.node_if
@@ -984,59 +985,61 @@ class SystemMgrNode():
 
     
         
-    def systemGetSettingsFunction(self):
+    def getSettingsFunction(self):
         config_dict = copy.deepcopy(self.system_config)
         settings_dict = dict()
         if config_dict is not None:
             for key in config_dict.keys():
                 setting_dict = copy.deepcopy(nepi_controls.BLANK_CONTROL_DICT)
-                val = str(config_dict[key])
+                val = config_dict[key]
                 setting_dict['name'] = key
                 try:
                     val_int = int(val)
                     setting_dict['type'] = 'Int'
-                    setting_dict['value'] = val
+                    setting_dict['default'] = val_int
                 except:
                     val_str = str(val)
                     setting_dict['type'] = 'String'
-                    setting_dict['value'] = val
-
-                if self.settings_initialized == False:
-                    setting_dict['default'] = setting_dict['value']
+                    setting_dict['default'] = val_str
+                setting_dict['value'] = setting_dict['default']
+                
                 settings_dict[key] = setting_dict
             self.settings_initialized = True
         return settings_dict
 
-    def systemSettingUpdateFunction(self, setting_name, setting_value):
+    def setSettingFunction(self, setting_name, setting_value):
       success = False
       msg = ""
-      setting_str = setting_name + ":" + setting_value
+      setting_str = setting_name + ":" + str(setting_value)
       #self.msg_if.pub_warn("Got Config Setting Update: " + str(setting_str))
       if setting_value is not None:
-        
-        # NONE is the config file's sentinel for an unset entry and is the shipped
-        # value for NEPI_GATEWAY_IP, NEPI_ALIAS_IP_2/3, and NEPI_NAV_IP, so it has to
-        # survive the IP check or those keys can never be cleared once set.
-        if 'IP' in setting_name and setting_value != self.CONFIG_NONE_VALUE:
-            if nepi_utils.is_valid_ip(setting_value) == False:
-                msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
-                self.add_info_string(msg, StampedString.PRI_HIGH)
-                return success, msg
-        if 'NEPI_DEVICE_SN' == setting_name:
-            if nepi_utils.is_valid_serial_number(setting_value) == False:
-                msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
-                self.add_info_string(msg, StampedString.PRI_HIGH)
-                return success, msg
+        if setting_name not in self.settings_values_dict.keys():
+            self.settings_values_dict[setting_name] = setting_value
+        elif self.settings_values_dict[setting_name] != setting_value:
+            
+            # NONE is the config file's sentinel for an unset entry and is the shipped
+            # value for NEPI_GATEWAY_IP, NEPI_ALIAS_IP_2/3, and NEPI_NAV_IP, so it has to
+            # survive the IP check or those keys can never be cleared once set.
+            if 'IP' in setting_name and setting_value != self.CONFIG_NONE_VALUE:
+                if nepi_utils.is_valid_ip(setting_value) == False:
+                    msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
+                    self.add_info_string(msg, StampedString.PRI_HIGH)
+                    return success, msg
+            if 'NEPI_DEVICE_SN' == setting_name:
+                if nepi_utils.is_valid_serial_number(setting_value) == False:
+                    msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
+                    self.add_info_string(msg, StampedString.PRI_HIGH)
+                    return success, msg
 
-        #self.msg_if.pub_warn("Updating Config Setting File with: " + str([setting_name,setting_value]))
-        self.system_config[setting_name] = setting_value
-        nepi_system.update_nepi_system_config(setting_name,setting_value)         
-        success = True
-        msg = ( self.node_name  + " UPDATED SETTINGS " + setting_str)   
+            #self.msg_if.pub_warn("Updating Config Setting File with: " + str([setting_name,setting_value]))
+            self.system_config[setting_name] = setting_value
+            nepi_system.update_nepi_system_config(setting_name,setting_value)         
+            success = True
+            msg = ( self.node_name  + " UPDATED SETTINGS " + setting_str)   
       else:
         msg = (self.node_name  + " Setting data" + setting_str + " is None")
       #self.msg_if.pub_warn("Setting Update returned msg: " + str(msg))
-      return success, msg
+      return success, msg, self.getSettingsFunction()
 
     def setNepiConfigsCb(self, msg):
         updating = copy.deepcopy(self.nepi_config_updating)
@@ -1249,21 +1252,25 @@ class SystemMgrNode():
             netlist_text = netlist_text.replace('end_file','')
             self.status_msg.netlist_str = str(netlist_text)
 
-        nepi_service_running = False
+        nepi_service_running = True
         nepi_updating_config = False
         nepi_expanding_fs = False
-        nepi_docker_config = nepi_system.load_nepi_docker_config()
-        if nepi_docker_config is not None:
-            if 'NEPI_UPDATING_CONFIG' in nepi_docker_config.keys():
-                nepi_updating_config = nepi_docker_config['NEPI_UPDATING_CONFIG'] == 1
 
-            if 'NEPI_EXPANDING_FS' in nepi_docker_config.keys():
-                nepi_expanding_fs = nepi_docker_config['NEPI_EXPANDING_FS'] == 1
+        # nepi_service_running = False
+        # nepi_updating_config = False
+        # nepi_expanding_fs = False
+        # nepi_docker_config = nepi_system.load_nepi_docker_config()
+        # if nepi_docker_config is not None:
+        #     if 'NEPI_UPDATING_CONFIG' in nepi_docker_config.keys():
+        #         nepi_updating_config = nepi_docker_config['NEPI_UPDATING_CONFIG'] == 1
 
-            if 'NEPI_SERVICE_RUNNING' in nepi_docker_config.keys():
-                nepi_service_running = nepi_docker_config['NEPI_SERVICE_RUNNING'] == 1
-                #Reset for next check
-                # nepi_docker_config = nepi_system.update_nepi_docker_config('NEPI_SERVICE_RUNNING', 0)
+        #     if 'NEPI_EXPANDING_FS' in nepi_docker_config.keys():
+        #         nepi_expanding_fs = nepi_docker_config['NEPI_EXPANDING_FS'] == 1
+
+        #     if 'NEPI_SERVICE_RUNNING' in nepi_docker_config.keys():
+        #         nepi_service_running = nepi_docker_config['NEPI_SERVICE_RUNNING'] == 1
+        #         #Reset for next check
+        #         # nepi_docker_config = nepi_system.update_nepi_docker_config('NEPI_SERVICE_RUNNING', 0)
 
         self.nepi_service_running = nepi_service_running
         self.status_msg.nepi_service_running = nepi_service_running

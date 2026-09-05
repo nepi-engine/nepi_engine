@@ -729,7 +729,9 @@ def apply_update_control_msg( controls_dict, msg):
 
   value = msg.value
   if value != ['']:
-    controls_dict = set_control_value(controls_dict, name, value)
+    value = get_clean_value(controls_dict, name, value)
+    if value is not None:
+      controls_dict = set_control_value(controls_dict, name, value)
 
   min_bound = msg.min_bound
   if min_bound != '':

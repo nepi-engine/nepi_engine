@@ -718,17 +718,20 @@ class ControlsIF:
 
 
     def _updateControlCb(self,msg):
+            #self.msg_if.pub_warn("Got Control Update msg: " + str(msg))
             control_name = msg.name
             # The value setters share this single callback. Most Update* msgs carry
             # a 'value' field; UpdateRangeWindow (FloatSliders) carries start/stop_range
             # and UpdateTrigger (Trigger) carries no value at all.
+            controls_dict = copy.deepcopy(self.controls_dict)
             self.controls_dict = nepi_controls.apply_update_control_msg(self.controls_dict, msg)
             self.publish_status()
-            if self.controls_updated_callback is not None:
-                self.controls_updated_callback(control_name)
-            if self.node_if is not None:
-                param_name = self.node_if_prefix + 'controls_dict'
-                self.node_if.set_param(param_name, self.controls_dict)
+            if self.controls_dict != controls_dict:
+                if self.controls_updated_callback is not None:
+                    self.controls_updated_callback(control_name)
+                if self.node_if is not None:
+                    param_name = self.node_if_prefix + 'controls_dict'
+                    self.node_if.set_param(param_name, self.controls_dict)
     
 
     def _setHiddenValueCb(self,msg):
@@ -3631,7 +3634,7 @@ class SettingsIF:
             bool: True if the setting was successfully applied, False otherwise.
         """
         success = False
-        self.msg_if.pub_info("Updating setting : " + str([setting_name,setting_value]), log_name_list = self.log_name_list)
+        
         if self.setSettingFunction is None:
             self.msg_if.pub_debug("Settings updates ignored. No settings update function defined ", log_name_list = self.log_name_list)
             return success
@@ -3650,6 +3653,7 @@ class SettingsIF:
             #self.msg_if.pub_warn("Setting allready set: " + str([current_value, setting_value]), log_name_list = self.log_name_list)
             return True
 
+        self.msg_if.pub_info("Updating setting : " + str([setting_name,setting_value]), log_name_list = self.log_name_list)
         try:
             if self.callback_arg is None:
                 [success, msg, self.settings_dict] = self.setSettingFunction(setting_name, setting_value)
@@ -3683,9 +3687,9 @@ class SettingsIF:
             do_updates (bool, optional): If True, apply all stored settings to the
                 hardware after loading. Defaults to True.
         """
-        init_settings_values_dict = None
+        init_settings_values_dict = nepi_controls.get_controls_values_dict(self.settings_dict)
         if self.node_if is not None and self.save_params == True:
-            init_settings_values_dict = self.node_if.get_param(self.SETTINGS_PARAM_KEY)
+            init_settings_values_dict = self.node_if.get_param(self.SETTINGS_PARAM_KEY)            
 
         if self.callback_arg is None:
             init_settings_dict = self.getSettingsFunction()
@@ -3725,7 +3729,7 @@ class SettingsIF:
         Restores the default tier of every setting, reloads the user
         configuration tier via node_if.reset_params(), then reapplies.
         """
-        self.settings_dict = nepi_controls.reset_control_values(self.getSettingsDict())
+        self.settings_dict = nepi_controls.reset_control_values(self.settings_dict)
         if self.node_if is not None and self.save_params == True:
             self.node_if.reset_params()
         self.init(do_updates = True)
@@ -3737,11 +3741,8 @@ class SettingsIF:
         restores the factory param values via node_if.factory_reset_params(),
         then reapplies.
         """
-        self.settings_dict = nepi_controls.factory_reset_control_values(self.getSettingsDict())
+        self.settings_dict = nepi_controls.reset_control_values(self.settings_dict)
         if self.node_if is not None and self.save_params == True:
-            # factory_reset_params() puts the param back to its registered
-            # factory_val, which IS the factory settings dict, so the init()
-            # below reads the factory values rather than the user values.
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
@@ -3785,8 +3786,6 @@ class SettingsIF:
             setting_value = nepi_controls.get_control_value(settings_dict, setting_name )
             #self.msg_if.pub_info("Sending Updated Val from/to: " + str([cur_value, setting_value]), log_name_list = self.log_name_list)
             self.update_setting_value(setting_name, setting_value, do_updates = True, update_param = True)
-
-
 
 
 
