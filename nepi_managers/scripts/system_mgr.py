@@ -231,6 +231,7 @@ class SystemMgrNode():
     internet_connected = False
     date_time_str = ''
 
+    system_settings_if = None
     settings_initialized = False
     settings_values_dict = dict()
     #######################
@@ -776,7 +777,7 @@ class SystemMgrNode():
         self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = [self.node_name])
         system_settings_ns = self.base_namespace
 
-        self.settings_if = SettingsIF(namespace = system_settings_ns,
+        self.system_settings_if = SettingsIF(namespace = system_settings_ns,
                               getSettingsFunction=self.getSettingsFunction,
                               setSettingFunction=self.setSettingFunction, 
                               save_params = False,
@@ -1115,8 +1116,9 @@ class SystemMgrNode():
             #self.msg_if.pub_warn("Got Updated System Config: " + str(updated_config))
             if updated_config is None:
                 self.system_config = dict()
-            for key in updated_config.keys():
-                self.system_settings_if.update_setting_value(key,updated_config[key])
+            if self.system_settings_if is not None:
+                for key in updated_config.keys():
+                    self.system_settings_if.update_setting_value(key,updated_config[key])
             
         else:
             self.msg_if.pub_warn("System Update Process Allready in Progress")
