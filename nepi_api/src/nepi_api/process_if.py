@@ -211,7 +211,7 @@ class ProcessIF:
         # Registry keys on a shared node_if must be domain-unique, so every key
         # this IF adds carries the process name. Param wire names ARE
         # namespace + key, so the prefix is part of the external param surface.
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
        
         ##############################    
@@ -945,14 +945,18 @@ class ProcessIF:
 
     def reset(self):
         """Reset the interface to its initialized state."""   
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
         nepi_sdk.sleep(1)     
-        self.init()
+        self.init(do_updates = True)
 
     def factory_reset(self):
         """Reset the interface to factory defaults."""
-        self.node_if.set_param(self.processes_param_name, dict())
-        self.init()
-        self._reloadProcesses()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+        self.init(do_updates = True)
 
     ###############################
     # Class Private Methods

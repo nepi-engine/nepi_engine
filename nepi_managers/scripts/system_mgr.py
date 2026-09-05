@@ -943,6 +943,7 @@ class SystemMgrNode():
 
             if do_updates == True:
                 managers_dict = nepi_mgrs.refreshManagersDict(self.managers_param_folder,self.managers_dict)
+                
                 purge_list = []
                 if 'MANAGER-NETWORK' in managers_dict.keys() and self.system_config['NEPI_MANAGES_NETWORK'] == 0:
                     purge_list.append('MANAGER-NETWORK')

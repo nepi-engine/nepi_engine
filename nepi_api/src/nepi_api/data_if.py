@@ -197,7 +197,7 @@ class DataIF:
         # Registry keys are prefixed with the data domain so a shared node_if
         # cannot have a sibling IF silently overwrite this IF's entries
         # (see the 2026-07 registry-key decision in the top-level CLAUDE.md).
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         ##############################
         # Initialize Class Variables
@@ -748,7 +748,7 @@ class DataIF:
         """
         if self.node_if is not None:
             # Prefixed key, matching how the param is registered and how the
-            # display setters write it back. get_param() returns None for a name
+            # display setters write it back. get_param(self.node_if_prefix +  ) returns None for a name
             # it does not know, so an unprefixed name wiped the data dict on
             # every config init, reset and factory reset, leaving DataStatus with
             # empty data lists and the RUI with an empty data box. The None guard
@@ -764,15 +764,19 @@ class DataIF:
 
     def reset(self):
         """Reset the data interface to its initialized state."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
+        nepi_sdk.sleep(1)     
+        self.init(do_updates = True)
 
     def factory_reset(self):
         """Reset the data interface to factory defaults."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+        self.init(do_updates = True)
+
 
     ###############################
     # Class Private Methods
@@ -1040,7 +1044,7 @@ class NavPoseIF:
         if os.path.basename(namespace) != self.data_product:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         if data_source_description is None:
             data_source_description = self.data_source_description
@@ -1678,15 +1682,19 @@ class NavPoseIF:
 
     def reset(self):
         """Reset the interface to its initialized state."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
+        nepi_sdk.sleep(1)     
+        self.init(do_updates = True)
 
     def factory_reset(self):
         """Reset the interface to factory defaults."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+        self.init(do_updates = True)
+
 
 
     ###############################
@@ -2102,7 +2110,7 @@ class BaseImageIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
           
         if perspective is not None:
@@ -2234,67 +2242,67 @@ class BaseImageIF:
         # Params Config Dict ####################
         self.PARAMS_DICT = {
 
-            'resolution_ratio': {
+            self.node_if_prefix + 'resolution_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["resolution_ratio"]
             },
-            'auto_adjust_enabled': {
+            self.node_if_prefix + 'auto_adjust_enabled': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["auto_adjust_enabled"]
             },
-            'auto_adjust_ratio': {
+            self.node_if_prefix + 'auto_adjust_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["auto_adjust_ratio"]
             },
-            'brightness_ratio': {
+            self.node_if_prefix + 'brightness_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["brightness_ratio"]
             },
-            'contrast_ratio': {
+            self.node_if_prefix + 'contrast_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["contrast_ratio"]
             },
-            'threshold_ratio': {
+            self.node_if_prefix + 'threshold_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["threshold_ratio"]
             },
-            'rotate_2d_deg': {
+            self.node_if_prefix + 'rotate_2d_deg': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["rotate_2d_deg"]
             },
-            'rotate_2d_swap_box': {
+            self.node_if_prefix + 'rotate_2d_swap_box': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["rotate_2d_swap_box"]
             },
-            'flip_horz': {
+            self.node_if_prefix + 'flip_horz': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["flip_horz"]
             },
-            'flip_vert': {
+            self.node_if_prefix + 'flip_vert': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["flip_vert"]
             },
-            'start_range_ratio': {
+            self.node_if_prefix + 'start_range_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["start_range_ratio"]
             },
-            'cam_fov': {
+            self.node_if_prefix + 'cam_fov': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['cam_fov']
             },
-            'cam_view': {
+            self.node_if_prefix + 'cam_view': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['cam_view']
             },
-            'cam_pos': {
+            self.node_if_prefix + 'cam_pos': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['cam_pos']
             },
-            'cam_rot': {
+            self.node_if_prefix + 'cam_rot': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['cam_rot']
             },
-            'stop_range_ratio': {
+           self.node_if_prefix +   'stop_range_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["stop_range_ratio"]
             },
@@ -2305,47 +2313,47 @@ class BaseImageIF:
             # a name node_if did not know and the writes were dropped silently.
             # use_wbg is only in PointcloudImageIF's DEFAULT_CONTROLS_DICT, hence the
             # get() default here.
-            'zoom_3d_ratio': {
+            self.node_if_prefix + 'zoom_3d_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['zoom_3d_ratio']
             },
-            'rotate_3d_ratio': {
+            self.node_if_prefix + 'rotate_3d_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['rotate_3d_ratio']
             },
-            'tilt_3d_ratio': {
+            self.node_if_prefix + 'tilt_3d_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['tilt_3d_ratio']
             },
-            'use_wbg': {
+            self.node_if_prefix + 'use_wbg': {
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict.get('use_wbg', False)
             },
-            'live_adjust_enabled': {
+            self.node_if_prefix + 'live_adjust_enabled': {
                 'namespace': self.namespace,
                 'factory_val': self.live_adjust_enabled
             },
-            'aspect_adjust_enabled': {
+            self.node_if_prefix + 'aspect_adjust_enabled': {
                 'namespace': self.namespace,
                 'factory_val': self.aspect_adjust_enabled
             },
-            'aspect_ratio_set': {
+            self.node_if_prefix +  'aspect_ratio_set': {
                 'namespace': self.namespace,
                 'factory_val': self.aspect_ratio_set
             },
-            'filter_dict': {
+            self.node_if_prefix + 'filter_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.filter_dict
             },
-            'overlays_dict': {
+            self.node_if_prefix + 'overlays_dict': {
                 'namespace': self.namespace,
                 'factory_val': self.overlays_dict
             },
-            'stream_compression_enabled': {
+            self.node_if_prefix + 'stream_compression_enabled': {
                 'namespace': self.namespace,
                 'factory_val': self.stream_compression_enabled
             },
-            'stream_compression_ratio': {
+            self.node_if_prefix + 'stream_compression_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.stream_compression_ratio
             },
@@ -4532,7 +4540,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('auto_adjust_enabled', enabled)
+            self.node_if.set_param(self.node_if_prefix +  'auto_adjust_enabled', enabled)
 
     def set_auto_adjust_ratio(self, ratio):
         """Set the auto-adjust strength ratio, clamped to [0.0, 1.0].
@@ -4549,7 +4557,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('auto_adjust_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix +  'auto_adjust_ratio', ratio)
 
     def set_brightness_ratio(self, ratio):
         """Set the image brightness ratio, clamped to [0.0, 1.0].
@@ -4565,7 +4573,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('brightness_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix +  'brightness_ratio', ratio)
 
     def set_contrast_ratio(self, ratio):
         """Set the image contrast ratio, clamped to [0.0, 1.0].
@@ -4581,7 +4589,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('contrast_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix +  'contrast_ratio', ratio)
 
     def set_threshold_ratio(self, ratio):
         """Set the image threshold (sharpness) ratio, clamped to [0.0, 1.0].
@@ -4598,7 +4606,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('threshold_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix +  'threshold_ratio', ratio)
 
     def set_filter_enable(self,name, enabled):
         """Enable or disable a named image filter.
@@ -4619,7 +4627,7 @@ class BaseImageIF:
                     self.publish_status()
                     self.needs_update()
                     if self.node_if is not None:
-                        self.node_if.set_param('filter_dict', self.filter_dict)
+                        self.node_if.set_param(self.node_if_prefix +  'filter_dict', self.filter_dict)
 
     def set_filter_ratio(self,name, ratio):
         """Set the intensity ratio for a named image filter, clamped to [0.0, 1.0].
@@ -4639,7 +4647,7 @@ class BaseImageIF:
                 self.filter_dict[name]['ratio'] = ratio
                 self.publish_status()
                 self.needs_update()
-                self.node_if.set_param('filter_dict', self.filter_dict)
+                self.node_if.set_param(self.node_if_prefix +  'filter_dict', self.filter_dict)
 
     ########################
     # Res and Orientation Functions
@@ -4659,7 +4667,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('resolution_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix +  'resolution_ratio', ratio)
 
     def set_rotate_2d_deg(self, deg):
         """Set the 2-D rotation angle, rounded to the nearest integer degree.
@@ -4672,7 +4680,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('rotate_2d_deg', deg_int)
+            self.node_if.set_param(self.node_if_prefix +  'rotate_2d_deg', deg_int)
 
     def set_rotate_2d_swap_box(self, enabled):
         """Enable or disable swapping the Free Cam output box dimensions (W/H).
@@ -4687,7 +4695,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('rotate_2d_swap_box', enabled)
+            self.node_if.set_param(self.node_if_prefix +  'rotate_2d_swap_box', enabled)
 
     def set_flip_horz(self, enabled):
         """Enable or disable horizontal image flip.
@@ -4699,7 +4707,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('flip_horz', enabled)
+            self.node_if.set_param(self.node_if_prefix +  'flip_horz', enabled)
 
     def set_flip_vert(self, enabled):
         """Enable or disable vertical image flip.
@@ -4711,7 +4719,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('flip_vert', enabled)
+            self.node_if.set_param(self.node_if_prefix +  'flip_vert', enabled)
 
     ########################
     # Render Functions
@@ -4739,8 +4747,8 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('start_range_ratio', start_ratio)
-            self.node_if.set_param('stop_range_ratio', stop_ratio)
+            self.node_if.set_param(self.node_if_prefix +  'start_range_ratio', start_ratio)
+            self.node_if.set_param(self.node_if_prefix +  'stop_range_ratio', stop_ratio)
 
 
     def set_zoom_ratio(self, ratio):
@@ -5020,7 +5028,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('zoom_3d_ratio', self.controls_dict['zoom_3d_ratio'])
+            self.node_if.set_param(self.node_if_prefix +  'zoom_3d_ratio', self.controls_dict['zoom_3d_ratio'])
 
     def set_rotate_3d_ratio(self, ratio):
         """Set the 3-D rotation ratio, clamped to a valid ratio range.
@@ -5032,7 +5040,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('rotate_3d_ratio', self.controls_dict['rotate_3d_ratio'])
+            self.node_if.set_param(self.node_if_prefix +  'rotate_3d_ratio', self.controls_dict['rotate_3d_ratio'])
 
     def set_tilt_3d_ratio(self, ratio):
         """Set the 3-D tilt ratio, clamped to a valid ratio range.
@@ -5044,21 +5052,21 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('tilt_3d_ratio', self.controls_dict['tilt_3d_ratio'])
+            self.node_if.set_param(self.node_if_prefix +  'tilt_3d_ratio', self.controls_dict['tilt_3d_ratio'])
 
     ########################
 
     def set_aspect_adjust_enable(self,enabled):
         self.aspect_adjust_enabled = enabled and self.aspect_adjustment_disabled == False
         if self.node_if is not None:
-            self.node_if.set_param('aspect_adjust_enabled', self.aspect_adjust_enabled)
+            self.node_if.set_param(self.node_if_prefix +  'aspect_adjust_enabled', self.aspect_adjust_enabled)
 
     def set_aspect_adjust_ratio(self,aspect_ratio):
         if aspect_ratio is not None:
             if aspect_ratio >= 0.5 and aspect_ratio <= 2.5:
                 self.aspect_ratio_set = aspect_ratio #nepi_img.get_aspect_ratio_clean(aspect_ratio)
                 if self.node_if is not None:
-                    self.node_if.set_param('aspect_ratio_set', self.aspect_ratio_set)
+                    self.node_if.set_param(self.node_if_prefix +  'aspect_ratio_set', self.aspect_ratio_set)
 
     def set_aspect_adjust_by_ratio(self,ratio):
         ratio = nepi_utils.check_ratio(ratio)
@@ -5072,13 +5080,13 @@ class BaseImageIF:
         self.stream_compression_enabled = enabled
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('stream_compression_enabled', self.stream_compression_enabled)
+            self.node_if.set_param(self.node_if_prefix +  'stream_compression_enabled', self.stream_compression_enabled)
 
     def set_stream_compression_ratio(self,ratio):
         self.stream_compression_ratio = nepi_utils.check_ratio(ratio)
         self.publish_status()
         if self.node_if is not None:
-            self.node_if.set_param('stream_compression_ratio', self.stream_compression_ratio)
+            self.node_if.set_param(self.node_if_prefix +  'stream_compression_ratio', self.stream_compression_ratio)
 
 
 
@@ -5096,7 +5104,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
 
@@ -5122,7 +5130,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_vert_ratio(self, ratio):
         """Set the relative size of text overlays on the image.
@@ -5135,7 +5143,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_horz_ratio(self, ratio):
         """Set the relative size of text overlays on the image.
@@ -5148,7 +5156,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_transparency_ratio(self, ratio):
         """Set the relative size of text overlays on the image.
@@ -5161,14 +5169,14 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_color_rgb(self, r = 0, g = 255, b = 0):
         self.overlays_dict['overlay_text_color_rgb'] = (r,g,b)
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_image_name(self,enabled):
         """Enable or disable the image name text overlay.
@@ -5180,7 +5188,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_date_time(self,enabled):
         """Enable or disable the date/time text overlay.
@@ -5192,7 +5200,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_nav(self,enabled):
         """Enable or disable the GPS navigation (lat/lon/heading) text overlay.
@@ -5204,7 +5212,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_pose(self,enabled):
         """Enable or disable the roll/pitch/yaw pose text overlay.
@@ -5216,7 +5224,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text_list(self,overlay_text_list):
         """Replace the additional text overlay list with the provided list.
@@ -5228,7 +5236,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_text(self,overlay_text):
         """Append a text string to the additional overlay list.
@@ -5242,7 +5250,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def clear_overlay_text_list(self):
         """Clear all entries from the additional text overlay list."""
@@ -5250,7 +5258,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
     ###################################
@@ -5268,7 +5276,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_click_crosshair(self,enabled):
         """Enable or disable the click crosshair enable.
@@ -5295,7 +5303,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_crosshairs_thickness_ratio(self, ratio):
         """Set the relative thickness of crosshairs overlays on the image.
@@ -5310,7 +5318,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_crosshairs_text_ratio(self, ratio):
         """Set the relative text of crosshairs overlays on the image.
@@ -5325,7 +5333,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_crosshairs_transparency_ratio(self, ratio):
         """Set the relative size of crosshairs overlays on the image.
@@ -5339,7 +5347,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
     def set_crosshairs_color_rgb(self, r = 0, g = 255, b = 0):
@@ -5347,7 +5355,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
       
 
 
@@ -5362,7 +5370,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_crosshair_pixels(self,enabled):
         """Enable or disable the crosshair pixels overlays.
@@ -5374,7 +5382,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_crosshair_degrees(self,enabled):
         """Enable or disable the crosshair degrees overlays.
@@ -5386,7 +5394,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_crosshair_messages(self,enabled):
         """Enable or disable the crosshair messages overlays.
@@ -5398,7 +5406,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
     def add_crosshair_pixels(self, x_pixel, y_pixel, name = None, color_rgb = None, msg_str = ''):
@@ -5458,7 +5466,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def remove_crosshair(self, name):
         """Remove entry from crosshairs overlay dict."""
@@ -5467,7 +5475,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
         except:
             pass
         
@@ -5480,7 +5488,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
     ###################################
@@ -5498,7 +5506,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_click_target(self,enabled):
         """Enable or disable the click target enable.
@@ -5524,7 +5532,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_targets_thickness_ratio(self, ratio):
         """Set the relative thickness of targets overlays on the image.
@@ -5539,7 +5547,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_targets_text_ratio(self, ratio):
         """Set the relative text of targets overlays on the image.
@@ -5554,7 +5562,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_targets_transparency_ratio(self, ratio):
         """Set the relative size of targets overlays on the image.
@@ -5567,7 +5575,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
     def set_targets_color_rgb(self, r = 0, g = 255, b = 0):
@@ -5575,7 +5583,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
       
 
 
@@ -5590,7 +5598,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_target_pixels(self,enabled):
         """Enable or disable the target pixels overlays.
@@ -5602,7 +5610,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_target_degrees(self,enabled):
         """Enable or disable the target degrees overlays.
@@ -5614,7 +5622,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def set_overlay_target_messages(self,enabled):
         """Enable or disable the target messages overlays.
@@ -5626,7 +5634,7 @@ class BaseImageIF:
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
-            self.node_if.set_param('overlays_dict', self.overlays_dict)
+            self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
     def add_target_pixels(self, x_pixel, y_pixel, name = None, color_rgb = None, msg_str = ''):
@@ -5685,7 +5693,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
     def remove_target(self, name):
         """Remove entry from targets overlay dict."""
@@ -5694,7 +5702,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
         except:
             pass
         
@@ -5707,7 +5715,7 @@ class BaseImageIF:
             self.publish_status()
             self.needs_update()
             if self.node_if is not None:
-                self.node_if.set_param('overlays_dict', self.overlays_dict)
+                self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
 
@@ -5718,7 +5726,7 @@ class BaseImageIF:
         self.live_adjust_dict['live_adjust_enabled'] = enabled and self.live_adjustments_disabled == False
         self.live_adjust_enabled = self.live_adjust_dict['live_adjust_enabled']
         if self.node_if is not None:
-            self.node_if.set_param('live_adjust_enabled', self.live_adjust_enabled)
+            self.node_if.set_param(self.node_if_prefix +  'live_adjust_enabled', self.live_adjust_enabled)
 
     def set_live_adjust_rotate_ratio(self,ratio):
         if self.live_adjust_dict['live_adjust_enabled'] == True:
@@ -5790,12 +5798,12 @@ class BaseImageIF:
         self.node_if.factory_reset_param('threshold_ratio')
         self.node_if.factory_reset_param('filter_dict')
 
-        self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
-        self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param('auto_adjust_ratio')
-        self.controls_dict['brightness_ratio'] = self.node_if.get_param('brightness_ratio')
-        self.controls_dict['contrast_ratio'] = self.node_if.get_param('contrast_ratio')
-        self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
-        filter_dict = self.node_if.get_param('filter_dict')
+        self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_enabled')
+        self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_ratio')
+        self.controls_dict['brightness_ratio'] = self.node_if.get_param(self.node_if_prefix +  'brightness_ratio')
+        self.controls_dict['contrast_ratio'] = self.node_if.get_param(self.node_if_prefix +  'contrast_ratio')
+        self.controls_dict['threshold_ratio'] = self.node_if.get_param(self.node_if_prefix +  'threshold_ratio')
+        filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict')
         if filter_dict is not None:
             self.filter_dict = filter_dict
 
@@ -5806,7 +5814,7 @@ class BaseImageIF:
     def reset_overlays(self):
         """Reset all overlay settings to factory defaults."""
         self.node_if.factory_reset_param('overlays_dict')
-        self.overlays_dict = self.node_if.get_param('overlays_dict')
+        self.overlays_dict = self.node_if.get_param(self.node_if_prefix +  'overlays_dict')
        
         
         self.publish_status()  
@@ -5825,13 +5833,13 @@ class BaseImageIF:
         self.node_if.factory_reset_param('flip_vert')
 
 
-        self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
-        self.controls_dict['rotate_2d_deg'] = self.node_if.get_param('rotate_2d_deg')
-        self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param('rotate_2d_swap_box')
-        self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
-        self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
+        self.controls_dict['resolution_ratio'] = self.node_if.get_param(self.node_if_prefix +  'resolution_ratio')
+        self.controls_dict['rotate_2d_deg'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_deg')
+        self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_swap_box')
+        self.controls_dict['flip_horz'] = self.node_if.get_param(self.node_if_prefix +  'flip_horz')
+        self.controls_dict['flip_vert'] = self.node_if.get_param(self.node_if_prefix +  'flip_vert')
 
-        filter_dict = self.node_if.get_param('filter_dict')
+        filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict')
         if filter_dict is not None:
             self.filter_dict = filter_dict
 
@@ -5866,8 +5874,8 @@ class BaseImageIF:
         # self.node_if.factory_reset_param('start_range_ratio')
         # self.node_if.factory_reset_param('stop_range_ratio')
 
-        # self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
-        # self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
+        # self.controls_dict['start_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'start_range_ratio')
+        # self.controls_dict['stop_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'stop_range_ratio')
 
         self.live_adjust_dict['live_adjust_rotate_ratio'] = 0.5
         self.live_adjust_dict['live_adjust_x_ratio'] = 0.5
@@ -6168,62 +6176,62 @@ class BaseImageIF:
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
         if self.node_if is not None:
-            self.controls_dict['resolution_ratio'] = self.node_if.get_param('resolution_ratio')
-            self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param('auto_adjust_enabled')
-            self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param('auto_adjust_ratio')
-            self.controls_dict['brightness_ratio'] = self.node_if.get_param('brightness_ratio')
-            self.controls_dict['contrast_ratio'] = self.node_if.get_param('contrast_ratio')
-            self.controls_dict['threshold_ratio'] = self.node_if.get_param('threshold_ratio')
+            self.controls_dict['resolution_ratio'] = self.node_if.get_param(self.node_if_prefix +  'resolution_ratio')
+            self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_enabled')
+            self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_ratio')
+            self.controls_dict['brightness_ratio'] = self.node_if.get_param(self.node_if_prefix +  'brightness_ratio')
+            self.controls_dict['contrast_ratio'] = self.node_if.get_param(self.node_if_prefix +  'contrast_ratio')
+            self.controls_dict['threshold_ratio'] = self.node_if.get_param(self.node_if_prefix +  'threshold_ratio')
 
-            self.controls_dict['rotate_2d_deg'] = self.node_if.get_param('rotate_2d_deg')
-            self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param('rotate_2d_swap_box')
-            self.controls_dict['flip_horz'] = self.node_if.get_param('flip_horz')
-            self.controls_dict['flip_vert'] = self.node_if.get_param('flip_vert')
+            self.controls_dict['rotate_2d_deg'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_deg')
+            self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_swap_box')
+            self.controls_dict['flip_horz'] = self.node_if.get_param(self.node_if_prefix +  'flip_horz')
+            self.controls_dict['flip_vert'] = self.node_if.get_param(self.node_if_prefix +  'flip_vert')
 
 
             self.controls_dict['window_ratios'] = [0,1,0,1]
             # Read the range window back rather than hardcoding 0/1. Both keys are
             # registered and both write paths persist them, so hardcoding here threw
             # away a correctly saved range window on every restart.
-            self.controls_dict['start_range_ratio'] = self.node_if.get_param('start_range_ratio')
-            self.controls_dict['stop_range_ratio'] = self.node_if.get_param('stop_range_ratio')
+            self.controls_dict['start_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'start_range_ratio')
+            self.controls_dict['stop_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'stop_range_ratio')
 
 
-            self.controls_dict['cam_fov'] = self.node_if.get_param('cam_fov')
+            self.controls_dict['cam_fov'] = self.node_if.get_param(self.node_if_prefix +  'cam_fov')
 
 
-            self.controls_dict['cam_view'] =  self.node_if.get_param('cam_view')
-            self.controls_dict['cam_pos'] =  self.node_if.get_param('cam_pos')
-            self.controls_dict['cam_rot'] =  self.node_if.get_param('cam_rot')
+            self.controls_dict['cam_view'] =  self.node_if.get_param(self.node_if_prefix +  'cam_view')
+            self.controls_dict['cam_pos'] =  self.node_if.get_param(self.node_if_prefix +  'cam_pos')
+            self.controls_dict['cam_rot'] =  self.node_if.get_param(self.node_if_prefix +  'cam_rot')
 
-            self.controls_dict['zoom_3d_ratio'] = self.node_if.get_param('zoom_3d_ratio')
-            self.controls_dict['rotate_3d_ratio'] = self.node_if.get_param('rotate_3d_ratio')
-            self.controls_dict['tilt_3d_ratio'] = self.node_if.get_param('tilt_3d_ratio')
-            self.controls_dict['use_wbg'] = self.node_if.get_param('use_wbg')
+            self.controls_dict['zoom_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'zoom_3d_ratio')
+            self.controls_dict['rotate_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'rotate_3d_ratio')
+            self.controls_dict['tilt_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'tilt_3d_ratio')
+            self.controls_dict['use_wbg'] = self.node_if.get_param(self.node_if_prefix +  'use_wbg')
 
             self.status_msg.camera_fov = self.controls_dict['cam_fov']
 
 
 
-            self.live_adjust_enabled  = self.node_if.get_param('live_adjust_enabled') and self.live_adjustments_disabled == False
+            self.live_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'live_adjust_enabled') and self.live_adjustments_disabled == False
             self.live_adjust_dict['live_adjust_enabled'] = self.live_adjust_enabled
 
-            aspect_adjust_enabled  = self.node_if.get_param('aspect_adjust_enabled')
+            aspect_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'aspect_adjust_enabled')
             self.set_aspect_adjust_enable(aspect_adjust_enabled)
-            aspect_ratio_set = self.node_if.get_param('aspect_ratio_set')
+            aspect_ratio_set = self.node_if.get_param(self.node_if_prefix +  'aspect_ratio_set')
             self.set_aspect_adjust_ratio(aspect_ratio_set)
 
-            self.stream_compression_enabled  = self.node_if.get_param('stream_compression_enabled')
-            self.stream_compression_ratio = self.node_if.get_param('stream_compression_ratio')
+            self.stream_compression_enabled  = self.node_if.get_param(self.node_if_prefix +  'stream_compression_enabled')
+            self.stream_compression_ratio = self.node_if.get_param(self.node_if_prefix +  'stream_compression_ratio')
 
 
-            filter_dict = self.node_if.get_param('filter_dict')
+            filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict')
             if filter_dict is not None:
                 self.filter_dict = filter_dict
             else:
                 self.filter_dict = dict()
 
-            overlays_dict = self.node_if.get_param('overlays_dict')
+            overlays_dict = self.node_if.get_param(self.node_if_prefix +  'overlays_dict')
             if overlays_dict is not None:
 
                 crosshairs_dict = dict()
@@ -6273,15 +6281,19 @@ class BaseImageIF:
 
     def reset(self):
         """Reset the image interface to its initialized state."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
+        nepi_sdk.sleep(1)     
+        self.init(do_updates = True)
 
     def factory_reset(self):
         """Reset the image interface to factory defaults."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+        self.init(do_updates = True)
+
 
     ###############################
     # Class Private Methods
@@ -6733,7 +6745,7 @@ class BaseImageIF:
             new_val = 30
         self.controls_dict['cam_fov'] = new_val
         self.publish_status()
-        self.node_if.set_param('cam_fov',new_val)
+        self.node_if.set_param(self.node_if_prefix +  'cam_fov',new_val)
 
     def setCamViewCb(self,msg):
         #self.msg_if.pub_info(str(msg))
@@ -6743,7 +6755,7 @@ class BaseImageIF:
         new_array.append(msg.z)
         self.controls_dict['cam_view'] = new_array
         self.publish_status()
-        self.node_if.set_param('cam_view',new_array)
+        self.node_if.set_param(self.node_if_prefix +  'cam_view',new_array)
 
     def setCamPositionCb(self,msg):
         #self.msg_if.pub_info(str(msg))
@@ -6753,7 +6765,7 @@ class BaseImageIF:
         new_array.append(msg.z)
         self.controls_dict['cam_pos'] = new_array
         self.publish_status()
-        self.node_if.set_param('cam_pos',new_array)
+        self.node_if.set_param(self.node_if_prefix +  'cam_pos',new_array)
 
 
     def setCamRotationCb(self,msg):
@@ -6764,7 +6776,7 @@ class BaseImageIF:
         new_array.append(msg.z)
         self.controls_dict['cam_rot'] = new_array
         self.publish_status()
-        self.node_if.set_param('cam_rot',new_array)
+        self.node_if.set_param(self.node_if_prefix +  'cam_rot',new_array)
 
     def setRangeRatiosCb(self,msg):
         #self.msg_if.pub_info(str(msg))
@@ -6777,8 +6789,8 @@ class BaseImageIF:
             # re-ranged. Same shape as the setWhiteBgCb note below.
             self.controls_dict['start_range_ratio'] = min_ratio
             self.controls_dict['stop_range_ratio'] = max_ratio
-            self.node_if.set_param('start_range_ratio', min_ratio)
-            self.node_if.set_param('stop_range_ratio', max_ratio)
+            self.node_if.set_param(self.node_if_prefix +  'start_range_ratio', min_ratio)
+            self.node_if.set_param(self.node_if_prefix +  'stop_range_ratio', max_ratio)
             self.publish_status()
             self.needs_update()
 
@@ -6787,7 +6799,7 @@ class BaseImageIF:
         # controls_dict is what the renderer resolves from; a param write alone
         # left this toggle inert until the next node restart.
         self.controls_dict['use_wbg'] = enable
-        self.node_if.set_param('use_wbg', enable)
+        self.node_if.set_param(self.node_if_prefix +  'use_wbg', enable)
         self.publish_status()
         self.needs_update()
 
@@ -7654,7 +7666,7 @@ class DepthMapIF:
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
 
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         '''
                 default_min_meters = 0.0,
@@ -8283,15 +8295,20 @@ class DepthMapIF:
 
     def reset(self):
         """Reset the depth map interface to its initialized state."""
-        if self.node_if is not None:
-            pass
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
+        nepi_sdk.sleep(1)     
+        self.init(do_updates = True)
         self.init()
 
     def factory_reset(self):
         """Reset the depth map interface to factory defaults."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+        self.init(do_updates = True)
+
 
     ###############################
     # Class Private Methods
@@ -8831,7 +8848,7 @@ class PointcloudIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         self.init_overlay_text_list = init_overlay_text_list
 
@@ -8883,11 +8900,11 @@ class PointcloudIF:
         # Params Config Dict ####################
         self.PARAMS_DICT = {
 
-            'render_enable': {
+            self.node_if_prefix + 'render_enable': {
                 'namespace': self.namespace,
                 'factory_val': True
             },
-            'use_wbg': {
+            self.node_if_prefix + 'use_wbg': {
                 'namespace': self.namespace,
                 'factory_val': False
             },
@@ -8896,47 +8913,47 @@ class PointcloudIF:
             # fields, but neither key was registered: the writes were dropped, the
             # factory_reset_param calls in resetRenderControls were no-ops, and the
             # status fields never left 0.0.
-            'rotate_ratio': {
+            self.node_if_prefix + 'rotate_ratio': {
                 'namespace': self.namespace,
                 'factory_val': 0.5
             },
-            'tilt_ratio': {
+            self.node_if_prefix + 'tilt_ratio': {
                 'namespace': self.namespace,
                 'factory_val': 0.5
             },
-            'frame_3d': {
+            self.node_if_prefix + 'frame_3d': {
                 'namespace': self.namespace,
                 'factory_val': self.frame3d_list[0]
             },
-            'clip_enabled': {
+            self.node_if_prefix + 'clip_enabled': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_enabled']
             },
-            'clip_selection': {
+            self.node_if_prefix + 'clip_selection': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_selection']
             },
-            'range_min_m': {
+            self.node_if_prefix + 'range_min_m': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_min_range_m']
             },
-            'range_max_m': {
+            self.node_if_prefix + 'range_max_m': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_max_range_m']
             },
-            'voxel_downsample_size': {
+            self.node_if_prefix + 'voxel_downsample_size': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['voxel_downsample_size']
             },
-            'uniform_downsample_k_points': {
+            self.node_if_prefix + 'uniform_downsample_k_points': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['uniform_downsample_k_points']
             },
-            'outlier_removal_num_neighbors': {
+            self.node_if_prefix + 'outlier_removal_num_neighbors': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['outlier_removal_num_neighbors']
             },
-            'outlier_removal_std_ratio': {
+            self.node_if_prefix + 'outlier_removal_std_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['outlier_removal_std_ratio']
             }
@@ -9469,10 +9486,10 @@ class PointcloudIF:
             outlier_num_neighbors = None
             outlier_std_ratio = None
             if self.node_if is not None:
-                voxel_size_m = self.node_if.get_param('voxel_downsample_size')
-                uniform_k_points = self.node_if.get_param('uniform_downsample_k_points')
-                outlier_num_neighbors = self.node_if.get_param('outlier_removal_num_neighbors')
-                outlier_std_ratio = self.node_if.get_param('outlier_removal_std_ratio')
+                voxel_size_m = self.node_if.get_param(self.node_if_prefix +  'voxel_downsample_size')
+                uniform_k_points = self.node_if.get_param(self.node_if_prefix +  'uniform_downsample_k_points')
+                outlier_num_neighbors = self.node_if.get_param(self.node_if_prefix +  'outlier_removal_num_neighbors')
+                outlier_std_ratio = self.node_if.get_param(self.node_if_prefix +  'outlier_removal_std_ratio')
 
             if voxel_size_m is not None and voxel_size_m > 0:
                 try:
@@ -9588,30 +9605,30 @@ class PointcloudIF:
         if self.node_if is not None:
 
             if do_updates == True:
-                self.status_msg.clip_enabled = self.node_if.get_param('clip_enabled')
+                self.status_msg.clip_enabled = self.node_if.get_param(self.node_if_prefix +  'clip_enabled')
                 self.status_msg.clip_options = self.clip_options
-                self.status_msg.clip_selection = self.node_if.get_param('clip_selection')
+                self.status_msg.clip_selection = self.node_if.get_param(self.node_if_prefix +  'clip_selection')
 
                 clip_meters = RangeWindow()
-                clip_meters.start_range =   float(self.node_if.get_param('range_min_m'))
-                clip_meters.stop_range =   float(self.node_if.get_param('range_max_m'))
+                clip_meters.start_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_min_m'))
+                clip_meters.stop_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_max_m'))
                 self.status_msg.clip_meters = clip_meters
 
                 self.status_msg.clip_target_topic = self.bounding_box3d_topic
 
 
-                self.status_msg.voxel_downsample_size_m = self.node_if.get_param('voxel_downsample_size')
-                self.status_msg.uniform_downsample_points = self.node_if.get_param('uniform_downsample_k_points')
-                self.status_msg.outlier_k_points = self.node_if.get_param('outlier_removal_num_neighbors')
+                self.status_msg.voxel_downsample_size_m = self.node_if.get_param(self.node_if_prefix +  'voxel_downsample_size')
+                self.status_msg.uniform_downsample_points = self.node_if.get_param(self.node_if_prefix +  'uniform_downsample_k_points')
+                self.status_msg.outlier_k_points = self.node_if.get_param(self.node_if_prefix +  'outlier_removal_num_neighbors')
 
-                self.status_msg.render_enable = self.node_if.get_param('render_enable')
+                self.status_msg.render_enable = self.node_if.get_param(self.node_if_prefix +  'render_enable')
 
                 # Degrees use the same conversion the renderer applies to its own
                 # rotate_3d_ratio/tilt_3d_ratio, so the two agree on what 0.5 means.
-                rotate_ratio = self.node_if.get_param('rotate_ratio')
+                rotate_ratio = self.node_if.get_param(self.node_if_prefix +  'rotate_ratio')
                 self.status_msg.rotate_ratio = rotate_ratio
                 self.status_msg.rotate_deg = (0.5 - rotate_ratio) * 2 * 180
-                tilt_ratio = self.node_if.get_param('tilt_ratio')
+                tilt_ratio = self.node_if.get_param(self.node_if_prefix +  'tilt_ratio')
                 self.status_msg.tilt_ratio = tilt_ratio
                 self.status_msg.tilt_deg = (0.5 - tilt_ratio) * 2 * 180
 
@@ -9642,15 +9659,19 @@ class PointcloudIF:
 
     def reset(self):
         """Reset the pointcloud interface to its initialized state."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
+        nepi_sdk.sleep(1)     
+        self.init(do_updates = True)
 
     def factory_reset(self):
         """Reset the pointcloud interface to factory defaults."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+        self.init(do_updates = True)
+
 
     ###############################
     # Class Private Methods
@@ -9758,7 +9779,7 @@ class PointcloudIF:
         except (TypeError, ValueError):
             val = None
         if val is not None and val >= 0:
-            self.node_if.set_param('voxel_downsample_size', val)
+            self.node_if.set_param(self.node_if_prefix +  'voxel_downsample_size', val)
             success = True
         self.publish_status()
         return success
@@ -9779,7 +9800,7 @@ class PointcloudIF:
         except (TypeError, ValueError):
             val = None
         if val is not None and val >= 0:
-            self.node_if.set_param('uniform_downsample_k_points', val)
+            self.node_if.set_param(self.node_if_prefix +  'uniform_downsample_k_points', val)
             success = True
         self.publish_status()
         return success
@@ -9800,7 +9821,7 @@ class PointcloudIF:
         except (TypeError, ValueError):
             val = None
         if val is not None and val >= 0:
-            self.node_if.set_param('outlier_removal_num_neighbors', val)
+            self.node_if.set_param(self.node_if_prefix +  'outlier_removal_num_neighbors', val)
             success = True
         self.publish_status()
         return success
@@ -9824,7 +9845,7 @@ class PointcloudIF:
         except (TypeError, ValueError):
             val = None
         if val is not None and val > 0:
-            self.node_if.set_param('outlier_removal_std_ratio', val)
+            self.node_if.set_param(self.node_if_prefix +  'outlier_removal_std_ratio', val)
             success = True
         self.publish_status()
         return success
@@ -9851,14 +9872,14 @@ class PointcloudIF:
     def clipEnableCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         new_enable = msg.data
-        self.node_if.set_param('clip_enabled', new_enable)
+        self.node_if.set_param(self.node_if_prefix +  'clip_enabled', new_enable)
         self.publish_status()
 
     def setClipSelectionCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         sel = msg.data
         if sel in self.clip_options:
-            self.node_if.set_param('clip_selection', sel )
+            self.node_if.set_param(self.node_if_prefix +  'clip_selection', sel )
         self.publish_status()
 
     def setClipBoxTopicCb(self,msg):
@@ -9871,8 +9892,8 @@ class PointcloudIF:
         range_min_m = msg.start_range
         range_max_m = msg.stop_range
         if range_min_m < range_max_m:
-            self.node_if.set_param('range_min_m', range_min_m)
-            self.node_if.set_param('range_max_m', range_max_m)
+            self.node_if.set_param(self.node_if_prefix +  'range_min_m', range_min_m)
+            self.node_if.set_param(self.node_if_prefix +  'range_max_m', range_max_m)
         self.publish_status()
 
     def setVoxelSizeCb(self,msg):
@@ -9892,7 +9913,7 @@ class PointcloudIF:
         frame_3d = msg.data
         frame3d_list = self.frame3d_list
         if frame_3d in frame3d_list:
-            self.node_if.set_param('frame_3d',frame_3d)
+            self.node_if.set_param(self.node_if_prefix +  'frame_3d',frame_3d)
         self.publish_status()
 
     ###################
@@ -9913,8 +9934,8 @@ class PointcloudIF:
         width = msg.image_width
         height = msg.image_height
         if width > 100 and width < 5000 and height > 100 and height < 5000:
-            self.node_if.set_param('image_width',  width)
-            self.node_if.set_param('image_height', height)
+            self.node_if.set_param(self.node_if_prefix +  'image_width',  width)
+            self.node_if.set_param(self.node_if_prefix +  'image_height', height)
             self.publish_status()
 
     def setImageSizeIndCb(self,msg):
@@ -9926,35 +9947,35 @@ class PointcloudIF:
             width = float(size__split[0])
             height = float(size__split[2])
             if width > 100 and width < 5000 and height > 100 and height < 5000:
-                self.node_if.set_param('image_width',  width)
-                self.node_if.set_param('image_height', height)
+                self.node_if.set_param(self.node_if_prefix +  'image_width',  width)
+                self.node_if.set_param(self.node_if_prefix +  'image_height', height)
                 self.publish_status()
 
     def setZoomRatioCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         new_val = msg.data
         if new_val >= 0 and new_val <= 1 :
-            self.node_if.set_param('zoom_ratio',new_val)
+            self.node_if.set_param(self.node_if_prefix +  'zoom_ratio',new_val)
             self.publish_status()
 
     def setRotateRatioCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         new_val = msg.data
         if new_val >= 0 and new_val <= 1 :
-            self.node_if.set_param('rotate_ratio',new_val)
+            self.node_if.set_param(self.node_if_prefix +  'rotate_ratio',new_val)
             self.publish_status()
 
     def setTiltRatioCb(self,msg):
         #self.msg_if.pub_info(str(msg))
         new_val = msg.data
         if new_val >= 0 and new_val <= 1 :
-            self.node_if.set_param('tilt_ratio',new_val)
+            self.node_if.set_param(self.node_if_prefix +  'tilt_ratio',new_val)
             self.publish_status()
 
 
     def setRenderEnableCb(self,msg):
         render_enable = msg.data
-        self.node_if.set_param('render_enable', render_enable)
+        self.node_if.set_param(self.node_if_prefix +  'render_enable', render_enable)
         self.publish_status()
 
 ##################################################

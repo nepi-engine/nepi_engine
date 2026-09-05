@@ -151,7 +151,7 @@ class ControlsIF:
         # Built from the sanitized self.controls_name, not the raw argument -- the
         # namespace must match the name reported in ControlsStatus.
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         ##############################    
         # Initialize Class Variables
@@ -632,16 +632,28 @@ class ControlsIF:
         self.publish_status()
 
     def reset(self):
-        """Reset the image interface to its initialized state."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        """Reset parameters to their last-saved (user) values and reinitialize.
+
+        Calls node_if.reset_params() to reload the user configuration tier, then
+        reinitializes from the param server.
+        """
+        self.controls_dict = nepi_controls.reset_control_values(self.controls_dict)
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.node_if.reset_params()
+        self.init(do_updates = True)
 
     def factory_reset(self):
-        """Reset the image interface to factory defaults."""
-        if self.node_if is not None:
-            pass
-        self.init()
+        """Reset parameters to factory defaults and reinitialize.
+
+        Calls node_if.factory_reset_params() to restore factory values, then
+        reinitializes from the param server.
+        """
+        self.controls_dict = nepi_controls.reset_control_values(self.controls_dict)
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.node_if.factory_reset_params()
+        self.init(do_updates = True)
 
     ###############################
     # Class Private Methods
@@ -1620,7 +1632,7 @@ class SaveDataIF:
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,save_data_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
         
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
@@ -2580,7 +2592,7 @@ class SaveDataIF:
         Calls node_if.reset_params() to reload the user configuration tier, then
         reinitializes from the param server.
         """
-        if self.node_if is not None:
+        if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
         self.init(do_updates = True)
@@ -2591,7 +2603,7 @@ class SaveDataIF:
         Calls node_if.factory_reset_params() to restore factory values, then
         reinitializes from the param server.
         """
-        if self.node_if is not None:
+        if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
@@ -2783,7 +2795,7 @@ class Transform3DIF:
             return
         self.msg_if.pub_info("Using States Name: " + transform_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,transform_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         self.source = source_ref_description
         self.end = end_ref_description
@@ -3175,7 +3187,7 @@ class Transform3DIF:
         Calls node_if.reset_params() to reload the user configuration tier, then
         reinitializes from the param server.
         """
-        if self.node_if is not None:
+        if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
         self.init(do_updates = True)
@@ -3186,7 +3198,7 @@ class Transform3DIF:
         Calls node_if.factory_reset_params() to restore factory values, then
         reinitializes from the param server.
         """
-        if self.node_if is not None:
+        if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
@@ -3366,7 +3378,7 @@ class SettingsIF:
         self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
 
         if use_nodename_prefix == True:
-            self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_' 
+            self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_' 
         else:
             self.node_if_prefix = settings_name  + '_' 
         SETTINGS_PARAM_KEY = self.node_if_prefix
@@ -3708,7 +3720,7 @@ class SettingsIF:
         configuration tier via node_if.reset_params(), then reapplies.
         """
         self.settings_dict = nepi_controls.reset_control_values(self.settings_dict)
-        if self.node_if is not None and self.save_params == True:
+        if self.node_if is not None and self.save_params == True and self.node_if_shared == False:
             self.node_if.reset_params()
         self.init(do_updates = True)
 
@@ -3720,7 +3732,7 @@ class SettingsIF:
         then reapplies.
         """
         self.settings_dict = nepi_controls.reset_control_values(self.settings_dict)
-        if self.node_if is not None and self.save_params == True:
+        if self.node_if is not None and self.save_params == True and self.node_if_shared == False:
             self.node_if.factory_reset_params()
         self.init(do_updates = True)
 
@@ -3852,7 +3864,7 @@ class StatesIF:
         self.msg_if.pub_info("Using States Name: " + states_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,states_name)
 
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
 
         ##############################  
         # Create NodeClassIF Class  
@@ -4070,7 +4082,7 @@ class TriggersIF:
         if triggers_name is None or triggers_name == '':
             self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
             return
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
         ##############################  
         # Create NodeClassIF Class  
 

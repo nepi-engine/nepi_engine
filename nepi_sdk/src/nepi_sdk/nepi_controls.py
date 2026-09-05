@@ -45,12 +45,12 @@ logger = Logger(log_name = log_name)
 
 CONTROL_TYPES = ["Menu","Selection","Selections","Trigger", "Toggle", "Toggles", "String", "Int","Float","FloatSlider","RangeSlider"]
 
-LIST_TYPES = ["Selections","Toggles","RangeSlider"]
+LIST_TYPES = ["Menu","Selections","Toggles","RangeSlider"]
 OPTIONS_TYPES =  ["Menu","Selection","Selections","Toggles"]
 BOUNDS_TYPES = ["Int","Float","FloatSlider","RangeSlider"]
 STRING_TYPES = ["Selection","Selections","Toggles"]
-BOOL_TYPES = ["Toggle", "Toggles"]
-INT_TYPES = ["Int"]
+BOOL_TYPES = ["Toggle"]
+INT_TYPES = ["Menu","Int"]
 FLOAT_TYPES = ["Float","FloatSlider","RangeSlider"]
 EMPTY_TYPES = ['Trigger']
 
@@ -186,7 +186,7 @@ def create_controls_dict(init_dict):
 
         check_value = copy.deepcopy(value)
         value = get_clean_value(check_dict, name, value)
-        logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(value) + ": " + str(check_value))
+        #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(value) + ": " + str(check_value))
         if value is None:
           continue
         control_dict['default'] = value
