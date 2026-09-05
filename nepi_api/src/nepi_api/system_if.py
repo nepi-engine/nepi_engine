@@ -453,25 +453,6 @@ class ControlsIF:
             param_name = self.node_if_prefix + 'controls_dict'
             self.node_if.set_param(param_name, self.controls_dict)
 
-    def get_control_default_value(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        value = nepi_controls.get_control_default_value(controls_dict, control_name)
-        return value
-
-    def set_control_default_value(self, control_name, update_value):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_default_value(controls_dict, control_name, update_value)
-        self.controls_dict = controls_dict
-
-    def get_control_factory_value(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        value = nepi_controls.get_control_factory_value(controls_dict, control_name)
-        return value
-
-    def set_control_factory_value(self, control_name, update_value):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_factory_value(controls_dict, control_name, update_value)
-        self.controls_dict = controls_dict
 
     def reset_control_value(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
@@ -483,15 +464,6 @@ class ControlsIF:
         controls_dict = nepi_controls.reset_control_values(controls_dict)
         self.controls_dict = controls_dict
 
-    def factory_reset_control_value(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.factory_reset_control_value(controls_dict, control_name)
-        self.controls_dict = controls_dict
-
-    def factory_reset_control_values(self):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.factory_reset_control_values(controls_dict)
-        self.controls_dict = controls_dict
 
     def get_control_options(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
@@ -3717,10 +3689,16 @@ class SettingsIF:
             self.msg_if.pub_info("Applying Init Settings: " + str(settings_values_dict), log_name_list = self.log_name_list)
             for setting_name in settings_dict.keys():
                 setting_value = nepi_controls.get_control_value(settings_dict, setting_name)
-                if self.callback_arg is None:
-                    self.setSettingFunction(setting_name, setting_value)
-                else:
-                    self.setSettingFunction(setting_name, setting_value, self.callback_arg)
+                try:
+                    if self.callback_arg is None:
+                        [success, msg, self.settings_dict] = self.setSettingFunction(setting_name, setting_value)
+                    else:
+                        [success, msg, self.settings_dict] = self.setSettingFunction(setting_name, setting_value, self.callback_arg)
+                except Exception as e:
+                    self.msg_if.pub_warn("setSettingFunction callback failed: " + str(e), log_name_list = self.log_name_list)
+                    success = False
+                    msg = str(e)
+            self.saveSettingsParam()
         self.publish_status()
 
     def reset(self):
@@ -3757,8 +3735,7 @@ class SettingsIF:
 
     def saveSettingsParam(self):
         if self.node_if is not None and self.save_params == True:
-            settings_dict = self.getSettingsDict()
-            settings_values_dict = nepi_controls.get_controls_values_dict(settings_dict)
+            settings_values_dict = nepi_controls.get_controls_values_dict(self.settings_dict)
             self.node_if.set_param(self.SETTINGS_PARAM_KEY, settings_values_dict)
 
     def _initCb(self, do_updates = False):
