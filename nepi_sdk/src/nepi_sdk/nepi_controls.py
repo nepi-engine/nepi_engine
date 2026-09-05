@@ -278,10 +278,24 @@ def get_clean_value(controls_dict, control_name, control_value):
         try:
           # Declarative full-selection update: the message carries the complete
           # desired list of selected options. Keep only valid options.
+          #
+          # The loop variable is `item`, NOT `value`. This branch used to bind
+          # the loop to `value` -- the same name this function returns -- and
+          # then never assign `values` to it. So the filtered list was built and
+          # discarded, and the function returned whatever the loop happened to
+          # leave in `value`: the LAST element of the input, valid or not.
+          # From the operator's seat that is a multi-select that keeps only one
+          # option, and an "All" press that selects only the final option.
+          # Deselecting everything was broken the other way -- an empty input
+          # never entered the loop, so `value` stayed None and set_control_value
+          # skipped the write, making "None" a no-op.
           values = []
-          for value in [str(item) for item in control_value]:
-            if value in options:
-              values.append(value)
+          for item in [str(item) for item in control_value]:
+            if item in options:
+              values.append(item)
+          # An empty list is a legitimate value here (nothing selected), which is
+          # why this assigns unconditionally rather than guarding on len().
+          value = values
 
         except Exception as e:
           pass
