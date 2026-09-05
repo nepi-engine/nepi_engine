@@ -3396,7 +3396,7 @@ class SettingsIF:
         if use_nodename_prefix == True:
             self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_' 
         else:
-            self.node_if_prefix = settings_name 
+            self.node_if_prefix = settings_name  + '_' 
         SETTINGS_PARAM_KEY = self.node_if_prefix
 
         self.save_params = save_params
