@@ -882,12 +882,27 @@ class NepiDriversMgr(object):
         for setting_name in options_dict.keys():
           setting = options_dict[setting_name]
           setting_type = setting['type']
+          options = setting.get('options',[])
+          bounds = [-999,-999]
           if setting_type == 'Discrete':
             setting_type = 'Selection'
+            
+
+          if setting_type == 'Int' or setting_type == 'Float':
+            try:
+              bounds[0] = options[0]
+            except:
+              pass
+            try:
+              bounds[1] = options[1]
+            except:
+              pass
+            
           setting_dict = {'name': setting_name,
                         'type': setting_type,
                         'default': setting['default'],
-                        'options': setting['options']}
+                        'options': options,
+                        'bounds': bounds}
           #self.msg_if.pub_info("Adding driver discovery setting : " + str(setting_dict))
           init_settings_dict[setting_name] = setting_dict
         #self.msg_if.pub_info("Calling create driver discovery settings with : " + str(init_settings_dict))

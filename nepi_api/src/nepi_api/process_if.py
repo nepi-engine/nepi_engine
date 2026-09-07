@@ -72,6 +72,10 @@ class ProcessIF:
     ready = False
 
     save_data_if = None
+    data_product = None
+
+    status_msg = ProcessStatus()
+    save_data_topic = ''
 
     process_name = None
     namespace = ''
@@ -119,7 +123,7 @@ class ProcessIF:
     min_max_image_pub_rates = [1,20]
     max_image_pub_rate_hz = 10.0
 
-    process_class_instance = None
+    process_module = None
     has_process_reload = False
     processes_dict = dict()
     processes_controls_dict = dict()
@@ -166,7 +170,9 @@ class ProcessIF:
                 process_name = 'process',
                 process_group = 'PROCESS',
                 process_description = 'Process',
-                process_class_instance = None,
+                process_module = None,
+                has_image_pub = False,
+                has_save_data = False,
                 show_enable = False,
                 show_rates = True,
                 show_selector = True,
@@ -174,10 +180,12 @@ class ProcessIF:
                 show_controls = True,
                 show_results = True,
                 show_stats = True,
+                show_save_data = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
                 node_if = None,
+                save_data_if = None,
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -208,6 +216,10 @@ class ProcessIF:
         self.msg_if.pub_info("Using Process Name: " + self.process_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
 
+        if data_product is None:
+            data_product = nepi_utils.get_clean_name(data_product)
+            if data_product != '':
+                self.data_product = data_product
         # Registry keys on a shared node_if must be domain-unique, so every key
         # this IF adds carries the process name. Param wire names ARE
         # namespace + key, so the prefix is part of the external param surface.
@@ -221,11 +233,11 @@ class ProcessIF:
         self.process_description = str(process_description)
         # Check Process Status Msg Type
 
-        if process_class_instance is None:
+        if process_module is None:
             self.msg_if.pub_warn("No Process Module Provided")
             return
 
-        self.process_class_instance = process_class_instance
+        self.process_module = process_module
         self.has_process_reload = True
 
 
@@ -400,6 +412,50 @@ class ProcessIF:
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
                 return
+
+
+        ####################
+        if self.data_product is not None:
+            if self.save_data_if is not None:
+                self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
+                if save_data_if is not None and save_data_if != 'None':
+                    self.save_data_if = save_data_if
+                    data_products = self.save_data_if.get_data_products()
+                    if self.data_product not in data_products:
+                        self.save_data_if.register_data_product(self.data_product)
+                elif save_data_if != 'None':
+                    
+                    # Setup Save Data IF Class 
+                    self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
+                    factory_data_rates= dict()
+                    factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
+
+                    factory_filename_dict = {
+                        'prefix': "", 
+                        'add_timestamp': True, 
+                        'add_ms': True,
+                        'add_us': False,
+                        'suffix': "",
+                        'add_node_name': True
+                        }
+
+                    sd_namespace = self.node_namespace
+                    self.save_data_if = SaveDataIF(namespace = sd_namespace,
+                                            data_products = [self.data_product],
+                                            factory_rate_dict = factory_data_rates,
+                                            factory_filename_dict = factory_filename_dict,
+                                            log_name_list = self.log_name_list,
+                                            msg_if = self.msg_if,
+                                            node_if = self.node_if)
+                    nepi_sdk.sleep(1)
+
+                if self.save_data_if is not None:
+                    self.save_data_topic = self.save_data_if.get_namespace()
+                    self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
+
+
+
 
         self.init(do_updates = True)
 
@@ -695,13 +751,13 @@ class ProcessIF:
             controls_values_dict = get_controls_values_dict = nepi_controls.get_controls_values_dict(controls_dict)
         return controls_values_dict
 
-    def set_control_value(self, control_name, update_value):
+    def set_control_value(self, control_name, update_value, index = None):
         if self.get_process_ready() == True:
             process_name = copy.deepcopy(self.selected_process)
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
-                    controls_dict = nepi_controls.set_control_value(controls_dict, control_name, update_value)
+                    controls_dict = nepi_controls.set_control_value(controls_dict, control_name, update_value, index = index)
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
                         self.publish_status()
@@ -834,6 +890,8 @@ class ProcessIF:
 
         status_msg.node_name = self.node_name
         status_msg.namespace = self.namespace
+
+        status_msg.save_data_topic = self.save_data_topic
         status_msg.config_topic = self.config_topic
 
         # Run state. enabled is what the operator asked for and running is what
@@ -995,7 +1053,7 @@ class ProcessIF:
         self.set_enable_process(enabled)
 
     def _reloadProcesses(self):
-        if self.process_class_instance is not None:
+        if self.process_module is not None:
             self.process_ready = False           
             nepi_sdk.sleep(1)
             process_busy = self.wait_on_process_busy()
@@ -1006,13 +1064,16 @@ class ProcessIF:
                 processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
                 try:
                     success = False
-                    importlib.reload(self.process_class_instance)
-                    processes_dict = self.process_class_instance.PROCESSES_DICT
+                    importlib.reload(self.process_module)
+                    processes_dict = self.process_module.PROCESSES_DICT
                     self.msg_if.pub_warn("################################")
                     self.msg_if.pub_warn("Process Reloaded")
                     self.msg_if.pub_warn("Updating Process Dictionaries")
-                    
 
+                    try:
+                        self.data_product = self.process_module.RESULTS_PUB_TOPIC
+                    except:
+                        self.data_product = None
                     available_processes = []
                     for process_name in processes_dict.keys():
                         available_processes.append(process_name)
@@ -1027,7 +1088,7 @@ class ProcessIF:
 
                     self.available_processes = available_processes
                     self.processes_dict = processes_dict
-                    self.processes_functions_dict = self.process_class_instance.FUNCTIONS_DICT
+                    self.processes_functions_dict = self.process_module.FUNCTIONS_DICT
                     #self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict))
 
                     processes_controls_dict = dict()
@@ -1039,8 +1100,8 @@ class ProcessIF:
 
 
                     try:
-                        self.results_pub_msg = self.process_class_instance.RESULTS_PUB_MSG
-                        self.results_pub_topic = self.process_class_instance.RESULTS_PUB_TOPIC
+                        self.results_pub_msg = self.process_module.RESULTS_PUB_MSG
+                        self.results_pub_topic = self.process_module.RESULTS_PUB_TOPIC
                     except:
                         pass
 
@@ -1053,7 +1114,7 @@ class ProcessIF:
                     if selected_process == 'None' or selected_process not in self.available_processes:
                         selected_process = self.available_processes[0]
                         try:
-                            selected_process = self.process_class_instance.DEFAULT_PROCESS
+                            selected_process = self.process_module.DEFAULT_PROCESS
                         except:
                             pass
                     self.selected_process = selected_process

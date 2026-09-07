@@ -62,6 +62,12 @@ logger = Logger(log_name = log_name)
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
 
 
+# Label font, hoisted out of the draw loop. Nothing about it varies per frame.
+OVERLAY_FONT = cv2.FONT_HERSHEY_SIMPLEX
+OVERLAY_FONT_COLOR = (255, 255, 255)
+OVERLAY_LINE_TYPE = cv2.LINE_AA
+OVERLAY_LINE_COLOR = (255, 255, 255)
+
 ROTATE_DICT = {
 '0': '0',
 '90': cv2.ROTATE_90_CLOCKWISE,
@@ -923,11 +929,13 @@ def denoise_filter(cv2_img, filter_type='gaussian', kernel_size=5):
 
 def overlay_contours(cv2_img,contours3, color_rgb = (0, 255, 0)):
     cv2_img_out = copy.deepcopy(cv2_img)
-    cv2.drawContours(cv2_img_out, contours3, -1, color_rgb, 2, cv2.LINE_AA)
+    cv2.drawContours(cv2_img_out, contours3, -1, color_rgb, 2, OVERLAY_FONT)
     return cv2_img_out
 
 
-def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3, scale_ratio = 1):
+
+
+def get_optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3, scale_ratio = 1):
     shape = cv2_img.shape
     h=shape[0]
     w=shape[1]
@@ -935,17 +943,34 @@ def optimal_font_dims(cv2_img, font_scale = 2e-3, thickness_scale = 1.5e-3, scal
     thickness = math.ceil(min(w, h) * thickness_scale * scale_ratio)
     return font_scale, thickness  
 
+def get_optimal_text_size(cv2_img, text):
+
+    cv2_shape = cv2_img.shape
+    img_width = cv2_shape[1] 
+    img_height = cv2_shape[0] 
+
+    font = OVERLAY_FONT
+    scale = 1.5e-3 - 0.1e-3 * math.ceil(max([img_height, img_width])/700)
+    fontScale, fontThickness  = get_optimal_font_dims(cv2_img,font_scale = scale, thickness_scale = scale, scale_ratio = 0.5) 
+
+    text_size = cv2.getTextSize(text, 
+                            font, 
+                            fontScale,
+                            fontThickness)
+    return text_size
+
+
 def overlay_text(cv2_img, text, x_px = 10 , y_px = 10, color_rgb = (0, 255, 0), scale = None, thickness = None, background_rgb = None, apply_shadow = True):
     # Add text overlay
     if scale is None or thickness is None:
-        new_scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+        new_scale, thickness  = get_optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
         if scale is None:
            scale = new_scale
         else:
            thickness = thickness * (2 * scale)
 
     
-    font = cv2.FONT_HERSHEY_SIMPLEX
+    font = OVERLAY_FONT
     fontColor              = (color_rgb[2],color_rgb[1],color_rgb[0])
     lineType               = 1
     bottomLeftCornerOfText = (x_px,y_px)
@@ -1004,10 +1029,10 @@ def overlay_text_list(cv2_img, text_list, x_px = 10 , y_px = 10, color_rgb = (0,
     # Add text overlay
     x_px = int(x_px)
     y_px = int(y_px)
-    font = cv2.FONT_HERSHEY_SIMPLEX
+    font = OVERLAY_FONT
     lineType = 1
     if scale is None or thickness is None:
-        scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+        scale, thickness  = get_optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
     scale = scale * (0.5 + size_ratio)
     for i in range(len(text_list)):
       text = text_list[i]
@@ -1035,7 +1060,7 @@ def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0
     """Draws a crosshair on an image at a given (x_px, y_px) position."""
     # Draw vertical line
     # if size is None or thickness is None:
-    #     size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    #     size, thickness  = get_optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
     shape = cv2_img.shape
     h=shape[0]
     w=shape[1]  
@@ -1071,7 +1096,7 @@ def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5,
     """Draws a crosshair on an image at a given (x_px, y_px) position."""
     # Draw vertical line
     # if size is None or thickness is None:
-    #     size, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    #     size, thickness  = get_optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
     shape = cv2_img.shape
     h=shape[0]
     w=shape[1]  
@@ -1125,21 +1150,7 @@ def overlay_bounding_box(cv2_img,bot_left_px, top_right_px, line_color=(255,0,0)
          logger.log_warn("Failed to create bounding box rectangle: " + str(e), throttle_s = 5)
     return cv2_img
 
-def overlay_bounding_box_text_list(cv2_img, text_list, bot_left_px ,top_right_px, color_rgb = (0, 255, 0), scale = None,thickness = None, background_rgb = None, apply_shadow = False):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    lineType = 1
-    if scale is None or thickness is None:
-      scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
-    text_size = cv2.getTextSize(text, 
-      font, 
-      scale,
-      thickness)
-    line_height = text_size[0][1]
-    line_width = text_size[0][0]
-    x_padding = int(line_height*0.4)
-    y_padding = int(line_height*0.4)
-    bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
-    overlay_text_list(cv2_img, text_list, x_px = bot_left_text[0] , y_px = bot_left_text[1], color_rgb = color_rgb, scale = scale, thickness = thickness, background_rgb = background_rgb, apply_shadow = apply_shadow)
+
 
 
 
@@ -1183,7 +1194,7 @@ def create_message_image(message, image_size = (350, 700, 3),color_rgb = (0, 255
     cv2_img = create_blank_image(image_size) # Empty Black Image
     # Overlay text data on OpenCV image
 
-    scale, thickness  = optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
+    scale, thickness  = get_optimal_font_dims(cv2_img,font_scale = 2e-3, thickness_scale = 1.5e-3)
 
     font = cv2.FONT_HERSHEY_DUPLEX
     fontColor              = color_rgb
@@ -1359,23 +1370,23 @@ def pad_to_ratio(cv2_img, ratio , color_bgr = (0,0,0)):
         # putting shape name at center of each shape
         if len(approx) == 3:
             cv2.putText(img, 'Triangle', (x, y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        OVERLAY_FONT, 0.6, (255, 255, 255), 2)
 
         elif len(approx) == 4:
             cv2.putText(img, 'Quadrilateral', (x, y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        OVERLAY_FONT, 0.6, (255, 255, 255), 2)
 
         elif len(approx) == 5:
             cv2.putText(img, 'Pentagon', (x, y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        OVERLAY_FONT, 0.6, (255, 255, 255), 2)
 
         elif len(approx) == 6:
             cv2.putText(img, 'Hexagon', (x, y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        OVERLAY_FONT, 0.6, (255, 255, 255), 2)
 
         else:
             cv2.putText(img, 'circle', (x, y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                        OVERLAY_FONT, 0.6, (255, 255, 255), 2)
         
     '''
 

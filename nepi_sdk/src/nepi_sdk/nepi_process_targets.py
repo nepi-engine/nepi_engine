@@ -29,24 +29,26 @@ from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data
 from nepi_sdk import nepi_img
 
-from nepi_interfaces.msg import ProcessResultsTrack
+from nepi_interfaces.msg import ProcessResultsTargets
 from nepi_interfaces.msg import NavPose
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_process_track"
+log_name = "nepi_process_targets"
 logger = Logger(log_name = log_name)
 
 
 ########################
 ## REQUIRED Process IF Utilities
 
-RESULTS_PUB_MSG = ProcessResultsTrack
-RESULTS_PUB_TYPE = 'nepi_interfaces/ProcessResultsTrack'
+
+DEFAULT_PROCESS = 'targets_1'
+
+RESULTS_PUB_MSG = ProcessResultsTargets
+RESULTS_PUB_TYPE = 'nepi_interfaces/ProcessResultsTargets'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
-RESULTS_PUB_TOPIC = 'track'
+RESULTS_PUB_TOPIC = 'targets'
 
 
-DEFAULT_PROCESS = 'track_1'
 
 
 def convert_results_pub_dict2msg( msg, msg_type, results_pub_dict):
@@ -197,156 +199,16 @@ def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
 ########################
 ## Process Utility Functions
 
-BEST_FILTER_OPTIONS = ['SMALLEST','LARGEST']
-
-def filter_by_classes(targets_dict_list, class_filter_list):
-    #print(targets_dict_list)
-
-
-    filtered_targets = []
-    for name in class_filter_list:
-        for target_dict in targets_dict_list:
-            if target_dict['name'] == name:
-                filtered_targets.append(target_dict)
-                #logger.log_info("Added target with name: " + str(name))
-
-    # for target_dict in filtered_targets:   
-    #     logger.log_info("Returning target with name: " + str(name))
-    return filtered_targets
-    
-
-
-def filter_by_area(targets_dict_list, size_min_filter = .01, size_max_filter = .99):
-    #print(targets_dict_list)
-
-    filtered_targets = []
-
-    for target_dict in targets_dict_list:
-        target_area = target_dict['area_ratio']
-        if target_area >= size_min_filter and target_area <= size_max_filter:
-            filtered_targets.append(target_dict)
-    #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
-    return filtered_targets
-
-
-
-# def filter_by_range(self,targets_dict_list, size_min_filter = .01, size_max_filter = .99):
-#     ################
-#     # Filter by min max range and angles
-#     filtered_dict_list = []
-#     cur_position = copy.deepcopy(self.current_position)
-#     if cur_position is not None:
-#       [cur_pan,cur_tilt] = [cur_position[0],cur_position[1]]
-#       range_min = self.track_range_min_m
-#       range_max = self.track_range_max_m
-#       pan_min = self.track_pan_min_deg
-#       pan_max = self.track_pan_max_deg
-#       tilt_min = self.track_tilt_min_deg
-#       tilt_max = self.track_tilt_max_deg
-
-#       for target_dict in targets_dict_list:
-#           target_valid = True
-#           range_m = target_dict['range_m']
-#           if (range_m < range_min or range_m > range_max) and range_m != -999:
-#             target_valid = False
-#           target_pan_angle = target_dict['azimuth_deg']
-#           pan_angle =  cur_pan + target_pan_angle
-#           if (pan_angle < pan_min or pan_angle > pan_max) and target_pan_angle != -999:
-#             target_valid = False
-#           target_tilt_angle = cur_pan + target_dict['elevation_deg']
-#           tilt_angle =  cur_tilt + target_tilt_angle
-#           if (tilt_angle < tilt_min or tilt_angle > tilt_max) and target_tilt_angle != -999:
-#             target_valid = False
-#           if target_valid == True:
-#             filtered_dict_list.append(target_dict)
-#           #logger.log_warn("Range Angle Filter returned: " + str(target_dict['target_name']) + " : " + str(target_valid) )
-#           #logger.log_warn(str([range_m,cur_pan,cur_tilt]))
-#           #logger.log_warn(str([range_m,target_pan_angle,target_tilt_angle]))
-#           #logger.log_warn(str([range_m,pan_angle,tilt_angle]))
-#     return filtered_dict_list
-
-# def filter_by_bearings(self,targets_dict_list):
-#     ################
-#     # Filter by min max range and angles
-#     filtered_dict_list = []
-#     cur_position = copy.deepcopy(self.current_position)
-#     if cur_position is not None:
-#       [cur_pan,cur_tilt] = [cur_position[0],cur_position[1]]
-#       range_min = self.track_range_min_m
-#       range_max = self.track_range_max_m
-#       pan_min = self.track_pan_min_deg
-#       pan_max = self.track_pan_max_deg
-#       tilt_min = self.track_tilt_min_deg
-#       tilt_max = self.track_tilt_max_deg
-
-#       for target_dict in targets_dict_list:
-#           target_valid = True
-#           range_m = target_dict['range_m']
-#           if (range_m < range_min or range_m > range_max) and range_m != -999:
-#             target_valid = False
-#           target_pan_angle = target_dict['azimuth_deg']
-#           pan_angle =  cur_pan + target_pan_angle
-#           if (pan_angle < pan_min or pan_angle > pan_max) and target_pan_angle != -999:
-#             target_valid = False
-#           target_tilt_angle = cur_pan + target_dict['elevation_deg']
-#           tilt_angle =  cur_tilt + target_tilt_angle
-#           if (tilt_angle < tilt_min or tilt_angle > tilt_max) and target_tilt_angle != -999:
-#             target_valid = False
-#           if target_valid == True:
-#             filtered_dict_list.append(target_dict)
-#           #logger.log_warn("Range Angle Filter returned: " + str(target_dict['target_name']) + " : " + str(target_valid) )
-#           #logger.log_warn(str([range_m,cur_pan,cur_tilt]))
-#           #logger.log_warn(str([range_m,target_pan_angle,target_tilt_angle]))
-#           #logger.log_warn(str([range_m,pan_angle,tilt_angle]))
-#     return filtered_dict_list
-
-
-def filter_by_threshold(targets_dict_list, threshold_filter):
-    #print(targets_dict_list)
-
-    filtered_targets = []
-
-    for target_dict in targets_dict_list:
-        prob = target_dict['confidence']
-        if prob >= threshold_filter:
-            filtered_targets.append(target_dict)
-    #logger.log_info("Got Area filtered_targets: " + str(filtered_targets))
-    return filtered_targets
-
-def find_best(targets_dict_list, best_filter = 'LARGEST'):
-    #print(tracks_dict_list)
-    best_target = None
-    for target_dict in targets_dict_list:
-        
-        best = True
-
-        if best_target is not None:
-            bsize = best_target['area_ratio']
-            tsize = target_dict['area_ratio']
-            bprob = best_target['confidence']
-            tprob = target_dict['confidence']
-            if best_filter == 'LARGEST' and tsize < bsize:
-                best = False
-            elif best_filter == 'SMALLEST' and tsize > bsize:
-                best = False
-            elif best_filter == 'PROPABILITY' and tprob < bprob:
-                best = False
-
-        if best == True:
-            best_target = target_dict
-    #logger.log_info("Got filtered_dict " + str(filtered_track))
-    return best_target
-
-def update_results(results_dict, track_dict):
+def update_results(results_dict, targets_dict):
     results_pub_dict = None
-    if track_dict is not None:
-        results_dict = nepi_data.set_data_values(results_dict, track_dict)
+    if targets_dict is not None:
+        results_dict = nepi_data.set_data_values(results_dict, targets_dict)
     
         results_pub_dict = copy.deepcopy(RESULTS_PUB_DICT)
         #print([results_dict,results_pub_dict])
-        for key in track_dict.keys():
+        for key in targets_dict.keys():
             if key in results_pub_dict.keys():
-                results_pub_dict[key] = track_dict[key]
+                results_pub_dict[key] = targets_dict[key]
 
     timestamp = nepi_data.get_datum_value(results_dict, 'timestamp')
     if timestamp == -999:
@@ -370,13 +232,14 @@ functions_dict = dict()
 
 
 
-track_1_dict = {
-   
+targets_1_dict = {
+
+  
     'data_dict': dict(
         targets_dict_list = [], 
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
-        last_track_time = 0,
-        last_track_dict = None
+        last_targets_time = 0,
+        last_targets_dict = None
     ),
 
 
@@ -420,21 +283,21 @@ track_1_dict = {
 
         azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
-                    'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to tracked target', 'hidden':False, 'round_display': 1,},
+                    'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to targetsed target', 'hidden':False, 'round_display': 1,},
 
         elevation_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
-                    'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'hidden':False, 'round_display': 1,},
+                    'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to targetsed target', 'hidden':False, 'round_display': 1,},
 
         range_m = {"type":"Float", "value":2.0, 'round_value': 2,
                     # OPTIONAL
-                    'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'hidden':False, 'round_display': 1,},
+                    'display_name':'Range (M)', 'description':'Range in meters to targetsed target', 'hidden':False, 'round_display': 1,},
     ),
 
 }
 
 
-def track_1_process(data_dict, controls_dict, results_dict):
+def targets_1_process(data_dict, controls_dict, results_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
@@ -445,44 +308,16 @@ def track_1_process(data_dict, controls_dict, results_dict):
 
     #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
     results_pub_dict = None
-    track_dict = None
-    filtered_targets = data_dict.get('targets_dict_list', [])
-    if filtered_targets is None:
-        filtered_targets = []
+    targets_dict = None
 
-    class_filters = controls_values_dict['class_filters']
-    filtered_targets = filter_by_classes(filtered_targets, class_filters)
-
-    size_max_filter = controls_values_dict['size_max_filter']
-    size_min_filter = controls_values_dict['size_min_filter']
-    filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
-
-    threshold_filter = controls_values_dict['threshold_filter']
-    filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
-
-    
-    if len(filtered_targets) > 0:
-        best_filter = controls_values_dict['best_filter']
-        track_dict = find_best(filtered_targets, best_filter = best_filter)
-        data_dict['last_track_time'] = nepi_utils.get_time()
-        data_dict['last_track_dict'] = track_dict
-    #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
-    [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
     results_pub_msg = None
-    if results_pub_dict is not None:
-        try:
-            results_pub_msg = convert_results_pub_dict2msg( results_pub_dict)
-            #logger.log_warn("Created results_pub_msg: "  + str(results_pub_msg), throttle_s = 10)
-        except Exception as e:
-            logger.log_warn("Failed to convert results_pub_dict: "  + str(results_pub_dict) + " : " + str(e), throttle_s = 10) 
-            pass
-    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_msg]), throttle_s = 5)
+
     return data_dict, controls_dict, results_dict, results_pub_msg
 
 
-processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_1', process_dict = track_1_dict)
+processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_1', process_dict = targets_1_dict)
 #logger.log_warn("Updated processes dict: " + str(processes_dict))
-functions_dict['track_1'] = track_1_process
+functions_dict['targets_1'] = targets_1_process
 
 
 
@@ -493,13 +328,13 @@ functions_dict['track_1'] = track_1_process
 
 
 
-track_2_dict = {
+targets_2_dict = {
    
     'data_dict': dict(
         targets_dict_list = [], 
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
-        last_track_time = 0,
-        last_track_dict = None
+        last_targets_time = 0,
+        last_targets_dict = None
     ),
 
 
@@ -509,24 +344,12 @@ track_2_dict = {
                    # OPTIONAL
                    'display_name':'Select Classes', 'description':'Set Class Filters', 'hidden':False}, 
 
-        size_min_filter = {
-            'type': 'FloatSlider', 'default': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with pixel areas less than min.', 'hidden': False},
-
-        size_max_filter = {
-            'type': 'FloatSlider', 'default': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with pixel areas larger than max.', 'hidden': False},
 
         threshold_filter = {
             'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with confidance lower than threshold.', 'hidden': False},
 
-        best_filter = {"type":"Selection", "default":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
-                   # OPTIONAL
-                   'display_name':'Best Filter', 'description':'Set Best Filte', 'hidden':False}, 
 
     ),
 
@@ -541,23 +364,12 @@ track_2_dict = {
                     # OPTIONAL
                     'display_name':'Age (Sec)', 'description':'Age in seconds', 'hidden':False, 'round_display': 3,},
 
-        azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to tracked target', 'hidden':False, 'round_display': 1,},
-
-        elevation_deg = {"type":"Float", "value":-999, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'hidden':False, 'round_display': 1,},
-
-        range_m = {"type":"Float", "value":2.0, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'hidden':False, 'round_display': 1,},
     ),
 
 }
 
 
-def track_2_process(data_dict, controls_dict, results_dict):
+def targets_2_process(data_dict, controls_dict, results_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
@@ -568,44 +380,16 @@ def track_2_process(data_dict, controls_dict, results_dict):
 
     #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
     results_pub_dict = None
-    track_dict = None
-    filtered_targets = data_dict.get('targets_dict_list', [])
-    if filtered_targets is None:
-        filtered_targets = []
+    targets_dict = None
 
-    class_filters = controls_values_dict['class_filters']
-    filtered_targets = filter_by_classes(filtered_targets, class_filters)
-
-    size_max_filter = controls_values_dict['size_max_filter']
-    size_min_filter = controls_values_dict['size_min_filter']
-    filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
-
-    threshold_filter = controls_values_dict['threshold_filter']
-    filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
-
-    
-    if len(filtered_targets) > 0:
-        best_filter = controls_values_dict['best_filter']
-        track_dict = find_best(filtered_targets, best_filter = best_filter)
-        data_dict['last_track_time'] = nepi_utils.get_time()
-        data_dict['last_track_dict'] = track_dict
-    #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
-    [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
     results_pub_msg = None
-    if results_pub_dict is not None:
-        try:
-            results_pub_msg = convert_results_pub_dict2msg(results_pub_dict)
-            #logger.log_warn("Created results_pub_msg: "  + str(results_pub_msg), throttle_s = 10)
-        except Exception as e:
-            logger.log_warn("Failed to convert results_pub_dict: "  + str(results_pub_dict) + " : " + str(e), throttle_s = 10) 
-            pass
-    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_msg]), throttle_s = 5)
+
     return data_dict, controls_dict, results_dict, results_pub_msg
 
 
-processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_2', process_dict = track_2_dict)
+processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_2', process_dict = targets_2_dict)
 #logger.log_warn("Updated processes dict: " + str(processes_dict))
-functions_dict['track_2'] = track_2_process
+functions_dict['targets_2'] = targets_2_process
 
 ########################
 ## Processes Init Dict  

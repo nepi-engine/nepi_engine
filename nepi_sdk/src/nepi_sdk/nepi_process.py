@@ -21,7 +21,7 @@ import copy
 import math
 
 import numpy as np
-import cv2
+
 
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_sdk
@@ -41,9 +41,10 @@ logger = Logger(log_name = log_name)
 def update_processes_dict(processes_dict, process_name, process_dict):
     try:
         update_dict = dict()
-        update_dict['data_dict'] = process_dict['data_dict']
-        update_dict['controls_dict'] = nepi_controls.create_controls_dict(process_dict['controls_dict'])
-        update_dict['results_dict'] = nepi_data.create_data_dict(process_dict['results_dict'])
+        update_dict['if_dict'] = process_dict.get('if_dict', dict())
+        update_dict['data_dict'] = process_dict.get('data_dict', dict())
+        update_dict['controls_dict'] = nepi_controls.create_controls_dict(process_dict.get('controls_dict', dict()))
+        update_dict['results_dict'] = nepi_data.create_data_dict(process_dict.get('results_dict', dict()))
         processes_dict[process_name] = update_dict
     except:
         pass
@@ -51,25 +52,12 @@ def update_processes_dict(processes_dict, process_name, process_dict):
 
 
 def get_process_dicts(processes_dict, process_name):
-    [data_dict,controls_dict,results_dict] = [None,None,None]
     if process_name in processes_dict.keys():
-        data_dict = processes_dict[process_name]['data_dict']
-        controls_dict = processes_dict[process_name]['controls_dict']
-        results_dict = processes_dict[process_name]['results_dict']
-    return data_dict,controls_dict,results_dict
+        if_dict = processes_dict[process_name].get('if_dict', dict())
+        data_dict = processes_dict[process_name].get('data_dict', dict())
+        controls_dict = processes_dict[process_name].get('controls_dict', dict())
+        results_dict = processes_dict[process_name].get('results_dict', dict())
+    return if_dict,data_dict,controls_dict,results_dict,
 
-
-
-def convert_results_pub_dict2msg( msg, msg_type, results_pub_dict):
-    results_msg = None
-    if msg is not None and msg_type is not None and results_pub_dict is not None:
-            results_dict = nepi_sdk.convert_msg2dict(msg())
-
-            for result_name in results_dict.keys():
-                if result_name in results_pub_dict.keys():
-                    results_dict[result_name] = results_pub_dict[result_name]
-            results_msg = nepi_sdk.convert_dict2msg(msg_type, results_dict)
- 
-    return results_msg
 
 

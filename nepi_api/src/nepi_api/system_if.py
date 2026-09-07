@@ -442,9 +442,9 @@ class ControlsIF:
         value = nepi_controls.get_control_value(controls_dict, control_name)
         return value
 
-    def set_control_value(self, control_name, update_value):
+    def set_control_value(self, control_name, update_value, index = None):
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_control_value(controls_dict, control_name, update_value)
+        controls_dict = nepi_controls.set_control_value(controls_dict, control_name, update_value, index = index)
         self.controls_dict = controls_dict
         self.publish_status()
         if self.controls_updated_callback is not None:
@@ -3628,9 +3628,8 @@ class SettingsIF:
             self.msg_if.pub_warn("Ignoring update for unknown setting: " + str(setting_name), log_name_list = self.log_name_list)
             return
 
-      
         if nepi_controls.get_clean_value(settings_dict, setting_name, setting_value) is None:
-            self.msg_if.pub_warn("Setting update rejected as invalid: " + str([setting_name, setting_value]), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Setting update rejected as invalid: " + str([setting_name, setting_value, index]), log_name_list = self.log_name_list)
 
         current_value = nepi_controls.get_control_value(self.settings_dict, setting_name)
         if current_value == setting_value:
