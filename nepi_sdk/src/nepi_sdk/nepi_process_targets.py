@@ -51,26 +51,6 @@ RESULTS_PUB_TOPIC = 'targets'
 
 
 
-def convert_results_pub_dict2msg( msg, msg_type, results_pub_dict):
-    msg = RESULTS_PUB_MSG
-    msg_type = RESULTS_PUB_TYPE
-    results_msg = None
-    if msg is not None and msg_type is not None and results_pub_dict is not None:
-            results_dict = nepi_sdk.convert_msg2dict(msg())
-
-            for result_name in results_dict.keys():
-                if result_name in results_pub_dict.keys():
-                    results_dict[result_name] = results_pub_dict[result_name]
-            results_msg = nepi_sdk.convert_dict2msg(msg_type, results_dict)
-    return results_msg
-
-
-def convert_results_pub_msg2dict(self, results_msg):
-    results_dict = nepi_sdk.convert_msg2dict(results_msg)
-    return results_dict
-
-
-
 
 def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
         ##################
@@ -310,9 +290,9 @@ def targets_1_process(data_dict, controls_dict, results_dict):
     results_pub_dict = None
     targets_dict = None
 
-    results_pub_msg = None
+    results_pub_dict = None
 
-    return data_dict, controls_dict, results_dict, results_pub_msg
+    return data_dict, controls_dict, results_dict, results_pub_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_1', process_dict = targets_1_dict)
@@ -381,9 +361,9 @@ def targets_2_process(data_dict, controls_dict, results_dict):
     results_pub_dict = None
     targets_dict = None
 
-    results_pub_msg = None
+    results_pub_dict = None
 
-    return data_dict, controls_dict, results_dict, results_pub_msg
+    return data_dict, controls_dict, results_dict, results_pub_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_2', process_dict = targets_2_dict)

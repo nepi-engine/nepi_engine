@@ -48,28 +48,6 @@ RESULTS_PUB_TOPIC = 'track'
 
 DEFAULT_PROCESS = 'track_1'
 
-
-def convert_results_pub_dict2msg( msg, msg_type, results_pub_dict):
-    msg = RESULTS_PUB_MSG
-    msg_type = RESULTS_PUB_TYPE
-    results_msg = None
-    if msg is not None and msg_type is not None and results_pub_dict is not None:
-            results_dict = nepi_sdk.convert_msg2dict(msg())
-
-            for result_name in results_dict.keys():
-                if result_name in results_pub_dict.keys():
-                    results_dict[result_name] = results_pub_dict[result_name]
-            results_msg = nepi_sdk.convert_dict2msg(msg_type, results_dict)
-    return results_msg
-
-
-def convert_results_pub_msg2dict(self, results_msg):
-    results_dict = nepi_sdk.convert_msg2dict(results_msg)
-    return results_dict
-
-
-
-
 def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
         ##################
         # Get Image Data
@@ -468,16 +446,8 @@ def track_1_process(data_dict, controls_dict, results_dict):
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
     [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
-    results_pub_msg = None
-    if results_pub_dict is not None:
-        try:
-            results_pub_msg = convert_results_pub_dict2msg( results_pub_dict)
-            #logger.log_warn("Created results_pub_msg: "  + str(results_pub_msg), throttle_s = 10)
-        except Exception as e:
-            logger.log_warn("Failed to convert results_pub_dict: "  + str(results_pub_dict) + " : " + str(e), throttle_s = 10) 
-            pass
-    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_msg]), throttle_s = 5)
-    return data_dict, controls_dict, results_dict, results_pub_msg
+    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_dict]), throttle_s = 5)
+    return data_dict, controls_dict, results_dict, results_pub_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_1', process_dict = track_1_dict)
@@ -591,16 +561,8 @@ def track_2_process(data_dict, controls_dict, results_dict):
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
     [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
-    results_pub_msg = None
-    if results_pub_dict is not None:
-        try:
-            results_pub_msg = convert_results_pub_dict2msg(results_pub_dict)
-            #logger.log_warn("Created results_pub_msg: "  + str(results_pub_msg), throttle_s = 10)
-        except Exception as e:
-            logger.log_warn("Failed to convert results_pub_dict: "  + str(results_pub_dict) + " : " + str(e), throttle_s = 10) 
-            pass
-    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_msg]), throttle_s = 5)
-    return data_dict, controls_dict, results_dict, results_pub_msg
+    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_dict]), throttle_s = 5)
+    return data_dict, controls_dict, results_dict, results_pub_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_2', process_dict = track_2_dict)

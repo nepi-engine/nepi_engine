@@ -43,6 +43,7 @@ from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data
+from nepi_sdk import nepi_process
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
@@ -366,7 +367,7 @@ class ControlsIF:
                     self.controls_dict = controls_dict
                     self.publish_status()
                     if self.controls_updated_callback is not None:
-                        self.controls_updated_callback(self.controls_dict,control_name)
+                        self.controls_updated_callback(control_name)
                     self.save_params_dict()
 
 
@@ -2361,11 +2362,11 @@ class ProcessIF:
             process_ready = self.wait_for_process_ready()
             if process_ready == True:
                 try:
-                    [self.data_dict, self.controls_dict, self.results_dict, results_pub_msg] = self.process_function(self.data_dict, self.controls_dict, self.results_dict)
+                    [self.data_dict, self.controls_dict, self.results_dict, results_pub_dict] = self.process_function(self.data_dict, self.controls_dict, self.results_dict)
                     #self.msg_if.pub_warn("Processed results: " + str( [self.results_dict, results_pub_msg]), throttle_s = 5)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
-                self._publishResults(results_pub_msg, source_topic)
+                self._publishResults(results_pub_dict, source_topic)
             else:
                 self.msg_if.pub_warn("Processes Not Ready", throttle_s = 10)
             
@@ -2639,8 +2640,14 @@ class ProcessIF:
         control_value = nepi_controls.get_value(controls_dict, control_name )
         self.set_control_value(control_name, control_value)
         
-    def _publishResults(self, results_pub_msg, source_topic = ''):
+    def _publishResults(self, results_pub_dict, source_topic = ''):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 
+        try:
+            msg = self.process_module.RESULTS_PUB_MSG
+            msg_type = self.process_module.RESULTS_PUB_TYPE
+            results_pub_msg = nepi_process.convert_results_pub_dict2msg(msg, msg_type, results_pub_dict)
+        except:
+            results_pub_msg = None
         if self.node_if is not None and self.results_pub_msg is not None and results_pub_msg is not None:
             results_pub_msg.results_header.timestamp = nepi_utils.get_time()
             results_pub_msg.results_header.process_name = self.node_name
