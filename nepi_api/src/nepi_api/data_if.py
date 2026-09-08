@@ -58,8 +58,8 @@ from nepi_interfaces.msg import NavPosePanTilt
 from nepi_interfaces.srv import NavPoseCapabilitiesQuery, NavPoseCapabilitiesQueryRequest, NavPoseCapabilitiesQueryResponse
 
 
-
-from nepi_interfaces.msg import StringArray, UpdateBool, UpdateFloat, ImageWindow, RangeWindow, ImagePixel, ImageMouseEvent, ImageCrosshair, ImageTarget
+from nepi_interfaces.msg import UpdateOrder, UpdateFloat, UpdateFloats, UpdateInt, UpdateInts, UpdateBool, UpdateBools, UpdateString, UpdateStringArray, UpdateTrigger
+from nepi_interfaces.msg import StringArray, ImageWindow, RangeWindow, ImagePixel, ImageMouseEvent, ImageCrosshair, ImageTarget
 from nepi_interfaces.srv import ImageCapabilitiesQuery, ImageCapabilitiesQueryRequest, ImageCapabilitiesQueryResponse
 
 from nepi_interfaces.msg import RangeWindow
@@ -74,802 +74,6 @@ from nepi_api.connect_data_if import ConnectNavPoseIF
 
 
 SYSTEM_ALL_TOPIC = 'all'
-
-##################################################
-
-
-API_LIB_FOLDER = "/opt/nepi/nepi_engine/lib/nepi_api"
-
-SYSTEM_DATA_FOLDER = 'mnt/nepi_storage/data'
-
-SUPPORTED_DICT_FILE_TYPES = ['yaml']
-SUPPORTED_IMG_FILE_TYPES = ['png','PNG','jpg','jpeg','JPG']  
-SUPPORTED_POINTCLOUD_FILE_TYPES = ['pcd']
-SUPPORTED_VID_FILE_TYPES = ['avi','AVI']
-
-SUPPORTED_DATA_TYPES = ['dict','cv2_image','o3d_pc']
-
-
-EXAMPLE_FILENAME_DICT = {
-        'prefix': "", 
-        'add_timestamp': True, 
-        'use_utc_tz': True,
-        'add_ms': True,
-        'add_us': False,
-        'add_tz': True,
-        'add_node_name': True
-        }
-
-
-
-from nepi_sdk import nepi_data
-from nepi_interfaces.msg import Datum, DataStatus
-
-from nepi_interfaces.msg import UpdateOrder, UpdateFloat, UpdateFloats, UpdateInt, UpdateInts, UpdateBool, UpdateBools, UpdateString, UpdateStringArray, UpdateTrigger
-
-
-
-#########################################
-# Data IF Class
-#########################################
-
-
-class DataIF:
-
-    msg_if = None
-    node_if = None
-    node_if_shared = False
-    node_if_prefix = 'data_'
-
-    data_name = 'data'
-    namespace = ''
-    data_display_name = ''
-    data_description = ''
-    data_dict = dict()
-    data_hidden = False
-    data_status_msg = DataStatus()
-
-    data_node_pubs_dict = None
-    data_node_subs_dict = None
-    data_ready = False
-
-    active_nodes = []
-    active_topics = []
-    active_topic_types =  []
-    active_services =  []
-
-    status_has_published = False
-
-    data_updated_callback = None # if not None: Calls function with datum_name after a datum is written and status is published
-    data_updater_max_rate = 1 # set to -1 to disable the updater thread
-    data_updater_callback = None # if not None: Calls function at the begining of each updater loop
-
-    #######################
-    ### IF Initialization
-    def __init__(self,
-                data_name = 'data',
-                data_display_name = 'Data',
-                data_description = 'Data',
-                data_init_dict = dict(),
-                data_updated_callback = None, # if not None: Calls function with datum_name after a datum is written and status is published
-                data_updater_max_rate = 1, # set to -1 to disable updater thread
-                data_updater_callback = None, # if not None: Calls function at the begining of each loop
-                show_data = True,
-                has_show_control = False,
-                hidden = False,
-                log_name = None,
-                log_name_list = [],
-                msg_if = None,
-                node_if = None,
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################
-
-
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
-
-        # Create Namespace
-        self.data_name = nepi_utils.get_clean_name(data_name)
-        if self.data_name is None or self.data_name == '':
-            self.msg_if.pub_warn("Data Name Not Valid: " + str(data_name))
-            return
-        self.msg_if.pub_info("Using Data Name: " + self.data_name)
-        # get_node_namespace() is already fully resolved, so this is an absolute
-        # namespace. The RUI subscribes to <namespace>/status, so it must
-        # never be a relative path.
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.data_name)
-
-        # Registry keys are prefixed with the data domain so a shared node_if
-        # cannot have a sibling IF silently overwrite this IF's entries
-        # (see the 2026-07 registry-key decision in the top-level CLAUDE.md).
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
-
-        ##############################
-        # Initialize Class Variables
-
-        self.data_display_name = str(data_display_name)
-        self.data_description = str(data_description)
-        self.data_dict = nepi_data.create_data_dict(data_init_dict)
-        self.data_status_msg = nepi_data.create_status_msg(self.data_name, self.data_display_name, self.data_description,
-                                                                    show_data, has_show_control)
-        self.data_hidden = hidden
-
-        self.data_updated_callback = data_updated_callback
-        self.data_updater_max_rate = data_updater_max_rate
-        self.data_updater_callback = data_updater_callback
-
-        ##############################
-        ## Node Setup
-
-        # Configs Config Dict ####################
-        self.CONFIGS_DICT = {
-            'init_callback': self._initCb,
-            'reset_callback': self._resetCb,
-            'factory_reset_callback': self._factoryResetCb,
-            'init_configs': True,
-            'namespace': self.namespace
-        }
-
-        # Params Config Dict ####################
-        # Persist the data dict under the data namespace so display
-        # configuration (display name, description, hidden, order) survives node
-        # restarts via the config manager. Passing a params_dict is what enables
-        # config management on NodeClassIF.
-        PARAMS_DICT = {
-            self.node_if_prefix + 'data_dict': {
-                'namespace': self.namespace,
-                'factory_val': self.data_dict
-            }
-        }
-
-        # Publishers Config Dict ####################
-        self.data_node_pubs_dict = {
-             self.node_if_prefix + 'status_pub': {
-                'namespace': self.namespace,
-                'topic': 'status',
-                'msg': DataStatus,
-                'qsize': 1,
-                'latch': True
-            }
-        }
-
-
-
-        # Subscribers Config Dict ####################
-        # These are how the owning node (or another node) pushes a datum in. The
-        # RUI never publishes to them -- Nepi_IF_Data.js is display only.
-        self.data_node_subs_dict = {
-            #####################
-            # Data Subs
-            ####################
-             self.node_if_prefix + 'set_bool_datum_value': {
-                'msg': UpdateBool,
-                'namespace': self.namespace,
-                'topic': 'set_bool_datum_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_bools_datum_value': {
-                'msg': UpdateBools,
-                'namespace': self.namespace,
-                'topic': 'set_bools_datum_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_string_datum_value': {
-                'msg': UpdateString,
-                'namespace': self.namespace,
-                'topic': 'set_string_datum_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_strings_datum_value': {
-                'msg': UpdateStringArray,
-                'namespace': self.namespace,
-                'topic': 'set_strings_datum_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_int_datum_value': {
-                'msg': UpdateInt,
-                'namespace': self.namespace,
-                'topic': 'set_int_datum_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             self.node_if_prefix + 'set_ints_datum_value': {
-                'msg': UpdateInts,
-                'namespace': self.namespace,
-                'topic': 'set_ints_datum_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-
-             self.node_if_prefix + 'set_float_datum_value': {
-                'msg': UpdateFloat,
-                'namespace': self.namespace,
-                'topic': 'set_float_datum_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-             # UpdateFloats, not UpdateFloat -- a Floats datum carries an array.
-             # Note UpdateFloats names its payload field 'values', unlike every
-             # other Update* msg; _setValueCb handles both spellings.
-             self.node_if_prefix + 'set_floats_datum_value': {
-                'msg': UpdateFloats,
-                'namespace': self.namespace,
-                'topic': 'set_floats_datum_value',
-                'qsize': 5,
-                'callback': self._setValueCb
-            },
-
-            #####################
-            # Display Subs
-            #####################
-             self.node_if_prefix + 'set_datum_hidden': {
-                'msg': UpdateBool,
-                'namespace': self.namespace,
-                'topic': 'set_datum_hidden',
-                'qsize': 5,
-                'callback': self._setHiddenValueCb
-            },
-             self.node_if_prefix + 'set_data_hidden': {
-                'msg': UpdateBool,
-                'namespace': self.namespace,
-                'topic': 'set_data_hidden',
-                'qsize': 5,
-                'callback': self._setDataHiddenCb
-            },
-             self.node_if_prefix + 'set_datum_order': {
-                'msg': UpdateInt,
-                'namespace': self.namespace,
-                'topic': 'set_datum_order',
-                'qsize': 5,
-                'callback': self._setOrderValueCb
-            },
-             self.node_if_prefix + 'set_datum_up': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_datum_up',
-                'qsize': 5,
-                'callback': self._setOrderUpCb
-            },
-             self.node_if_prefix + 'set_datum_down': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_datum_down',
-                'qsize': 5,
-                'callback': self._setOrderDownCb
-            },
-             self.node_if_prefix + 'set_datum_top': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_datum_top',
-                'qsize': 5,
-                'callback': self._setOrderTopCb
-            },
-             self.node_if_prefix + 'set_datum_bottom': {
-                'msg': UpdateTrigger,
-                'namespace': self.namespace,
-                'topic': 'set_datum_bottom',
-                'qsize': 5,
-                'callback': self._setOrderBottomCb
-            },
-
-            #####################
-            # Misc Subs
-            #####################
-             self.node_if_prefix + 'system_status': {
-                'msg': MgrSystemStatus,
-                'namespace': self.base_namespace,
-                'topic': 'status',
-                'qsize': 5,
-                'callback': self._systemStatusCb
-            },
-        }
-
-
-
-        if node_if is None:
-            self.node_if = NodeClassIF(
-                            configs_dict = self.CONFIGS_DICT,
-                            params_dict = PARAMS_DICT,
-                            services_dict = None,
-                            pubs_dict = self.data_node_pubs_dict,
-                            subs_dict = self.data_node_subs_dict,
-                            log_name_list = [],
-                            msg_if = self.msg_if
-            )
-            self.node_if.wait_for_ready()
-        else:
-            self.node_if_shared = True
-            try:
-                self.node_if = node_if
-                self.node_if.register_pubs(self.data_node_pubs_dict)
-                self.node_if.register_subs(self.data_node_subs_dict)
-                # Register the persisted data dict on the shared node_if too,
-                # under the same prefixed key init() reads back.
-                self.node_if.add_param(self.node_if_prefix + 'data_dict', self.namespace, self.data_dict)
-                nepi_sdk.sleep(1)
-            except Exception as e:
-                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
-                return
-
-
-        ##############################
-        # Start updater and status publisher
-        if self.data_updater_max_rate != -1:
-            nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
-
-        ##############################
-        # Complete Initialization
-        self.data_ready = True
-        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
-        ###############################
-
-
-    #######################
-    # Class Public Methods
-    #######################
-
-
-    def get_data_ready_state(self):
-        """Return the ready state of the data interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.data_ready
-
-    def wait_for_data_ready(self, timeout = float('inf') ):
-        """Block until the data interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.data_ready is not None:
-            self.msg_if.pub_info("Waiting for data interface ready")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.data_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.data_ready == False:
-                self.msg_if.pub_info("Data interface wait timed out")
-            else:
-                self.msg_if.pub_info("Data interface ready")
-        return self.data_ready
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace this data set publishes under.
-
-        The namespace is built from the owning node's namespace, so the status
-        topic is <namespace>/status and is directly subscribable by the RUI.
-
-        Returns:
-            str: The fully-qualified data namespace.
-        """
-        return self.namespace
-
-    def unregister(self):
-        """Unregister every publisher and subscriber this interface registered.
-
-        Returns:
-            bool: True if the interface unwound cleanly, False otherwise.
-        """
-        success = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.sleep(1)
-            else:
-                # Shared node_if: unwind only the entries this IF added, leaving
-                # the owning node's and sibling IFs' entries alone.
-                if self.data_node_subs_dict is not None:
-                    for sub_name in self.data_node_subs_dict.keys():
-                        self.node_if.unregister_sub(sub_name)
-                self.data_node_subs_dict = None
-
-                if self.data_node_pubs_dict is not None:
-                    for pub_name in self.data_node_pubs_dict.keys():
-                        self.node_if.unregister_pub(pub_name)
-                self.data_node_pubs_dict = None
-
-        time.sleep(1)
-        try:
-            self.node_if = None
-            self.data_ready = False
-            success = True
-        except Exception as e:
-            self.msg_if.pub_warn("Failed to unregister:  " + str(e))
-        return success
-
-
-    ##################
-    # Data Functions
-
-    def get_data_dict(self):
-        """Return a copy of the full data dict, keyed by datum name.
-
-        Returns:
-            dict: A deep copy of the data dict.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        return data_dict
-
-    def get_datum_value(self, datum_name):
-        """Return the current value of one datum, read from its type-correct field.
-
-        Args:
-            datum_name (str): The datum key name.
-
-        Returns:
-            The datum value, or None if the datum is not registered.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        value = nepi_data.get_datum_value(data_dict, datum_name)
-        return value
-
-    def set_datum_value(self, datum_name, update_value, timestamp = None):
-        """Write one datum value, stamp its timestamp, and publish status.
-
-        The node that owns this interface is the only writer of record; the RUI
-        has no publish path to this method.
-
-        Args:
-            datum_name (str): The datum key name.
-            update_value: The new value. Coerced to the datum's declared type.
-            timestamp (float, optional): Write time. Defaults to now.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.set_datum_value(data_dict, datum_name, update_value, timestamp = timestamp)
-        self.data_dict = data_dict
-        self.publish_status()
-        if self.data_updated_callback is not None:
-            self.data_updated_callback(datum_name)
-
-    def get_datum_timestamp(self, datum_name):
-        """Return the time one datum's value was last written.
-
-        Args:
-            datum_name (str): The datum key name.
-
-        Returns:
-            float: The datum timestamp in seconds, or 0.0 if not registered.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        timestamp = nepi_data.get_datum_timestamp(data_dict, datum_name)
-        return timestamp
-
-    ##################
-    # Display Functions
-
-    def get_datum_display_name(self, datum_name):
-        """Return the RUI display name for one datum.
-
-        Args:
-            datum_name (str): The datum key name.
-
-        Returns:
-            str: The display name, or '' if not registered.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        display_name = nepi_data.get_datum_display_name(data_dict, datum_name)
-        return display_name
-
-    def set_datum_display_name(self, datum_name, display_name):
-        """Set the RUI display name for one datum.
-
-        Args:
-            datum_name (str): The datum key name.
-            display_name (str): The name shown in the RUI.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.set_datum_display_name(data_dict, datum_name, display_name)
-        self.data_dict = data_dict
-        self._saveDataDict()
-
-
-    def get_datum_description(self, datum_name):
-        """Return the description text for one datum.
-
-        Args:
-            datum_name (str): The datum key name.
-
-        Returns:
-            str: The description, or '' if not registered.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        description = nepi_data.get_datum_description(data_dict, datum_name)
-        return description
-
-    def set_datum_description(self, datum_name, description):
-        """Set the description text for one datum.
-
-        Args:
-            datum_name (str): The datum key name.
-            description (str): The description shown in the RUI.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.set_datum_description(data_dict, datum_name, description)
-        self.data_dict = data_dict
-        self._saveDataDict()
-
-    def get_datum_hidden(self, datum_name):
-        """Return whether one datum is hidden in the RUI.
-
-        Args:
-            datum_name (str): The datum key name.
-
-        Returns:
-            bool: True if the datum is hidden.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        hidden = nepi_data.get_datum_hidden(data_dict, datum_name)
-        return hidden
-
-    def set_datum_hidden(self, datum_name, hidden):
-        """Hide or show one datum in the RUI.
-
-        Args:
-            datum_name (str): The datum key name.
-            hidden (bool): True to hide the datum.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.set_datum_hidden(data_dict, datum_name, hidden)
-        self.data_dict = data_dict
-        self._saveDataDict()
-
-    def get_data_hidden(self):
-        """Return whether the whole data set is hidden in the RUI.
-
-        Returns:
-            bool: True if the data set is hidden.
-        """
-        return self.data_hidden
-
-    def set_data_hidden(self, hidden):
-        """Hide or show the whole data set in the RUI.
-
-        Args:
-            hidden (bool): True to hide the data set.
-        """
-        self.data_hidden = bool(hidden)
-
-    def get_datum_display_order(self, datum_name):
-        """Return the display position of one datum.
-
-        Args:
-            datum_name (str): The datum key name.
-
-        Returns:
-            int: Zero-based display index, or -1 if not registered.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        order = nepi_data.get_datum_display_order(data_dict, datum_name)
-        return order
-
-    def set_datum_display_order(self, datum_name, update_order = 0):
-        """Move one datum to an absolute display position.
-
-        Args:
-            datum_name (str): The datum key name.
-            update_order (int, optional): Zero-based target index. Defaults to 0.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.set_datum_display_order(data_dict, datum_name, update_order)
-        self.data_dict = data_dict
-        self._saveDataDict()
-
-    def move_datum_display_top(self, datum_name):
-        """Move one datum to the top of the display order.
-
-        Args:
-            datum_name (str): The datum key name.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.move_datum_display_top(data_dict, datum_name)
-        self.data_dict = data_dict
-        self._saveDataDict()
-
-    def move_datum_display_bottom(self, datum_name):
-        """Move one datum to the bottom of the display order.
-
-        Args:
-            datum_name (str): The datum key name.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.move_datum_display_bottom(data_dict, datum_name)
-        self.data_dict = data_dict
-        self._saveDataDict()
-
-    def move_datum_display_up(self, datum_name):
-        """Move one datum one position in the display order.
-
-        Args:
-            datum_name (str): The datum key name.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.move_datum_display_up(data_dict, datum_name)
-        self.data_dict = data_dict
-        self._saveDataDict()
-
-    def move_datum_display_down(self, datum_name):
-        """Move one datum one position in the display order.
-
-        Args:
-            datum_name (str): The datum key name.
-        """
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.move_datum_display_down(data_dict, datum_name)
-        self.data_dict = data_dict
-        self._saveDataDict()
-
-
-    ##################
-    # Misc Functions
-
-    def publish_status(self):
-        """Rebuild the DataStatus message from the data dict and publish it."""
-        ###########
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_status_msg = nepi_data.update_status_msg(self.data_status_msg, data_dict, self.data_hidden)
-        if self.node_if is not None:
-            if self.status_has_published == False:
-                self.msg_if.pub_info("Publishing first Data Status on: " + str(self.namespace) + "/status")
-                self.status_has_published = True
-            self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.data_status_msg)
-
-    def init(self, do_updates = False):
-        """Initialize or re-initialize the data dict from the parameter server and publish status.
-
-        Args:
-            do_updates (bool, optional): Reserved for future use. Defaults to False.
-        """
-        if self.node_if is not None:
-            # Prefixed key, matching how the param is registered and how the
-            # display setters write it back. get_param(self.node_if_prefix +  ) returns None for a name
-            # it does not know, so an unprefixed name wiped the data dict on
-            # every config init, reset and factory reset, leaving DataStatus with
-            # empty data lists and the RUI with an empty data box. The None guard
-            # below means a missing param can never overwrite a live dict.
-            param_name = self.node_if_prefix + 'data_dict'
-            data_dict = self.node_if.get_param(param_name)
-            if data_dict is not None:
-                self.data_dict = data_dict
-
-        if do_updates == True:
-            pass
-        self.publish_status()
-
-    def reset(self):
-        """Reset the data interface to its initialized state."""
-        if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
-            self.node_if.reset_params()
-        nepi_sdk.sleep(1)     
-        self.init(do_updates = True)
-
-    def factory_reset(self):
-        """Reset the data interface to factory defaults."""
-        if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
-            self.node_if.factory_reset_params()
-        self.init(do_updates = True)
-
-
-    ###############################
-    # Class Private Methods
-    ###############################
-
-    # Persist the data dict. Called by the display setters only. Datum *values*
-    # deliberately do not write here: a datum is live telemetry that can update
-    # many times a second, and pushing the whole dict to the param server at
-    # that rate would be pure overhead. What is worth persisting across a node
-    # restart is the display configuration -- display name, description, hidden
-    # and order.
-    def _saveDataDict(self):
-        if self.node_if is not None:
-            param_name = self.node_if_prefix + 'data_dict'
-            self.node_if.set_param(param_name, self.data_dict)
-
-    def _initCb(self, do_updates = False):
-        self.init(do_updates = do_updates)
-
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
-
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
-
-    # ROS callback for the system status msg. Populates the active node/topic/
-    # service lists available to the owning node.
-    def _systemStatusCb(self,msg):
-            self.active_nodes = msg.active_nodes
-            self.active_topics = msg.active_topics
-            self.active_topic_types = msg.active_topic_types
-            self.active_services = msg.active_services
-
-
-    # Updater timer. Gives the owning node one call per loop to refresh its data,
-    # then publishes status if the callback reports a change. Rearms itself.
-    def _updaterCb(self,timer):
-        needs_publish = False
-        start_time = nepi_utils.get_time()
-        ##############
-        if self.data_updater_callback is not None:
-            needs_publish = self.data_updater_callback()
-        ##################
-        if needs_publish == True:
-          self.publish_status()
-
-        ##################
-        # Setup Next Update
-        delay_time = float(1) / self.data_updater_max_rate
-        update_time = nepi_utils.get_time() - start_time
-        next_time = delay_time - update_time
-        if next_time < 0.01:
-            next_time = 0.01
-        nepi_sdk.start_timer_process(next_time, self._updaterCb, oneshot = True)
-
-
-    def _setValueCb(self,msg):
-            datum_name = msg.name
-            # The value setters share this single callback. Most Update* msgs
-            # carry a 'value' field; UpdateFloats carries 'values'.
-            if hasattr(msg, 'value'):
-                datum_value = msg.value
-            elif hasattr(msg, 'values'):
-                datum_value = msg.values
-            else:
-                return
-            self.set_datum_value(datum_name, datum_value)
-
-    def _setHiddenValueCb(self,msg):
-            self.set_datum_hidden(msg.name, msg.value)
-
-    def _setDataHiddenCb(self,msg):
-            self.set_data_hidden(msg.value)
-
-    def _setOrderValueCb(self,msg):
-            self.set_datum_display_order(msg.name, msg.value)
-
-    def _setOrderUpCb(self,msg):
-            self.move_datum_display_up(msg.name)
-
-    def _setOrderDownCb(self,msg):
-            self.move_datum_display_down(msg.name)
-
-    def _setOrderTopCb(self,msg):
-            self.move_datum_display_top(msg.name)
-
-    def _setOrderBottomCb(self,msg):
-            self.move_datum_display_bottom(msg.name)
-
-    def _publishStatusCb(self,timer):
-            self.publish_status()
-
-
 
 
 
@@ -942,8 +146,6 @@ EXAMPLE_NAVPOSE_DATA_DICT = {
     'pan_deg': 0.0,
     'tilt_deg': 0.0
 }
-
-
 
 
 class NavPoseIF:
@@ -2243,66 +1445,82 @@ class BaseImageIF:
         self.PARAMS_DICT = {
 
             self.node_if_prefix + 'resolution_ratio': {
+                'name': 'resolution_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["resolution_ratio"]
             },
             self.node_if_prefix + 'auto_adjust_enabled': {
+                'name': 'auto_adjust_enabled',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["auto_adjust_enabled"]
             },
             self.node_if_prefix + 'auto_adjust_ratio': {
+                'name': 'auto_adjust_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["auto_adjust_ratio"]
             },
             self.node_if_prefix + 'brightness_ratio': {
+                'name': 'brightness_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["brightness_ratio"]
             },
             self.node_if_prefix + 'contrast_ratio': {
+                'name': 'contrast_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["contrast_ratio"]
             },
             self.node_if_prefix + 'threshold_ratio': {
+                'name': 'threshold_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["threshold_ratio"]
             },
             self.node_if_prefix + 'rotate_2d_deg': {
+                'name': 'rotate_2d_deg',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["rotate_2d_deg"]
             },
             self.node_if_prefix + 'rotate_2d_swap_box': {
+                'name': 'rotate_2d_swap_box',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["rotate_2d_swap_box"]
             },
             self.node_if_prefix + 'flip_horz': {
+                'name': 'flip_horz',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["flip_horz"]
             },
             self.node_if_prefix + 'flip_vert': {
+                'name': 'flip_vert',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["flip_vert"]
             },
             self.node_if_prefix + 'start_range_ratio': {
+                'name': 'start_range_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["start_range_ratio"]
             },
             self.node_if_prefix + 'cam_fov': {
+                'name': 'cam_fov',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['cam_fov']
             },
             self.node_if_prefix + 'cam_view': {
+                'name': 'cam_view',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['cam_view']
             },
             self.node_if_prefix + 'cam_pos': {
+                'name': 'cam_pos',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['cam_pos']
             },
             self.node_if_prefix + 'cam_rot': {
+                'name': 'cam_rot',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['cam_rot']
             },
            self.node_if_prefix +   'stop_range_ratio': {
+                'name': 'stop_range_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict["stop_range_ratio"]
             },
@@ -2314,46 +1532,57 @@ class BaseImageIF:
             # use_wbg is only in PointcloudImageIF's DEFAULT_CONTROLS_DICT, hence the
             # get() default here.
             self.node_if_prefix + 'zoom_3d_ratio': {
+                'name': 'zoom_3d_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['zoom_3d_ratio']
             },
             self.node_if_prefix + 'rotate_3d_ratio': {
+                'name': 'rotate_3d_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['rotate_3d_ratio']
             },
             self.node_if_prefix + 'tilt_3d_ratio': {
+                'name': 'tilt_3d_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict['tilt_3d_ratio']
             },
             self.node_if_prefix + 'use_wbg': {
+                'name': 'use_wbg',
                 'namespace': self.namespace,
                 'factory_val': self.controls_dict.get('use_wbg', False)
             },
             self.node_if_prefix + 'live_adjust_enabled': {
+                'name': 'live_adjust_enabled',
                 'namespace': self.namespace,
                 'factory_val': self.live_adjust_enabled
             },
             self.node_if_prefix + 'aspect_adjust_enabled': {
+                'name': 'aspect_adjust_enabled',
                 'namespace': self.namespace,
                 'factory_val': self.aspect_adjust_enabled
             },
             self.node_if_prefix +  'aspect_ratio_set': {
+                'name': 'aspect_ratio_set',
                 'namespace': self.namespace,
                 'factory_val': self.aspect_ratio_set
             },
             self.node_if_prefix + 'filter_dict': {
+                'name': 'filter_dict',
                 'namespace': self.namespace,
                 'factory_val': self.filter_dict
             },
             self.node_if_prefix + 'overlays_dict': {
+                'name': 'overlays_dict',
                 'namespace': self.namespace,
                 'factory_val': self.overlays_dict
             },
             self.node_if_prefix + 'stream_compression_enabled': {
+                'name': 'stream_compression_enabled',
                 'namespace': self.namespace,
                 'factory_val': self.stream_compression_enabled
             },
             self.node_if_prefix + 'stream_compression_ratio': {
+                'name': 'stream_compression_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.stream_compression_ratio
             },
@@ -8901,10 +8130,12 @@ class PointcloudIF:
         self.PARAMS_DICT = {
 
             self.node_if_prefix + 'render_enable': {
+                'name': 'render_enable',
                 'namespace': self.namespace,
                 'factory_val': True
             },
             self.node_if_prefix + 'use_wbg': {
+                'name': 'use_wbg',
                 'namespace': self.namespace,
                 'factory_val': False
             },
@@ -8914,46 +8145,57 @@ class PointcloudIF:
             # factory_reset_param calls in resetRenderControls were no-ops, and the
             # status fields never left 0.0.
             self.node_if_prefix + 'rotate_ratio': {
+                'name': 'rotate_ratio',
                 'namespace': self.namespace,
                 'factory_val': 0.5
             },
             self.node_if_prefix + 'tilt_ratio': {
+                'name': 'tilt_ratio',
                 'namespace': self.namespace,
                 'factory_val': 0.5
             },
             self.node_if_prefix + 'frame_3d': {
+                'name': 'frame_3d',
                 'namespace': self.namespace,
                 'factory_val': self.frame3d_list[0]
             },
             self.node_if_prefix + 'clip_enabled': {
+                'name': 'clip_enabled',
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_enabled']
             },
             self.node_if_prefix + 'clip_selection': {
+                'name': 'clip_selection',
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_selection']
             },
             self.node_if_prefix + 'range_min_m': {
+                'name': 'range_min_m',
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_min_range_m']
             },
             self.node_if_prefix + 'range_max_m': {
+                'name': 'range_max_m',
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['clip_max_range_m']
             },
             self.node_if_prefix + 'voxel_downsample_size': {
+                'name': 'voxel_downsample_size',
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['voxel_downsample_size']
             },
             self.node_if_prefix + 'uniform_downsample_k_points': {
+                'name': 'uniform_downsample_k_points',
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['uniform_downsample_k_points']
             },
             self.node_if_prefix + 'outlier_removal_num_neighbors': {
+                'name': 'outlier_removal_num_neighbors',
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['outlier_removal_num_neighbors']
             },
             self.node_if_prefix + 'outlier_removal_std_ratio': {
+                'name': 'outlier_removal_std_ratio',
                 'namespace': self.namespace,
                 'factory_val': self.DEFAULT_CONTROLS_DICT['outlier_removal_std_ratio']
             }

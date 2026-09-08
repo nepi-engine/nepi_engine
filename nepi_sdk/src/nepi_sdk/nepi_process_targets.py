@@ -350,7 +350,6 @@ targets_2_dict = {
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with confidance lower than threshold.', 'hidden': False},
 
-
     ),
 
 

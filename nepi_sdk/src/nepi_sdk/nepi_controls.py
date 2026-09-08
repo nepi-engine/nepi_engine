@@ -53,13 +53,21 @@ LIST_TYPES = ["Menu","Selections","Toggles",
               "FloatDouble","FloatTriple","FloatSliders","RangeSlider",
               "ColorRGB"]
 
-OPTIONS_TYPES =  ["Menu","Selection","Selections","Toggles"]
-BOUNDS_TYPES = ["Int","Float","FloatSlider","FloatSliders","RangeSlider"]
+OPTIONS_TYPES =  ["Menu","Selection","Selections"]
+
+LABELS_TYPES = ["IntDouble","Toggles","IntTriple","IntSliders",
+                "FloatDouble","FloatTriple","FloatSliders",
+                "ColorRGB"]
+
+BOUNDS_TYPES = ["Int","IntDouble","IntTriple","IntSlider","IntSliders",
+                "Float","FloatDouble","FloatTriple","FloatSlider","FloatSliders","RangeSlider",
+                "ColorRGB"]
+
 STRING_TYPES = ["Selection","Selections","Toggles"]
 BOOL_TYPES = ["Toggle"]
-INT_TYPES = ["Menu","Int","IntSlider","IntSliders","ColorRGB"]
-FLOAT_TYPES = ["Float","FloatSlider","FloatSliders","RangeSlider"]
-EMPTY_TYPES = ['Trigger']
+INT_TYPES = ["Menu","Int","IntDouble","IntTriple","IntSlider","IntSliders","ColorRGB"]
+FLOAT_TYPES = ["Float","FloatDouble","FloatTriple","FloatSlider","FloatSliders","RangeSlider"]
+TRIGGER_TYPES = ['Trigger']
 
 BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(Control())
 
@@ -70,6 +78,10 @@ EXAMPLE_INIT_DICT = dict(
                   # OPTIONAL
                   "min_bound": 0.1, "max_bound":15, 'value_round': 2,
                   'display_name':'Pub Rate', 'description':'Value pub rate', 'hidden':False, 'display_round': 2,}, 
+      wh_degrees = {"type":"FloatDouble", "default":[100,70], 
+                  # OPTIONAL
+                  "min_bound":10, "max_bound":200, 'value_round': 2, 'labels': ['Width (Deg)', 'Height (Deg)'],
+                  'display_name':'Pub Rate', 'description':'Value pub rate', 'hidden':False, 'disabled':True, 'display_round': 2,}, 
 
       index = {"type":"Int", "default":3,  
                # OPTIONAL
@@ -90,7 +102,7 @@ EXAMPLE_INIT_DICT = dict(
     )
 
 
-def get_controls_publisher_namespaces(topics_list = None, types_list = None):
+def get_publisher_namespaces(topics_list = None, types_list = None):
     topics_list = nepi_sdk.find_topics_by_msg('ControlsStatus', topics_list = topics_list, types_list = types_list)
     namespaces_list = []
     for topic in topics_list:
@@ -122,11 +134,11 @@ def create_controls_dict(init_dict):
         control_dict['min_bound'] = -999
         control_dict['max_bound'] = -999
         control_dict['type'] = input_type
-        control_dict['round_value'] = -1
+        control_dict['round_value'] = 6
         control_dict['display_name'] = name
         control_dict['description'] = name
         control_dict['round_display'] = 2
-
+        control_dict['param'] = True
         for key in control_dict.keys():
           if key in init_control_dict.keys():
             control_dict[key] = init_control_dict[key]
@@ -135,6 +147,14 @@ def create_controls_dict(init_dict):
         # Clean Name
         control_dict['name'] = name
 
+
+        #############
+        # Clean Rounds
+        #############
+        if control_dict['round_value'] < 0 or control_dict['round_value'] > 6:
+          control_dict['round_value'] = 6
+        if control_dict['round_display'] < 0 or control_dict['round_display'] > 6:
+          control_dict['round_display'] = 6
 
         #############
         # Clean Bounds
@@ -148,11 +168,11 @@ def create_controls_dict(init_dict):
               max_bound = 255
         elif input_type in FLOAT_TYPES:
           try:
-            min_bound = float(init_control_dict['min_bound'])
+            min_bound = float(control_dict['min_bound'])
           except:
             pass
           try:
-            max_bound = float(init_control_dict['max_bound'])
+            max_bound = float(control_dict['max_bound'])
           except:
             pass
           try:
@@ -162,11 +182,11 @@ def create_controls_dict(init_dict):
             pass
         elif input_type in INT_TYPES:
           try:
-            min_bound = int(float(init_control_dict['min_bound']))
+            min_bound = int(float(control_dict['min_bound']))
           except:
             pass
           try:
-            max_bound = int(float(init_control_dict['max_bound']))
+            max_bound = int(float(control_dict['max_bound']))
           except:
             pass
           try:
@@ -178,50 +198,66 @@ def create_controls_dict(init_dict):
         control_dict['min_bound'] = min_bound
         control_dict['max_bound'] = max_bound
 
+
+
+
         #############
         # Clean Options
-        options = []
-        if 'options' in init_control_dict.keys():
-          options = init_control_dict['options']
-        try:
-          options = options.remove(None)
-        except:
-          pass
+        options = [str(item) for item in control_dict['options']]
         control_dict['options'] = options
 
 
 
+
+        #############
+        # Clean Labels
+        labels = [str(item) for item in control_dict['labels']]
+        control_dict['labels'] = labels
+
+
+        if input_type ==  'Toggles' or input_type ==  'IntDouble' or input_type == 'IntTriple' or input_type == 'IntSliders' or \
+            input_type == 'FloatDouble' or input_type == 'FloatTriple' or input_type == 'FloatSliders':
+
+            if len(labels) == 0 and len(options) > 0:
+              labels = options
+              control_dict['options'] = [] 
+
+            if input_type !=  'Toggles':
+                   
+              for i, entry in enumerate(value):
+                if len(labels) <= i:
+                  labels.append('value_' + str(i))
+              control_dict['labels'] = labels
+
+            control_dict['labels'] = labels 
+
+        elif input_type == 'ColorRGB':
+              control_dict['labels'] = ['R','G','B']
+
+
         #############
         # Clean Value
-        value  = init_control_dict['default']
 
-        check_dict = dict()
-        check_dict[name] = control_dict
+        if input_type == 'Trigger':
+          default = nepi_utils.get_time()
+          value = 0
+        else:
 
-        check_value = copy.deepcopy(value)
-        value = get_clean_value(check_dict, name, value)
-        #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(value) + ": " + str(check_value))
-        if value is None:
-          continue
+          value  = control_dict['default']
 
+          check_dict = dict()
+          check_dict[name] = control_dict
 
-        control_dict['default'] = value
+          check_value = copy.deepcopy(value)
+          value = get_clean_value(check_dict, name, value)
+          default = value
+          #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(value) + ": " + str(check_value))
+          if value is None:
+            continue
+          
+
+        control_dict['default'] = default
         control_dict['value'] = value
-
-
-        #############
-        # Update Options 
-
-        if input_type == 'IntDouble' or input_type == 'IntTriple' or input_type == 'IntSliders' or \
-            input_type == 'FloatDouble' or input_type == 'FloatTriple' or input_type == 'FloatSliders':
-              for i, entry in enumerate(value):
-                if len(options) <= i:
-                  options.append('value_' + str(i))
-              control_dict['options'] = options
-
-
-        if input_type == 'ColorRGB':
-              control_dict['options'] = ['R','G','B']
 
 
         #############
@@ -297,7 +333,9 @@ def get_clean_value(controls_dict, control_name, control_value = None):
       if control_type == "Menu": ###########################################################
         options = control_dict['options']
         try:
-          value  = int(float(control_value))
+          value  = int(control_value)
+          if len(options) <= value:
+            value = None
         except Exception as e:
           pass
     
@@ -311,7 +349,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
           pass
 
         
-      elif control_type == "Selections" or control_type == "Toggles": ###########################################################
+      elif control_type == "Selections": ###########################################################
         options = control_dict['options']
         try:
           values = []
@@ -326,13 +364,32 @@ def get_clean_value(controls_dict, control_name, control_value = None):
           pass
 
       elif control_type == "Trigger": ###########################################################
-          value = nepi_utils.get_time()
+          value = 0
+          try: 
+            value = float(control_value)
+          except:
+            pass
 
       elif control_type == "Toggle": ###########################################################
           try:
               value  = (control_value == True or control_value == 'True' or control_value == 'true')
           except Exception as e:
             pass
+
+      elif control_type == "Toggles": ###########################################################
+        labels = control_dict['labels']
+        try:
+          values = []
+          for item in [str(item) for item in control_value]:
+            if item in labels:
+              values.append(item)
+          # An empty list is a legitimate value here (nothing selected), which is
+          # why this assigns unconditionally rather than guarding on len().
+          value = values
+
+        except Exception as e:
+          pass
+
           
       elif control_type == "String": ###########################################################
         value = str(control_value)
@@ -395,7 +452,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
 
       elif control_type == 'FloatDouble' or control_type == 'FloatTriple' or control_type == "FloatSliders": ###########################################################
-
+        round_value = control_dict['round_value']
         valid = True
         if control_type == 'FloatDouble' and len(control_value) != 2:
           valid = False
@@ -456,74 +513,87 @@ def get_clean_value(controls_dict, control_name, control_value = None):
         except Exception as e:
           pass
 
-      elif control_type == "ColorFilterHSV": ###########################################################      
-        try:
-          value = [0.5,0.5,0.5]
-          control_value = list(control_value)
-          for i, val in enumerate(control_value):
-            try:
-              val = int(val)
-              if 0 <= val <= 1:
-                value[i] = val
-            except:
-              pass
-        except Exception as e:
-          pass
 
   return value
 
 
-def get_control_value(controls_dict, control_name, index = None, value_key = 'value'):
-  if value_key not in ['default', 'value']:
-    value_key = 'value'
+def get_value(controls_dict, control_name, index = None):
   value = None
   control_type = None
-  if control_name in controls_dict.keys():
+  if controls_dict is not None:
+    if control_name in controls_dict.keys():
+        try:
+          control_type = controls_dict[control_name]['type']
+          control_value = get_clean_value(controls_dict, control_name)
+          if control_value is None:
+              logger.log_warn("Got None Value for control: " + str([control_name, controls_dict[control_name]]))
+              pass
+          else:
+            if index is None:
+              value = control_value
+            else:
+              try:
+                index = int(index)
+                if index > 0:
+                  if isinstance(control_value, list):
+                    if len(control_value) > index:
+                      value = control_value[index]
+              except:
+                value = None
+
+        except:
+          pass
+
+    ###################
+    # Special Types Support
+    if value is not None and control_type == 'ColorRGB':
       try:
-        control_type = controls_dict[control_name]['type']
-        value = get_clean_value(controls_dict, control_name)
-        if index is not None:
-          try:
-            index = int(index)
-            if index > 0:
-              control_value = get_control_value(controls_dict,control_name)
-              if isinstance(control_value, list):
-                if len(control_value) > index:
-                  value = control_value[index]
-          except:
-            value = None
-
+        value = tuple(value)
       except:
-        pass
+        value = None
 
-  ###################
-  # Special Types Support
-  if value is not None and control_type == 'ColorRGB':
-    try:
-      value = tuple(value)
-    except:
-      value = None
+    if control_type == 'Trigger':
+      if value <= 0:
+        value = -999
+      else:
+        value = nepi_utils.get_time() - value
 
   return value
 
-def get_controls_values_dict(controls_dict, value_key = 'value'):
+def get_values_dict(controls_dict):
   controls_values_dict = dict()
-  for control_name in controls_dict.keys():
-     control_value = get_control_value(controls_dict, control_name, value_key = value_key)
-     controls_values_dict[control_name] = control_value
+  if controls_dict is not None:
+    for control_name in controls_dict.keys():
+      control_value = get_value(controls_dict, control_name)
+      if control_value is not None:
+        controls_values_dict[control_name] = control_value
+      else:
+        #logger.log_warn("Got None Value for control: " + str(control_name))
+        pass
   return controls_values_dict
 
 
-def set_control_value(controls_dict, control_name, update_value, index = None, value_key = 'value' , check_valid = True):
-  if value_key not in ('default', 'value'):
-    value_key = 'value'
+def get_params_dict(controls_dict):
+  controls_values_dict = dict()
+  if controls_dict is not None:
+    for control_name in controls_dict.keys():
+      control_value = get_value(controls_dict, control_name)
+      param = controls_dict[control_name].get('param',True)
+      if control_value is not None and param == True:
+        controls_values_dict[control_name] = control_value
+      else:
+        #logger.log_warn("Got None Value for control: " + str(control_name))
+        pass
+  return controls_values_dict
+
+def set_value(controls_dict, control_name, update_value, index = None,  check_valid = True):
   if control_name in controls_dict.keys():
       
       if index is not None:
         try:
           index = int(index)
           if index > 0:
-            control_value = get_control_value(controls_dict,control_name)
+            control_value = get_value(controls_dict,control_name)
             if isinstance(control_value, list):
               if len(control_value) > index:
                 control_value[index] = update_value
@@ -534,28 +604,43 @@ def set_control_value(controls_dict, control_name, update_value, index = None, v
       if check_valid == False:
         update_value = get_clean_value(controls_dict, control_name, update_value)
       if update_value is not None:
-        controls_dict[control_name][value_key] = update_value
+        controls_dict[control_name]['value'] = update_value
   return controls_dict
 
-def set_controls_values(controls_dict, controls_values_dict, value_key = 'value'):
+def sets_values(controls_dict, controls_values_dict):
   controls_values_dict = dict()
   for control_name in controls_values_dict.keys():
      control_value = controls_values_dict[control_name]
-     controls_dict = set_control_value(controls_dict, control_name, control_value, value_key = value_key)
+     controls_dict = set_value(controls_dict, control_name, control_value)
   return controls_dict
 
 
-def reset_control_value(controls_dict, control_name):
+def reset_value(controls_dict, control_name):
   controls_dict[control_name]['value'] = controls_dict[control_name]['default']
   return controls_dict
 
-def reset_control_values(controls_dict):
+def reset_values(controls_dict):
     control_names = list(controls_dict.keys())
     for control_name in control_names:
-      controls_dict = reset_control_value(controls_dict, control_name)
+      controls_dict = reset_value(controls_dict, control_name)
     return controls_dict
 
-def get_control_options(controls_dict, control_name):
+
+def get_labels(controls_dict, control_name):
+  labels = []
+  if control_name in controls_dict.keys():
+      labels = controls_dict[control_name].get('labels',[])
+  return labels
+
+
+def set_labels(controls_dict, control_name, labels):
+  labels = [str(item) for item in labels]
+  if control_name in controls_dict.keys():
+      controls_dict[control_name]['labels'] = labels
+  return controls_dict
+
+
+def get_options(controls_dict, control_name):
   # Read 'options' before, a key Control.msg does not define and
   # BLANK_CONTROL_DICT therefore never carries -- so this raised KeyError for
   # every control. The field is 'options'.
@@ -564,20 +649,16 @@ def get_control_options(controls_dict, control_name):
       options = controls_dict[control_name].get('options',[])
   return options
 
-def set_control_options(controls_dict, control_name, options):
+def set_options(controls_dict, control_name, options):
   options = [str(item) for item in options]
   if control_name in controls_dict.keys():
-      try:
-        options = options.remove(None)
-      except:
-        pass
       controls_dict[control_name]['options'] = options
   return controls_dict
 
 
 
 
-def get_control_bounds(controls_dict, control_name):
+def get_bounds(controls_dict, control_name):
   bounds = [-999,-999]
   if control_name in controls_dict.keys():
       min_bound = controls_dict[control_name]['min_bound']
@@ -586,7 +667,7 @@ def get_control_bounds(controls_dict, control_name):
 
 
 
-def set_control_min_bound(controls_dict, control_name, min_bound = None):
+def set_min_bound(controls_dict, control_name, min_bound = None):
   if min_bound is None:
     min_bound = -999
   if control_name in controls_dict.keys():
@@ -607,11 +688,11 @@ def set_control_min_bound(controls_dict, control_name, min_bound = None):
         controls_dict[control_name]['min_bound'] = min_bound
   return controls_dict
 
-def clear_control_min_bound(controls_dict, control_name):
-  controls_dict = set_control_min_bound(controls_dict, control_name)
+def clear_min_bound(controls_dict, control_name):
+  controls_dict = set_min_bound(controls_dict, control_name)
   return controls_dict
 
-def set_control_max_bound(controls_dict, control_name, max_bound = None):
+def set_max_bound(controls_dict, control_name, max_bound = None):
   if max_bound is None:
     max_bound = -999
   if control_name in controls_dict.keys():
@@ -632,11 +713,11 @@ def set_control_max_bound(controls_dict, control_name, max_bound = None):
         controls_dict[control_name]['max_bound'] = max_bound
   return controls_dict
 
-def clear_control_max_bound(controls_dict, control_name):
-  controls_dict = set_control_max_bound(controls_dict, control_name)
+def clear_max_bound(controls_dict, control_name):
+  controls_dict = set_max_bound(controls_dict, control_name)
   return controls_dict
 
-def set_control_bounds(controls_dict, control_name, bounds = [-999,-999]):
+def set_bounds(controls_dict, control_name, bounds = [-999,-999]):
   if len(bounds) == 2:
     [min_bound,max_bound] = bounds
     if min_bound is None:
@@ -647,8 +728,8 @@ def set_control_bounds(controls_dict, control_name, bounds = [-999,-999]):
       if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
 
         if control_name in controls_dict.keys():
-            controls_dict = set_control_min_bound(controls_dict, control_name, min_bound)
-            controls_dict = set_control_max_bound(controls_dict, control_name, max_bound)
+            controls_dict = set_min_bound(controls_dict, control_name, min_bound)
+            controls_dict = set_max_bound(controls_dict, control_name, max_bound)
     except:
       pass
 
@@ -660,38 +741,38 @@ def set_control_bounds(controls_dict, control_name, bounds = [-999,-999]):
 ##################
 # Display Functions
 
-def get_control_display_name(controls_dict, control_name):
+def get_display_name(controls_dict, control_name):
   display_name = ''
   if control_name in controls_dict.keys():
       display_name = controls_dict[control_name]['display_name']
   return display_name
 
-def set_control_display_name(controls_dict, control_name, display_name):
+def set_display_name(controls_dict, control_name, display_name):
   display_name = str(display_name)
   if control_name in controls_dict.keys():
       controls_dict[control_name]['display_name'] = display_name
   return controls_dict
 
 
-def get_control_description(controls_dict, control_name):
+def get_description(controls_dict, control_name):
   description = ''
   if control_name in controls_dict.keys():
       description = controls_dict[control_name]['description']
   return description
 
-def set_control_description(controls_dict, control_name, description):
+def set_description(controls_dict, control_name, description):
   description = str(description)
   if control_name in controls_dict.keys():
       controls_dict[control_name]['description'] = description
   return controls_dict
 
-def get_control_hidden(controls_dict, control_name):
+def get_hidden(controls_dict, control_name):
   hidden = False
   if control_name in controls_dict.keys():
       hidden = (controls_dict[control_name]['hidden'] == True)
   return hidden
 
-def set_control_hidden(controls_dict, control_name, hidden):
+def set_hidden(controls_dict, control_name, hidden):
   # str() here wrote the strings 'True'/'False' into Control.hidden, a toggle
   # field. convert_dict2msg then rejected the dict and the control vanished
   # from the status message instead of being hidden in it.
@@ -700,14 +781,30 @@ def set_control_hidden(controls_dict, control_name, hidden):
       controls_dict[control_name]['hidden'] = hidden
   return controls_dict
 
-def get_control_display_order(controls_dict, control_name):
+def get_disabled(controls_dict, control_name):
+  disabled = False
+  if control_name in controls_dict.keys():
+      disabled = (controls_dict[control_name]['disabled'] == True)
+  return disabled
+
+def set_disabled(controls_dict, control_name, disabled):
+  # str() here wrote the strings 'True'/'False' into Control.disabled, a toggle
+  # field. convert_dict2msg then rejected the dict and the control vanished
+  # from the status message instead of being disabled in it.
+  disabled = (disabled == True)
+  if control_name in controls_dict.keys():
+      controls_dict[control_name]['disabled'] = disabled
+  return controls_dict
+
+
+def get_display_order(controls_dict, control_name):
   order = -1
   if control_name in controls_dict.keys():
       ordered_list = list(controls_dict.keys())
       order = ordered_list.index(control_name)
   return order
 
-def set_control_display_order(controls_dict, control_name, update_order = 0):
+def set_display_order(controls_dict, control_name, update_order = 0):
   update_controls_dict = copy.deepcopy(controls_dict)
   cur_ordered_list = list(controls_dict.keys())
   num_controls = len(cur_ordered_list)
@@ -727,7 +824,7 @@ def set_control_display_order(controls_dict, control_name, update_order = 0):
 
 
 
-def move_control_display_top(controls_dict, control_name):
+def move_control_top(controls_dict, control_name):
   update_controls_dict = copy.deepcopy(controls_dict)
   cur_ordered_list = list(controls_dict.keys())
   num_controls = len(cur_ordered_list)
@@ -735,10 +832,10 @@ def move_control_display_top(controls_dict, control_name):
     cur_order = cur_ordered_list.index(control_name)
     update_order = 0
     if cur_order != update_order and update_order >= 0 and update_order < num_controls:
-      update_controls_dict = set_control_display_order(controls_dict, control_name, update_order)
+      update_controls_dict = set_display_order(controls_dict, control_name, update_order)
   return update_controls_dict
 
-def move_control_display_bottom(controls_dict, control_name):
+def move_control_bottom(controls_dict, control_name):
   update_controls_dict = copy.deepcopy(controls_dict)
   cur_ordered_list = list(controls_dict.keys())
   num_controls = len(cur_ordered_list)
@@ -746,10 +843,10 @@ def move_control_display_bottom(controls_dict, control_name):
     cur_order = cur_ordered_list.index(control_name)
     update_order = num_controls - 1
     if cur_order != update_order and update_order >= 0 and update_order < num_controls:
-      update_controls_dict = set_control_display_order(controls_dict, control_name, update_order)
+      update_controls_dict = set_display_order(controls_dict, control_name, update_order)
   return update_controls_dict
 
-def move_control_display_up(controls_dict, control_name):
+def move_control_up(controls_dict, control_name):
   update_controls_dict = copy.deepcopy(controls_dict)
   cur_ordered_list = list(controls_dict.keys())
   num_controls = len(cur_ordered_list)
@@ -757,10 +854,10 @@ def move_control_display_up(controls_dict, control_name):
     cur_order = cur_ordered_list.index(control_name)
     update_order = cur_order + 1
     if cur_order != -1 and update_order >= 0 and update_order < num_controls:
-      update_controls_dict = set_control_display_order(controls_dict, control_name, update_order)
+      update_controls_dict = set_display_order(controls_dict, control_name, update_order)
   return update_controls_dict
 
-def move_control_display_down(controls_dict, control_name):
+def move_control_down(controls_dict, control_name):
   update_controls_dict = copy.deepcopy(controls_dict)
   cur_ordered_list = list(controls_dict.keys())
   num_controls = len(cur_ordered_list)
@@ -768,13 +865,13 @@ def move_control_display_down(controls_dict, control_name):
     cur_order = cur_ordered_list.index(control_name)
     update_order = cur_order - 1
     if cur_order != -1 and update_order >= 0 and update_order < num_controls:
-      update_controls_dict = set_control_display_order(controls_dict, control_name, update_order)
+      update_controls_dict = set_display_order(controls_dict, control_name, update_order)
   return update_controls_dict
 
 ############################################################
 # Status Msg Functions
 
-def create_status_msg( name = '', display_name = '', description = '', show_controls = True, has_show_control = False):
+def create_status_msg( name = '', display_name = '', description = ''):
   status_msg = ControlsStatus()
   name = nepi_utils.get_clean_name(str(name))
   status_msg.name= name
@@ -784,21 +881,17 @@ def create_status_msg( name = '', display_name = '', description = '', show_cont
   if description == '':
     description = name
   status_msg.description= str(description)
-  status_msg.show_controls = show_controls
-  status_msg.has_show_control = has_show_control and show_controls == True
   return status_msg
 
 
-def update_status_msg( status_msg, controls_dict, hidden = False):
+def update_status_msg( status_msg, controls_dict):
   if status_msg is None:
     status_msg = ControlsStatus()
-  status_msg.hidden= hidden
 
 
   names_list = [] 
   types_list = [] 
   msgs_list = [] 
-  hidden_list = [] 
 
   try:
     names = list(controls_dict.keys())
@@ -818,25 +911,38 @@ def update_status_msg( status_msg, controls_dict, hidden = False):
         # Convert default and value to string lists for Controls Msg
         value = control_dict['value']
         default = control_dict['default']
+
+        if control_type == 'Trigger':
+          if value <= 0:
+            value = -999
+          else:
+            value = nepi_utils.get_time() - value
+ 
         if control_type in LIST_TYPES:
           if isinstance(value, list):
               msg_value = [str(item) for item in value]
               msg_default = [str(item) for item in default]
           else:
-              msg_value = [value]
-              msg_default = [value]
+            msg_value = [str(value)]
+            msg_default = [str(default)]
         else:
           msg_value = [str(value)]
-          msg_default = [str(value)]
+          msg_default = [str(default)]
         control_dict['value'] = msg_value
         control_dict['default'] = msg_default
 
+        msg_dict = nepi_sdk.convert_msg2dict(Control())
+        for key in msg_dict.keys():
+          if key in control_dict.keys():
+            msg_dict[key] = control_dict[key]
+
+
         msg_type = 'nepi_interfaces/Control'
-        control_msg = nepi_sdk.convert_dict2msg(msg_type,control_dict)
-        names_list.append(name)
-        types_list.append(control_type)
-        msgs_list.append(control_msg)
-        hidden_list.append(control_msg.hidden)
+        control_msg = nepi_sdk.convert_dict2msg(msg_type,msg_dict)
+        if control_msg is not None:
+          names_list.append(name)
+          types_list.append(control_type)
+          msgs_list.append(control_msg)
       else:
         # Same silent fall-through as create_controls_dict: a control that made
         # it into the dict but carries a type this list does not know is simply
@@ -853,12 +959,10 @@ def update_status_msg( status_msg, controls_dict, hidden = False):
                       "' out of the status message: " +
                       type(e).__name__ + ": " + str(e), throttle_s = 5)
     status_msg.controls_name_list = names_list
-    status_msg.controls_type_list = types_list
     status_msg.controls_msg_list = msgs_list
-    status_msg.controls_hidden_list = hidden_list
   return status_msg
 
-def apply_update_control_msg( controls_dict, msg):
+def apply_update_msg( controls_dict, msg):
   name = msg.name
 
   if name not in controls_dict.keys():
@@ -883,18 +987,18 @@ def apply_update_control_msg( controls_dict, msg):
   if value != ['']:
     value = get_clean_value(controls_dict, name, value)
     if value is not None:
-      controls_dict = set_control_value(controls_dict, name, value, index = index)
+      controls_dict = set_value(controls_dict, name, value, index = index)
 
   min_bound = msg.min_bound
   if min_bound != '':
-    controls_dict = set_control_min_bound(controls_dict, name, min_bound = min_bound)
+    controls_dict = set_min_bound(controls_dict, name, min_bound = min_bound)
 
   max_bound = msg.max_bound
   if max_bound != '':
-    controls_dict = set_control_max_bound(controls_dict, name, max_bound = max_bound)
+    controls_dict = set_max_bound(controls_dict, name, max_bound = max_bound)
 
   options = msg.options
   if options != ['']:
-    controls_dict = set_control_options(controls_dict, name, options)
+    controls_dict = set_options(controls_dict, name, options)
 
   return controls_dict

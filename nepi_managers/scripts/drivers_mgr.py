@@ -883,7 +883,7 @@ class NepiDriversMgr(object):
           setting = options_dict[setting_name]
           setting_type = setting['type']
           options = setting.get('options',[])
-          bounds = [-999,-999]
+          bounds = setting.get('bounds',[-999,-999])
           if setting_type == 'Discrete':
             setting_type = 'Selection'
             
@@ -897,6 +897,7 @@ class NepiDriversMgr(object):
               bounds[1] = options[1]
             except:
               pass
+
             
           setting_dict = {'name': setting_name,
                         'type': setting_type,
@@ -936,7 +937,7 @@ class NepiDriversMgr(object):
                 success = True
                 msg = 'Success'
                 self.needs_config_save = True
-                settings_dict = nepi_controls.set_control_value(settings_dict, setting_name, setting_value, check_valid = False)
+                settings_dict = nepi_controls.set_value(settings_dict, setting_name, setting_value, check_valid = False)
 
 
 
@@ -991,11 +992,11 @@ class NepiDriversMgr(object):
           #self.msg_if.pub_info("Updating driver discovery settings with : " + str([option_name,value,options]))
           setting_type = settings_dict[option_name]['type']
           if (setting_type == 'Int' or setting_type == 'Float') and len(options) > 1:
-              settings_dict = nepi_controls.set_control_bounds(settings_dict, option_name, [options[0], options[1]])
+              settings_dict = nepi_controls.set_bounds(settings_dict, option_name, [options[0], options[1]])
           if setting_type == 'Selection':
-              settings_dict = nepi_controls.set_control_options(settings_dict, option_name, options)
+              settings_dict = nepi_controls.set_options(settings_dict, option_name, options)
           
-          settings_dict = nepi_controls.set_control_value(settings_dict, option_name, value, check_valid = False)
+          settings_dict = nepi_controls.set_value(settings_dict, option_name, value, check_valid = False)
       #self.msg_if.pub_warn("Returning driver discovery settings dict : " + str(settings_dict))
       return settings_dict
 

@@ -770,8 +770,8 @@ class SystemMgrNode():
         # Want to update the op_environment (from param server) through the whole system once at
         # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
         self.msg_if.pub_warn("Updating From Param Server")
-        self.initConfig()
-
+        system_config = self.initConfig()
+        self.msg_if.pub_info("Got Init System Config: " + str(system_config))
         ###############################
         # Setup System Settings IF Class ####################
         self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = [self.node_name])
@@ -921,6 +921,7 @@ class SystemMgrNode():
                 self.status_msg.temperatures.append(0.0)
 
             self.status_msg.save_all_enabled = False
+        return self.system_config
 
     
     def initCb(self, do_updates = False):
@@ -995,6 +996,7 @@ class SystemMgrNode():
                 setting_dict = copy.deepcopy(nepi_controls.BLANK_CONTROL_DICT)
                 val = config_dict[key]
                 setting_dict['name'] = key
+                setting_dict['param'] = True
                 try:
                     val_int = int(val)
                     setting_dict['type'] = 'Int'

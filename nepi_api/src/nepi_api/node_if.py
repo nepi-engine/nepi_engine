@@ -22,6 +22,7 @@ import time
 import copy
 
 from nepi_sdk import nepi_sdk
+from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
@@ -332,12 +333,14 @@ class NodeConfigsIF:
 ### Node Params Class
 '''
 EXAMPLE_PARAMS_DICT = {
-    'param1_name': {
+    'param11_key': {
+        'name': 'param1',
         'namespace':  self.node_namespace,
         'factory_val': 100,
         'current_val: 20  # Optional
     },
-    'param2_name': {
+    'param2_key': {
+        'name': 'param2',
         'namespace':  self.node_namespace,
         'factory_val': "Something"
     }
@@ -423,7 +426,7 @@ class NodeParamsIF:
     def load_params(self, file_path):
         self.nepi_sdk.load_params_from_file(file_path,self.namespace)        
 
-    def getNestedInitVal(self, ns_param_dict, param_name):
+    def getNestedInitVal(self, ns_param_dict, param_key):
         # A param key may contain '/' ('home_position/pan_deg'), and get_params returns
         # the namespace as a NESTED dict, so a slashed key never matches a top-level
         # key. Matching against the top level made every slashed param fall through to
@@ -431,7 +434,7 @@ class NodeParamsIF:
         # is why svx and ptx home position could not survive a restart. Walk the
         # segments instead. A flat key still resolves on the first pass.
         val = ns_param_dict
-        for key in param_name.split('/'):
+        for key in param_key.split('/'):
             if isinstance(val, dict) and key in val.keys():
                 val = val[key]
             else:
@@ -440,31 +443,38 @@ class NodeParamsIF:
 
     def initialize_params(self):
 
-        self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("Initializing params: " + str(self.params_dict), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict), log_name_list = self.log_name_list)
         params_dict = copy.deepcopy(self.params_dict)
         init_val = None
         got_params_dict = dict()
-        for param_name in params_dict.keys():
-            namespace = params_dict[param_name]['namespace']
+        for param_key in params_dict.keys():
+            namespace = params_dict[param_key]['namespace']
             if namespace not in got_params_dict.keys():
                 get_params_dict = nepi_sdk.get_params(namespace)
                 if get_params_dict is not None:
                     if isinstance(get_params_dict, dict):
+                        param_name = get_params_dict.get('name',param_key)
+                        param_name = nepi_utils.get_clean_name(param_name)
+                        if param_name is None:
+                            param_name = param_key
+                        if param_name == '':
+                            param_name = param_key
+                        get_params_dict['name'] = param_name
                         got_params_dict[namespace] = get_params_dict
-            if 'init_val' not in params_dict[param_name].keys():
-                param_dict = params_dict[param_name]
+            if 'init_val' not in params_dict[param_key].keys():
+                param_dict = params_dict[param_key]
                 factory_val = param_dict['factory_val']
 
                 ns_param_dict = got_params_dict[namespace]
-                init_val = self.getNestedInitVal(ns_param_dict, param_name)
+                init_val = self.getNestedInitVal(ns_param_dict, param_key)
                 if init_val is None:
                     init_val = factory_val
-                    params_dict[param_name]['init_val'] = init_val
+                    params_dict[param_key]['init_val'] = init_val
 
-                self.set_param(param_name, init_val)
-                cur_val = self.get_param(param_name)
-                self.msg_if.pub_warn("Initialized param factory,init,value " + str([param_name,factory_val,init_val,cur_val]), log_name_list = self.log_name_list)
+                self.set_param(param_key, init_val)
+                cur_val = self.get_param(param_key)
+                #self.msg_if.pub_warn("Initialized param factory,init,value " + str([param_key,factory_val,init_val,cur_val]), log_name_list = self.log_name_list)
 
         self.params_dict = params_dict
         return True
@@ -472,43 +482,43 @@ class NodeParamsIF:
     def reset_params(self):
         self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
         success = self.initialize_params()
-        for param_name in self.params_dict.keys():
+        for param_key in self.params_dict.keys():
 
-            cur_val = self.get_param(param_name)
+            cur_val = self.get_param(param_key)
 
             init_val = None
-            if 'init_val' in self.params_dict[param_name].keys():
-                init_val = self.params_dict[param_name]['init_val']
+            if 'init_val' in self.params_dict[param_key].keys():
+                init_val = self.params_dict[param_key]['init_val']
             if init_val is None:
-                init_val = self.params_dict[param_name]['factory_val']
-            self.msg_if.pub_warn("Resetting param from:to " + str([param_name,cur_val,init_val]), log_name_list = self.log_name_list)
-            self.set_param(param_name, init_val)
+                init_val = self.params_dict[param_key]['factory_val']
+            #self.msg_if.pub_warn("Resetting param from:to " + str([param_key,cur_val,init_val]), log_name_list = self.log_name_list)
+            self.set_param(param_key, init_val)
 
     def factory_reset_params(self):
         self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
-        for param_name in self.params_dict.keys():
+        for param_key in self.params_dict.keys():
 
-            cur_val = self.get_param(param_name)
+            cur_val = self.get_param(param_key)
             
-            factory_val = self.params_dict[param_name]['factory_val']
-            self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_name,cur_val,factory_val]), log_name_list = self.log_name_list)
-            self.set_param(param_name, factory_val)
+            factory_val = self.params_dict[param_key]['factory_val']
+            #self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_key,cur_val,factory_val]), log_name_list = self.log_name_list)
+            self.set_param(param_key, factory_val)
 
     def save_params(self, file_path):
         if not nepi_sdk.is_shutdown():
             self.nepi_sdk.save_params_to_file(file_path,self.namespace)       
 
-    def has_param(self, param_name):
-        namespace = self.get_param_namespace(param_name)
+    def has_param(self, param_key):
+        namespace = self.get_param_namespace(param_key)
         if namespace is not None:
             return nepi_sdk.has_param(namespace)
         return False
 
-    def get_param(self, param_name):
+    def get_param(self, param_key):
         value = None
-        if param_name in self.params_dict.keys():
-            param_dict = self.params_dict[param_name]
-            namespace = self.get_param_namespace(param_name)
+        if param_key in self.params_dict.keys():
+            param_dict = self.params_dict[param_key]
+            namespace = self.get_param_namespace(param_key)
             if namespace is not None:
                 if namespace in self.params_ns_dict.keys():
                     value = self.params_ns_dict[namespace]
@@ -524,44 +534,47 @@ class NodeParamsIF:
                     value = fallback
         return value
 
-    def set_param(self, param_name, value):
+    def set_param(self, param_key, value):
         if not nepi_sdk.is_shutdown():
-            namespace = self.get_param_namespace(param_name)
+            namespace = self.get_param_namespace(param_key)
             if namespace is not None:
                 self.params_ns_dict[namespace] = value
                 nepi_sdk.set_param(namespace,value)
                 
 
-    def reset_param(self, param_name):
-        if param_name in self.params_dict.keys():
-            init_val = self.params_dict[param_name]['init_val']
-            self.set_param(param_name, init_val)
+    def reset_param(self, param_key):
+        if param_key in self.params_dict.keys():
+            init_val = self.params_dict[param_key]['init_val']
+            self.set_param(param_key, init_val)
 
-    def factory_reset_param(self, param_name):
-        if param_name in self.params_dict.keys():
-            factory_val = self.params_dict[param_name]['factory_val']
-            self.set_param(param_name, factory_val)
+    def factory_reset_param(self, param_key):
+        if param_key in self.params_dict.keys():
+            factory_val = self.params_dict[param_key]['factory_val']
+            self.set_param(param_key, factory_val)
 
     def get_params(self):
         return list(self.params_dict.keys())
 
 
-    def get_param_namespace(self,param_name):
+    def get_param_namespace(self,param_key):
         namespace = None
-        if param_name in self.params_dict.keys() and not nepi_sdk.is_shutdown():
-            param_dict = self.params_dict[param_name]
+        if param_key in self.params_dict.keys() and not nepi_sdk.is_shutdown():
+            param_dict = self.params_dict[param_key]
+            param_name = param_dict.get('name',param_key)
             namespace = nepi_sdk.create_namespace(param_dict['namespace'],param_name)
         return namespace
 
 
-    def add_param(self, param_name, namespace, value):
+    def add_param(self, param_key, name, namespace, value):
         if not nepi_sdk.is_shutdown():
-            if param_name is not None and namespace is not None and value is not None:
-                if param_name not in self.params_dict.keys():
-                    self.params_dict[param_name] = {
+            if param_key is not None and namespace is not None and value is not None:
+                if param_key not in self.params_dict.keys():
+                    self.params_dict[param_key] = {
                 'namespace': namespace,
+                'name': name,
                 'factory_val': value
             }
+        self.initialize_params()
 
     def add_params(self,params_dict):
         self.params_dict.update(params_dict)
@@ -922,8 +935,8 @@ class NodePublishersIF:
                         self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
                     self.pubs_dict[pub_name]['pub_namespace'] = pub_namespace
                     self.pubs_dict[pub_name]['pub'] = pub
-                    if print_msg == True:
-                        self.msg_if.pub_warn("Added Pub: " + pub_name, log_name_list = self.log_name_list)
+                    # if print_msg == True:
+                    #     self.msg_if.pub_warn("Added Pub: " + pub_name, log_name_list = self.log_name_list)
             else:
                 #self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name, log_name_list = self.log_name_list) 
                 pass
@@ -1317,9 +1330,9 @@ class NodeClassIF:
 
 
     # Param Methods ####################
-    def add_param(self,param_name, namespace, value):
+    def add_param(self,param_key, namespace, value):
         if self.params_if is not None:
-            params = self.params_if.add_param(param_name, namespace, value)
+            params = self.params_if.add_param(param_key, namespace, value)
 
     def add_params(self,params_dict):
         if self.params_if is not None:
@@ -1355,35 +1368,35 @@ class NodeClassIF:
 
 
 
-    def has_param(self, param_name):
+    def has_param(self, param_key):
         exists = False
         if self.params_if is not None:
-            exists = self.params_if.has_param(param_name)
+            exists = self.params_if.has_param(param_key)
         return exists
 
-    def get_param(self, param_name):
+    def get_param(self, param_key):
         value = None
         if self.params_if is not None:
-            value = self.params_if.get_param(param_name)
+            value = self.params_if.get_param(param_key)
 
         return value
 
-    def set_param(self, param_name, value):
+    def set_param(self, param_key, value):
         success = False
         if self.params_if is not None:
-            self.params_if.set_param(param_name,value)
+            self.params_if.set_param(param_key,value)
         return success
 
-    def reset_param(self, param_name):
+    def reset_param(self, param_key):
         success = False
         if self.params_if is not None:
-            self.params_if.reset_param(param_name)
+            self.params_if.reset_param(param_key)
         return success
 
-    def factory_reset_param(self, param_name):
+    def factory_reset_param(self, param_key):
         success = False
         if self.params_if is not None:
-            self.params_if.reset_param(param_name)
+            self.params_if.reset_param(param_key)
 
         return success
 

@@ -868,7 +868,6 @@ class PTXActuatorIF:
             self.settings_if = SettingsIF(namespace = settings_ns,
                             getSettingsFunction=self.getSettingsFunction, 
                             setSettingFunction=self.setSettingFunction, 
-                            use_nodename_prefix=False,
                             log_name_list = self.log_name_list,
                             msg_if = self.msg_if,
                             node_if = self.node_if
