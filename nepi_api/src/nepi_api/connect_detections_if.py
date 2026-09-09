@@ -88,9 +88,9 @@ class ConnectDetectionsIF(ConnectNodeIF):
     def __init__(self,
                 connect_name = DETECTIONS_CONNECT_NAME,
                 namespace = None,
-                statusCb = None,
+                status_callback = None,
                 preprocess_function = None,
-                dataCB = None,
+                data_callback = None,
                 filter_topic_list = [],
                 show_selector = True,
                 show_controls = True,
@@ -122,9 +122,9 @@ class ConnectDetectionsIF(ConnectNodeIF):
         ##############################
         # Initialize Class Variables
 
-        self.statusCb = statusCb
+        self.statusCb = status_callback
         self.preprocessFunction = preprocess_function
-        self.dataCB = dataCB
+        self.dataCB = data_callback
 
 
         ##############################

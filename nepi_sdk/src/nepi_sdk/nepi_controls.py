@@ -246,10 +246,10 @@ def create_controls_dict(init_dict):
           value  = control_dict['default']
 
           check_dict = dict()
-          check_dict[name] = control_dict
+          check_dict[name] = copy.deepcopy(control_dict)
 
           check_value = copy.deepcopy(value)
-          value = get_clean_value(check_dict, name, value)
+          value = get_clean_value(check_dict, name, check_value)
           default = value
           #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(value) + ": " + str(check_value))
           if value is None:
@@ -464,7 +464,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
           try:  
               values = [0] * len(control_value)
               for i, item in enumerate(control_value):  
-                values[i] = float(values[i])
+                values[i] = float(item)
                 if round_value >= 0:
                   values[i] = round(values[i],round_value)
                 # Reset valid = True here, discarding the low handle's verdict.
@@ -476,7 +476,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
               # why this assigns unconditionally rather than guarding on len().
               value = values
           except Exception as e:
-            pass
+            logger.log_warn("Failed to get clean Float List values: " + str(e))
 
       elif control_type == "RangeSlider": ###########################################################
 
