@@ -20,6 +20,7 @@
 import os
 import time 
 import copy
+import threading
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -353,6 +354,7 @@ class NodeParamsIF:
     msg_if = None
     ready = False
     params_dict = dict()
+    params_dict_lock = threading.Lock()
 
     initCb = None
     resetCb = None
@@ -445,7 +447,9 @@ class NodeParamsIF:
 
         #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict), log_name_list = self.log_name_list)
+        self.params_dict_lock.acquire()
         params_dict = copy.deepcopy(self.params_dict)
+        self.params_dict_lock.release()
         init_val = None
         got_params_dict = dict()
         for param_key in params_dict.keys():
@@ -473,36 +477,45 @@ class NodeParamsIF:
                     params_dict[param_key]['init_val'] = init_val
 
                 self.set_param(param_key, init_val)
-                cur_val = self.get_param(param_key)
-                #self.msg_if.pub_warn("Initialized param factory,init,value " + str([param_key,factory_val,init_val,cur_val]), log_name_list = self.log_name_list)
+              
 
+        self.params_dict_lock.acquire()
         self.params_dict = params_dict
+        self.params_dict_lock.release()
         return True
             
     def reset_params(self):
         self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
         success = self.initialize_params()
-        for param_key in self.params_dict.keys():
+        self.params_dict_lock.acquire()
+        params_dict = copy.deepcopy(self.params_dict)
+        self.params_dict_lock.release()
+        for param_key in params_dict.keys():
 
             cur_val = self.get_param(param_key)
 
             init_val = None
-            if 'init_val' in self.params_dict[param_key].keys():
-                init_val = self.params_dict[param_key]['init_val']
+            if 'init_val' in params_dict[param_key].keys():
+                init_val = params_dict[param_key]['init_val']
             if init_val is None:
-                init_val = self.params_dict[param_key]['factory_val']
+                init_val = params_dict[param_key]['factory_val']
             #self.msg_if.pub_warn("Resetting param from:to " + str([param_key,cur_val,init_val]), log_name_list = self.log_name_list)
             self.set_param(param_key, init_val)
+      
 
     def factory_reset_params(self):
         self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
-        for param_key in self.params_dict.keys():
+        self.params_dict_lock.acquire()
+        params_dict = copy.deepcopy(self.params_dict)
+        self.params_dict_lock.release()
+        for param_key in params_dict.keys():
 
             cur_val = self.get_param(param_key)
             
-            factory_val = self.params_dict[param_key]['factory_val']
+            factory_val = params_dict[param_key]['factory_val']
             #self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_key,cur_val,factory_val]), log_name_list = self.log_name_list)
             self.set_param(param_key, factory_val)
+
 
     def save_params(self, file_path):
         if not nepi_sdk.is_shutdown():
@@ -516,8 +529,11 @@ class NodeParamsIF:
 
     def get_param(self, param_key):
         value = None
-        if param_key in self.params_dict.keys():
-            param_dict = self.params_dict[param_key]
+        self.params_dict_lock.acquire()
+        params_dict = copy.deepcopy(self.params_dict)
+        self.params_dict_lock.release()
+        if param_key in params_dict.keys():
+            param_dict = params_dict[param_key]
             namespace = self.get_param_namespace(param_key)
             if namespace is not None:
                 if namespace in self.params_ns_dict.keys():
@@ -532,6 +548,7 @@ class NodeParamsIF:
 
                 if value is None:
                     value = fallback
+
         return value
 
     def set_param(self, param_key, value):
@@ -543,13 +560,19 @@ class NodeParamsIF:
                 
 
     def reset_param(self, param_key):
-        if param_key in self.params_dict.keys():
-            init_val = self.params_dict[param_key]['init_val']
+        self.params_dict_lock.acquire()
+        params_dict = copy.deepcopy(self.params_dict)
+        self.params_dict_lock.release()
+        if param_key in params_dict.keys():
+            init_val = params_dict[param_key]['init_val']
             self.set_param(param_key, init_val)
 
     def factory_reset_param(self, param_key):
-        if param_key in self.params_dict.keys():
-            factory_val = self.params_dict[param_key]['factory_val']
+        self.params_dict_lock.acquire()
+        params_dict = copy.deepcopy(self.params_dict)
+        self.params_dict_lock.release()
+        if param_key in params_dict.keys():
+            factory_val = params_dict[param_key]['factory_val']
             self.set_param(param_key, factory_val)
 
     def get_params(self):
@@ -558,8 +581,11 @@ class NodeParamsIF:
 
     def get_param_namespace(self,param_key):
         namespace = None
-        if param_key in self.params_dict.keys() and not nepi_sdk.is_shutdown():
-            param_dict = self.params_dict[param_key]
+        self.params_dict_lock.acquire()
+        params_dict = copy.deepcopy(self.params_dict)
+        self.params_dict_lock.release()
+        if param_key in params_dict.keys() and not nepi_sdk.is_shutdown():
+            param_dict = params_dict[param_key]
             param_name = param_dict.get('name',param_key)
             namespace = nepi_sdk.create_namespace(param_dict['namespace'],param_name)
         return namespace
@@ -568,16 +594,26 @@ class NodeParamsIF:
     def add_param(self, param_key, name, namespace, value):
         if not nepi_sdk.is_shutdown():
             if param_key is not None and namespace is not None and value is not None:
-                if param_key not in self.params_dict.keys():
-                    self.params_dict[param_key] = {
-                'namespace': namespace,
-                'name': name,
-                'factory_val': value
-            }
+                self.params_dict_lock.acquire()
+                params_dict = copy.deepcopy(self.params_dict)
+                self.params_dict_lock.release()
+                if param_key not in params_dict.keys():
+                    params_dict[param_key] = {
+                        'namespace': namespace,
+                        'name': name,
+                        'factory_val': value
+                        }
+  
         self.initialize_params()
 
     def add_params(self,params_dict):
-        self.params_dict.update(params_dict)
+        self.params_dict_lock.acquire()
+        params_dict = copy.deepcopy(self.params_dict)
+        self.params_dict_lock.release()
+        params_dict.update(params_dict)
+        self.params_dict_lock.acquire()
+        self.params_dict = params_dict
+        self.params_dict_lock.release()
         self.initialize_params()
 
 
@@ -700,10 +736,11 @@ class NodeServicesIF:
         self._initializeServices()
 
     def register_services(self,services_dict):
-        for service_name in services_dict.keys():
-            service_dict = services_dict[service_name]
-            self.srvs_dict[service_name] = service_dict
-        self._initializeServices()
+        if services_dict is not None:
+            for service_name in services_dict.keys():
+                service_dict = services_dict[service_name]
+                self.srvs_dict[service_name] = service_dict
+            self._initializeServices()
 
     def unregister_service(self,service_name):
         self._unregisterService(service_name)
@@ -785,7 +822,7 @@ class NodePublishersIF:
     msg_if = None
     ready = False
     pubs_dict = dict()
-
+    pubs_dict_lock = threading.Lock()
     #######################
     ### IF Initialization
     def __init__(self, 
@@ -867,6 +904,7 @@ class NodePublishersIF:
 
     def publish_pub(self,pub_name,pub_msg):
         success = False
+        self.pubs_dict_lock.acquire()
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
@@ -878,16 +916,22 @@ class NodePublishersIF:
                         namespace =  pub_dict['namespace']
                         self.msg_if.pub_warn("Failed to publish msg: " + pub_name + \
                             " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)   
+        self.pubs_dict_lock.release()
         return success
 
     def register_pub(self,pub_name, pub_dict):
+        self.pubs_dict_lock.acquire()
         self.pubs_dict[pub_name] = pub_dict
+        self.pubs_dict_lock.release()
         self._initializePubs(print_msg = True)
+        
 
     def register_pubs(self,pubs_dict = None):
         if pubs_dict is not None:
+            self.pubs_dict_lock.acquire()
             self.pubs_dict.update(pubs_dict)
-        self._initializePubs(print_msg = True)
+            self.pubs_dict_lock.release()
+            self._initializePubs(print_msg = True)
 
 
 
@@ -902,7 +946,9 @@ class NodePublishersIF:
 
     def add_pubs(self,pubs_dict):
         self.msg_if.pub_debug("Adding pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
+        self.pubs_dict_lock.acquire()
         self.pubs_dict.update(pubs_dict)
+        self.pubs_dict_lock.release()
         #self.msg_if.pub_debug("Updated pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
         self._initializePubs(print_msg = True)
 
@@ -910,6 +956,7 @@ class NodePublishersIF:
     # Class Private Methods
     ###############################
     def _initializePubs(self, print_msg = False):
+        self.pubs_dict_lock.acquire()
         for pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             add_pub = False
@@ -940,9 +987,11 @@ class NodePublishersIF:
             else:
                 #self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name, log_name_list = self.log_name_list) 
                 pass
+        self.pubs_dict_lock.release()
 
 
     def _unregisterPub(self, pub_name):
+        self.pubs_dict_lock.acquire()
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             purge = True
@@ -954,6 +1003,7 @@ class NodePublishersIF:
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
                     self.pubs_dict[pub_name]['pub'] = None
+        self.pubs_dict_lock.release()
 
 
 
@@ -979,6 +1029,7 @@ class NodeSubscribersIF:
     msg_if = None
     ready = False
     subs_dict = dict()
+    subs_dict_lock = threading.Lock()
 
     #######################
     ### IF Initialization
@@ -1048,14 +1099,20 @@ class NodeSubscribersIF:
 
 
     def register_sub(self,sub_name, sub_dict):
+        self.subs_dict_lock.acquire()
         self.subs_dict[sub_name] = sub_dict
+        self.subs_dict_lock.release()
         self._initializeSubs()
 
     def register_subs(self,subs_dict):
-        for sub_name in subs_dict.keys():
-            sub_dict = subs_dict[sub_name]
-            self.subs_dict[sub_name] = sub_dict
-        self._initializeSubs()
+        if subs_dict is not None:
+            self.subs_dict_lock.acquire()
+            for sub_name in subs_dict.keys():
+                sub_dict = subs_dict[sub_name]
+                self.subs_dict[sub_name] = sub_dict
+            self.subs_dict_lock.release()
+            self._initializeSubs()
+            
 
     def unregister_sub(self,sub_name):
         self._unregisterSub(sub_name)
@@ -1067,12 +1124,15 @@ class NodeSubscribersIF:
 
 
     def add_subs(self,subs_dict):
+        self.subs_dict_lock.acquire()
         self.subs_dict.update(subs_dict)
+        self.subs_dict_lock.release()
         self._initializeSubs()
     ###############################
     # Class Private Methods
     ###############################
     def _initializeSubs(self):
+        self.subs_dict_lock.acquire()
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             self.msg_if.pub_debug("Will try to create sub for: " + sub_name )
@@ -1097,10 +1157,11 @@ class NodeSubscribersIF:
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e), log_name_list = self.log_name_list)   
                     self.subs_dict[sub_name]['sub'] = None
-            
+        self.subs_dict_lock.release()
 
     def _unregisterSub(self, sub_name):
         purge = False
+        self.subs_dict_lock.acquire()
         if sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             purge = True
@@ -1111,6 +1172,7 @@ class NodeSubscribersIF:
                     self.msg_if.pub_warn("Failed to get unregister sub: " + sub_name + " " + str(e), throttle_s = 5.0)  
         if purge == True:
             del self.subs_dict[sub_name]
+        self.subs_dict_lock.release()
 
 
 ##################################################
@@ -1412,7 +1474,7 @@ class NodeClassIF:
             self.services_if.register_service(service_name, service_dict)
 
     def register_services(self, services_dict):
-        if self.services_if is not None:
+        if self.services_if is not None and services_dict is not None:
             self.services_if.register_services( services_dict)
 
 
@@ -1444,7 +1506,7 @@ class NodeClassIF:
             self.pubs_if.register_pub(pub_name, pub_dict)
 
     def register_pubs(self,pubs_dict = None):
-        if self.pubs_if is not None:
+        if self.pubs_if is not None and pubs_dict is not None:
             self.pubs_if.register_pubs(pubs_dict)
 
 
@@ -1475,7 +1537,7 @@ class NodeClassIF:
             self.subs_if.register_sub(sub_name, sub_dict)
 
     def register_subs(self, subs_dict):
-        if self.subs_if is not None:
+        if self.subs_if is not None and subs_dict is not None:
             self.subs_if.register_subs(subs_dict)
 
     def unregister_sub(self,sub_name):

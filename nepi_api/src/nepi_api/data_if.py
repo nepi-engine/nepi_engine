@@ -9579,7 +9579,7 @@ class PointcloudImageIF(BaseImageIF):
         rotate_change = float(stop_pixel[0] - self.render_3d_drag_last[0]) / float(img_width)
         tilt_change = float(stop_pixel[1] - self.render_3d_drag_last[1]) / float(img_height)
         self.render_3d_drag_last = list(stop_pixel)
-        rotate_offset = min(1.0, max(-1.0, self.controls_dict['rotate_3d_ratio'] + rotate_change))
+        rotate_offset = min(1.0, max(-1.0, self.controls_dict['rotate_3d_ratio'] - rotate_change))
         tilt_offset = min(1.0, max(-1.0, self.controls_dict['tilt_3d_ratio'] + tilt_change))
         self.controls_dict['rotate_3d_ratio'] = rotate_offset
         self.controls_dict['tilt_3d_ratio'] = tilt_offset
