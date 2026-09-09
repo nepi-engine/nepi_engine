@@ -948,7 +948,7 @@ class AiDetectorImgPub:
             # Overlay text data on OpenCV image
             font = cv2.FONT_HERSHEY_DUPLEX
             scale = 1.5e-3 - 0.1e-3 * math.ceil(max([img_height, img_width])/700)
-            fontScale, fontThickness  = nepi_img.optimal_font_dims(cv2_img,font_scale = scale, thickness_scale = scale) 
+            fontScale, fontThickness  = nepi_img.get_optimal_font_dims(cv2_img,font_scale = scale, thickness_scale = scale) 
             fontColor = (255, 255, 255)
             fontColorBk = (0,0,0)
             lineType = cv2.LINE_AA

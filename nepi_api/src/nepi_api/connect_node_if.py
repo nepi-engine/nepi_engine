@@ -261,7 +261,7 @@ class ConnectNodeIF:
                 self.node_if.register_pubs(self.connect_node_pubs_dict)
                 self.node_if.register_subs(self.connect_node_subs_dict)
                 # Register the persisted selection param on the shared node_if too.
-                self.node_if.add_param(self.node_if_prefix + 'selected_topic', self.connect_namespace, self.selected_topic)
+                self.node_if.add_param(self.node_if_prefix + 'selected_topic', 'selected_topic', self.connect_namespace, self.selected_topic)
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -1623,9 +1623,9 @@ class ConnectNodeClassIF:
 
 
     # Param Methods ####################
-    def add_param(self, param_name, namespace, value):
+    def add_param(self, param_key,  param_name, namespace, value):
         if self.params_if is not None:
-            self.params_if.add_param(param_name, namespace, value)
+            self.params_if.add_param( param_key, param_name, namespace, value)
 
     def get_params(self):
         params = None

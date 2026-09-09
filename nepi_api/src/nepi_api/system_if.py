@@ -1658,6 +1658,12 @@ class ProcessIF:
     status_msg = ProcessStatus()
     save_data_topic = ''
 
+
+    active_nodes = []
+    active_topics = []
+    active_topic_types =  []
+    active_services =  []  
+
     process_name = None
     namespace = ''
 
@@ -1675,6 +1681,9 @@ class ProcessIF:
     results_pub_topic = None
     results_pub_namespace = ''
 
+    has_results = False
+    results_msg = DataStatus()
+    results_dict = None
     
     process_node_pubs_dict = None
     process_node_subs_dict = None
@@ -1934,7 +1943,14 @@ class ProcessIF:
                 'topic': 'update_control',
                 'qsize': 5,
                 'callback': self._updateControlCb
-            }
+            },
+            self.node_if_prefix + 'system_status': {
+                'msg': MgrSystemStatus,
+                'namespace': self.base_namespace,
+                'topic': 'status',
+                'qsize': 5,
+                'callback': self._systemStatusCb
+            },
         }
 
 
@@ -2088,8 +2104,7 @@ class ProcessIF:
                 self.publish_status()
                 nepi_sdk.sleep(1)
                 processes_dict = copy.deepcopy(self.processes_dict)
-                process_dict = processes_dict[process_name]
-                [self.data_dict,self.controls_dict,self.results_dict] = [process_dict['data_dict'],process_dict['controls_dict'],process_dict['results_dict']]
+                [self.data_dict,self.controls_dict,self.results_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_name)
                 self.process_function = self.processes_functions_dict[process_name]
                 nepi_sdk.sleep(1)
                 success = True
@@ -2349,7 +2364,7 @@ class ProcessIF:
         values_dict = None
         results_dict = copy.deepcopy(self.results_dict)
         if results_dict is not None:
-            values_dict = nepi_data.get_data_values(results_dict)
+            values_dict = nepi_data.get_values_dict(results_dict)
         return values_dict
 
 
@@ -2362,7 +2377,7 @@ class ProcessIF:
             process_ready = self.wait_for_process_ready()
             if process_ready == True:
                 try:
-                    [self.data_dict, self.controls_dict, self.results_dict, results_pub_dict] = self.process_function(self.data_dict, self.controls_dict, self.results_dict)
+                    [self.data_dict, self.controls_dict, self.results_dict, self.states_dict, results_pub_dict] = self.process_function(self.data_dict, self.controls_dict, self.results_dict, self.states_dict)
                     #self.msg_if.pub_warn("Processed results: " + str( [self.results_dict, results_pub_msg]), throttle_s = 5)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
@@ -2376,6 +2391,13 @@ class ProcessIF:
             pass
         return self.results_dict
 
+
+    def get_states(self):
+        values_dict = None
+        states_dict = copy.deepcopy(self.states_dict)
+        if states_dict is not None:
+            values_dict = nepi_data.get_values_dict(states_dict)
+        return values_dict
 
     ##################
     # Misc Functions
@@ -2525,6 +2547,14 @@ class ProcessIF:
     ###############################
     # Class Private Methods
     ###############################
+
+    def _systemStatusCb(self,msg):
+            self.active_nodes = msg.active_nodes
+            self.active_topics = msg.active_topics
+            self.active_topic_types = msg.active_topic_types
+            self.active_services = msg.active_services
+
+
     def _updatePubStats(self):
         if self.last_process_time is None:
             pub_time_sec = 1.0

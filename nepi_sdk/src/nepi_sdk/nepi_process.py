@@ -17,6 +17,7 @@
 # - mailto:nepi@numurus.com
 #
 
+import os
 import copy
 import math
 
@@ -52,13 +53,63 @@ def update_processes_dict(processes_dict, process_name, process_dict):
 
 
 def get_process_dicts(processes_dict, process_name):
-    if process_name in processes_dict.keys():
-        if_dict = processes_dict[process_name].get('if_dict', dict())
-        data_dict = processes_dict[process_name].get('data_dict', dict())
-        controls_dict = processes_dict[process_name].get('controls_dict', dict())
-        results_dict = processes_dict[process_name].get('results_dict', dict())
-    return if_dict,data_dict,controls_dict,results_dict,
+    if_dict = dict()
+    data_dict = dict()
+    controls_dict = dict()
+    results_dict = dict()
+    states_dict = dict()
 
+    if process_name in processes_dict.keys():
+        try:
+            if_dict = processes_dict[process_name].get('if_dict', dict())
+        except Exception as e:
+            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+
+        try:
+            data_dict = processes_dict[process_name].get('data_dict', dict())
+        except Exception as e:
+            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+
+        try:
+           controls_dict = processes_dict[process_name].get('controls_dict', dict())
+        except Exception as e:
+            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+
+        try:
+            results_dict = processes_dict[process_name].get('results_dict', dict())
+        except Exception as e:
+            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+
+        try:
+             states_dict = processes_dict[process_name].get('results_dict', dict())
+        except Exception as e:
+            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+
+        
+    return if_dict,data_dict,controls_dict,results_dict,states_dict
+
+
+def get_available_source_topics(msg_type, name_filters = [], topics_list = None, types_list = None):
+    topics = []
+
+    if msg_type is None:
+        return topics
+
+    if name_filters is None:
+        name_filters = []
+
+    topics = nepi_sdk.find_topics_by_msg('TargetingStatus', topics_list = topics_list, types_list = types_list)
+    for i, topic in enumerate(topics):
+        valid = True
+        if len(name_filters) > 0:
+            valid = False
+            for filter in name_filters:
+                if topics[i].index(filter) != -1:
+                    valid = True
+                    break
+        if valid == True:
+            topics[i] = os.path.dirname(topics[i])
+    return topics 
 
 
 

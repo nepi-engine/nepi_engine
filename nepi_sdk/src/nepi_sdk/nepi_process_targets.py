@@ -17,6 +17,7 @@
 # - mailto:nepi@numurus.com
 #
 
+
 import copy
 import math
 
@@ -30,6 +31,7 @@ from nepi_sdk import nepi_data
 from nepi_sdk import nepi_img
 
 from nepi_interfaces.msg import ProcessResultsTargets
+from nepi_interfaces.msg import Image, ImageStatus
 from nepi_interfaces.msg import NavPose
 
 from nepi_sdk.nepi_sdk import logger as Logger
@@ -43,13 +45,16 @@ logger = Logger(log_name = log_name)
 
 DEFAULT_PROCESS = 'targets_1'
 
+SOURCE_MSG = Image
+SOURCE_STATUS_MSG = ImageStatus
+SOURCE_STATUS_TYPE = 'nepi_interfaces/ImageStatus'
+SOURCE_NAME_FILTERS = ['color_image']
+
+
 RESULTS_PUB_MSG = ProcessResultsTargets
 RESULTS_PUB_TYPE = 'nepi_interfaces/ProcessResultsTargets'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
 RESULTS_PUB_TOPIC = 'targets'
-
-
-
 
 
 def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
@@ -214,7 +219,8 @@ functions_dict = dict()
 
 targets_1_dict = {
 
-  
+    'if_dict': dict(),
+    
     'data_dict': dict(
         targets_dict_list = [], 
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
@@ -229,24 +235,11 @@ targets_1_dict = {
                    # OPTIONAL
                    'display_name':'Select Classes', 'description':'Set Class Filters', 'hidden':False}, 
 
-        size_min_filter = {
-            'type': 'FloatSlider', 'default': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with pixel areas less than min.', 'hidden': False},
-
-        size_max_filter = {
-            'type': 'FloatSlider', 'default': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with pixel areas larger than max.', 'hidden': False},
 
         threshold_filter = {
             'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with confidance lower than threshold.', 'hidden': False},
-
-        best_filter = {"type":"Selection", "default":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
-                   # OPTIONAL
-                   'display_name':'Best Filter', 'description':'Set Best Filte', 'hidden':False}, 
 
     ),
 
@@ -261,23 +254,19 @@ targets_1_dict = {
                     # OPTIONAL
                     'display_name':'Age (Sec)', 'description':'Age in seconds', 'hidden':False, 'round_display': 3,},
 
-        azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to targetsed target', 'hidden':False, 'round_display': 1,},
-
-        elevation_deg = {"type":"Float", "value":-999, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to targetsed target', 'hidden':False, 'round_display': 1,},
-
-        range_m = {"type":"Float", "value":2.0, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Range (M)', 'description':'Range in meters to targetsed target', 'hidden':False, 'round_display': 1,},
     ),
+
+    'states_dict': dict(
+
+        targeting = {"type":"Bool", "value": False,
+                    # OPTIONAL
+                    'display_name':'Targeting'},
+    ),    
 
 }
 
 
-def targets_1_process(data_dict, controls_dict, results_dict):
+def targets_1_process(data_dict, controls_dict, results_dict, states_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
@@ -292,7 +281,7 @@ def targets_1_process(data_dict, controls_dict, results_dict):
 
     results_pub_dict = None
 
-    return data_dict, controls_dict, results_dict, results_pub_dict
+    return data_dict, controls_dict, results_dict, states_dict, results_pub_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_1', process_dict = targets_1_dict)
@@ -309,7 +298,9 @@ functions_dict['targets_1'] = targets_1_process
 
 
 targets_2_dict = {
-   
+
+    'if_dict': dict(),
+    
     'data_dict': dict(
         targets_dict_list = [], 
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
@@ -345,10 +336,17 @@ targets_2_dict = {
 
     ),
 
+    'states_dict': dict(
+
+        targeting = {"type":"Bool", "value": False,
+                    # OPTIONAL
+                    'display_name':'Targeting'},
+    ),    
+
 }
 
 
-def targets_2_process(data_dict, controls_dict, results_dict):
+def targets_2_process(data_dict, controls_dict, results_dict, states_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
@@ -363,7 +361,7 @@ def targets_2_process(data_dict, controls_dict, results_dict):
 
     results_pub_dict = None
 
-    return data_dict, controls_dict, results_dict, results_pub_dict
+    return data_dict, controls_dict, results_dict, states_dict, results_pub_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_2', process_dict = targets_2_dict)

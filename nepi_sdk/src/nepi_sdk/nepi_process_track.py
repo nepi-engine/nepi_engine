@@ -30,6 +30,7 @@ from nepi_sdk import nepi_data
 from nepi_sdk import nepi_img
 
 from nepi_interfaces.msg import ProcessResultsTrack
+from nepi_interfaces.msg import Targets, TargetsStatus
 from nepi_interfaces.msg import NavPose
 
 from nepi_sdk.nepi_sdk import logger as Logger
@@ -39,14 +40,18 @@ logger = Logger(log_name = log_name)
 
 ########################
 ## REQUIRED Process IF Utilities
+DEFAULT_PROCESS = 'track_1'
+
+SOURCE_MSG = Targets
+SOURCE_STATUS_MSG = TargetsStatus
+SOURCE_STATUS_TYPE = 'nepi_interfaces/TargetsStatus'
+SOURCE_NAME_FILTERS = None
 
 RESULTS_PUB_MSG = ProcessResultsTrack
 RESULTS_PUB_TYPE = 'nepi_interfaces/ProcessResultsTrack'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
 RESULTS_PUB_TOPIC = 'track'
 
-
-DEFAULT_PROCESS = 'track_1'
 
 def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
         ##################
@@ -349,6 +354,8 @@ functions_dict = dict()
 
 
 track_1_dict = {
+
+    'if_dict': dict(),
    
     'data_dict': dict(
         targets_dict_list = [], 
@@ -409,10 +416,16 @@ track_1_dict = {
                     'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'hidden':False, 'round_display': 1,},
     ),
 
+    'states_dict': dict(
+
+        tracking = {"type":"Bool", "value": False,
+                    # OPTIONAL
+                    'display_name':'Tracking'},
+    ),
 }
 
 
-def track_1_process(data_dict, controls_dict, results_dict):
+def track_1_process(data_dict, controls_dict, results_dict, states_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
@@ -447,7 +460,7 @@ def track_1_process(data_dict, controls_dict, results_dict):
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
     [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
     #logger.log_warn("Process Completed: " + str([results_dict, results_pub_dict]), throttle_s = 5)
-    return data_dict, controls_dict, results_dict, results_pub_dict
+    return data_dict, controls_dict, results_dict, states_dict, results_pub_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_1', process_dict = track_1_dict)
@@ -464,6 +477,8 @@ functions_dict['track_1'] = track_1_process
 
 
 track_2_dict = {
+
+    'if_dict': dict(),
    
     'data_dict': dict(
         targets_dict_list = [], 
@@ -524,10 +539,16 @@ track_2_dict = {
                     'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'hidden':False, 'round_display': 1,},
     ),
 
+    'states_dict': dict(
+
+        tracking = {"type":"Bool", "value": False,
+                    # OPTIONAL
+                    'display_name':'Tracking'},
+    ),
 }
 
 
-def track_2_process(data_dict, controls_dict, results_dict):
+def track_2_process(data_dict, controls_dict, results_dict, states_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
@@ -562,7 +583,7 @@ def track_2_process(data_dict, controls_dict, results_dict):
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
     [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
     #logger.log_warn("Process Completed: " + str([results_dict, results_pub_dict]), throttle_s = 5)
-    return data_dict, controls_dict, results_dict, results_pub_dict
+    return data_dict, controls_dict, results_dict, states_dict, results_pub_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_2', process_dict = track_2_dict)

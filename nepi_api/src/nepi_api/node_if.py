@@ -1330,9 +1330,9 @@ class NodeClassIF:
 
 
     # Param Methods ####################
-    def add_param(self,param_key, namespace, value):
+    def add_param(self,param_key, name, namespace, value):
         if self.params_if is not None:
-            params = self.params_if.add_param(param_key, namespace, value)
+            params = self.params_if.add_param(param_key, name, namespace, value)
 
     def add_params(self,params_dict):
         if self.params_if is not None:

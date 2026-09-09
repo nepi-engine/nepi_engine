@@ -2999,7 +2999,7 @@ class BaseImageIF:
             self.navpose_if = navpose_if
         else:
             # Setup NavPose Connect IF Class
-            self.msg_if.pub_info("Starting NavPose IF Initialization")
+            self.msg_if.pub_info("Starting NavPose Connect IF Initialization")
             np_namespace = self.namespace + '/navpose'
             if navpose_namespace is not None:
                 np_namespace = navpose_namespace
