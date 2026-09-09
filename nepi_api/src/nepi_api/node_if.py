@@ -354,7 +354,7 @@ class NodeParamsIF:
     msg_if = None
     ready = False
     params_dict = dict()
-    params_dict_lock = threading.Lock()
+    
 
     initCb = None
     resetCb = None
@@ -447,9 +447,7 @@ class NodeParamsIF:
 
         #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict), log_name_list = self.log_name_list)
-        self.params_dict_lock.acquire()
         params_dict = copy.deepcopy(self.params_dict)
-        self.params_dict_lock.release()
         init_val = None
         got_params_dict = dict()
         for param_key in params_dict.keys():
@@ -477,45 +475,36 @@ class NodeParamsIF:
                     params_dict[param_key]['init_val'] = init_val
 
                 self.set_param(param_key, init_val)
-              
+                cur_val = self.get_param(param_key)
+                #self.msg_if.pub_warn("Initialized param factory,init,value " + str([param_key,factory_val,init_val,cur_val]), log_name_list = self.log_name_list)
 
-        self.params_dict_lock.acquire()
         self.params_dict = params_dict
-        self.params_dict_lock.release()
         return True
             
     def reset_params(self):
         self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
         success = self.initialize_params()
-        self.params_dict_lock.acquire()
-        params_dict = copy.deepcopy(self.params_dict)
-        self.params_dict_lock.release()
-        for param_key in params_dict.keys():
+        for param_key in self.params_dict.keys():
 
             cur_val = self.get_param(param_key)
 
             init_val = None
-            if 'init_val' in params_dict[param_key].keys():
-                init_val = params_dict[param_key]['init_val']
+            if 'init_val' in self.params_dict[param_key].keys():
+                init_val = self.params_dict[param_key]['init_val']
             if init_val is None:
-                init_val = params_dict[param_key]['factory_val']
+                init_val = self.params_dict[param_key]['factory_val']
             #self.msg_if.pub_warn("Resetting param from:to " + str([param_key,cur_val,init_val]), log_name_list = self.log_name_list)
             self.set_param(param_key, init_val)
-      
 
     def factory_reset_params(self):
         self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
-        self.params_dict_lock.acquire()
-        params_dict = copy.deepcopy(self.params_dict)
-        self.params_dict_lock.release()
-        for param_key in params_dict.keys():
+        for param_key in self.params_dict.keys():
 
             cur_val = self.get_param(param_key)
             
-            factory_val = params_dict[param_key]['factory_val']
+            factory_val = self.params_dict[param_key]['factory_val']
             #self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_key,cur_val,factory_val]), log_name_list = self.log_name_list)
             self.set_param(param_key, factory_val)
-
 
     def save_params(self, file_path):
         if not nepi_sdk.is_shutdown():
@@ -529,11 +518,8 @@ class NodeParamsIF:
 
     def get_param(self, param_key):
         value = None
-        self.params_dict_lock.acquire()
-        params_dict = copy.deepcopy(self.params_dict)
-        self.params_dict_lock.release()
-        if param_key in params_dict.keys():
-            param_dict = params_dict[param_key]
+        if param_key in self.params_dict.keys():
+            param_dict = self.params_dict[param_key]
             namespace = self.get_param_namespace(param_key)
             if namespace is not None:
                 if namespace in self.params_ns_dict.keys():
@@ -548,7 +534,6 @@ class NodeParamsIF:
 
                 if value is None:
                     value = fallback
-
         return value
 
     def set_param(self, param_key, value):
@@ -560,19 +545,13 @@ class NodeParamsIF:
                 
 
     def reset_param(self, param_key):
-        self.params_dict_lock.acquire()
-        params_dict = copy.deepcopy(self.params_dict)
-        self.params_dict_lock.release()
-        if param_key in params_dict.keys():
-            init_val = params_dict[param_key]['init_val']
+        if param_key in self.params_dict.keys():
+            init_val = self.params_dict[param_key]['init_val']
             self.set_param(param_key, init_val)
 
     def factory_reset_param(self, param_key):
-        self.params_dict_lock.acquire()
-        params_dict = copy.deepcopy(self.params_dict)
-        self.params_dict_lock.release()
-        if param_key in params_dict.keys():
-            factory_val = params_dict[param_key]['factory_val']
+        if param_key in self.params_dict.keys():
+            factory_val = self.params_dict[param_key]['factory_val']
             self.set_param(param_key, factory_val)
 
     def get_params(self):
@@ -581,11 +560,8 @@ class NodeParamsIF:
 
     def get_param_namespace(self,param_key):
         namespace = None
-        self.params_dict_lock.acquire()
-        params_dict = copy.deepcopy(self.params_dict)
-        self.params_dict_lock.release()
-        if param_key in params_dict.keys() and not nepi_sdk.is_shutdown():
-            param_dict = params_dict[param_key]
+        if param_key in self.params_dict.keys() and not nepi_sdk.is_shutdown():
+            param_dict = self.params_dict[param_key]
             param_name = param_dict.get('name',param_key)
             namespace = nepi_sdk.create_namespace(param_dict['namespace'],param_name)
         return namespace
@@ -594,26 +570,16 @@ class NodeParamsIF:
     def add_param(self, param_key, name, namespace, value):
         if not nepi_sdk.is_shutdown():
             if param_key is not None and namespace is not None and value is not None:
-                self.params_dict_lock.acquire()
-                params_dict = copy.deepcopy(self.params_dict)
-                self.params_dict_lock.release()
-                if param_key not in params_dict.keys():
-                    params_dict[param_key] = {
-                        'namespace': namespace,
-                        'name': name,
-                        'factory_val': value
-                        }
-  
+                if param_key not in self.params_dict.keys():
+                    self.params_dict[param_key] = {
+                'namespace': namespace,
+                'name': name,
+                'factory_val': value
+            }
         self.initialize_params()
 
     def add_params(self,params_dict):
-        self.params_dict_lock.acquire()
-        params_dict = copy.deepcopy(self.params_dict)
-        self.params_dict_lock.release()
-        params_dict.update(params_dict)
-        self.params_dict_lock.acquire()
-        self.params_dict = params_dict
-        self.params_dict_lock.release()
+        self.params_dict.update(params_dict)
         self.initialize_params()
 
 
@@ -904,7 +870,7 @@ class NodePublishersIF:
 
     def publish_pub(self,pub_name,pub_msg):
         success = False
-        self.pubs_dict_lock.acquire()
+        #self.pubs_dict_lock.acquire()
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
@@ -916,21 +882,21 @@ class NodePublishersIF:
                         namespace =  pub_dict['namespace']
                         self.msg_if.pub_warn("Failed to publish msg: " + pub_name + \
                             " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)   
-        self.pubs_dict_lock.release()
+        #self.pubs_dict_lock.release()
         return success
 
     def register_pub(self,pub_name, pub_dict):
-        self.pubs_dict_lock.acquire()
+        #self.pubs_dict_lock.acquire()
         self.pubs_dict[pub_name] = pub_dict
-        self.pubs_dict_lock.release()
+        #self.pubs_dict_lock.release()
         self._initializePubs(print_msg = True)
         
 
     def register_pubs(self,pubs_dict = None):
         if pubs_dict is not None:
-            self.pubs_dict_lock.acquire()
+            #self.pubs_dict_lock.acquire()
             self.pubs_dict.update(pubs_dict)
-            self.pubs_dict_lock.release()
+            #self.pubs_dict_lock.release()
             self._initializePubs(print_msg = True)
 
 
@@ -946,9 +912,9 @@ class NodePublishersIF:
 
     def add_pubs(self,pubs_dict):
         self.msg_if.pub_debug("Adding pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
-        self.pubs_dict_lock.acquire()
+        #self.pubs_dict_lock.acquire()
         self.pubs_dict.update(pubs_dict)
-        self.pubs_dict_lock.release()
+        #self.pubs_dict_lock.release()
         #self.msg_if.pub_debug("Updated pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
         self._initializePubs(print_msg = True)
 
@@ -956,7 +922,7 @@ class NodePublishersIF:
     # Class Private Methods
     ###############################
     def _initializePubs(self, print_msg = False):
-        self.pubs_dict_lock.acquire()
+        #self.pubs_dict_lock.acquire()
         for pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             add_pub = False
@@ -987,11 +953,11 @@ class NodePublishersIF:
             else:
                 #self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name, log_name_list = self.log_name_list) 
                 pass
-        self.pubs_dict_lock.release()
+        #self.pubs_dict_lock.release()
 
 
     def _unregisterPub(self, pub_name):
-        self.pubs_dict_lock.acquire()
+        #self.pubs_dict_lock.acquire()
         if pub_name in self.pubs_dict.keys():
             pub_dict = self.pubs_dict[pub_name]
             purge = True
@@ -1003,7 +969,7 @@ class NodePublishersIF:
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
                     self.pubs_dict[pub_name]['pub'] = None
-        self.pubs_dict_lock.release()
+        #self.pubs_dict_lock.release()
 
 
 
@@ -1099,18 +1065,18 @@ class NodeSubscribersIF:
 
 
     def register_sub(self,sub_name, sub_dict):
-        self.subs_dict_lock.acquire()
+         #self.subs_dict_lock.acquire()
         self.subs_dict[sub_name] = sub_dict
-        self.subs_dict_lock.release()
+         #self.subs_dict_lock.release()
         self._initializeSubs()
 
     def register_subs(self,subs_dict):
         if subs_dict is not None:
-            self.subs_dict_lock.acquire()
+             #self.subs_dict_lock.acquire()
             for sub_name in subs_dict.keys():
                 sub_dict = subs_dict[sub_name]
                 self.subs_dict[sub_name] = sub_dict
-            self.subs_dict_lock.release()
+             #self.subs_dict_lock.release()
             self._initializeSubs()
             
 
@@ -1124,15 +1090,15 @@ class NodeSubscribersIF:
 
 
     def add_subs(self,subs_dict):
-        self.subs_dict_lock.acquire()
+         #self.subs_dict_lock.acquire()
         self.subs_dict.update(subs_dict)
-        self.subs_dict_lock.release()
+         #self.subs_dict_lock.release()
         self._initializeSubs()
     ###############################
     # Class Private Methods
     ###############################
     def _initializeSubs(self):
-        self.subs_dict_lock.acquire()
+         #self.subs_dict_lock.acquire()
         for sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             self.msg_if.pub_debug("Will try to create sub for: " + sub_name )
@@ -1157,11 +1123,11 @@ class NodeSubscribersIF:
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e), log_name_list = self.log_name_list)   
                     self.subs_dict[sub_name]['sub'] = None
-        self.subs_dict_lock.release()
+         #self.subs_dict_lock.release()
 
     def _unregisterSub(self, sub_name):
         purge = False
-        self.subs_dict_lock.acquire()
+         #self.subs_dict_lock.acquire()
         if sub_name in self.subs_dict.keys():
             sub_dict = self.subs_dict[sub_name]
             purge = True
@@ -1172,7 +1138,7 @@ class NodeSubscribersIF:
                     self.msg_if.pub_warn("Failed to get unregister sub: " + sub_name + " " + str(e), throttle_s = 5.0)  
         if purge == True:
             del self.subs_dict[sub_name]
-        self.subs_dict_lock.release()
+         #self.subs_dict_lock.release()
 
 
 ##################################################
@@ -1584,3 +1550,317 @@ class NodeClassIF:
             if 'factory_reset_callback' in self.configs_dict.keys():
                 if self.configs_dict['factory_reset_callback'] is not None:
                     self.configs_dict['factory_reset_callback']()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ##################################################
+# ### Node Params Class
+# '''
+# EXAMPLE_PARAMS_DICT = {
+#     'param11_key': {
+#         'name': 'param1',
+#         'namespace':  self.node_namespace,
+#         'factory_val': 100,
+#         'current_val: 20  # Optional
+#     },
+#     'param2_key': {
+#         'name': 'param2',
+#         'namespace':  self.node_namespace,
+#         'factory_val': "Something"
+#     }
+# }
+# '''
+
+
+# class NodeParamsIF:
+
+#     msg_if = None
+#     ready = False
+#     params_dict = dict()
+#     params_dict_lock = threading.Lock()
+
+#     initCb = None
+#     resetCb = None
+#     factoryResetCb = None
+
+#     params_ns_dict = dict()
+
+#     #######################
+#     ### IF Initialization
+#     def __init__(self, 
+#                 params_dict = None,
+#                 log_name = None,
+#                 log_class_name = True,
+#                 log_name_list = [],
+#                 msg_if = None
+#                 ):
+#         ####  IF INIT SETUP ####
+#         self.class_name = type(self).__name__
+#         self.base_namespace = nepi_sdk.get_base_namespace()
+#         self.node_name = nepi_sdk.get_node_name()
+#         self.node_namespace = nepi_sdk.get_node_namespace()
+
+#         ##############################  
+#         # Create Msg Class
+#         if msg_if is None:
+#             self.msg_if = MsgIF()
+#         else:
+#             self.msg_if = msg_if
+#         self.log_name_list = copy.deepcopy(log_name_list)
+#         self.log_name_list.append(self.class_name)
+#         self.msg_if.pub_debug("Starting Node Params IF Initialization Processes", log_name_list = self.log_name_list)
+#         ##############################   
+
+#         ##############################  
+#         # Initialize Params System
+
+#         self.params_dict = params_dict
+#         if self.params_dict is None:
+#             self.params_dict = dict()
+#         self.initialize_params()
+
+
+#         ##############################  
+#         # Complete Initialization Process
+#         self.ready = True
+#         self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+#         ##############################  
+
+
+#     ###############################
+#     # Class Public Methods
+#     ###############################
+
+#     def get_ready_state(self):
+#         return self.ready
+
+#     def wait_for_ready(self, timeout = float('inf') ):
+#         success = False
+#         self.msg_if.pub_debug("Waiting for Ready", log_name_list = self.log_name_list)
+#         timer = 0
+#         time_start = nepi_sdk.get_time()
+#         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+#             nepi_sdk.sleep(.1)
+#             timer = nepi_sdk.get_time() - time_start
+#         if self.ready == False:
+#             self.msg_if.pub_debug("Wait for Ready Timed Out", log_name_list = self.log_name_list)
+#         else:
+#             self.msg_if.pub_debug("Ready", log_name_list = self.log_name_list)
+#         return self.ready
+
+#     def load_params(self, file_path):
+#         self.nepi_sdk.load_params_from_file(file_path,self.namespace)        
+
+#     def getNestedInitVal(self, ns_param_dict, param_key):
+#         # A param key may contain '/' ('home_position/pan_deg'), and get_params returns
+#         # the namespace as a NESTED dict, so a slashed key never matches a top-level
+#         # key. Matching against the top level made every slashed param fall through to
+#         # its factory_val and then overwrite the correctly reloaded server value, which
+#         # is why svx and ptx home position could not survive a restart. Walk the
+#         # segments instead. A flat key still resolves on the first pass.
+#         val = ns_param_dict
+#         for key in param_key.split('/'):
+#             if isinstance(val, dict) and key in val.keys():
+#                 val = val[key]
+#             else:
+#                 return None
+#         return val
+
+#     def initialize_params(self):
+
+#         #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
+#         #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict), log_name_list = self.log_name_list)
+#         self.params_dict_lock.acquire()
+#         params_dict = copy.deepcopy(self.params_dict)
+#         self.params_dict_lock.release()
+#         init_val = None
+#         got_params_dict = dict()
+#         for param_key in params_dict.keys():
+#             namespace = params_dict[param_key]['namespace']
+#             if namespace not in got_params_dict.keys():
+#                 get_params_dict = nepi_sdk.get_params(namespace)
+#                 if get_params_dict is not None:
+#                     if isinstance(get_params_dict, dict):
+#                         param_name = get_params_dict.get('name',param_key)
+#                         param_name = nepi_utils.get_clean_name(param_name)
+#                         if param_name is None:
+#                             param_name = param_key
+#                         if param_name == '':
+#                             param_name = param_key
+#                         get_params_dict['name'] = param_name
+#                         got_params_dict[namespace] = get_params_dict
+#             if 'init_val' not in params_dict[param_key].keys():
+#                 param_dict = params_dict[param_key]
+#                 factory_val = param_dict['factory_val']
+
+#                 ns_param_dict = got_params_dict[namespace]
+#                 init_val = self.getNestedInitVal(ns_param_dict, param_key)
+#                 if init_val is None:
+#                     init_val = factory_val
+#                     params_dict[param_key]['init_val'] = init_val
+
+#                 self.set_param(param_key, init_val)
+              
+
+#         self.params_dict_lock.acquire()
+#         self.params_dict = params_dict
+#         self.params_dict_lock.release()
+#         return True
+            
+#     def reset_params(self):
+#         self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
+#         success = self.initialize_params()
+#         self.params_dict_lock.acquire()
+#         params_dict = copy.deepcopy(self.params_dict)
+#         self.params_dict_lock.release()
+#         for param_key in params_dict.keys():
+
+#             cur_val = self.get_param(param_key)
+
+#             init_val = None
+#             if 'init_val' in params_dict[param_key].keys():
+#                 init_val = params_dict[param_key]['init_val']
+#             if init_val is None:
+#                 init_val = params_dict[param_key]['factory_val']
+#             #self.msg_if.pub_warn("Resetting param from:to " + str([param_key,cur_val,init_val]), log_name_list = self.log_name_list)
+#             self.set_param(param_key, init_val)
+      
+
+#     def factory_reset_params(self):
+#         self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
+#         self.params_dict_lock.acquire()
+#         params_dict = copy.deepcopy(self.params_dict)
+#         self.params_dict_lock.release()
+#         for param_key in params_dict.keys():
+
+#             cur_val = self.get_param(param_key)
+            
+#             factory_val = params_dict[param_key]['factory_val']
+#             #self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_key,cur_val,factory_val]), log_name_list = self.log_name_list)
+#             self.set_param(param_key, factory_val)
+
+
+#     def save_params(self, file_path):
+#         if not nepi_sdk.is_shutdown():
+#             self.nepi_sdk.save_params_to_file(file_path,self.namespace)       
+
+#     def has_param(self, param_key):
+#         namespace = self.get_param_namespace(param_key)
+#         if namespace is not None:
+#             return nepi_sdk.has_param(namespace)
+#         return False
+
+#     def get_param(self, param_key):
+#         value = None
+#         self.params_dict_lock.acquire()
+#         params_dict = copy.deepcopy(self.params_dict)
+#         self.params_dict_lock.release()
+#         if param_key in params_dict.keys():
+#             param_dict = params_dict[param_key]
+#             namespace = self.get_param_namespace(param_key)
+#             if namespace is not None:
+#                 if namespace in self.params_ns_dict.keys():
+#                     value = self.params_ns_dict[namespace]
+
+#                 fallback = None
+#                 if 'init_val' in param_dict.keys():
+#                     fallback = param_dict['init_val']
+                
+#                 if fallback is None:  
+#                     fallback = param_dict['factory_val']
+
+#                 if value is None:
+#                     value = fallback
+
+#         return value
+
+#     def set_param(self, param_key, value):
+#         if not nepi_sdk.is_shutdown():
+#             namespace = self.get_param_namespace(param_key)
+#             if namespace is not None:
+#                 self.params_ns_dict[namespace] = value
+#                 nepi_sdk.set_param(namespace,value)
+                
+
+#     def reset_param(self, param_key):
+#         self.params_dict_lock.acquire()
+#         params_dict = copy.deepcopy(self.params_dict)
+#         self.params_dict_lock.release()
+#         if param_key in params_dict.keys():
+#             init_val = params_dict[param_key]['init_val']
+#             self.set_param(param_key, init_val)
+
+#     def factory_reset_param(self, param_key):
+#         self.params_dict_lock.acquire()
+#         params_dict = copy.deepcopy(self.params_dict)
+#         self.params_dict_lock.release()
+#         if param_key in params_dict.keys():
+#             factory_val = params_dict[param_key]['factory_val']
+#             self.set_param(param_key, factory_val)
+
+#     def get_params(self):
+#         return list(self.params_dict.keys())
+
+
+#     def get_param_namespace(self,param_key):
+#         namespace = None
+#         self.params_dict_lock.acquire()
+#         params_dict = copy.deepcopy(self.params_dict)
+#         self.params_dict_lock.release()
+#         if param_key in params_dict.keys() and not nepi_sdk.is_shutdown():
+#             param_dict = params_dict[param_key]
+#             param_name = param_dict.get('name',param_key)
+#             namespace = nepi_sdk.create_namespace(param_dict['namespace'],param_name)
+#         return namespace
+
+
+#     def add_param(self, param_key, name, namespace, value):
+#         if not nepi_sdk.is_shutdown():
+#             if param_key is not None and namespace is not None and value is not None:
+#                 self.params_dict_lock.acquire()
+#                 params_dict = copy.deepcopy(self.params_dict)
+#                 self.params_dict_lock.release()
+#                 if param_key not in params_dict.keys():
+#                     params_dict[param_key] = {
+#                         'namespace': namespace,
+#                         'name': name,
+#                         'factory_val': value
+#                         }
+  
+#         self.initialize_params()
+
+#     def add_params(self,params_dict):
+#         self.params_dict_lock.acquire()
+#         params_dict = copy.deepcopy(self.params_dict)
+#         self.params_dict_lock.release()
+#         params_dict.update(params_dict)
+#         self.params_dict_lock.acquire()
+#         self.params_dict = params_dict
+#         self.params_dict_lock.release()
+#         self.initialize_params()
+
+
+
+
+#     ###############################
+#     # Class Private Methods
+#     ###############################
+
+
+
+

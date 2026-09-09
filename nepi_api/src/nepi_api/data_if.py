@@ -860,15 +860,17 @@ class NavPoseIF:
     def publish_status(self):
         """Compute the current average publish rate and publish the status message."""
         if self.node_if is not None and self.status_msg is not None:
+            try:
+                avg_rate = 0
+                if len(self.time_list) > 0:
+                    avg_time = sum(self.time_list) / len(self.time_list)
+                    if avg_time > .01:
+                        avg_rate = float(1) / avg_time
+                self.status_msg.avg_pub_rate = avg_rate
 
-            avg_rate = 0
-            if len(self.time_list) > 0:
-                avg_time = sum(self.time_list) / len(self.time_list)
-                if avg_time > .01:
-                    avg_rate = float(1) / avg_time
-            self.status_msg.avg_pub_rate = avg_rate
-
-            self.node_if.publish_pub(self.node_if_prefix + 'navpose_status_pub', self.status_msg)
+                self.node_if.publish_pub(self.node_if_prefix + 'navpose_status_pub', self.status_msg)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to Publish Status msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 10.0)
 
     def init(self, do_updates = False):
         """Initialize or re-initialize interface state and publish status.
@@ -5118,282 +5120,284 @@ class BaseImageIF:
     def publish_status(self):
         """Populate the status message from current controls and publish it."""
         if self.node_if is not None and self.status_msg is not None:
+            try:
+                self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
+                self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
+                self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
+                self.status_msg.brightness_ratio = self.controls_dict['brightness_ratio']
+                self.status_msg.threshold_ratio = self.controls_dict['threshold_ratio']
+                filter_options = []
+                filter_states = []
+                filter_ratios = []
+                if self.filter_dict is not None:
+                    for name in self.filter_dict.keys():
+                        filter_dict = self.filter_dict[name]
+                        filter_options.append(name)
+                        filter_states.append(filter_dict['enabled'])
+                        filter_ratios.append(filter_dict['ratio'])
+                self.status_msg.filter_options = filter_options
+                self.status_msg.filter_states = filter_states
+                self.status_msg.filter_ratios = filter_ratios
 
-            self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
-            self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
-            self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
-            self.status_msg.brightness_ratio = self.controls_dict['brightness_ratio']
-            self.status_msg.threshold_ratio = self.controls_dict['threshold_ratio']
-            filter_options = []
-            filter_states = []
-            filter_ratios = []
-            if self.filter_dict is not None:
-                for name in self.filter_dict.keys():
-                    filter_dict = self.filter_dict[name]
-                    filter_options.append(name)
-                    filter_states.append(filter_dict['enabled'])
-                    filter_ratios.append(filter_dict['ratio'])
-            self.status_msg.filter_options = filter_options
-            self.status_msg.filter_states = filter_states
-            self.status_msg.filter_ratios = filter_ratios
+                self.status_msg.aspect_adjustment_disabled = self.aspect_adjustment_disabled
+                #self.msg_if.pub_warn(self.data_product + " Publishing Aspect Adjust Disabled: " + str(self.aspect_adjustment_disabled ) )
+                self.status_msg.aspect_adjust_enabled = self.aspect_adjust_enabled and self.aspect_adjustment_disabled == False
+                self.status_msg.aspect_ratio_set = self.aspect_ratio_set
 
-            self.status_msg.aspect_adjustment_disabled = self.aspect_adjustment_disabled
-            #self.msg_if.pub_warn(self.data_product + " Publishing Aspect Adjust Disabled: " + str(self.aspect_adjustment_disabled ) )
-            self.status_msg.aspect_adjust_enabled = self.aspect_adjust_enabled and self.aspect_adjustment_disabled == False
-            self.status_msg.aspect_ratio_set = self.aspect_ratio_set
+                self.status_msg.aspect_ratio = self.aspect_ratio
+                aspect_ratio_str = nepi_img.get_aspect_ratio_str(self.aspect_ratio)
+                self.status_msg.aspect_ratio_str = aspect_ratio_str
 
-            self.status_msg.aspect_ratio = self.aspect_ratio
-            aspect_ratio_str = nepi_img.get_aspect_ratio_str(self.aspect_ratio)
-            self.status_msg.aspect_ratio_str = aspect_ratio_str
+                self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
+                self.status_msg.rotate_2d_deg = self.controls_dict['rotate_2d_deg']
+                self.status_msg.flip_horz = self.controls_dict['flip_horz'] 
+                self.status_msg.flip_vert = self.controls_dict['flip_vert'] 
 
-            self.status_msg.resolution_ratio = self.controls_dict['resolution_ratio']
-            self.status_msg.rotate_2d_deg = self.controls_dict['rotate_2d_deg']
-            self.status_msg.flip_horz = self.controls_dict['flip_horz'] 
-            self.status_msg.flip_vert = self.controls_dict['flip_vert'] 
-
-            self.status_msg.range_ratios.start_range = self.controls_dict['start_range_ratio']
-            self.status_msg.range_ratios.stop_range = self.controls_dict['stop_range_ratio']
-
-
-            self.status_msg.zoom_ratio = self.zoom_ratio
-            if self.zoom_ratio > 0.01:
-                self.click_crosshair_enabled = False
-                self.click_target_enabled = False
-            self.status_msg.pan_x_ratio = self.x_ratio
-            self.status_msg.pan_y_ratio = self.y_ratio
-            self.status_msg.window_x_ratios.start_range = self.controls_dict['window_ratios'][0]
-            self.status_msg.window_x_ratios.stop_range = self.controls_dict['window_ratios'][1]
-            self.status_msg.window_y_ratios.start_range = self.controls_dict['window_ratios'][2]
-            self.status_msg.window_y_ratios.stop_range = self.controls_dict['window_ratios'][3]
-            self.status_msg.zoom_3d_ratio = self.controls_dict['zoom_3d_ratio']
-            self.status_msg.rotate_3d_ratio = self.controls_dict['rotate_3d_ratio']
-            self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
-            self.status_msg.render_3d_controls_enabled = self.render_3d_controls_enabled
-
-            self.status_msg.camera_fov = self.controls_dict['cam_fov']
-
-            view = self.controls_dict['cam_view']
-            cam_view = Vector3()
-            cam_view.x = view[0]
-            cam_view.y = view[1]
-            cam_view.z = view[2]
-            self.status_msg.camera_view = cam_view
-
-            pos = self.controls_dict['cam_pos']
-            cam_pos = Vector3()
-            cam_pos.x = pos[0]
-            cam_pos.y = pos[1]
-            cam_pos.z = pos[2]
-            self.status_msg.camera_position = cam_pos
-
-            rot = self.controls_dict['cam_rot']
-            cam_rot = Vector3()
-            cam_rot.x = rot[0]
-            cam_rot.y = rot[1]
-            cam_rot.z = rot[2]
-            self.status_msg.camera_rotation = cam_rot
+                self.status_msg.range_ratios.start_range = self.controls_dict['start_range_ratio']
+                self.status_msg.range_ratios.stop_range = self.controls_dict['stop_range_ratio']
 
 
-            live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
-            live_adjust_enabled = live_adjust_dict['live_adjust_enabled']
-            live_adjust_rotate_ratio = live_adjust_dict['live_adjust_rotate_ratio']
-            rotate_deg = ((live_adjust_rotate_ratio - 0.5) * 2) * 180
-            if abs(rotate_deg) > 180:
-                rotate_deg = np.sign(rotate_deg) * 180
-            live_adjust_rotate_deg = rotate_deg
+                self.status_msg.zoom_ratio = self.zoom_ratio
+                if self.zoom_ratio > 0.01:
+                    self.click_crosshair_enabled = False
+                    self.click_target_enabled = False
+                self.status_msg.pan_x_ratio = self.x_ratio
+                self.status_msg.pan_y_ratio = self.y_ratio
+                self.status_msg.window_x_ratios.start_range = self.controls_dict['window_ratios'][0]
+                self.status_msg.window_x_ratios.stop_range = self.controls_dict['window_ratios'][1]
+                self.status_msg.window_y_ratios.start_range = self.controls_dict['window_ratios'][2]
+                self.status_msg.window_y_ratios.stop_range = self.controls_dict['window_ratios'][3]
+                self.status_msg.zoom_3d_ratio = self.controls_dict['zoom_3d_ratio']
+                self.status_msg.rotate_3d_ratio = self.controls_dict['rotate_3d_ratio']
+                self.status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
+                self.status_msg.render_3d_controls_enabled = self.render_3d_controls_enabled
 
-            live_adjust_x_ratio = live_adjust_dict['live_adjust_x_ratio']
-            shift_x_scaler = (live_adjust_x_ratio - 0.5) * 2
-            live_adjust_x_pixels = math.floor((shift_x_scaler * self.width_org))
-            live_adjust_x_degs = round(shift_x_scaler * self.width_deg,1)
+                self.status_msg.camera_fov = self.controls_dict['cam_fov']
 
-            live_adjust_y_ratio = live_adjust_dict['live_adjust_y_ratio']
-            shift_y_scaler = (live_adjust_y_ratio - 0.5) * 2
-            live_adjust_y_pixels = math.floor((shift_y_scaler * self.height_org))
-            live_adjust_y_degs = round(shift_y_scaler * self.height_deg,1)
+                view = self.controls_dict['cam_view']
+                cam_view = Vector3()
+                cam_view.x = view[0]
+                cam_view.y = view[1]
+                cam_view.z = view[2]
+                self.status_msg.camera_view = cam_view
 
-            self.status_msg.live_adjustments_disabled = self.live_adjustments_disabled
-            #self.msg_if.pub_warn(self.data_product + " Publishing Live Adjust Disabled: " + str(self.live_adjustments_disabled ) , throttle_s = 5)
-            self.status_msg.live_adjust_enabled = live_adjust_enabled
-            self.status_msg.live_adjust_rotate_ratio = live_adjust_rotate_ratio
-            self.status_msg.live_adjust_rotate_deg = live_adjust_rotate_deg
-            self.status_msg.live_adjust_x_ratio = live_adjust_x_ratio
-            self.status_msg.live_adjust_x_pixels = live_adjust_x_pixels
-            self.status_msg.live_adjust_x_degs = live_adjust_x_degs
-            self.status_msg.live_adjust_y_ratio = live_adjust_y_ratio
-            self.status_msg.live_adjust_y_pixels = live_adjust_y_pixels
-            self.status_msg.live_adjust_y_degs = live_adjust_y_degs
+                pos = self.controls_dict['cam_pos']
+                cam_pos = Vector3()
+                cam_pos.x = pos[0]
+                cam_pos.y = pos[1]
+                cam_pos.z = pos[2]
+                self.status_msg.camera_position = cam_pos
 
-
-            self.status_msg.overlay_text_enabled = self.overlays_dict['overlay_text_enabled']
-            self.status_msg.click_text_enabled = self.click_text_enabled
-            self.status_msg.overlay_text_size_ratio = self.overlays_dict['overlay_text_size_ratio']
-            self.status_msg.overlay_text_vert_ratio = self.overlays_dict['overlay_text_vert_ratio']
-            self.status_msg.overlay_text_horz_ratio = self.overlays_dict['overlay_text_horz_ratio']
-            self.status_msg.overlay_text_transparency_ratio = self.overlays_dict['overlay_text_transparency_ratio']
-            overlay_text_color_rgb = self.overlays_dict['overlay_text_color_rgb']
-            self.status_msg.overlay_text_color_r = overlay_text_color_rgb[0]
-            self.status_msg.overlay_text_color_g = overlay_text_color_rgb[1]
-            self.status_msg.overlay_text_color_b = overlay_text_color_rgb[2]
-            self.status_msg.overlay_text_source_name = self.overlays_dict['overlay_text_img_name']
-            self.status_msg.overlay_text_date_time =  self.overlays_dict['overlay_text_date_time']
-            self.status_msg.overlay_text_nav = self.overlays_dict['overlay_text_nav']
-            self.status_msg.overlay_text_pose = self.overlays_dict['overlay_text_pose']
-            self.status_msg.base_overlay_text_list = self.overlays_dict['init_overlay_text_list']
-            self.status_msg.add_overlay_text_list = self.overlays_dict['add_overlay_text_list']
+                rot = self.controls_dict['cam_rot']
+                cam_rot = Vector3()
+                cam_rot.x = rot[0]
+                cam_rot.y = rot[1]
+                cam_rot.z = rot[2]
+                self.status_msg.camera_rotation = cam_rot
 
 
-            ################
-            crosshairs_dict = self.overlays_dict['crosshairs_dict']
-            #self.msg_if.pub_info("Publishing crosshairs_dict: " + str(crosshairs_dict), log_name_list = self.log_name_list)
-            crosshairs_msg_list = []
-            for crosshair_name in crosshairs_dict.keys():
-                crosshair_msg = ImageCrosshair()
-                crosshair_msg.name = crosshair_name
-                crosshair_dict = crosshairs_dict[crosshair_name]
-                try:
+                live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
+                live_adjust_enabled = live_adjust_dict['live_adjust_enabled']
+                live_adjust_rotate_ratio = live_adjust_dict['live_adjust_rotate_ratio']
+                rotate_deg = ((live_adjust_rotate_ratio - 0.5) * 2) * 180
+                if abs(rotate_deg) > 180:
+                    rotate_deg = np.sign(rotate_deg) * 180
+                live_adjust_rotate_deg = rotate_deg
 
-                    x_deg_offset = crosshair_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
-                    x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
-                    x_offset_ratio = (0.5 - x_ratio)
-                    x_scale = (self.width_proc/self.width_org)
-                    x_offset_pixel = int((x_offset_ratio * self.width_org))
-                    x_pixel = int((self.width_proc/2) + x_offset_pixel)
-                    #self.msg_if.pub_warn("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
+                live_adjust_x_ratio = live_adjust_dict['live_adjust_x_ratio']
+                shift_x_scaler = (live_adjust_x_ratio - 0.5) * 2
+                live_adjust_x_pixels = math.floor((shift_x_scaler * self.width_org))
+                live_adjust_x_degs = round(shift_x_scaler * self.width_deg,1)
 
+                live_adjust_y_ratio = live_adjust_dict['live_adjust_y_ratio']
+                shift_y_scaler = (live_adjust_y_ratio - 0.5) * 2
+                live_adjust_y_pixels = math.floor((shift_y_scaler * self.height_org))
+                live_adjust_y_degs = round(shift_y_scaler * self.height_deg,1)
 
-                    y_deg_offset = crosshair_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
-                    y_ratio = (self.height_deg/2) + y_deg_offset
-                    y_offset_ratio = -1 * (0.5 - y_ratio)
-                    y_scale = (self.height_proc/self.height_org)
-                    y_offset_pixel = int((y_offset_ratio * self.height_org))
-                    y_pixel = int((self.height_proc/2) + y_offset_pixel)
-                    #self.msg_if.pub_warn("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
-
-                    crosshair_msg.x_ratio = x_ratio
-                    crosshair_msg.x_offset_deg = x_deg_offset
-                    crosshair_msg.x_offset_pixel = x_offset_pixel
-                    crosshair_msg.x_pixel = x_pixel
-
-                    crosshair_msg.y_ratio = y_ratio
-                    crosshair_msg.y_offset_deg = y_deg_offset
-                    crosshair_msg.y_offset_pixel = y_offset_pixel
-                    crosshair_msg.y_pixel = y_pixel
-
-                    crosshair_msg.r = crosshair_dict['color_rgb'][0]
-                    crosshair_msg.g = crosshair_dict['color_rgb'][1]
-                    crosshair_msg.b = crosshair_dict['color_rgb'][2]
+                self.status_msg.live_adjustments_disabled = self.live_adjustments_disabled
+                #self.msg_if.pub_warn(self.data_product + " Publishing Live Adjust Disabled: " + str(self.live_adjustments_disabled ) , throttle_s = 5)
+                self.status_msg.live_adjust_enabled = live_adjust_enabled
+                self.status_msg.live_adjust_rotate_ratio = live_adjust_rotate_ratio
+                self.status_msg.live_adjust_rotate_deg = live_adjust_rotate_deg
+                self.status_msg.live_adjust_x_ratio = live_adjust_x_ratio
+                self.status_msg.live_adjust_x_pixels = live_adjust_x_pixels
+                self.status_msg.live_adjust_x_degs = live_adjust_x_degs
+                self.status_msg.live_adjust_y_ratio = live_adjust_y_ratio
+                self.status_msg.live_adjust_y_pixels = live_adjust_y_pixels
+                self.status_msg.live_adjust_y_degs = live_adjust_y_degs
 
 
-                    crosshair_msg.msg_str = str(crosshair_dict['msg_str'])
-                    crosshairs_msg_list.append(crosshair_msg)
-                except:
-                    pass
-                    
-
-            self.status_msg.crosshairs_enabled = self.overlays_dict['crosshairs_enabled']
-            self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
-            self.status_msg.crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
-            self.status_msg.crosshairs_thickness_ratio = self.overlays_dict['crosshairs_thickness_ratio']
-            self.status_msg.crosshairs_text_ratio = self.overlays_dict['crosshairs_text_ratio']
-            self.status_msg.crosshairs_transparency_ratio = self.overlays_dict['crosshairs_transparency_ratio']
-            crosshairs_color_rgb = self.overlays_dict['crosshairs_color_rgb']
-            self.status_msg.crosshairs_color_r = crosshairs_color_rgb[0]
-            self.status_msg.crosshairs_color_g = crosshairs_color_rgb[1]
-            self.status_msg.crosshairs_color_b = crosshairs_color_rgb[2]
-            self.status_msg.overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
-            self.status_msg.overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
-            self.status_msg.overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
-            self.status_msg.overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
-            self.status_msg.num_crosshairs = len(list(crosshairs_dict.keys()))
-            self.status_msg.crosshairs = crosshairs_msg_list
+                self.status_msg.overlay_text_enabled = self.overlays_dict['overlay_text_enabled']
+                self.status_msg.click_text_enabled = self.click_text_enabled
+                self.status_msg.overlay_text_size_ratio = self.overlays_dict['overlay_text_size_ratio']
+                self.status_msg.overlay_text_vert_ratio = self.overlays_dict['overlay_text_vert_ratio']
+                self.status_msg.overlay_text_horz_ratio = self.overlays_dict['overlay_text_horz_ratio']
+                self.status_msg.overlay_text_transparency_ratio = self.overlays_dict['overlay_text_transparency_ratio']
+                overlay_text_color_rgb = self.overlays_dict['overlay_text_color_rgb']
+                self.status_msg.overlay_text_color_r = overlay_text_color_rgb[0]
+                self.status_msg.overlay_text_color_g = overlay_text_color_rgb[1]
+                self.status_msg.overlay_text_color_b = overlay_text_color_rgb[2]
+                self.status_msg.overlay_text_source_name = self.overlays_dict['overlay_text_img_name']
+                self.status_msg.overlay_text_date_time =  self.overlays_dict['overlay_text_date_time']
+                self.status_msg.overlay_text_nav = self.overlays_dict['overlay_text_nav']
+                self.status_msg.overlay_text_pose = self.overlays_dict['overlay_text_pose']
+                self.status_msg.base_overlay_text_list = self.overlays_dict['init_overlay_text_list']
+                self.status_msg.add_overlay_text_list = self.overlays_dict['add_overlay_text_list']
 
 
-            ################
-            targets_dict = self.overlays_dict['targets_dict']
-            #self.msg_if.pub_info("Publishing targets_dict: " + str(targets_dict), log_name_list = self.log_name_list)
-            targets_msg_list = []
-            for target_name in targets_dict.keys():
-                target_msg = ImageTarget()
-                target_msg.name = target_name
-                target_dict = targets_dict[target_name]
-                try:
+                ################
+                crosshairs_dict = self.overlays_dict['crosshairs_dict']
+                #self.msg_if.pub_info("Publishing crosshairs_dict: " + str(crosshairs_dict), log_name_list = self.log_name_list)
+                crosshairs_msg_list = []
+                for crosshair_name in crosshairs_dict.keys():
+                    crosshair_msg = ImageCrosshair()
+                    crosshair_msg.name = crosshair_name
+                    crosshair_dict = crosshairs_dict[crosshair_name]
+                    try:
 
-                    x_deg_offset = target_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
-                    x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
-                    x_offset_ratio = (0.5 - x_ratio)
-                    x_scale = (self.width_proc/self.width_org)
-                    x_offset_pixel = int((x_offset_ratio * self.width_org))
-                    x_pixel = int((self.width_proc/2) + x_offset_pixel)
-                    #self.msg_if.pub_warn("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
-
-
-                    y_deg_offset = target_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
-                    y_ratio = ((self.height_deg/2) + y_deg_offset)/self.height_deg
-                    y_offset_ratio = -1 * (0.5 - y_ratio)
-                    y_scale = (self.height_proc/self.height_org)
-                    y_offset_pixel = int((y_offset_ratio * self.height_org))
-                    y_pixel = int((self.height_proc/2) + y_offset_pixel)
-                    #self.msg_if.pub_warn("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
-
-                    target_msg.x_ratio = x_ratio
-                    target_msg.x_offset_deg = x_deg_offset
-                    target_msg.x_offset_pixel = x_offset_pixel
-                    target_msg.x_pixel = x_pixel
-
-                    target_msg.y_ratio = y_ratio
-                    target_msg.y_offset_deg = y_deg_offset
-                    target_msg.y_offset_pixel = y_offset_pixel
-                    target_msg.y_pixel = y_pixel
-
-                    target_msg.r = target_dict['color_rgb'][0]
-                    target_msg.g = target_dict['color_rgb'][1]
-                    target_msg.b = target_dict['color_rgb'][2]
+                        x_deg_offset = crosshair_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
+                        x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
+                        x_offset_ratio = (0.5 - x_ratio)
+                        x_scale = (self.width_proc/self.width_org)
+                        x_offset_pixel = int((x_offset_ratio * self.width_org))
+                        x_pixel = int((self.width_proc/2) + x_offset_pixel)
+                        #self.msg_if.pub_warn("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
-                    target_msg.msg_str = str(target_dict['msg_str'])
-                    targets_msg_list.append(target_msg)
-                except:
-                    pass
-                    
+                        y_deg_offset = crosshair_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
+                        y_ratio = (self.height_deg/2) + y_deg_offset
+                        y_offset_ratio = -1 * (0.5 - y_ratio)
+                        y_scale = (self.height_proc/self.height_org)
+                        y_offset_pixel = int((y_offset_ratio * self.height_org))
+                        y_pixel = int((self.height_proc/2) + y_offset_pixel)
+                        #self.msg_if.pub_warn("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
 
-            self.status_msg.targets_enabled = self.overlays_dict['targets_enabled']
-            self.status_msg.click_target_enabled = self.click_target_enabled
-            self.status_msg.targets_size_ratio = self.overlays_dict['targets_size_ratio']
-            self.status_msg.targets_thickness_ratio = self.overlays_dict['targets_thickness_ratio']
-            self.status_msg.targets_text_ratio = self.overlays_dict['targets_text_ratio']
-            self.status_msg.targets_transparency_ratio = self.overlays_dict['targets_transparency_ratio']
-            targets_color_rgb = self.overlays_dict['targets_color_rgb']
-            self.status_msg.targets_color_r = targets_color_rgb[0]
-            self.status_msg.targets_color_g = targets_color_rgb[1]
-            self.status_msg.targets_color_b = targets_color_rgb[2]
-            self.status_msg.overlay_target_names = self.overlays_dict['overlay_target_names']
-            self.status_msg.overlay_target_pixels = self.overlays_dict['overlay_target_pixels']
-            self.status_msg.overlay_target_degrees = self.overlays_dict['overlay_target_degrees']
-            self.status_msg.overlay_target_messages = self.overlays_dict['overlay_target_messages']
-            self.status_msg.num_targets = len(list(targets_dict.keys()))
-            self.status_msg.targets = targets_msg_list
+                        crosshair_msg.x_ratio = x_ratio
+                        crosshair_msg.x_offset_deg = x_deg_offset
+                        crosshair_msg.x_offset_pixel = x_offset_pixel
+                        crosshair_msg.x_pixel = x_pixel
+
+                        crosshair_msg.y_ratio = y_ratio
+                        crosshair_msg.y_offset_deg = y_deg_offset
+                        crosshair_msg.y_offset_pixel = y_offset_pixel
+                        crosshair_msg.y_pixel = y_pixel
+
+                        crosshair_msg.r = crosshair_dict['color_rgb'][0]
+                        crosshair_msg.g = crosshair_dict['color_rgb'][1]
+                        crosshair_msg.b = crosshair_dict['color_rgb'][2]
 
 
-            self.status_msg.stream_compression_enabled  = self.stream_compression_enabled
-            stream_compression_ratio = 0
-            if self.stream_compression_enabled == True:
-                stream_compression_ratio = self.stream_compression_ratio
-            self.status_msg.stream_compression_ratio = stream_compression_ratio
+                        crosshair_msg.msg_str = str(crosshair_dict['msg_str'])
+                        crosshairs_msg_list.append(crosshair_msg)
+                    except:
+                        pass
+                        
 
-            self.status_msg.publishing = self.needs_data
+                self.status_msg.crosshairs_enabled = self.overlays_dict['crosshairs_enabled']
+                self.status_msg.click_crosshair_enabled = self.click_crosshair_enabled
+                self.status_msg.crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
+                self.status_msg.crosshairs_thickness_ratio = self.overlays_dict['crosshairs_thickness_ratio']
+                self.status_msg.crosshairs_text_ratio = self.overlays_dict['crosshairs_text_ratio']
+                self.status_msg.crosshairs_transparency_ratio = self.overlays_dict['crosshairs_transparency_ratio']
+                crosshairs_color_rgb = self.overlays_dict['crosshairs_color_rgb']
+                self.status_msg.crosshairs_color_r = crosshairs_color_rgb[0]
+                self.status_msg.crosshairs_color_g = crosshairs_color_rgb[1]
+                self.status_msg.crosshairs_color_b = crosshairs_color_rgb[2]
+                self.status_msg.overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
+                self.status_msg.overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
+                self.status_msg.overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
+                self.status_msg.overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
+                self.status_msg.num_crosshairs = len(list(crosshairs_dict.keys()))
+                self.status_msg.crosshairs = crosshairs_msg_list
 
-            avg_rate = 0
-            if len(self.time_list) > 0:
-                avg_time = sum(self.time_list) / len(self.time_list)
-                if avg_time > .01:
-                    avg_rate = float(1) / avg_time
-            self.status_msg.avg_pub_rate = avg_rate
-            
-            if self.node_if is not None:
-                # if self.data_product == 'pointcloud_image':
-                #     self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg), log_name_list = self.log_name_list, throttle_s = 10)
-                self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
+
+                ################
+                targets_dict = self.overlays_dict['targets_dict']
+                #self.msg_if.pub_info("Publishing targets_dict: " + str(targets_dict), log_name_list = self.log_name_list)
+                targets_msg_list = []
+                for target_name in targets_dict.keys():
+                    target_msg = ImageTarget()
+                    target_msg.name = target_name
+                    target_dict = targets_dict[target_name]
+                    try:
+
+                        x_deg_offset = target_dict['x_deg_offset'] #round( -1 * ((x_ratio - 0.5) * self.width_deg),1)
+                        x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
+                        x_offset_ratio = (0.5 - x_ratio)
+                        x_scale = (self.width_proc/self.width_org)
+                        x_offset_pixel = int((x_offset_ratio * self.width_org))
+                        x_pixel = int((self.width_proc/2) + x_offset_pixel)
+                        #self.msg_if.pub_warn("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
+
+
+                        y_deg_offset = target_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
+                        y_ratio = ((self.height_deg/2) + y_deg_offset)/self.height_deg
+                        y_offset_ratio = -1 * (0.5 - y_ratio)
+                        y_scale = (self.height_proc/self.height_org)
+                        y_offset_pixel = int((y_offset_ratio * self.height_org))
+                        y_pixel = int((self.height_proc/2) + y_offset_pixel)
+                        #self.msg_if.pub_warn("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset]) , log_name_list = self.log_name_list, throttle_s = 5)
+
+                        target_msg.x_ratio = x_ratio
+                        target_msg.x_offset_deg = x_deg_offset
+                        target_msg.x_offset_pixel = x_offset_pixel
+                        target_msg.x_pixel = x_pixel
+
+                        target_msg.y_ratio = y_ratio
+                        target_msg.y_offset_deg = y_deg_offset
+                        target_msg.y_offset_pixel = y_offset_pixel
+                        target_msg.y_pixel = y_pixel
+
+                        target_msg.r = target_dict['color_rgb'][0]
+                        target_msg.g = target_dict['color_rgb'][1]
+                        target_msg.b = target_dict['color_rgb'][2]
+
+
+                        target_msg.msg_str = str(target_dict['msg_str'])
+                        targets_msg_list.append(target_msg)
+                    except:
+                        pass
+                        
+
+                self.status_msg.targets_enabled = self.overlays_dict['targets_enabled']
+                self.status_msg.click_target_enabled = self.click_target_enabled
+                self.status_msg.targets_size_ratio = self.overlays_dict['targets_size_ratio']
+                self.status_msg.targets_thickness_ratio = self.overlays_dict['targets_thickness_ratio']
+                self.status_msg.targets_text_ratio = self.overlays_dict['targets_text_ratio']
+                self.status_msg.targets_transparency_ratio = self.overlays_dict['targets_transparency_ratio']
+                targets_color_rgb = self.overlays_dict['targets_color_rgb']
+                self.status_msg.targets_color_r = targets_color_rgb[0]
+                self.status_msg.targets_color_g = targets_color_rgb[1]
+                self.status_msg.targets_color_b = targets_color_rgb[2]
+                self.status_msg.overlay_target_names = self.overlays_dict['overlay_target_names']
+                self.status_msg.overlay_target_pixels = self.overlays_dict['overlay_target_pixels']
+                self.status_msg.overlay_target_degrees = self.overlays_dict['overlay_target_degrees']
+                self.status_msg.overlay_target_messages = self.overlays_dict['overlay_target_messages']
+                self.status_msg.num_targets = len(list(targets_dict.keys()))
+                self.status_msg.targets = targets_msg_list
+
+
+                self.status_msg.stream_compression_enabled  = self.stream_compression_enabled
+                stream_compression_ratio = 0
+                if self.stream_compression_enabled == True:
+                    stream_compression_ratio = self.stream_compression_ratio
+                self.status_msg.stream_compression_ratio = stream_compression_ratio
+
+                self.status_msg.publishing = self.needs_data
+
+                avg_rate = 0
+                if len(self.time_list) > 0:
+                    avg_time = sum(self.time_list) / len(self.time_list)
+                    if avg_time > .01:
+                        avg_rate = float(1) / avg_time
+                self.status_msg.avg_pub_rate = avg_rate
+                
+                if self.node_if is not None:
+                    # if self.data_product == 'pointcloud_image':
+                    #     self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg), log_name_list = self.log_name_list, throttle_s = 10)
+                    self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
+            except Exception as e:
+                self.msg_if.pub_info("Failed to Publish Status Msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 10)
 
 
 
@@ -7497,17 +7501,20 @@ class DepthMapIF:
         """
         if self.node_if is not None:
 
-            self.status_msg.min_range_m = self.min_range_m
-            self.status_msg.max_range_m = self.max_range_m
-            avg_rate = 0
-            if len(self.time_list) > 0:
-                avg_time = sum(self.time_list) / len(self.time_list)
-                if avg_time > .01:
-                    avg_rate = float(1) / avg_time
-            self.status_msg.avg_pub_rate = avg_rate
+            try:
 
-            self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
+                self.status_msg.min_range_m = self.min_range_m
+                self.status_msg.max_range_m = self.max_range_m
+                avg_rate = 0
+                if len(self.time_list) > 0:
+                    avg_time = sum(self.time_list) / len(self.time_list)
+                    if avg_time > .01:
+                        avg_rate = float(1) / avg_time
+                self.status_msg.avg_pub_rate = avg_rate
 
+                self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to Publish Status msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 10.0)
 
 
     def init(self, do_updates = False):
@@ -8845,46 +8852,49 @@ class PointcloudIF:
                 parameter server before publishing. Defaults to True.
         """
         if self.node_if is not None:
+            try:
+                if do_updates == True:
 
-            if do_updates == True:
-                self.status_msg.clip_enabled = self.node_if.get_param(self.node_if_prefix +  'clip_enabled')
-                self.status_msg.clip_options = self.clip_options
-                self.status_msg.clip_selection = self.node_if.get_param(self.node_if_prefix +  'clip_selection')
+                    self.status_msg.clip_enabled = self.node_if.get_param(self.node_if_prefix +  'clip_enabled')
+                    self.status_msg.clip_options = self.clip_options
+                    self.status_msg.clip_selection = self.node_if.get_param(self.node_if_prefix +  'clip_selection')
 
-                clip_meters = RangeWindow()
-                clip_meters.start_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_min_m'))
-                clip_meters.stop_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_max_m'))
-                self.status_msg.clip_meters = clip_meters
+                    clip_meters = RangeWindow()
+                    clip_meters.start_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_min_m'))
+                    clip_meters.stop_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_max_m'))
+                    self.status_msg.clip_meters = clip_meters
 
-                self.status_msg.clip_target_topic = self.bounding_box3d_topic
+                    self.status_msg.clip_target_topic = self.bounding_box3d_topic
 
 
-                self.status_msg.voxel_downsample_size_m = self.node_if.get_param(self.node_if_prefix +  'voxel_downsample_size')
-                self.status_msg.uniform_downsample_points = self.node_if.get_param(self.node_if_prefix +  'uniform_downsample_k_points')
-                self.status_msg.outlier_k_points = self.node_if.get_param(self.node_if_prefix +  'outlier_removal_num_neighbors')
+                    self.status_msg.voxel_downsample_size_m = self.node_if.get_param(self.node_if_prefix +  'voxel_downsample_size')
+                    self.status_msg.uniform_downsample_points = self.node_if.get_param(self.node_if_prefix +  'uniform_downsample_k_points')
+                    self.status_msg.outlier_k_points = self.node_if.get_param(self.node_if_prefix +  'outlier_removal_num_neighbors')
 
-                self.status_msg.render_enable = self.node_if.get_param(self.node_if_prefix +  'render_enable')
+                    self.status_msg.render_enable = self.node_if.get_param(self.node_if_prefix +  'render_enable')
 
-                # Degrees use the same conversion the renderer applies to its own
-                # rotate_3d_ratio/tilt_3d_ratio, so the two agree on what 0.5 means.
-                rotate_ratio = self.node_if.get_param(self.node_if_prefix +  'rotate_ratio')
-                self.status_msg.rotate_ratio = rotate_ratio
-                self.status_msg.rotate_deg = (0.5 - rotate_ratio) * 2 * 180
-                tilt_ratio = self.node_if.get_param(self.node_if_prefix +  'tilt_ratio')
-                self.status_msg.tilt_ratio = tilt_ratio
-                self.status_msg.tilt_deg = (0.5 - tilt_ratio) * 2 * 180
+                    # Degrees use the same conversion the renderer applies to its own
+                    # rotate_3d_ratio/tilt_3d_ratio, so the two agree on what 0.5 means.
+                    rotate_ratio = self.node_if.get_param(self.node_if_prefix +  'rotate_ratio')
+                    self.status_msg.rotate_ratio = rotate_ratio
+                    self.status_msg.rotate_deg = (0.5 - rotate_ratio) * 2 * 180
+                    tilt_ratio = self.node_if.get_param(self.node_if_prefix +  'tilt_ratio')
+                    self.status_msg.tilt_ratio = tilt_ratio
+                    self.status_msg.tilt_deg = (0.5 - tilt_ratio) * 2 * 180
 
-                self.status_msg.range_min_max_m.start_range = self.min_range_m
-                self.status_msg.range_min_max_m.stop_range = self.max_range_m
+                    self.status_msg.range_min_max_m.start_range = self.min_range_m
+                    self.status_msg.range_min_max_m.stop_range = self.max_range_m
 
-            avg_rate = 0
-            if len(self.time_list) > 0:
-                avg_time = sum(self.time_list) / len(self.time_list)
-                if avg_time > .01:
-                    avg_rate = float(1) / avg_time
-            self.status_msg.avg_pub_rate = avg_rate
+                avg_rate = 0
+                if len(self.time_list) > 0:
+                    avg_time = sum(self.time_list) / len(self.time_list)
+                    if avg_time > .01:
+                        avg_rate = float(1) / avg_time
+                self.status_msg.avg_pub_rate = avg_rate
 
-            self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
+                self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to Publish Status msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 10.0)
 
 
     def init(self, do_updates = False):

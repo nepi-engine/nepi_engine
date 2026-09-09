@@ -100,6 +100,7 @@ class ControlsIF:
 
     controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
 
+    pub_status = True
     save_params = True
 
     #######################
@@ -110,7 +111,7 @@ class ControlsIF:
                 controls_description = 'Controls',
                 controls_init_dict = dict(),
                 controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
-                has_status_pub = True,
+                pub_status = True,
                 save_params = True,
                 log_name = None,
                 log_name_list = [],
@@ -159,6 +160,7 @@ class ControlsIF:
 
         self.controls_updated_callback = controls_updated_callback
 
+        self.pub_status = pub_status
         self.save_params = save_params
 
         # if source_callback_dict is not None:
@@ -200,7 +202,7 @@ class ControlsIF:
             self.PARAMS_DICT = None
 
         # Publishers Config Dict ####################
-        if has_status_pub == False:
+        if pub_status == False:
             self.controls_node_pubs_dict = dict()
         else:
             self.controls_node_pubs_dict = {
@@ -259,7 +261,7 @@ class ControlsIF:
         ##############################
         # Start updater controls
 
-        if has_status_pub == True:
+        if pub_status == True:
             nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
@@ -544,7 +546,7 @@ class ControlsIF:
 
     def publish_status(self, status_msg = None):
         ###########
-        if self.has_status_pub == True:
+        if self.pub_status == True:
             controls_dict = copy.deepcopy(self.controls_dict)
             self.controls_status_msg = nepi_controls.update_status_msg(self.controls_status_msg, controls_dict)
             self.controls_status_msg.config_topic = self.config_topic
@@ -1212,6 +1214,8 @@ class DataIF:
 
     status_has_published = False
 
+    pub_status = True
+
     #######################
     ### IF Initialization
     def __init__(self, 
@@ -1219,7 +1223,7 @@ class DataIF:
                 data_display_name = 'Data',
                 data_description = 'Data',
                 data_init_dict = dict(),
-                has_status_pub = True,
+                pub_status = True,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -1265,7 +1269,7 @@ class DataIF:
         self.data_dict = nepi_data.create_data_dict(data_init_dict)
         self.data_status_msg = nepi_data.create_status_msg(self.data_name, self.data_display_name, self.data_description)
 
-      
+        self.pub_status = pub_status
 
 
         ##############################   
@@ -1279,7 +1283,7 @@ class DataIF:
         self.PARAMS_DICT = None
 
         # Publishers Config Dict ####################
-        if has_status_pub == False:
+        if pub_status == False:
             self.data_node_pubs_dict = dict()
         else:
             self.data_node_pubs_dict = {
@@ -1326,7 +1330,7 @@ class DataIF:
         ##############################
         # Start updater data
 
-        if has_status_pub == True:
+        if pub_status == True:
             nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
         ##############################
@@ -1556,7 +1560,7 @@ class DataIF:
 
     def publish_status(self, status_msg = None):
         ###########
-        if self.has_status_pub == True:
+        if self.pub_status == True:
             data_dict = copy.deepcopy(self.data_dict)
             self.data_status_msg = nepi_data.update_status_msg(self.data_status_msg, data_dict)
             self.data_status_msg.config_topic = self.config_topic

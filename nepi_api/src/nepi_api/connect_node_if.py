@@ -592,7 +592,7 @@ class ConnectNodeIF:
         ###########
         if self.node_if is not None:
             if self.status_has_published == False:
-                self.msg_if.pub_warn("Publishing Status: " + str(status_msg))
+                #self.msg_if.pub_warn("Publishing Status: " + str(status_msg))
                 self.status_has_published = True
             self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
             #self.node_if.save_config()
@@ -1251,10 +1251,11 @@ class ConnectNodePublishersIF:
             pub_dict = self.pubs_dict[pub_name]
             purge = True
             if 'pub' in pub_dict.keys() and not nepi_sdk.is_shutdown():
-                try:
-                    self.pubs_dict[pub_name]['pub'].unregister()
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
+                if self.pubs_dict[pub_name]['pub'] is not None:
+                    try:
+                        self.pubs_dict[pub_name]['pub'].unregister()
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
         if purge == True:
             del self.pubs_dict[pub_name]
 
