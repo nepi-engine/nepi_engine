@@ -468,7 +468,7 @@ class AIDetectorManager:
                             if model_name in orig_models_dict.keys():
                                 aif_models_dict[model_name]['active'] = orig_models_dict[model_name]['active']
                             else: 
-                                aif_models_dict[model_name]['active'] = False
+                                aif_models_dict[model_name]['active'] = True
 
                             models_dict[model_name] = aif_models_dict[model_name]
                           
