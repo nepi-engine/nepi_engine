@@ -1086,7 +1086,10 @@ class SettingsIF:
                 for setting_name in settings_params_dict.keys():
                     if setting_name in init_settings_dict.keys():
                         setting_value = settings_params_dict[setting_name]
-                        init_settings_dict = nepi_controls.set_value(init_settings_dict, setting_name, setting_value, setting_value)
+                        # set_value's fourth parameter is `index`, not a second
+                        # copy of the value: passing setting_value twice used the
+                        # value as an array index into itself.
+                        init_settings_dict = nepi_controls.set_value(init_settings_dict, setting_name, setting_value)
         else:
             init_settings_dict = dict()
 

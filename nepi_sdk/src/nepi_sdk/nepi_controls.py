@@ -85,7 +85,7 @@ EXAMPLE_INIT_DICT = dict(
                   # OPTIONAL
                   "min_bound": 0.1, "max_bound":15, 'value_round': 2,
                   'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'display_round': 2,}, 
-      wh_degrees = {"type":"FloatDouble", "default":[100,70], 
+      wh_degrees = {"type":"RangeSlider", "default":[100,70],
                   # OPTIONAL
                   "min_bound":10, "max_bound":200, 'value_round': 2, 'display_labels': ['Width (Deg)', 'Height (Deg)'],
                   'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'disabled':True, 'display_round': 2,}, 
@@ -185,7 +185,12 @@ def create_controls_dict(init_dict):
         max_bound = -999
 
 
-        if input_type == 'BOUND_TYPES':
+        # Membership test, not equality against the name of the list. As an
+        # equality test this was never true, so min_bound/max_bound stayed at
+        # the -999 sentinel for every Int and Float control and a device's
+        # reported bounds (v4l2 hands them over as init_control_dict['bounds'])
+        # were discarded.
+        if input_type in BOUND_TYPES:
           if input_type == 'ColorRGB':
                 min_bound = 0
                 max_bound = 255
@@ -224,7 +229,11 @@ def create_controls_dict(init_dict):
         #############
         # Clean Value
         value = None
-        if input_type in "TRIGGER_TYPES":
+        # Membership in the list, not a substring test against its name. As a
+        # substring test this was never true, so a Button never got its [0]
+        # seed: it fell through to the default branch, came out length 0, and
+        # was dropped as invalid below.
+        if input_type in TRIGGER_TYPES:
           value = [0]
         else:
           value  = control_dict['default']
@@ -238,7 +247,12 @@ def create_controls_dict(init_dict):
               values = [str(item) for item in value]
             value = values
         if value is None or isinstance(value, list) == False:
-          continue          
+          # Third drop path, and it was the last silent one: no exception to
+          # catch, so nothing was logged.
+          logger.log_warn("create_controls_dict: dropped control '" + str(name) +
+                          "' of declared type '" + str(input_type) +
+                          "': no default or value to seed it with")
+          continue
 
         control_dict['value'] = value
         control_dict['length'] = len(value)
@@ -266,11 +280,21 @@ def create_controls_dict(init_dict):
         if isinstance(display_labels, list) == False:
           display_labels = []
 
-        if input_type == 'OPTION_TYPES':
+        # Membership test, not equality against the name of the list. As an
+        # equality test this branch never ran, so Menu/Selection/Selections
+        # took the else path -- which CLEARS options, at both of its ends. An
+        # option type then reached get_clean_value with an empty option list,
+        # where the Selection branch indexes options[0] and raised IndexError,
+        # so the control was dropped at registration. This is what took the
+        # camera's resolution/framerate/exposure_auto/power_line_frequency and
+        # drivers_mgr's protocol/baud_rate out of their settings dicts.
+        if input_type in OPTION_TYPES:
             if len(options) == 0 and len(display_labels) > 0:
               options = display_labels
-            options = [str(item) for item in control_dict['options']]
-            display_labels = [] 
+            # From the local `options`, which carries the display_labels
+            # fallback above; re-reading control_dict['options'] discarded it.
+            options = [str(item) for item in options]
+            display_labels = []
         else:
             if len(display_labels) == 0 and len(options) > 0:
               display_labels = options
@@ -304,17 +328,34 @@ def create_controls_dict(init_dict):
         #############
 
         check_dict = dict()
-        check_dict[name] = copy.deepcopy(control_dict)
+        # Keyed by the cleaned name, which is what get_clean_value looks up --
+        # it cleans the name before indexing, so a raw key it could not find
+        # came back None and the control was dropped for no stated reason.
+        check_name = control_dict['name']
+        check_dict[check_name] = copy.deepcopy(control_dict)
 
         check_value = copy.deepcopy(value)
-        value = get_clean_value(check_dict, name, check_value)
-        #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(value) + ": " + str(check_value))
-        if value is None:
+        clean_value = get_clean_value(check_dict, check_name, check_value)
+        #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(clean_value) + ": " + str(check_value))
+        if clean_value is None:
+          logger.log_warn("create_controls_dict: dropped control '" + str(name) +
+                          "' of declared type '" + str(input_type) +
+                          "': value " + str(check_value) + " is not valid for the control")
           continue
-  
+
+        # Store the LIST form of the cleaned value. This took len() of
+        # get_clean_value's return, which is the NATIVE form: len(3) and
+        # len(True) raise TypeError, so every Int and Toggle was dropped, and a
+        # String's length became its character count -- len('/dev/ttyUSB0') is
+        # 12 against a one-entry value list -- which is what walked
+        # get_clean_value's range(control_length) off the end of current_value
+        # and killed drivers_mgr from its set_value call.
+        value = get_value_list(clean_value)
+        control_dict['value'] = value
         control_dict['default'] = value
         control_dict['length'] = len(value)
-        
+
+
 
 
         #############
@@ -344,6 +385,20 @@ def create_controls_dict(init_dict):
 ##################
 # Controls Functions
 
+def get_value_list(value):
+  # The controls dict stores every value as a list of strings: 'length' counts
+  # list entries, and get_clean_value re-lists whatever it is handed, so a
+  # scalar stored in 'value' gets iterated one character at a time. Anything
+  # coming back from get_clean_value -- which returns the NATIVE form, a scalar
+  # for the single-value types -- has to come back through here before it is
+  # stored.
+  if value is None:
+    return None
+  if isinstance(value, list) == False:
+    return [str(value)]
+  return [str(item) for item in value]
+
+
 def get_clean_value(controls_dict, control_name, control_value = None):
   # If control_name not in controls_dict keys, None is returned
   # If control_value is None or any control_value is invalid, current valid values are returned
@@ -367,9 +422,21 @@ def get_clean_value(controls_dict, control_name, control_value = None):
       if control_value is None:
         return value
 
-      control_value = [str(item) for item in control_value]
+      # Callers hand this the NATIVE value -- set_value from a driver, the
+      # ControlsIF/SettingsIF wrappers, apply_update_msg. Iterating that
+      # directly raised TypeError on an int (SettingsIF.init died here on
+      # drivers_mgr's stored settings) and, worse, silently split a bare string
+      # into one entry per CHARACTER, which is where the mismatched lengths and
+      # the walk off the end of current_value came from.
+      control_value = get_value_list(control_value)
 
-      if len(control_value) != control_length:
+      if isinstance(options, list) == False:
+        options = []
+
+      # 'Selections' is a multi-select: how many options are chosen is the value,
+      # so its length legitimately differs from the registered one. Every other
+      # type has a fixed arity and a mismatch means a malformed update.
+      if control_type != 'Selections' and len(control_value) != control_length:
         return value
 
 
@@ -377,26 +444,45 @@ def get_clean_value(controls_dict, control_name, control_value = None):
       if control_type in OPTION_TYPES: ###########################################################
 
             if control_type == "Menu": ###########################################################
+              # The value of a Menu is an INDEX into options. int() of the whole
+              # list raised every time, so this only ever reached its own except
+              # branch and returned the current value -- a Menu could not be set.
+              index = None
               try:
-                value  = int(control_value)
-                if len(options) <= value:
-                  value = current_value
+                index = int(float(control_value[0]))
               except Exception as e:
-                value = current_value
+                index = None
+              if index is not None and index >= 0 and index < len(options):
+                value = [str(index)]
+              else:
+                value = copy.deepcopy(current_value)
 
             elif control_type == "Selection": ###########################################################
+              # The value of a Selection is one option. str() of the whole list
+              # produced "['1920:1080']", which is never in options, so this fell
+              # through to options[0] -- meaning a Selection could only ever hold
+              # its first option, and IndexError'd outright when the option list
+              # was empty, dropping the control at registration.
+              selection = None
               try:
-                value  = str(control_value)
-                if value not in options:
-                  value = None
+                selection = str(control_value[0])
               except Exception as e:
-                 value = current_value
-              if value not in options:
-                value = options[0]
-              
+                selection = None
+              if selection is not None and selection in options:
+                value = [selection]
+              elif len(current_value) > 0 and str(current_value[0]) in options:
+                value = [str(current_value[0])]
+              elif len(options) > 0:
+                value = [str(options[0])]
+              else:
+                # No options to choose from: there is no valid value, and
+                # returning None is how the caller is told so.
+                value = None
+
             elif control_type == "Selections": ###########################################################
                 values = []
-                for item in [str(item) for item in control_value]:
+                for item in control_value:
+                  item = str(item)
                   if item in options:
                     values.append(item)
                 # An empty list is a legitimate value here (nothing selected), which is
@@ -460,12 +546,18 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
             try:
               add_value  = float(add_value)
-              round = control_dict['round']
-              if round >= 0:
-                add_value = round(add_value,round)
-              # Reset valid = True here, discarding the low handle's verdict.
+              # Named round_to, not round: binding the name `round` shadowed the
+              # builtin, so round(add_value, round) raised "'int' object is not
+              # callable" on the very next line. The except below swallowed it and
+              # handed back cur_value, so EVERY Float update silently reverted to
+              # the value already held.
+              round_to = control_dict['round']
+              if round_to >= 0:
+                add_value = round(add_value,round_to)
+              # Clamps to min_bound. This assigned max_bound, so a value below the
+              # minimum came back as the MAXIMUM.
               if float(min_bound) != -999 and add_value < min_bound:
-                add_value = max_bound
+                add_value = min_bound
               if float(max_bound) != -999 and add_value > max_bound:
                 add_value = max_bound
             except Exception as e:
@@ -581,10 +673,18 @@ def set_value(controls_dict, control_name, update_value, index = None,  check_va
         except:
           pass
 
-      if check_valid == False:
+      # Validate when asked to validate. The test was inverted, so the default
+      # path (check_valid = True) wrote the raw wire value straight into the dict
+      # -- handing a driver's setSettingFunction ['False'] for a Toggle and ['5']
+      # for an Int -- while a caller passing check_valid = False to SKIP the check
+      # got it run. drivers_mgr's discovery pass is that caller.
+      if check_valid == True:
         update_value = get_clean_value(controls_dict, control_name, update_value)
       if update_value is not None:
-        controls_dict[control_name]['value'] = update_value
+        # Stored as a list of strings, the one shape the dict holds: 'length'
+        # counts list entries and get_clean_value re-lists whatever it reads, so
+        # a scalar written here comes back out one character per entry.
+        controls_dict[control_name]['value'] = get_value_list(update_value)
   return controls_dict
 
 def sets_values(controls_dict, controls_values_dict):
@@ -762,18 +862,22 @@ def set_hidden(controls_dict, control_name, display_hidden):
   return controls_dict
 
 def get_disabled(controls_dict, control_name):
+  # Control.msg spells the field display_disabled, so that is the dict key: the
+  # dict is built from convert_msg2dict(Control()) and update_status_msg copies
+  # only keys the msg carries. Read under 'disabled' this was a KeyError on
+  # every control, and written under 'disabled' it never reached the RUI.
   disabled = False
   if control_name in controls_dict.keys():
-      disabled = (controls_dict[control_name]['disabled'] == True)
+      disabled = (controls_dict[control_name].get('display_disabled',False) == True)
   return disabled
 
 def set_disabled(controls_dict, control_name, disabled):
-  # str() here wrote the strings 'True'/'False' into Control.disabled, a toggle
-  # field. convert_dict2msg then rejected the dict and the control vanished
+  # str() here wrote the strings 'True'/'False' into Control.display_disabled, a
+  # bool field. convert_dict2msg then rejected the dict and the control vanished
   # from the status message instead of being disabled in it.
   disabled = (disabled == True)
   if control_name in controls_dict.keys():
-      controls_dict[control_name]['disabled'] = disabled
+      controls_dict[control_name]['display_disabled'] = disabled
   return controls_dict
 
 
@@ -885,33 +989,33 @@ def update_status_msg( status_msg, controls_dict):
       control_type = control_dict['type']
       if control_type in CONTROL_TYPES:
 
-        # Convert default and value to string lists for Controls Msg
-        value = control_dict['value']
-        default = control_dict['default']
+        # Convert value to a string list for the Control msg. This used to write
+        # msg_value/msg_default BACK into the live controls dict, and for the
+        # single-value types [str(value)] wrapped a value that was already a
+        # one-entry list -- so every status publish re-wrapped it and the dict
+        # ended up holding the string "['0']" in place of '0'. The dict the
+        # device reads from is not this function's to edit.
+        msg_value = get_value_list(control_dict['value'])
 
-        if control_type == 'Button':
-          if value <= 0:
-            value = -999
+        if control_type in TRIGGER_TYPES:
+          # A Button holds the time it was last fired; the status reports seconds
+          # since, or -999 for never. Comparing the list itself to 0 raised
+          # TypeError and left every Button out of the published status.
+          fired_at = 0
+          try:
+            fired_at = float(msg_value[0])
+          except Exception as e:
+            fired_at = 0
+          if fired_at <= 0:
+            msg_value = [str(-999)]
           else:
-            value = nepi_utils.get_time() - value
- 
-        if control_type in LIST_TYPES:
-          if isinstance(value, list):
-              msg_value = [str(item) for item in value]
-              msg_default = [str(item) for item in default]
-          else:
-            msg_value = [str(value)]
-            msg_default = [str(default)]
-        else:
-          msg_value = [str(value)]
-          msg_default = [str(default)]
-        control_dict['value'] = msg_value
-        control_dict['default'] = msg_default
+            msg_value = [str(nepi_utils.get_time() - fired_at)]
 
         msg_dict = nepi_sdk.convert_msg2dict(Control())
         for key in msg_dict.keys():
           if key in control_dict.keys():
             msg_dict[key] = control_dict[key]
+        msg_dict['value'] = msg_value
 
 
         msg_type = 'nepi_interfaces/Control'
@@ -960,8 +1064,12 @@ def apply_update_msg( controls_dict, msg):
   if index == '':
     index = None
 
-  value = msg.value
-  if value != ['']:
+  # An UpdateControl carries only the fields the sender is actually changing;
+  # every other field arrives at its ROS default. For the two string[] fields
+  # that default is the EMPTY list, not [''], so testing only against ['']
+  # treated "field omitted" as "set this field to nothing".
+  value = list(msg.value)
+  if len(value) > 0 and value != ['']:
     value = get_clean_value(controls_dict, name, value)
     if value is not None:
       controls_dict = set_value(controls_dict, name, value, index = index)
@@ -974,8 +1082,15 @@ def apply_update_msg( controls_dict, msg):
   if max_bound != '':
     controls_dict = set_max_bound(controls_dict, name, max_bound = max_bound)
 
-  options = msg.options
-  if options != ['']:
+  # Same guard, and this one was doing real damage: the RUI never sends options
+  # on a value change, so msg.options arrived as [], which is != [''] -- every
+  # update from the RUI wiped the control's option list. The value was applied
+  # first and the options cleared right after, so a Selection worked exactly
+  # once and then had nothing left to be valid against: get_clean_value returns
+  # None for an option type with no options, so the dropdown stopped taking
+  # changes and the caller read back None.
+  options = list(msg.options)
+  if len(options) > 0 and options != ['']:
     controls_dict = set_options(controls_dict, name, options)
 
   return controls_dict

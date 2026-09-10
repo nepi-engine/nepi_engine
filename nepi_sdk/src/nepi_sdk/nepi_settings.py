@@ -91,33 +91,36 @@ def update_status_msg( status_msg, settings_dict):
       setting_dict['type'] = setting_type
       if setting_type in nepi_controls.CONTROL_TYPES:
 
-        # Convert default and value to string lists for Controls Msg
-        value = setting_dict['value']
-        default = setting_dict['default']
+        # Convert value to a string list for the Control msg. The settings dict
+        # already holds every value as a one-entry-per-value list, so the old
+        # [str(value)] on the non-list types wrapped a list that was already a
+        # list: an Int published as the string "['0']" instead of '0', which is
+        # what the RUI rendered verbatim and what its parseFloat turned into NaN.
+        # It also wrote that back into the LIVE settings dict, so each publish
+        # re-wrapped the value the device reads from. This function reports; it
+        # does not edit.
+        msg_value = nepi_controls.get_value_list(setting_dict['value'])
 
-        if setting_type == 'Trigger':
-          if value <= 0:
-            value = -999
+        if setting_type in nepi_controls.TRIGGER_TYPES:
+          # Held as the time it was last fired, reported as seconds since, -999
+          # for never. 'Trigger' is the retired spelling of this type -- the
+          # equality test never matched 'Button', and comparing the list itself
+          # to 0 raised TypeError, so a button never reached the status message.
+          fired_at = 0
+          try:
+            fired_at = float(msg_value[0])
+          except Exception as e:
+            fired_at = 0
+          if fired_at <= 0:
+            msg_value = [str(-999)]
           else:
-            value = nepi_utils.get_time() - value
- 
-        if setting_type in nepi_controls.LIST_TYPES:
-          if isinstance(value, list):
-              msg_value = [str(item) for item in value]
-              msg_default = [str(item) for item in default]
-          else:
-            msg_value = [str(value)]
-            msg_default = [str(default)]
-        else:
-          msg_value = [str(value)]
-          msg_default = [str(default)]
-        setting_dict['value'] = msg_value
-        setting_dict['default'] = msg_default
+            msg_value = [str(nepi_utils.get_time() - fired_at)]
 
         msg_dict = nepi_sdk.convert_msg2dict(Control())
         for key in msg_dict.keys():
           if key in setting_dict.keys():
             msg_dict[key] = setting_dict[key]
+        msg_dict['value'] = msg_value
 
         msg_type = 'nepi_interfaces/Control'
         setting_msg = nepi_sdk.convert_dict2msg(msg_type,msg_dict)

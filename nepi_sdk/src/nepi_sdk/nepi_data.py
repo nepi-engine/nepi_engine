@@ -40,19 +40,15 @@ logger = Logger(log_name = log_name)
 # A datum is read-only from the RUI's point of view: 
 
 DATUM_TYPES = ["Trigger","Bool", "Bools", "String", "Strings",
-               "Int","IntDouble","IntTriple", "Ints",
-               "Float","FloatDouble","FloatTriple","Floats",
+               "Int", "Ints",
+               "Float","Floats",
                "ColorRGB"]
 
 LIST_TYPES = ["Bools", "Strings",
-              "IntDouble","IntTriple", "Ints",
-              "FloatDouble","FloatTriple","Floats",
-              "ColorRGB"]
+              "Ints", "Floats", "ColorRGB"]
 
 LABELS_TYPES = ["Bools", "Strings",
-              "IntDouble","IntTriple", "Ints",
-              "FloatDouble","FloatTriple","Floats",
-              "ColorRGB"]
+               "Ints","Floats", "ColorRGB"]
 
 
 STRING_TYPES = ["String", "Strings"]
