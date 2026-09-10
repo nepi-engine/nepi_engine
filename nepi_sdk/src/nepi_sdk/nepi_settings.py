@@ -23,7 +23,7 @@ import copy
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
-#rom nepi_sdk import nepi_controls
+from nepi_sdk import nepi_controls
 
 from std_msgs.msg import Empty, Int8, UInt32, Int32, Bool, String, Float32, Float64
 
@@ -41,63 +41,6 @@ logger = Logger(log_name = log_name)
 ### Controls Helper Functions
 
 
-
-
-
-SETTING_TYPES = ["Menu","Selection","Selections","Trigger", "Toggle", "Toggles", "String", 
-                 "Int","IntDouble","IntTriple","IntSlider","IntSliders",
-                 "Float","FloatDouble","FloatTriple","FloatSlider","FloatSliders","RangeSlider",
-                 "ColorRGB"]
-
-LIST_TYPES = ["Menu","Selections","Toggles",
-              "IntDouble","IntTriple","IntSliders",
-              "FloatDouble","FloatTriple","FloatSliders","RangeSlider",
-              "ColorRGB"]
-
-OPTIONS_TYPES =  ["Menu","Selection","Selections"]
-
-LABELS_TYPES = ["IntDouble","Toggles","IntTriple","IntSliders",
-                "FloatDouble","FloatTriple","FloatSliders",
-                "ColorRGB"]
-
-BOUNDS_TYPES = ["Int","IntDouble","IntTriple","IntSlider","IntSliders",
-                "Float","FloatDouble","FloatTriple","FloatSlider","FloatSliders","RangeSlider",
-                "ColorRGB"]
-
-STRING_TYPES = ["Selection","Selections","Toggles"]
-BOOL_TYPES = ["Toggle"]
-INT_TYPES = ["Menu","Int","IntDouble","IntTriple","IntSlider","IntSliders","ColorRGB"]
-FLOAT_TYPES = ["Float","FloatDouble","FloatTriple","FloatSlider","FloatSliders","RangeSlider"]
-TRIGGER_TYPES = ['Trigger']
-
-
-EXAMPLE_INIT_DICT = dict(
-      pub_rate = {"type":"Float", "default":2, 
-                  # OPTIONAL
-                  "min_bound": 0.1, "max_bound":15, 'value_round': 2,
-                  'display_name':'Pub Rate', 'description':'Value pub rate', 'hidden':False, 'display_round': 2,}, 
-      wh_degrees = {"type":"FloatDouble", "default":[100,70], 
-                  # OPTIONAL
-                  "min_bound":10, "max_bound":200, 'value_round': 2, 'labels': ['Width (Deg)', 'Height (Deg)'],
-                  'display_name':'Pub Rate', 'description':'Value pub rate', 'hidden':False, 'disabled':True, 'display_round': 2,}, 
-
-      index = {"type":"Int", "default":3,  
-               # OPTIONAL
-               "min_bound": 3, "max_bound": 10, 'value_round': 2,
-               'display_name':'Select Index', 'description':'Value index', 'hidden':False}, 
-
-      topic_sel = {"type":"Selection", "default":'Topic1', "options":['Topic1', 'Topic2'], 
-                   # OPTIONAL
-                   'display_name':'Select Topic', 'description':'Value selected topic', 'hidden':False}, 
-
-      topics_sel = {"type":"Selection", "default":['Topic1', 'Topic2'], "options":['Topic1', 'Topic2'], 
-                    # OPTIONAL
-                    'display_name':'Select Topics', 'description':'Value selected topics', 'hidden':False}, 
-
-      event_trigger = {"type":"Trigger", 
-                       # OPTIONAL
-                       'display_name':'Event Trigger', 'description':'Event trigger', 'hidden':False}
-    )
 
 
 def get_publisher_namespaces(topics_list = None, types_list = None):
@@ -146,7 +89,7 @@ def update_status_msg( status_msg, settings_dict):
       if setting_type == 'Discrete':
         setting_type = 'Selection'
       setting_dict['type'] = setting_type
-      if setting_type in SETTING_TYPES:
+      if setting_type in nepi_controls.CONTROL_TYPES:
 
         # Convert default and value to string lists for Controls Msg
         value = setting_dict['value']
@@ -158,7 +101,7 @@ def update_status_msg( status_msg, settings_dict):
           else:
             value = nepi_utils.get_time() - value
  
-        if setting_type in LIST_TYPES:
+        if setting_type in nepi_controls.LIST_TYPES:
           if isinstance(value, list):
               msg_value = [str(item) for item in value]
               msg_default = [str(item) for item in default]
@@ -191,7 +134,7 @@ def update_status_msg( status_msg, settings_dict):
         # left out of the status message, so the RUI never sees it.
         logger.log_warn("update_status_msg: left control '" + str(name) +
                         "' of declared type '" + str(setting_type) +
-                        "' out of the status message: type is not one of " + str(SETTING_TYPES),
+                        "' out of the status message: type is not one of " + str(nepi_controls.CONTROL_TYPES),
                         throttle_s = 5)
     except Exception as e:
       # Dropped the control from the published status with no log. Throttled,
