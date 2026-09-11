@@ -48,6 +48,17 @@ DATUM_TYPES = ["Trigger", "Triggers", "Bool", "Bools",
                  "Float","Floats",
                   "ColorRGB"]
 
+DISPLAY_OPTIONS_DICT = {
+    "Trigger": [],
+    "Triggers": [],
+    "Bool": [],
+    "Bools": [],
+    "String": [],
+    "Int": [],
+    "Float": [],
+    "Floats": [],
+    "ColorRGB": []
+}
 
 SINGLE_TYPES = ["Trigger","Bool", 
                  "String",
@@ -223,18 +234,6 @@ def create_data_dict(init_dict):
           datum_dict['display_round'] = 6
 
         #############
-        # Clean Display Row
-        #############
-        # The overlay loop above copies the caller's value verbatim, so a hand
-        # written init dict -- or a params yaml, which spells booleans 'True' --
-        # can put a string or an int in what Datum.msg declares a bool.
-        # convert_dict2msg rejects the whole dict on a type mismatch, which
-        # drops the datum from the published status entirely rather than just
-        # mis-rendering it. Same failure mode set_hidden and set_disabled coerce
-        # against.
-        datum_dict['display_row'] = cleanDisplayRow(datum_dict['display_row'])
-
-        #############
         # Clean Bounds
         #############
         # Clean Bounds
@@ -316,22 +315,9 @@ def create_data_dict(init_dict):
 
 
 
-        #############
-        # Clean Display Name
-        #############
-        if datum_dict['display_name'] is None or datum_dict['display_name'] == 'None':
-          datum_dict['display_name'] = ''
-        if datum_type in LIST_TYPES and datum_dict['display_name'] == '':
-          if isinstance(value, list):
-              pass
-          else:
-              datum_dict['display_name'] = name
-
 
         #############
         # Clean Labels
-
-    
 
         if input_type == 'ColorRGB':
               display_labels = ['R','G','B']
@@ -382,7 +368,36 @@ def create_data_dict(init_dict):
         datum_dict['length'] = len(value)
 
 
+        #############
+        # Clean Display Row
+        #############
+        datum_dict['display_row'] = cleanDisplayRow(datum_dict['display_row'])
 
+        #############
+        # Clean Display Options
+        #############
+        display_options_list = DISPLAY_OPTIONS_DICT.get(datum_type,[])
+        display_options = datum_dict['display_option']
+        if display_options is None:
+          display_options = []
+        else:
+          if isinstance(display_options, list) == False:
+              display_options = [str(display_options)]
+        for display_option in display_options:
+          if display_options not in display_options_list:
+            display_options.remove(display_option)
+        datum_dict['display_option'] = display_options
+
+        #############
+        # Clean Display Name
+        #############
+        if datum_dict['display_name'] is None or datum_dict['display_name'] == 'None':
+          datum_dict['display_name'] = ''
+        if datum_type in LIST_TYPES and datum_dict['display_name'] == '':
+          if isinstance(value, list):
+              pass
+          else:
+              datum_dict['display_name'] = name
 
         #############
         # Add to dict

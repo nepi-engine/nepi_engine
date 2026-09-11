@@ -49,6 +49,26 @@ CONTROL_TYPES = ["Menu","Button", "Buttons", "Toggle", "Toggles",
                  "Float","Floats","FloatSlider",
                  "RangeSlider", "ColorRGB"]
 
+
+DISPLAY_OPTIONS_DICT = {
+    "Menu": [],
+    "Button": [],
+    "Buttons": [],
+    "Toggle": [],
+    "Toggles": [],
+    "String": [],
+    "Selection": [],
+    "Selections": [],
+    "Int": [],
+    "Ints": [],
+    "IntSlider": [],
+    "Float": [],
+    "Floats": [],
+    "FloatSlider": [],
+    "RangeSlider": [],
+    "ColorRGB": []
+}
+
 OPTION_TYPES =  ["Menu","Selection","Selections"]
 
 SINGLE_TYPES = ["Menu","Button","Toggle", 
@@ -232,17 +252,6 @@ def create_controls_dict(init_dict):
         if control_dict['display_round'] > 6:
           control_dict['display_round'] = 6
 
-        #############
-        # Clean Display Row
-        #############
-        # The overlay loop above copies the caller's value verbatim, so a hand
-        # written init dict -- or a params yaml, which spells booleans 'True' --
-        # can put a string or an int in what Control.msg declares a bool.
-        # convert_dict2msg rejects the whole dict on a type mismatch, which
-        # drops the control from the published status entirely rather than just
-        # mis-rendering it. Same failure mode set_hidden and set_disabled coerce
-        # against.
-        control_dict['display_row'] = cleanDisplayRow(control_dict['display_row'])
 
         #############
         # Clean Bounds
@@ -325,6 +334,25 @@ def create_controls_dict(init_dict):
         control_dict['length'] = len(value)
 
 
+        #############
+        # Clean Display Row
+        #############
+        control_dict['display_row'] = cleanDisplayRow(control_dict['display_row'])
+
+        #############
+        # Clean Display Options
+        #############
+        display_options_list = DISPLAY_OPTIONS_DICT.get(control_type,[])
+        display_options = control_dict['display_option']
+        if display_options is None:
+          display_options = []
+        else:
+          if isinstance(display_options, list) == False:
+              display_options = [str(display_options)]
+        for display_option in display_options:
+          if display_options not in display_options_list:
+            display_options.remove(display_option)
+        control_dict['display_option'] = display_options
 
         #############
         # Clean Display Name
