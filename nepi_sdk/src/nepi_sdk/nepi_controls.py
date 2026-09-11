@@ -112,12 +112,12 @@ EXAMPLE_INIT_DICT = {
                 'display_name': 'Demo Int', 'description': 'Integer value within [0, 10].', 'display_hidden': False},
 
             'demo_ints_column': {
-                'type': 'Floats', 'default': [1,2,3], 'bounds': [0.0, 10.0], 'round_value': 2,
-                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False},
+                'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
+                'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_hidden': False},
 
             'demo_ints_row': {
-                'type': 'Floats', 'default': [1,2,3], 'bounds': [0.0, 10.0], 'round_value': 2,
-                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False, 'display_row': True},
+                'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
+                'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_hidden': False, 'display_row': True},
 
             'demo_float': {
                 'type': 'Float', 'default': 2.5, 'bounds': [0.0, 10.0], 'round_value': 2,
