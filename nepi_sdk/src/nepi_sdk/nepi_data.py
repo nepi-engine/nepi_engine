@@ -94,28 +94,28 @@ EXAMPLE_INIT_DICT = {
 
         'trigger': {
             'type': 'Trigger', 'value': True,
-            'display_name': 'Demo Trigger', 'description': 'A trigger that toggles every update.', 'display_hidden': False},
+            'display_name': 'Demo Trigger', 'description': 'A trigger age secs.', 'display_hidden': False},
 
 
         'trigger_column': {
             'type': 'Trigger', 'value': [0,2.1],
-            'display_name': 'Demo Trigger', 'description': 'A trigger that toggles every update.', 'display_hidden': False},
+            'display_name': 'Demo Trigger', 'description': 'Two triggers age secs.', 'display_hidden': False},
 
         'triggers_row': {
             'type': 'Triggers', 'value': [0,2.1],
-            'display_name': 'Demo Triggers', 'description': 'Two triggers, always opposite.', 'display_hidden': False, 'display_row': True},
+            'display_name': 'Demo Triggers', 'description': 'Two triggers age secs.', 'display_hidden': False, 'display_row': True},
 
         'toggle_data': {
             'type': 'Bools', 'value': True,
-            'display_name': 'Demo Bools', 'description': 'Two booleans, always opposite.', 'display_hidden': False},
+            'display_name': 'Demo Bools', 'description': 'A booleans.', 'display_hidden': False},
 
         'bools_column': {
             'type': 'Bools', 'value': [True, False, False],
-            'display_name': 'Demo Bools', 'description': 'Two booleans, always opposite.', 'display_hidden': False},
+            'display_name': 'Demo Bools', 'description': 'Two booleans.', 'display_hidden': False},
 
         'bools_row': {
             'type': 'Bools', 'value': [True, False, False],
-            'display_name': 'Demo Bools', 'description': 'Two booleans, always opposite.', 'display_hidden': False, 'display_row': True},
+            'display_name': 'Demo Bools', 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
 
 
         'int': {

@@ -105,28 +105,28 @@ EXAMPLE_INIT_DICT = {
 
             'trigger': {
                 'type': 'Button', 'value': True,
-                'display_name': 'Demo Button', 'description': 'A trigger that toggles every update.', 'display_hidden': False},
+                'display_name': 'Demo Button', 'description': 'A trigger age secs.', 'display_hidden': False},
 
 
             'trigger_column': {
                 'type': 'Button', 'value': [0,2.1],
-                'display_name': 'Demo Button', 'description': 'A trigger that toggles every update.', 'display_hidden': False},
+                'display_name': 'Demo Button', 'description': 'Two  triggers age secs.', 'display_hidden': False},
 
             'triggers_row': {
                 'type': 'Buttons', 'value': [0,2.1],
-                'display_name': 'Demo Buttons', 'description': 'Two triggers, always opposite.', 'display_hidden': False, 'display_row': True},
+                'display_name': 'Demo Buttons', 'description': 'Two triggers age secs.', 'display_hidden': False, 'display_row': True},
 
             'bool_data': {
                 'type': 'Toggle', 'value': True,
-                'display_name': 'Demo Toggle', 'description': 'Two booleans, always opposite.', 'display_hidden': False},
+                'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False},
 
             'bools_column': {
                 'type': 'Toggle', 'value': [True, False, False],
-                'display_name': 'Demo Toggle', 'description': 'Two booleans, always opposite.', 'display_hidden': False},
+                'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False},
 
             'bools_row': {
                 'type': 'Toggle', 'value': [True, False, False],
-                'display_name': 'Demo Toggle', 'description': 'Two booleans, always opposite.', 'display_hidden': False, 'display_row': True},
+                'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
 
 
             'int': {
