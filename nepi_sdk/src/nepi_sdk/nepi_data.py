@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License",
+# are licensed under the "Numurus Software License", 
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -24,8 +24,9 @@ import copy
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from nepi_interfaces.msg import Datum, DataStatus
+from std_msgs.msg import Empty, Int8, UInt32, Int32, Bool, String, Float32, Float64
 
+from nepi_interfaces.msg import Datum, DataStatus
 
 
 
@@ -37,74 +38,81 @@ logger = Logger(log_name = log_name)
 #########################
 ### Data Helper Functions
 
-# A datum is read-only from the RUI's point of view: 
-
-DATUM_TYPES = ["Trigger","Bool", "Bools", "String", "Strings",
-               "Int", "Ints",
-               "Float","Floats",
-               "ColorRGB"]
-
-LIST_TYPES = ["Bools", "Strings",
-              "Ints", "Floats", "ColorRGB"]
-
-LABELS_TYPES = ["Bools", "Strings",
-               "Ints","Floats", "ColorRGB"]
 
 
-STRING_TYPES = ["String", "Strings"]
-BOOL_TYPES = ["Bool", "Bools"]
-INT_TYPES = [ "Int","IntDouble","IntTriple", "Ints","ColorRGB"]
-FLOAT_TYPES = ["Float","FloatDouble","FloatTriple","Floats"]
-TRIGGER_TYPES = ['Trigger']
 
 
+DATUM_TYPES = ["Trigger", "Triggers", "Bool", "Bools", 
+                 "String", 
+                 "Int","Ints",
+                 "Float","Floats",
+                  "ColorRGB"]
+
+
+SINGLE_TYPES = ["Trigger","Bool", 
+                 "String",
+                 "Int",
+                 "Float"]
+
+DOUBLE_TYPES = []
+
+TRIPLE_TYPES = ["ColorRGB"]
+
+LIST_TYPES = ["Triggers", "Bools", 
+                "Ints", "Floats",
+                 "ColorRGB"]
+
+
+BOUND_TYPES = ["Int","Ints",
+                 "Float","Floats",
+                  "ColorRGB"]
+
+STRING_TYPES = ["String"]
+BOOL_TYPES = ["Bool","Bools"]
+INT_TYPES = ["Int","Ints","ColorRGB"]
+FLOAT_TYPES = ["Float","Floats"]
+TRIGGER_TYPES = ['Trigger','Triggers']
 
 BLANK_DATUM_DICT = nepi_sdk.convert_msg2dict(Datum())
 
-BLANK_DATA_DICT = dict()
+BLANK_CNTROLS_DICT = dict()
+
+
+
 
 EXAMPLE_INIT_DICT = dict(
-
-
-      exp_bool_data = {"type":"Bool", "value": True,
-                   # OPTIONAL
-                   'display_name':'Example Bool Data', 'description':'Example bool data', 'hidden':False},
-
-      exp_bools_data = {"type":"Bools", "value":[True,False],
-                   # OPTIONAL
-                   'display_name':'Example Bools Data', 'description':'Example bools data', 'hidden':False},
-
-
-      exp_string_data = {"type":"String", "value":'string1',
-                   # OPTIONAL
-                   'display_name':'Example String Data', 'description':'Example string data', 'hidden':False},
-
-      exp_strings_data = {"type":"Strings", "value":['string1','string2'],
-                   # OPTIONAL
-                   'display_name':'Example Strings Data', 'description':'Example strings data', 'hidden':False},
-
-
-      exp_int_data = {"type":"Int", "value":2,
+      pub_rate = {"type":"Float", "default":2, 
                   # OPTIONAL
-                  'display_name':'Example Int Data', 'description':'Example int data', 'hidden':False},
+                  "min_bound": 0.1, "max_bound":15, 'round': 2,
+                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'display_round': 2}, 
 
-      exp_ints_data = {"type":"Ints", "value":[2,2],
+      wh_degrees = {"type":"Int", "default":[100,70],
                   # OPTIONAL
-                  'display_name':'Example Ints Data', 'description':'Example ints data', 'hidden':False},
+                  "min_bound":10, "max_bound":200, 'round': 2, 'display_labels': ['Width (Deg)', 'Height (Deg)'],
+                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'disabled':True, 'display_round': 2, 'display_row':True},
 
-
-      exp_float_double_data = {"type":"FloatDouble", "value":[2.0,2.0],
+      gains_row = {"type":"Floats", "default":[1.0, 0.5, 0.25],
                   # OPTIONAL
-                  'display_name':'Example Float Double', 'labels': ['Width (Deg)', 'Height (Deg)'],
-                 'description':'Example float double data', 'hidden':False, 'round_display': 2,},
+                  "min_bound":0.0, "max_bound":10.0, 'display_labels': ['P', 'I', 'D'],
+                  'display_name':'Gains (Row Layout)', 'description':'Three values rendered side by side in one row', 'display_hidden':False, 'display_round': 2, 'display_row':True},
 
-      exp_floats_data = {"type":"Floats", "value":[2.0,2.0], 'round_value': 2,
+      gains_col = {"type":"Floats", "default":[1.0, 0.5, 0.25],
                   # OPTIONAL
-                  'display_name':'Example Floats Data', 'description':'Example floats data', 'hidden':False, 'round_display': 2,},
+                  "min_bound":0.0, "max_bound":10.0, 'display_labels': ['P', 'I', 'D'],
+                  'display_name':'Gains (Column Layout)', 'description':'The same three values stacked in a column', 'display_hidden':False, 'display_round': 2, 'display_row':False},
+
+      index = {"type":"Int", "default":3,
+               # OPTIONAL
+               "min_bound": 3, "max_bound": 10, 'round': 2,
+               'display_name':'Select Index', 'description':'Value index', 'display_hidden':False}, 
+
+      event_trigger = {"type":"Trigger", 
+                       # OPTIONAL
+                       'display_name':'Event Trigger', 'description':'Event trigger', 'display_hidden':False}
     )
 
 
-def get_data_publisher_namespaces(topics_list = None, types_list = None):
+def get_publisher_namespaces(topics_list = None, types_list = None):
     topics_list = nepi_sdk.find_topics_by_msg('DataStatus', topics_list = topics_list, types_list = types_list)
     namespaces_list = []
     for topic in topics_list:
@@ -124,36 +132,65 @@ def create_data_dict(init_dict):
                     type(e).__name__ + ": " + str(e))
     names = []
 
-  for name in names:
+  for i, name in enumerate(names):
     try:
       init_datum_dict = init_dict[name]
       input_type = init_datum_dict['type']
+      if input_type == 'Discrete':
+        input_type = 'Selection'
       if input_type in DATUM_TYPES:
         datum_dict = copy.deepcopy(BLANK_DATUM_DICT)
         datum_dict['type'] = input_type
-        datum_dict['type'] = input_type
-        datum_dict['display_name'] = name
         datum_dict['description'] = name
-        datum_dict['round_display'] = 2
-
+        datum_dict['round'] = 6
+        datum_dict['default'] = []
+        datum_dict['length'] = 0
+        datum_dict['min_bound'] = -999
+        datum_dict['max_bound'] = -999
+        datum_dict['display_name'] = name
+        datum_dict['display_round'] = 2
+        datum_dict['display_row'] = False
         for key in datum_dict.keys():
           if key in init_datum_dict.keys():
             datum_dict[key] = init_datum_dict[key]
 
         #############
         # Clean Name
-        datum_dict['name'] = name
+        datum_dict['name'] = nepi_utils.get_clean_name(name)
+        if  datum_dict['name'] == '':
+           datum_dict['name'] = 'datum' + str(i)
+
+
+        #############
+        # Clean Name
+        datum_type = datum_dict['name']
+        if datum_type == 'Discrete':
+          datum_type = 'Selection'
+        datum_type = datum_type.replace('Trigger','Trigger')
+        datum_dict['name'] = datum_type
 
 
         #############
         # Clean Rounds
         #############
-        if datum_dict['round_value'] < 0 or datum_dict['round_value'] > 6:
-          datum_dict['round_value'] = 6
-        if datum_dict['round_display'] < 0 or datum_dict['round_display'] > 6:
-          datum_dict['round_display'] = 6
+        if datum_dict['round'] < 0 or datum_dict['round'] > 6:
+          datum_dict['round'] = 6
+        if datum_dict['display_round'] < 0:
+          datum_dict['display_round'] = 0
+        if datum_dict['display_round'] > 6:
+          datum_dict['display_round'] = 6
 
-
+        #############
+        # Clean Display Row
+        #############
+        # The overlay loop above copies the caller's value verbatim, so a hand
+        # written init dict -- or a params yaml, which spells booleans 'True' --
+        # can put a string or an int in what Datum.msg declares a bool.
+        # convert_dict2msg rejects the whole dict on a type mismatch, which
+        # drops the datum from the published status entirely rather than just
+        # mis-rendering it. Same failure mode set_hidden and set_disabled coerce
+        # against.
+        datum_dict['display_row'] = cleanDisplayRow(datum_dict['display_row'])
 
         #############
         # Clean Bounds
@@ -162,106 +199,146 @@ def create_data_dict(init_dict):
         min_bound = -999
         max_bound = -999
 
-        if input_type == 'ColorRGB':
-              min_bound = 0
-              max_bound = 255
-        elif input_type in FLOAT_TYPES:
-          try:
-            min_bound = float(datum_dict['min_bound'])
-          except:
-            pass
-          try:
-            max_bound = float(datum_dict['max_bound'])
-          except:
-            pass
-          try:
-            min_bound = float(init_datum_dict['bounds'][0])
-            max_bound = float(init_datum_dict['bounds'][1])
-          except:
-            pass
-          try:
-            min_bound = float(init_datum_dict['options'][0])
-            max_bound = float(init_datum_dict['options'][1])
-          except:
-            pass
-        elif input_type in INT_TYPES:
-          try:
-            min_bound = int(float(datum_dict['min_bound']))
-          except:
-            pass
-          try:
-            max_bound = int(float(datum_dict['max_bound']))
-          except:
-            pass
-          try:
-            min_bound = int(float(init_datum_dict['bounds'][0]))
-            max_bound = int(float(init_datum_dict['bounds'][1]))
-          except:
-            pass
-          try:
-            min_bound = int(float(init_datum_dict['options'][0]))
-            max_bound = int(float(init_datum_dict['options'][1]))
-          except:
-            pass
+
+        # Membership test, not equality against the name of the list. As an
+        # equality test this was never true, so min_bound/max_bound stayed at
+        # the -999 sentinel for every Int and Float datum and a device's
+        # reported bounds (v4l2 hands them over as init_datum_dict['bounds'])
+        # were discarded.
+        if input_type in BOUND_TYPES:
+          if input_type == 'ColorRGB':
+                min_bound = 0
+                max_bound = 255
+          elif input_type in FLOAT_TYPES:
+            try:
+              min_bound = float(datum_dict['min_bound'])
+            except:
+              pass
+            try:
+              max_bound = float(datum_dict['max_bound'])
+            except:
+              pass
+            try:
+              min_bound = float(init_datum_dict['bounds'][0])
+              max_bound = float(init_datum_dict['bounds'][1])
+            except:
+              pass
+          elif input_type in INT_TYPES:
+            try:
+              min_bound = int(float(datum_dict['min_bound']))
+            except:
+              pass
+            try:
+              max_bound = int(float(datum_dict['max_bound']))
+            except:
+              pass
+            try:
+              min_bound = int(float(init_datum_dict['bounds'][0]))
+              max_bound = int(float(init_datum_dict['bounds'][1]))
+            except:
+              pass
 
         datum_dict['min_bound'] = min_bound
         datum_dict['max_bound'] = max_bound
 
+        #############
+        # Clean Value
+        value = None
+        # Membership in the list, not a substring test against its name. As a
+        # substring test this was never true, so a Trigger never got its [0]
+        # seed: it fell through to the default branch, came out length 0, and
+        # was dropped as invalid below.
+        if input_type in TRIGGER_TYPES:
+          value = [0]
+        else:
+          value  = datum_dict['default']
+          if value == []:
+            value = datum_dict['value']
+
+          if value is not None:
+            if isinstance(value, list) == False:
+                values = [str(value)]
+            else:
+              values = [str(item) for item in value]
+            value = values
+        if value is None or isinstance(value, list) == False:
+          # Third drop path, and it was the last silent one: no exception to
+          # catch, so nothing was logged.
+          logger.log_warn("create_data_dict: dropped datum '" + str(name) +
+                          "' of declared type '" + str(input_type) +
+                          "': no default or value to seed it with")
+          continue
+
+        datum_dict['value'] = value
+        datum_dict['length'] = len(value)
+
+
+
+        #############
+        # Clean Display Name
+        #############
+        if datum_dict['display_name'] is None or datum_dict['display_name'] == 'None':
+          datum_dict['display_name'] = ''
+        if datum_type in LIST_TYPES and datum_dict['display_name'] == '':
+          if isinstance(value, list):
+              pass
+          else:
+              datum_dict['display_name'] = name
 
 
         #############
         # Clean Labels
-        labels = [str(item) for item in datum_dict['labels']]
-        datum_dict['labels'] = labels
+
+    
+
+        if input_type == 'ColorRGB':
+              display_labels = ['R','G','B']
+
+        elif input_type in SINGLE_TYPES:
+              display_labels = [datum_dict['display_name']]
+        else:
+          for i, entry in enumerate(value):
+            if len(display_labels) <= i:
+              display_labels.append('datum_' + str(i))
+
+        display_labels = [str(item) for item in display_labels]
 
 
-        if input_type ==  'Bools' or input_type ==  'IntDouble' or input_type == 'IntTriple' or input_type == 'Ints' or \
-            input_type == 'FloatDouble' or input_type == 'FloatTriple' or input_type == 'Floats':
-
-
-            options = init_datum_dict.get('options',[])
-            if len(labels) == 0 and len(options) > 0:
-              labels = options
-
-            if input_type !=  'Bools':
-                   
-              for i, entry in enumerate(value):
-                if len(labels) <= i:
-                  labels.append('value_' + str(i))
-              datum_dict['labels'] = labels
-
-            datum_dict['labels'] = labels 
-
-        elif input_type == 'ColorRGB':
-              datum_dict['labels'] = ['R','G','B']
-
-
+        datum_dict['display_labels'] = display_labels
 
 
         #############
-        # Clean Value
+        # Check Valid Value
+        #############
 
-        if input_type == 'Trigger':
-          value = 0
-        else:
+        check_dict = dict()
+        # Keyed by the cleaned name, which is what get_clean_value looks up --
+        # it cleans the name before indexing, so a raw key it could not find
+        # came back None and the datum was dropped for no stated reason.
+        check_name = datum_dict['name']
+        check_dict[check_name] = copy.deepcopy(datum_dict)
 
-          value  = datum_dict['value']
+        check_value = copy.deepcopy(value)
+        clean_value = get_clean_value(check_dict, check_name, check_value)
+        #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(clean_value) + ": " + str(check_value))
+        if clean_value is None:
+          logger.log_warn("create_data_dict: dropped datum '" + str(name) +
+                          "' of declared type '" + str(input_type) +
+                          "': value " + str(check_value) + " is not valid for the datum")
+          continue
 
-          check_dict = dict()
-          check_dict[name] = datum_dict
-
-          check_value = copy.deepcopy(value)
-          value = get_clean_value(check_dict, name, value)
-          default = value
-          #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(value) + ": " + str(check_value))
-          if value is None:
-            continue
-          
-
+        # Store the LIST form of the cleaned value. This took len() of
+        # get_clean_value's return, which is the NATIVE form: len(3) and
+        # len(True) raise TypeError, so every Int and Bool was dropped, and a
+        # String's length became its character count -- len('/dev/ttyUSB0') is
+        # 12 against a one-entry value list -- which is what walked
+        # get_clean_value's range(datum_length) off the end of current_value
+        # and killed drivers_mgr from its set_value call.
+        value = get_value_list(clean_value)
         datum_dict['value'] = value
+        datum_dict['default'] = value
+        datum_dict['length'] = len(value)
 
-
-        #####e() - value
 
 
 
@@ -292,217 +369,221 @@ def create_data_dict(init_dict):
 ##################
 # Data Functions
 
+def get_value_list(value):
+  # The data dict stores every value as a list of strings: 'length' counts
+  # list entries, and get_clean_value re-lists whatever it is handed, so a
+  # scalar stored in 'value' gets iterated one character at a time. Anything
+  # coming back from get_clean_value -- which returns the NATIVE form, a scalar
+  # for the single-value types -- has to come back through here before it is
+  # stored.
+  if value is None:
+    return None
+  if isinstance(value, list) == False:
+    return [str(value)]
+  return [str(item) for item in value]
+
+
 def get_clean_value(data_dict, datum_name, datum_value = None):
+  # If datum_name not in data_dict keys, None is returned
+  # If datum_value is None or any datum_value is invalid, current valid values are returned
   valid = False
   value = None
-  if datum_name in data_dict.keys():
+  datum_name = nepi_utils.get_clean_name(datum_name)
+  if datum_name != '' and datum_name in data_dict.keys():
       datum_dict = data_dict[datum_name]
+      current_value = datum_dict['value']
       datum_type = datum_dict['type']
-
-      if datum_type == 'Discrete':
-        datum_type = 'Selection'
+      datum_length = datum_dict['length']
+      options = datum_dict['options']
+      min_bound = datum_dict['min_bound']
+      max_bound = datum_dict['max_bound']
 
       if datum_value is None:
         try:
-          datum_value = datum_dict['value']
+          datum_value = copy.deepcopy(current_value)
         except:
           pass
+      if datum_value is None:
+        return value
 
-      if datum_type in LIST_TYPES:
-        if isinstance(datum_value, list):
-            pass
-        else:
-            datum_value = [datum_value]
-     
-      else:
-        if isinstance(datum_value, list):
-            try:
-              datum_value = datum_value[0]
-            except:
-              pass
-        else:
-            pass
-      # if datum_value is None or None in datum_value:
-      #   return value
+      # Callers hand this the NATIVE value -- set_value from a driver, the
+      # DataIF/SettingsIF wrappers, apply_update_msg. Iterating that
+      # directly raised TypeError on an int (SettingsIF.init died here on
+      # drivers_mgr's stored settings) and, worse, silently split a bare string
+      # into one entry per CHARACTER, which is where the mismatched lengths and
+      # the walk off the end of current_value came from.
+      datum_value = get_value_list(datum_value)
 
-      
-      if datum_type == "Menu": ###########################################################
+  
+
+      if datum_type == "ColorRGB": ###########################################################      
+        if len(current_value) != 3:
+          current_value = [255,255,255]
+        new_value = []
         try:
-          value  = int(float(datum_value))
-        except Exception as e:
-          pass
-    
-
-      elif datum_type == "Trigger": ###########################################################
-          value = 0
-          try: 
-            value = float(datum_value)
-          except:
-            pass
-
-      elif datum_type == "Bool": ###########################################################
-          try:
-              value  = (datum_value == True or datum_value == 'True' or datum_value == 'true')
-          except Exception as e:
-            pass
-
-   
-      elif datum_type == "Bools": ###########################################################
-        labels = datum_dict['labels']
-        try:
-          values = []
-          for item in [str(item) for item in datum_value]:
-            if item in labels:
-              values.append(item)
-          # An empty list is a legitimate value here (nothing selected), which is
-          # why this assigns unconditionally rather than guarding on len().
-          value = values
-
-        except Exception as e:
-          pass
-
-          
-      elif datum_type == "String": ###########################################################
-        value = str(datum_value)
-
-
-
-      elif datum_type == "Int" :  ###########################################################
-        try:
-          value = int(float(datum_value))
-          if int(float(datum_dict['min_bound'])) != -999 and value < datum_dict['min_bound']:
-            value = datum_dict['min_bound']
-          if int(float(datum_dict['max_bound'])) != -999 and value > datum_dict['max_bound']:
-            value = datum_dict['max_bound']
-        except Exception as e:
-          pass
-
-      elif datum_type == 'IntDouble' or datum_type == 'IntTriple' or datum_type == "Ints": ###########################################################
-
-        valid = True
-        if datum_type == 'IntDouble' and len(datum_value) != 2:
-          valid = False
-        if datum_type == 'IntTriple' and len(datum_value) != 3:
-          valid = False
-
-        if valid == True:
-          try:  
-              values = [0] * len(datum_value)
-              for i, item in enumerate(datum_value):  
-                values[i] = int(values[i])
-              value = values
-          except Exception as e:
-            pass
-
-
-
-
-      elif datum_type == "Float": ###########################################################
-
-
-        try:
-          value  = float(datum_value)
-          round_value = data_dict['round_value']
-          if round_value >= 0:
-            value = round(value,round_value)
-          # Reset valid = True here, discarding the low handle's verdict.
-          if float(data_dict['min_bound']) != -999 and value < data_dict['min_bound']:
-            value = data_dict['max_bound']
-          if float(data_dict['max_bound']) != -999 and value > data_dict['max_bound']:
-            value = data_dict['max_bound']
-        except Exception as e:
-          pass
-
-
-
-
-
-      elif datum_type == 'FloatDouble' or datum_type == 'FloatTriple' or datum_type == "Floats": ###########################################################
-        round_value = data_dict['round_value']
-        valid = True
-        if datum_type == 'FloatDouble' and len(datum_value) != 2:
-          valid = False
-        if datum_type == 'FloatTriple' and len(datum_value) != 3:
-          valid = False
-
-        if valid == True:
-
-          try:  
-              values = [0] * len(datum_value)
-              for i, item in enumerate(datum_value):  
-                values[i] = float(values[i])
-                if round_value >= 0:
-                  values[i] = round(values[i],round_value)
-              value = values
-          except Exception as e:
-            pass
-
-
-      elif datum_type == "ColorRGB": ###########################################################      
-        try:
-          value = [255,255,255]
           datum_value = list(datum_value)
           for i, val in enumerate(datum_value):
             try:
               val = int(val)
               if 0 <= val <= 255:
-                value[i] = val
+                new_value.append(val)
             except:
               pass
         except Exception as e:
-          pass
+            datum_value = []
+
+        if len(new_value) == 3:
+          value = new_value
+        else:
+          value = current_value
 
 
+      else:
+        values = []
+        for i in range(datum_length):
+          cur_value = current_value[i]
+          add_value = copy.deepcopy(cur_value)
+          if len(datum_value) > i:
+            add_value = datum_value[i]
 
-  return value
+          if datum_type in STRING_TYPES: ###########################################################
+            add_value = str(add_value)
+
+
+          elif datum_type in BOOL_TYPES: ###########################################################
+              try:
+                  add_value  = (add_value == True or add_value == 'True' or add_value == 'true')
+              except Exception as e:
+                  pass
+
+          elif datum_type in INT_TYPES:  ###########################################################
+            try:
+              add_value = int(float(add_value))
+              if int(float(min_bound)) != -999 and add_value < min_bound:
+                add_value = min_bound
+              if int(float(max_bound)) != -999 and add_value > max_bound:
+                add_value = max_bound
+            except Exception as e:
+              add_value = cur_value
+
+
+          elif datum_type in FLOAT_TYPES: ###########################################################
+
+            try:
+              add_value  = float(add_value)
+              # Named round_to, not round: binding the name `round` shadowed the
+              # builtin, so round(add_value, round) raised "'int' object is not
+              # callable" on the very next line. The except below swallowed it and
+              # handed back cur_value, so EVERY Float update silently reverted to
+              # the value already held.
+              round_to = datum_dict['round']
+              if round_to >= 0:
+                add_value = round(add_value,round_to)
+              # Clamps to min_bound. This assigned max_bound, so a value below the
+              # minimum came back as the MAXIMUM.
+              if float(min_bound) != -999 and add_value < min_bound:
+                add_value = min_bound
+              if float(max_bound) != -999 and add_value > max_bound:
+                add_value = max_bound
+            except Exception as e:
+              add_value = cur_value
+
+
+          elif datum_type in TRIGGER_TYPES: ###########################################################
+              try: 
+                add_value = float(datum_value)
+              except:
+                add_value = 0
+
+          values.append(add_value)
+        value = values
+
+
+  clean_value = None
+  if value is not None:
+
+      if datum_type in SINGLE_TYPES and len(value) > 0:
+          clean_value = value[0]
+      elif datum_type in DOUBLE_TYPES and len(value) > 1:
+          clean_value = [value[0],value[1]]
+      elif datum_type in TRIPLE_TYPES and len(value) > 2:
+          clean_value = [value[0],value[1],value[2]]
+      elif datum_type in LIST_TYPES:
+          clean_value = value
+        
+  return clean_value
 
 
 def get_value(data_dict, datum_name, index = None):
   value = None
   datum_type = None
-  if datum_name in data_dict.keys():
+  if data_dict is not None:
+    if datum_name in data_dict.keys():
+        try:
+          datum_type = data_dict[datum_name]['type']
+          datum_value = get_clean_value(data_dict, datum_name)
+          if datum_value is None:
+              logger.log_warn("Got None Value for datum: " + str([datum_name, data_dict[datum_name]]))
+              pass
+          else:
+            if index is None:
+              value = datum_value
+            else:
+              try:
+                index = int(index)
+                if index > 0:
+                  if isinstance(datum_value, list):
+                    if len(datum_value) > index:
+                      value = datum_value[index]
+              except:
+                value = None
+
+        except:
+          pass
+
+    ###################
+    # Special Types Support
+    if value is not None and datum_type == 'ColorRGB':
       try:
-        datum_type = data_dict[datum_name]['type']
-        datum_value = get_clean_value(data_dict, datum_name)
-        if index is None:
-          value = datum_value
-        else:
-          try:
-            index = int(index)
-            if index > 0:
-              if isinstance(datum_value, list):
-                if len(datum_value) > index:
-                  value = datum_value[index]
-          except:
-            value = None
+        value = tuple(value)
       except:
         value = None
 
-  ###################
-  # Special Types Support
-  if value is not None and datum_type == 'ColorRGB':
-    try:
-      value = tuple(value)
-    except:
-      value = None
-
-  if datum_type == 'Trigger':
-    if value <= 0:
-      value = -999
-    else:
-      value = nepi_utils.get_time() - value
+    if datum_type == 'Trigger':
+      if value <= 0:
+        value = -999
+      else:
+        value = nepi_utils.get_time() - value
 
   return value
 
 def get_values_dict(data_dict):
   data_values_dict = dict()
-  for datum_name in data_dict.keys():
-     datum_value = get_value(data_dict, datum_name)
-     data_values_dict[datum_name] = datum_value
+  if data_dict is not None:
+    for datum_name in data_dict.keys():
+      datum_value = get_value(data_dict, datum_name)
+      if datum_value is not None:
+        data_values_dict[datum_name] = datum_value
+      else:
+        #logger.log_warn("Got None Value for datum: " + str(datum_name))
+        pass
   return data_values_dict
 
 
-def set_value(data_dict, datum_name, update_value, index = None, check_valid = True):
+def get_params_dict(data_dict):
+  data_values_dict = dict()
+  if data_dict is not None:
+    for datum_name in data_dict.keys():
+      datum_value = get_value(data_dict, datum_name)
+      param = data_dict[datum_name].get('param',True)
+      if datum_value is not None and param == True:
+        data_values_dict[datum_name] = datum_value
+      else:
+        #logger.log_warn("Got None Value for datum: " + str(datum_name))
+        pass
+  return data_values_dict
+
+def set_value(data_dict, datum_name, update_value, index = None,  check_valid = True):
   if datum_name in data_dict.keys():
       
       if index is not None:
@@ -517,10 +598,18 @@ def set_value(data_dict, datum_name, update_value, index = None, check_valid = T
         except:
           pass
 
-      if check_valid == False:
+      # Validate when asked to validate. The test was inverted, so the default
+      # path (check_valid = True) wrote the raw wire value straight into the dict
+      # -- handing a driver's setSettingFunction ['False'] for a Bool and ['5']
+      # for an Int -- while a caller passing check_valid = False to SKIP the check
+      # got it run. drivers_mgr's discovery pass is that caller.
+      if check_valid == True:
         update_value = get_clean_value(data_dict, datum_name, update_value)
       if update_value is not None:
-        data_dict[datum_name]['value'] = update_value
+        # Stored as a list of strings, the one shape the dict holds: 'length'
+        # counts list entries and get_clean_value re-lists whatever it reads, so
+        # a scalar written here comes back out one character per entry.
+        data_dict[datum_name]['value'] = get_value_list(update_value)
   return data_dict
 
 def sets_values(data_dict, data_values_dict):
@@ -531,19 +620,29 @@ def sets_values(data_dict, data_values_dict):
   return data_dict
 
 
-def get_labels(data_dict, datum_name):
-  labels = []
-  if datum_name in data_dict.keys():
-      labels = data_dict[datum_name].get('labels',[])
-  return labels
-
-
-def set_labels(data_dict, datum_name, labels):
-  labels = [str(item) for item in labels]
-  if datum_name in data_dict.keys():
-      data_dict[datum_name]['labels'] = labels
+def reset_value(data_dict, datum_name):
+  data_dict[datum_name]['value'] = data_dict[datum_name]['default']
   return data_dict
 
+def reset_values(data_dict):
+    datum_names = list(data_dict.keys())
+    for datum_name in datum_names:
+      data_dict = reset_value(data_dict, datum_name)
+    return data_dict
+
+
+def get_display_labels(data_dict, datum_name):
+  display_labels = []
+  if datum_name in data_dict.keys():
+      display_labels = data_dict[datum_name].get('display_labels',[])
+  return display_labels
+
+
+def set_display_labels(data_dict, datum_name, display_labels):
+  display_labels = [str(item) for item in display_labels]
+  if datum_name in data_dict.keys():
+      data_dict[datum_name]['display_labels'] = display_labels
+  return data_dict
 
 
 def get_bounds(data_dict, datum_name):
@@ -655,19 +754,45 @@ def set_description(data_dict, datum_name, description):
   return data_dict
 
 def get_hidden(data_dict, datum_name):
-  hidden = False
+  display_hidden = False
   if datum_name in data_dict.keys():
-      hidden = (data_dict[datum_name]['hidden'] == True)
-  return hidden
+      display_hidden = (data_dict[datum_name]['display_hidden'] == True)
+  return display_hidden
 
-def set_hidden(data_dict, datum_name, hidden):
-  # str() here wrote the strings 'True'/'False' into Datum.hidden, a toggle
+def set_hidden(data_dict, datum_name, display_hidden):
+  # str() here wrote the strings 'True'/'False' into Datum.display_hidden, a bool
   # field. convert_dict2msg then rejected the dict and the datum vanished
-  # from the status message instead of being hidden in it.
-  hidden = (hidden == True)
+  # from the status message instead of being display_hidden in it.
+  display_hidden = (display_hidden == True)
   if datum_name in data_dict.keys():
-      data_dict[datum_name]['hidden'] = hidden
+      data_dict[datum_name]['display_hidden'] = display_hidden
   return data_dict
+
+
+def cleanDisplayRow(display_row):
+  # Datum.msg declares display_row a bool, so anything reaching the message
+  # has to be one. The string spellings are accepted because params yaml files
+  # and hand written init dicts write booleans as 'True'/'true' -- the same
+  # test get_clean_value applies to the BOOL_TYPES values.
+  return (display_row == True or display_row == 'True' or display_row == 'true')
+
+def get_display_row(data_dict, datum_name):
+  """Return True if the datum's value widgets should render side by side in one row."""
+  # .get rather than [], as in get_disabled: a data dict built before this
+  # field existed does not carry the key, and a missing key means the stacked
+  # column layout, not an error.
+  display_row = False
+  if datum_name in data_dict.keys():
+      display_row = cleanDisplayRow(data_dict[datum_name].get('display_row',False))
+  return display_row
+
+def set_display_row(data_dict, datum_name, display_row):
+  """Set whether the datum's value widgets render side by side in one row."""
+  display_row = cleanDisplayRow(display_row)
+  if datum_name in data_dict.keys():
+      data_dict[datum_name]['display_row'] = display_row
+  return data_dict
+
 
 def get_display_order(data_dict, datum_name):
   order = -1
@@ -743,7 +868,7 @@ def move_datum_down(data_dict, datum_name):
 ############################################################
 # Status Msg Functions
 
-def create_status_msg( name = '', display_name = '', description = '', show_data = True, has_show_datum = False):
+def create_status_msg( name = '', display_name = '', description = ''):
   status_msg = DataStatus()
   name = nepi_utils.get_clean_name(str(name))
   status_msg.name= name
@@ -753,8 +878,6 @@ def create_status_msg( name = '', display_name = '', description = '', show_data
   if description == '':
     description = name
   status_msg.description= str(description)
-  status_msg.show_data = show_data
-  status_msg.has_show_datum = has_show_datum and show_data == True
   return status_msg
 
 
@@ -779,28 +902,41 @@ def update_status_msg( status_msg, data_dict):
       datum_type = datum_dict['type']
       if datum_type in DATUM_TYPES:
 
-        # Convert default and value to string lists for Data Msg
-        value = datum_dict['value']
+        # Convert value to a string list for the Datum msg. This used to write
+        # msg_value/msg_default BACK into the live data dict, and for the
+        # single-value types [str(value)] wrapped a value that was already a
+        # one-entry list -- so every status publish re-wrapped it and the dict
+        # ended up holding the string "['0']" in place of '0'. The dict the
+        # device reads from is not this function's to edit.
+        msg_value = get_value_list(datum_dict['value'])
 
-        if datum_type == 'Trigger':
-          if value <= 0:
-            value = -999
+        if datum_type in TRIGGER_TYPES:
+          # A Trigger holds the time it was last fired; the status reports seconds
+          # since, or -999 for never. Comparing the list itself to 0 raised
+          # TypeError and left every Trigger out of the published status.
+          fired_at = 0
+          try:
+            fired_at = float(msg_value[0])
+          except Exception as e:
+            fired_at = 0
+          if fired_at <= 0:
+            msg_value = [str(-999)]
           else:
-            value = nepi_utils.get_time() - value
- 
-        if datum_type in LIST_TYPES:
-          if isinstance(value, list):
-              msg_value = [str(item) for item in value]
-          else:
-              msg_value = [str(value)]
-        else:
-          msg_value = [str(value)]
-        datum_dict['value'] = msg_value
+            msg_value = [str(nepi_utils.get_time() - fired_at)]
 
         msg_dict = nepi_sdk.convert_msg2dict(Datum())
         for key in msg_dict.keys():
           if key in datum_dict.keys():
             msg_dict[key] = datum_dict[key]
+        msg_dict['value'] = msg_value
+        # Carried by the key loop above like every other display field. The
+        # coercion is repeated here because a data dict assembled by hand
+        # never passed through create_data_dict's normalization, and a
+        # string in this bool field makes convert_dict2msg return None -- which
+        # takes the whole datum out of the status message, not just its
+        # layout.
+        msg_dict['display_row'] = cleanDisplayRow(datum_dict.get('display_row',False))
+
 
         msg_type = 'nepi_interfaces/Datum'
         datum_msg = nepi_sdk.convert_dict2msg(msg_type,msg_dict)

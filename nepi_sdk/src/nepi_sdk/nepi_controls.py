@@ -83,12 +83,12 @@ BLANK_CNTROLS_DICT = dict()
 EXAMPLE_INIT_DICT = dict(
       pub_rate = {"type":"Float", "default":2, 
                   # OPTIONAL
-                  "min_bound": 0.1, "max_bound":15, 'value_round': 2,
+                  "min_bound": 0.1, "max_bound":15, 'round': 2,
                   'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'display_round': 2,}, 
-      wh_degrees = {"type":"RangeSlider", "default":[100,70],
+      wh_degrees = {"type":"Int", "default":[100,70],
                   # OPTIONAL
-                  "min_bound":10, "max_bound":200, 'value_round': 2, 'display_labels': ['Width (Deg)', 'Height (Deg)'],
-                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'disabled':True, 'display_round': 2,},
+                  "min_bound":10, "max_bound":200, 'round': 2, 'display_labels': ['Width (Deg)', 'Height (Deg)'],
+                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'disabled':True, 'display_round': 2, 'display_row':True},
 
       gains_row = {"type":"Floats", "default":[1.0, 0.5, 0.25],
                   # OPTIONAL
@@ -102,7 +102,7 @@ EXAMPLE_INIT_DICT = dict(
 
       index = {"type":"Int", "default":3,
                # OPTIONAL
-               "min_bound": 3, "max_bound": 10, 'value_round': 2,
+               "min_bound": 3, "max_bound": 10, 'round': 2,
                'display_name':'Select Index', 'description':'Value index', 'display_hidden':False}, 
 
       topic_sel = {"type":"Selection", "default":'Topic1', "options":['Topic1', 'Topic2'], 
@@ -466,51 +466,51 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
       if control_type in OPTION_TYPES: ###########################################################
 
-            if control_type == "Menu": ###########################################################
-              # The value of a Menu is an INDEX into options. int() of the whole
-              # list raised every time, so this only ever reached its own except
-              # branch and returned the current value -- a Menu could not be set.
-              index = None
-              try:
-                index = int(float(control_value[0]))
-              except Exception as e:
-                index = None
-              if index is not None and index >= 0 and index < len(options):
-                value = [str(index)]
-              else:
-                value = copy.deepcopy(current_value)
+        if control_type == "Menu": ###########################################################
+          # The value of a Menu is an INDEX into options. int() of the whole
+          # list raised every time, so this only ever reached its own except
+          # branch and returned the current value -- a Menu could not be set.
+          index = None
+          try:
+            index = int(float(control_value[0]))
+          except Exception as e:
+            index = None
+          if index is not None and index >= 0 and index < len(options):
+            value = [str(index)]
+          else:
+            value = copy.deepcopy(current_value)
 
-            elif control_type == "Selection": ###########################################################
-              # The value of a Selection is one option. str() of the whole list
-              # produced "['1920:1080']", which is never in options, so this fell
-              # through to options[0] -- meaning a Selection could only ever hold
-              # its first option, and IndexError'd outright when the option list
-              # was empty, dropping the control at registration.
-              selection = None
-              try:
-                selection = str(control_value[0])
-              except Exception as e:
-                selection = None
-              if selection is not None and selection in options:
-                value = [selection]
-              elif len(current_value) > 0 and str(current_value[0]) in options:
-                value = [str(current_value[0])]
-              elif len(options) > 0:
-                value = [str(options[0])]
-              else:
-                # No options to choose from: there is no valid value, and
-                # returning None is how the caller is told so.
-                value = None
+        elif control_type == "Selection": ###########################################################
+          # The value of a Selection is one option. str() of the whole list
+          # produced "['1920:1080']", which is never in options, so this fell
+          # through to options[0] -- meaning a Selection could only ever hold
+          # its first option, and IndexError'd outright when the option list
+          # was empty, dropping the control at registration.
+          selection = None
+          try:
+            selection = str(control_value[0])
+          except Exception as e:
+            selection = None
+          if selection is not None and selection in options:
+            value = [selection]
+          elif len(current_value) > 0 and str(current_value[0]) in options:
+            value = [str(current_value[0])]
+          elif len(options) > 0:
+            value = [str(options[0])]
+          else:
+            # No options to choose from: there is no valid value, and
+            # returning None is how the caller is told so.
+            value = None
 
-            elif control_type == "Selections": ###########################################################
-                values = []
-                for item in control_value:
-                  item = str(item)
-                  if item in options:
-                    values.append(item)
-                # An empty list is a legitimate value here (nothing selected), which is
-                # why this assigns unconditionally rather than guarding on len().
-                value = values
+        elif control_type == "Selections": ###########################################################
+            values = []
+            for item in control_value:
+              item = str(item)
+              if item in options:
+                values.append(item)
+            # An empty list is a legitimate value here (nothing selected), which is
+            # why this assigns unconditionally rather than guarding on len().
+            value = values
 
 
 
@@ -584,7 +584,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
               if float(max_bound) != -999 and add_value > max_bound:
                 add_value = max_bound
             except Exception as e:
-               add_value = cur_value
+              add_value = cur_value
 
 
           elif control_type in TRIGGER_TYPES: ###########################################################
