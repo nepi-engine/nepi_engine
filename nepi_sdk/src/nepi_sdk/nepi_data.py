@@ -80,36 +80,37 @@ BLANK_CNTROLS_DICT = dict()
 
 
 
-EXAMPLE_INIT_DICT = dict(
-      pub_rate = {"type":"Float", "default":2, 
-                  # OPTIONAL
-                  "min_bound": 0.1, "max_bound":15, 'round': 2,
-                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'display_round': 2}, 
+EXAMPLE_INIT_DICT = {
+        'demo_bool_data': {
+            'type': 'Bool', 'value': True,
+            'display_name': 'Demo Bool', 'description': 'A boolean that toggles every update.', 'display_hidden': False},
 
-      wh_degrees = {"type":"Int", "default":[100,70],
-                  # OPTIONAL
-                  "min_bound":10, "max_bound":200, 'round': 2, 'display_labels': ['Width (Deg)', 'Height (Deg)'],
-                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'disabled':True, 'display_round': 2, 'display_row':True},
+        'demo_bools_data': {
+            'type': 'Bools', 'value': [True, False],
+            'display_name': 'Demo Bools', 'description': 'Two booleans, always opposite.', 'display_hidden': False},
 
-      gains_row = {"type":"Floats", "default":[1.0, 0.5, 0.25],
-                  # OPTIONAL
-                  "min_bound":0.0, "max_bound":10.0, 'display_labels': ['P', 'I', 'D'],
-                  'display_name':'Gains (Row Layout)', 'description':'Three values rendered side by side in one row', 'display_hidden':False, 'display_round': 2, 'display_row':True},
+        'demo_string_data': {
+            'type': 'String', 'value': 'starting',
+            'display_name': 'Demo String', 'description': 'A wall-clock timestamp string.', 'display_hidden': False},
 
-      gains_col = {"type":"Floats", "default":[1.0, 0.5, 0.25],
-                  # OPTIONAL
-                  "min_bound":0.0, "max_bound":10.0, 'display_labels': ['P', 'I', 'D'],
-                  'display_name':'Gains (Column Layout)', 'description':'The same three values stacked in a column', 'display_hidden':False, 'display_round': 2, 'display_row':False},
 
-      index = {"type":"Int", "default":3,
-               # OPTIONAL
-               "min_bound": 3, "max_bound": 10, 'round': 2,
-               'display_name':'Select Index', 'description':'Value index', 'display_hidden':False}, 
+        'demo_int_data': {
+            'type': 'Int', 'value': 0,
+            'display_name': 'Demo Int', 'description': 'A monotonic update counter.', 'display_hidden': False},
 
-      event_trigger = {"type":"Trigger", 
-                       # OPTIONAL
-                       'display_name':'Event Trigger', 'description':'Event trigger', 'display_hidden':False}
-    )
+        'demo_ints_data': {
+            'type': 'Ints', 'value': [0, 0],
+            'display_name': 'Demo Ints', 'description': 'The counter and its negation.', 'display_hidden': False},
+
+        'demo_float_data': {
+            'type': 'Float', 'value': 0.0, 'round_value': 3, 'round_display': 3,
+            'display_name': 'Demo Float', 'description': 'A sine wave over the update counter.', 'display_hidden': False},
+
+        'demo_floats_data': {
+            'type': 'Floats', 'value': [0.0, 0.0], 'round_value': 3, 'round_display': 3,
+            'display_name': 'Demo Floats', 'description': 'The sine wave and its negation.', 'display_hidden': False},
+    }
+
 
 
 def get_publisher_namespaces(topics_list = None, types_list = None):

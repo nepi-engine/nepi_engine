@@ -1566,7 +1566,6 @@ class DataIF:
         if self.pub_status == True:
             data_dict = copy.deepcopy(self.data_dict)
             self.data_status_msg = nepi_data.update_status_msg(self.data_status_msg, data_dict)
-            self.data_status_msg.config_topic = self.config_topic
             if self.node_if is not None:
                 if self.status_has_published == False:
                     self.msg_if.pub_warn("Publishing Status: " + str(self.data_status_msg))
