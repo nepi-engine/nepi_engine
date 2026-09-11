@@ -80,43 +80,65 @@ BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(Control())
 
 BLANK_CNTROLS_DICT = dict()
 
-EXAMPLE_INIT_DICT = dict(
-      pub_rate = {"type":"Float", "default":2, 
-                  # OPTIONAL
-                  "min_bound": 0.1, "max_bound":15, 'round': 2,
-                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'display_round': 2,}, 
-      wh_degrees = {"type":"Int", "default":[100,70],
-                  # OPTIONAL
-                  "min_bound":10, "max_bound":200, 'round': 2, 'display_labels': ['Width (Deg)', 'Height (Deg)'],
-                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'disabled':True, 'display_round': 2, 'display_row':True},
+EXAMPLE_INIT_DICT = {
+            'demo_menu': {
+                'type': 'Menu', 'default': 1, 'options': ['Off', 'Low', 'High'],
+                'display_name': 'Demo Menu', 'description': 'Pick one menu option (index based).', 'display_hidden': False},
 
-      gains_row = {"type":"Floats", "default":[1.0, 0.5, 0.25],
-                  # OPTIONAL
-                  "min_bound":0.0, "max_bound":10.0, 'display_labels': ['P', 'I', 'D'],
-                  'display_name':'Gains (Row Layout)', 'description':'Three values rendered side by side in one row', 'display_hidden':False, 'display_round': 2, 'display_row':True,},
+            'demo_string': {
+                'type': 'String', 'default': 'hello nepi',
+                'display_name': 'Demo String', 'description': 'Free-form text value.', 'display_hidden': False},
 
-      gains_col = {"type":"Floats", "default":[1.0, 0.5, 0.25],
-                  # OPTIONAL
-                  "min_bound":0.0, "max_bound":10.0, 'display_labels': ['P', 'I', 'D'],
-                  'display_name':'Gains (Column Layout)', 'description':'The same three values stacked in a column', 'display_hidden':False, 'display_round': 2, 'display_row':False,},
 
-      index = {"type":"Int", "default":3,
-               # OPTIONAL
-               "min_bound": 3, "max_bound": 10, 'round': 2,
-               'display_name':'Select Index', 'description':'Value index', 'display_hidden':False}, 
+            'demo_selection': {
+                'type': 'Selection', 'default': 'Bravo', 'options': ['Alpha', 'Bravo', 'Charlie'],
+                'display_name': 'Demo Selection', 'description': 'Select a single option by name.', 'display_hidden': False},
 
-      topic_sel = {"type":"Selection", "default":'Topic1', "options":['Topic1', 'Topic2'], 
-                   # OPTIONAL
-                   'display_name':'Select Topic', 'description':'Value selected topic', 'display_hidden':False}, 
+            'demo_selections': {
+                'type': 'Selections', 'default': ['Red', 'Blue'], 'options': ['Red', 'Green', 'Blue'],
+                'display_name': 'Demo Selections', 'description': 'Select any number of options.', 'display_hidden': False},
 
-      topics_sel = {"type":"Selection", "default":['Topic1', 'Topic2'], "options":['Topic1', 'Topic2'], 
-                    # OPTIONAL
-                    'display_name':'Select Topics', 'description':'Value selected topics', 'display_hidden':False}, 
+            'demo_trigger': {
+                'type': 'Button', 'default': 0,
+                'display_name': 'Demo Trigger', 'description': 'Fire a one-shot trigger.', 'display_hidden': False},
 
-      event_button = {"type":"Button", 
-                       # OPTIONAL
-                       'display_name':'Event Button', 'description':'Event button', 'display_hidden':False}
-    )
+            'demo_bool': {
+                'type': 'Toggle', 'default': True,
+                'display_name': 'Demo Bool', 'description': 'Toggle a boolean on or off.', 'display_hidden': False},
+
+
+            'demo_int': {
+                'type': 'Int', 'default': 5, 'bounds': [0, 10],
+                'display_name': 'Demo Int', 'description': 'Integer value within [0, 10].', 'display_hidden': False},
+
+            'demo_ints_column': {
+                'type': 'Floats', 'default': [1,2,3], 'bounds': [0.0, 10.0], 'round_value': 2,
+                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False},
+
+            'demo_ints_row': {
+                'type': 'Floats', 'default': [1,2,3], 'bounds': [0.0, 10.0], 'round_value': 2,
+                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False, 'display_row': True},
+
+            'demo_float': {
+                'type': 'Float', 'default': 2.5, 'bounds': [0.0, 10.0], 'round_value': 2,
+                'display_name': 'Demo Float', 'description': 'Float value within [0.0, 10.0].', 'display_hidden': False},
+
+            'demo_floats_column': {
+                'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
+                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False},
+
+            'demo_floats_row': {
+                'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
+                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False, 'display_row': True},
+
+            'demo_float_slider': {
+                'type': 'FloatSlider', 'default': 50.0, 'bounds': [0.0, 100.0], 'round_value': 1,
+                'display_name': 'Demo Float Slider', 'description': 'Single-value slider over [0, 100].', 'display_hidden': False},
+
+            'demo_range_slider': {
+                'type': 'RangeSlider', 'default': [0.25, 0.75], 'bounds': [0.0, 1.0], 'round_value': 2,
+                'display_name': 'Demo Floats Slider', 'description': 'Dual-value range slider (0.0-1.0 ratio).', 'display_hidden': False},
+          }
 
 
 def get_publisher_namespaces(topics_list = None, types_list = None):
@@ -358,6 +380,16 @@ def create_controls_dict(init_dict):
         check_dict[check_name] = copy.deepcopy(control_dict)
 
         check_value = copy.deepcopy(value)
+        if len(check_value) == 0:
+          continue
+        if isinstance(check_value, list) == False:
+          check_value = [check_value]
+        if input_type in SINGLE_TYPES:
+          check_value = check_value[0]
+        elif input_type in DOUBLE_TYPES:
+          check_value = [check_value[0],check_value[1]]
+        elif input_type in TRIPLE_TYPES:
+          check_value = [check_value[0],check_value[1],check_value[2]]
         clean_value = get_clean_value(check_dict, check_name, check_value)
         #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(clean_value) + ": " + str(check_value))
         if clean_value is None:
@@ -599,14 +631,14 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
   clean_value = None
   if value is not None:
-
+    if len(value) > 0:
       if control_type in SINGLE_TYPES and len(value) > 0:
           clean_value = value[0]
       elif control_type in DOUBLE_TYPES and len(value) > 1:
           clean_value = [value[0],value[1]]
       elif control_type in TRIPLE_TYPES and len(value) > 2:
           clean_value = [value[0],value[1],value[2]]
-      elif control_type in LIST_TYPES:
+      else:
           clean_value = value
         
   return clean_value
