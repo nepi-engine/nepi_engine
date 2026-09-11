@@ -394,7 +394,6 @@ def get_clean_value(data_dict, datum_name, datum_value = None):
       current_value = datum_dict['value']
       datum_type = datum_dict['type']
       datum_length = datum_dict['length']
-      options = datum_dict['options']
       min_bound = datum_dict['min_bound']
       max_bound = datum_dict['max_bound']
 
