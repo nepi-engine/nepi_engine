@@ -893,11 +893,17 @@ class NodePublishersIF:
         
 
     def register_pubs(self,pubs_dict = None):
+        # A no-arg call means "re-advertise what is already registered", which is
+        # what every caller that stops and restarts publishing does. Guarding the
+        # whole body on pubs_dict made that call a silent no-op: _unregisterPub
+        # leaves the entry in pubs_dict with 'pub' set to None, and only
+        # _initializePubs builds a publisher for an entry in that state, so the
+        # topic stayed off the wire for the life of the node.
         if pubs_dict is not None:
             #self.pubs_dict_lock.acquire()
             self.pubs_dict.update(pubs_dict)
             #self.pubs_dict_lock.release()
-            self._initializePubs(print_msg = True)
+        self._initializePubs(print_msg = True)
 
 
 
@@ -1472,7 +1478,7 @@ class NodeClassIF:
             self.pubs_if.register_pub(pub_name, pub_dict)
 
     def register_pubs(self,pubs_dict = None):
-        if self.pubs_if is not None and pubs_dict is not None:
+        if self.pubs_if is not None:
             self.pubs_if.register_pubs(pubs_dict)
 
 

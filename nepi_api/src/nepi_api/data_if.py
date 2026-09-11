@@ -846,7 +846,7 @@ class NavPoseIF:
     def register_pubs(self):
         """Re-register all ROS publishers managed by this interface."""
         if self.node_if is not None:
-            self.node_if.register_pubs()
+            self.node_if.register_pubs(self.PUBS_DICT)
 
     def unsubscribe(self):
         """Shut down this interface, unregister all ROS resources, and clear state."""
@@ -3726,7 +3726,10 @@ class BaseImageIF:
     def register_pubs(self):
         """Re-register all ROS publishers managed by this image interface."""
         if self.node_if is not None:
-            self.node_if.register_pubs()
+            # Its own PUBS_DICT, matching unregister_pubs above and DepthMapIF:
+            # on a shared node_if a bare call would also re-advertise publishers
+            # a sibling IF had deliberately taken down.
+            self.node_if.register_pubs(self.PUBS_DICT)
 
     def unregister(self):
         """Shut down this pointcloud interface and release all ROS resources."""
@@ -8816,7 +8819,7 @@ class PointcloudIF:
     def register_pubs(self):
         """Re-register all ROS publishers managed by this pointcloud interface."""
         if self.node_if is not None:
-            self.node_if.register_pubs()
+            self.node_if.register_pubs(self.PUBS_DICT)
 
     def unregister(self):
         """Shut down this pointcloud interface and release all ROS resources."""
