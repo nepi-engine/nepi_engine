@@ -88,9 +88,19 @@ EXAMPLE_INIT_DICT = dict(
       wh_degrees = {"type":"RangeSlider", "default":[100,70],
                   # OPTIONAL
                   "min_bound":10, "max_bound":200, 'value_round': 2, 'display_labels': ['Width (Deg)', 'Height (Deg)'],
-                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'disabled':True, 'display_round': 2,}, 
+                  'display_name':'Pub Rate', 'description':'Value pub rate', 'display_hidden':False, 'disabled':True, 'display_round': 2,},
 
-      index = {"type":"Int", "default":3,  
+      gains_row = {"type":"Floats", "default":[1.0, 0.5, 0.25],
+                  # OPTIONAL
+                  "min_bound":0.0, "max_bound":10.0, 'display_labels': ['P', 'I', 'D'],
+                  'display_name':'Gains (Row Layout)', 'description':'Three values rendered side by side in one row', 'display_hidden':False, 'display_round': 2, 'display_row':True,},
+
+      gains_col = {"type":"Floats", "default":[1.0, 0.5, 0.25],
+                  # OPTIONAL
+                  "min_bound":0.0, "max_bound":10.0, 'display_labels': ['P', 'I', 'D'],
+                  'display_name':'Gains (Column Layout)', 'description':'The same three values stacked in a column', 'display_hidden':False, 'display_round': 2, 'display_row':False,},
+
+      index = {"type":"Int", "default":3,
                # OPTIONAL
                "min_bound": 3, "max_bound": 10, 'value_round': 2,
                'display_name':'Select Index', 'description':'Value index', 'display_hidden':False}, 
@@ -147,6 +157,7 @@ def create_controls_dict(init_dict):
         control_dict['max_bound'] = -999
         control_dict['display_name'] = name
         control_dict['display_round'] = 2
+        control_dict['display_row'] = False
         for key in control_dict.keys():
           if key in init_control_dict.keys():
             control_dict[key] = init_control_dict[key]
@@ -176,6 +187,18 @@ def create_controls_dict(init_dict):
           control_dict['display_round'] = 0
         if control_dict['display_round'] > 6:
           control_dict['display_round'] = 6
+
+        #############
+        # Clean Display Row
+        #############
+        # The overlay loop above copies the caller's value verbatim, so a hand
+        # written init dict -- or a params yaml, which spells booleans 'True' --
+        # can put a string or an int in what Control.msg declares a bool.
+        # convert_dict2msg rejects the whole dict on a type mismatch, which
+        # drops the control from the published status entirely rather than just
+        # mis-rendering it. Same failure mode set_hidden and set_disabled coerce
+        # against.
+        control_dict['display_row'] = cleanDisplayRow(control_dict['display_row'])
 
         #############
         # Clean Bounds
@@ -881,6 +904,31 @@ def set_disabled(controls_dict, control_name, disabled):
   return controls_dict
 
 
+def cleanDisplayRow(display_row):
+  # Control.msg declares display_row a bool, so anything reaching the message
+  # has to be one. The string spellings are accepted because params yaml files
+  # and hand written init dicts write booleans as 'True'/'true' -- the same
+  # test get_clean_value applies to the BOOL_TYPES values.
+  return (display_row == True or display_row == 'True' or display_row == 'true')
+
+def get_display_row(controls_dict, control_name):
+  """Return True if the control's value widgets should render side by side in one row."""
+  # .get rather than [], as in get_disabled: a controls dict built before this
+  # field existed does not carry the key, and a missing key means the stacked
+  # column layout, not an error.
+  display_row = False
+  if control_name in controls_dict.keys():
+      display_row = cleanDisplayRow(controls_dict[control_name].get('display_row',False))
+  return display_row
+
+def set_display_row(controls_dict, control_name, display_row):
+  """Set whether the control's value widgets render side by side in one row."""
+  display_row = cleanDisplayRow(display_row)
+  if control_name in controls_dict.keys():
+      controls_dict[control_name]['display_row'] = display_row
+  return controls_dict
+
+
 def get_display_order(controls_dict, control_name):
   order = -1
   if control_name in controls_dict.keys():
@@ -1016,6 +1064,13 @@ def update_status_msg( status_msg, controls_dict):
           if key in control_dict.keys():
             msg_dict[key] = control_dict[key]
         msg_dict['value'] = msg_value
+        # Carried by the key loop above like every other display field. The
+        # coercion is repeated here because a controls dict assembled by hand
+        # never passed through create_controls_dict's normalization, and a
+        # string in this bool field makes convert_dict2msg return None -- which
+        # takes the whole control out of the status message, not just its
+        # layout.
+        msg_dict['display_row'] = cleanDisplayRow(control_dict.get('display_row',False))
 
 
         msg_type = 'nepi_interfaces/Control'
