@@ -29,7 +29,7 @@ from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data
 from nepi_sdk import nepi_img
 
-from nepi_interfaces.msg import ProcessResultsTrack
+from nepi_interfaces.msg import Track, TrackStatus
 from nepi_interfaces.msg import Targets, TargetsStatus
 from nepi_interfaces.msg import NavPose
 
@@ -47,8 +47,8 @@ SOURCE_STATUS_MSG = TargetsStatus
 SOURCE_STATUS_TYPE = 'nepi_interfaces/TargetsStatus'
 SOURCE_NAME_FILTERS = None
 
-RESULTS_PUB_MSG = ProcessResultsTrack
-RESULTS_PUB_TYPE = 'nepi_interfaces/ProcessResultsTrack'
+RESULTS_PUB_MSG = TrackStatus
+RESULTS_PUB_TYPE = 'nepi_interfaces/TrackStatus'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
 RESULTS_PUB_TOPIC = 'track'
 

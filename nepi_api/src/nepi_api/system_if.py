@@ -1690,14 +1690,12 @@ class ProcessIF:
     has_results = False
     results_msg = DataStatus()
     results_dict = None
+    pub_results = True
     has_results_pub = False
     results_pub_msg = None
     results_pub_topic = None
     results_pub_namespace = ''
 
-    has_results = False
-    results_msg = DataStatus()
-    results_dict = None
     
     process_node_pubs_dict = None
     process_node_subs_dict = None
@@ -1765,6 +1763,7 @@ class ProcessIF:
                 process_description = 'Process',
                 process_module = None,
                 process_image_name = None,
+                pub_results = True,
                 show_enable = False,
                 show_rates = True,
                 show_selector = True,
@@ -1830,7 +1829,7 @@ class ProcessIF:
             return
 
         self.process_module = process_module
-
+        self.pub_results = pub_results
 
         success = self._reloadProcesses()
         if success == False:
@@ -1913,7 +1912,7 @@ class ProcessIF:
         }
 
         
-        if self.results_pub_msg is not None and self.results_pub_topic is not None:
+        if self.pub_results == True:
             results_pub_topic = nepi_utils.get_clean_name(self.results_pub_topic)
             if results_pub_topic != '':
                 self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
@@ -2395,7 +2394,8 @@ class ProcessIF:
                     #self.msg_if.pub_warn("Processed results: " + str( [self.results_dict, results_pub_msg]), throttle_s = 5)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
-                self._publishResults(results_pub_dict, source_topic)
+                if self.pub_results == True:
+                    self._publishResults(results_pub_dict, source_topic)
             else:
                 self.msg_if.pub_warn("Processes Not Ready", throttle_s = 10)
             
@@ -2620,10 +2620,15 @@ class ProcessIF:
                     self.msg_if.pub_warn("Process Reloaded")
                     self.msg_if.pub_warn("Updating Process Dictionaries")
 
+
                     try:
                         self.data_products[0] = self.process_module.RESULTS_PUB_TOPIC
+                        self.results_pub_msg = self.process_module.RESULTS_PUB_MSG
+                        self.results_pub_topic = self.process_module.RESULTS_PUB_TOPIC
+                        self.pub_results = self.pub_results == True and self.results_pub_msg is not None and self.results_pub_topic is not None
                     except:
-                        pass
+                        self.pub_results = False
+
                     available_processes = []
                     for process_name in processes_dict.keys():
                         available_processes.append(process_name)
@@ -2649,11 +2654,7 @@ class ProcessIF:
                             pass
 
 
-                    try:
-                        self.results_pub_msg = self.process_module.RESULTS_PUB_MSG
-                        self.results_pub_topic = self.process_module.RESULTS_PUB_TOPIC
-                    except:
-                        pass
+
 
                     #self.msg_if.pub_warn("")
                     #self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict))
@@ -2689,23 +2690,40 @@ class ProcessIF:
 
     def _publishResults(self, results_pub_dict, source_topic = ''):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 
+        results_dict = None
         try:
-            msg = self.process_module.RESULTS_PUB_MSG
-            msg_type = self.process_module.RESULTS_PUB_TYPE
-            results_pub_msg = nepi_process.convert_results_pub_dict2msg(msg, msg_type, results_pub_dict)
+            results_dict = copy.deepcopy(self.process_module.RESULTS_PUB_DICT)
         except:
-            results_pub_msg = None
-        if self.node_if is not None and self.results_pub_msg is not None and results_pub_msg is not None:
-            results_pub_msg.results_header.timestamp = nepi_utils.get_time()
-            results_pub_msg.results_header.process_name = self.node_name
-            results_pub_msg.results_header.process_namespace = self.node_namespace
-            results_pub_msg.results_header.source_topic = source_topic
-            results_pub_msg.results_header.source_timestamp = nepi_utils.get_time() 
-            #self.msg_if.pub_warn("Publishing Results Msg: " + str(results_pub_msg), throttle_s = 5) 
-            self.node_if.publish_pub(self.node_if_prefix + 'results_pub', results_pub_msg) 
-        else:
-            #self.msg_if.pub_warn("Failed to Pub. Results Msg is None: " + str([results_dict, self.results_pub_msg]), throttle_s = 10) 
-            pass
+            results_dict = None
+        if results_dict is not None and results_pub_dict is not None:
+            for key in results_pub_dict.keys():
+                if key in results_dict.keys():
+                    results_dict[key] = results_pub_dict[key]
+
+
+            if 'data_header' in results_dict.keys():
+                data_header = dict()
+                data_header['timestamp'] = nepi_utils.get_time()
+                data_header['process_name'] = self.node_name
+                data_header['process_namespace'] = self.node_namespace
+                data_header['source_topic'] = source_topic
+                data_header['source_timestamp'] = nepi_utils.get_time() 
+                for key in data_header.keys():
+                    if key in results_dict['data_header'].keys():
+                        results_dict['data_header'][key] = data_header[key]
+
+            try:          
+                msg = self.process_module.RESULTS_PUB_MSG
+                msg_type = self.process_module.RESULTS_PUB_TYPE
+                results_pub_msg = nepi_process.convert_results_pub_dict2msg(msg, msg_type, results_pub_dict)
+            except:
+                results_pub_msg = None
+                
+            if self.node_if is not None and self.results_pub_msg is not None:
+                self.node_if.publish_pub(self.node_if_prefix + 'results_pub', results_pub_msg) 
+            else:
+                #self.msg_if.pub_warn("Failed to Pub. Results Msg is None: " + str([results_dict, self.results_pub_msg]), throttle_s = 10) 
+                pass
 
 
     def _publishStatusCb(self, timer):
