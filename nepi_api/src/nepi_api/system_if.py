@@ -625,19 +625,24 @@ class ControlsIF:
     def _updateControlCb(self,msg):
         self.msg_if.pub_info("Received control update msg: " + str(msg), log_name_list = self.log_name_list)
         control_name = msg.name
-        controls_dict = nepi_controls.apply_update_msg(self.controls_dict, msg)
+        # apply_update_msg writes through the dict it is handed, so passing
+        # self.controls_dict applied the update before set_control_value ever
+        # ran -- its "did anything change" test then compared the new dict with
+        # itself, and no status, callback or param save came out of an update.
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
         control_value = nepi_controls.get_value(controls_dict, control_name )
-        self.set_value(control_name, control_value)
-    
+        self.set_control_value(control_name, control_value)
+
 
     def _setHiddenValueCb(self,msg):
-            self.set_hidden(msg.name, msg.value)
+            self.set_control_hidden(msg.name, msg.value)
 
     def _setControlsHiddenCb(self,msg):
             self.sets_hidden(msg.value)
 
     def _setOrderValueCb(self,msg):
-            self.set_display_order(msg.name, msg.value)
+            self.set_control_display_order(msg.name, msg.value)
 
     def _setOrderTopCb(self,msg):
             self.move_control_display_top(msg.name)
@@ -1611,7 +1616,10 @@ class DataIF:
     def _updateDatumCb(self,msg):
         self.msg_if.pub_info("Received datum update msg: " + str(msg), log_name_list = self.log_name_list)
         datum_name = msg.name
-        data_dict = nepi_data.apply_update_msg(self.data_dict, msg)
+        # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
+        # through the dict it is handed.
+        data_dict = copy.deepcopy(self.data_dict)
+        data_dict = nepi_data.apply_update_msg(data_dict, msg)
         datum_value = nepi_data.get_value(data_dict, datum_name )
         self.set_datum_value(datum_name, datum_value)
     
@@ -2672,10 +2680,13 @@ class ProcessIF:
     def _updateControlCb(self,msg):
         self.msg_if.pub_info("Received control update msg: " + str(msg), log_name_list = self.log_name_list)
         control_name = msg.name
-        controls_dict = nepi_controls.apply_update_msg(self.controls_dict, msg)
+        # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
+        # through the dict it is handed.
+        controls_dict = copy.deepcopy(self.controls_dict)
+        controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
         control_value = nepi_controls.get_value(controls_dict, control_name )
         self.set_control_value(control_name, control_value)
-        
+
     def _publishResults(self, results_pub_dict, source_topic = ''):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 
         try:

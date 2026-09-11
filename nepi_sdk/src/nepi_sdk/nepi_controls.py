@@ -620,10 +620,17 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
 
           elif control_type in TRIGGER_TYPES: ###########################################################
-              try: 
-                add_value = float(control_value)
+              # The stored value is the time the control last fired; get_value
+              # reports seconds since, and reads <= 0 as "never fired". A press
+              # arrives from the RUI as the non-numeric 'TRIGGER' sentinel, and
+              # that is what the current time gets stamped onto. float() of the
+              # whole control_value list raised TypeError on every path into
+              # here -- including the [0] seed create_controls_dict checks at
+              # registration -- so a Button could only ever hold 0.
+              try:
+                add_value = float(add_value)
               except:
-                add_value = 0
+                add_value = nepi_utils.get_time()
 
           values.append(add_value)
         value = values
@@ -679,11 +686,15 @@ def get_value(controls_dict, control_name, index = None):
       except:
         value = None
 
-    if control_type == 'Button':
-      if value <= 0:
-        value = -999
-      else:
-        value = nepi_utils.get_time() - value
+    # No Button transform here. This accessor returns the value as it is
+    # STORED, so that set_value(name, get_value(name)) is a no-op for every
+    # type -- which is what _updateControlCb, _updateSettingCb and
+    # save_params_dict/init all assume. A Button stores the time it last
+    # fired, and reporting seconds-since here made it the one type where a
+    # read written straight back replaced the trigger time with an age a few
+    # milliseconds from zero. The seconds-since view belongs to the reporting
+    # path and already lives there, computed from the raw value in
+    # update_status_msg -- which is where the RUI reads it from.
 
   return value
 

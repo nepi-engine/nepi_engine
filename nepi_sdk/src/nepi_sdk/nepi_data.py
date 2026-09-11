@@ -490,10 +490,14 @@ def get_clean_value(data_dict, datum_name, datum_value = None):
 
 
           elif datum_type in TRIGGER_TYPES: ###########################################################
-              try: 
-                add_value = float(datum_value)
+              # The stored value is the time the datum last fired; get_value
+              # reports seconds since, and reads <= 0 as "never fired". float()
+              # of the whole datum_value list raised TypeError on every path
+              # into here, so a Trigger could only ever hold 0.
+              try:
+                add_value = float(add_value)
               except:
-                add_value = 0
+                add_value = nepi_utils.get_time()
 
           values.append(add_value)
         value = values
@@ -549,11 +553,11 @@ def get_value(data_dict, datum_name, index = None):
       except:
         value = None
 
-    if datum_type == 'Trigger':
-      if value <= 0:
-        value = -999
-      else:
-        value = nepi_utils.get_time() - value
+    # No Trigger transform here, matching nepi_controls.get_value: this
+    # accessor returns the value as it is STORED, so a read written straight
+    # back is a no-op for every type. The seconds-since view belongs to the
+    # reporting path and already lives there, computed from the raw value in
+    # update_status_msg.
 
   return value
 
