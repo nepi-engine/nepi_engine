@@ -99,7 +99,7 @@ EXAMPLE_INIT_DICT = {
                 'display_name': 'Demo Selections', 'description': 'Select any number of options.', 'display_hidden': False},
 
             'color_rgb': {
-                'type': 'ColorRBB', 'value': [0,255,0],
+                'type': 'ColorRGB', 'value': [0,255,0],
                 'display_name': 'Demo Color RGB', 'description': 'A rbg color.', 'display_hidden': False},
 
 
@@ -121,11 +121,11 @@ EXAMPLE_INIT_DICT = {
                 'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False},
 
             'bools_column': {
-                'type': 'Toggle', 'value': [True, False, False],
+                'type': 'Toggles', 'value': [True, False, False],
                 'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False},
 
             'bools_row': {
-                'type': 'Toggle', 'value': [True, False, False],
+                'type': 'Toggles', 'value': [True, False, False],
                 'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
 
 
@@ -471,7 +471,10 @@ def get_value_list(value):
   # stored.
   if value is None:
     return None
-  if isinstance(value, list) == False:
+  # Tuples count as sequences here: get_value returns a TUPLE for ColorRGB, and
+  # str() of one stored the whole "(0, 255, 0)" as a single entry, which then
+  # failed every length check downstream.
+  if isinstance(value, (list, tuple)) == False:
     return [str(value)]
   return [str(item) for item in value]
 
@@ -642,10 +645,17 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
 
           elif control_type in TRIGGER_TYPES: ###########################################################
-              try: 
-                add_value = float(control_value)
+              # The stored value is the time the control last fired; get_value
+              # reports seconds since, and reads <= 0 as "never fired". A press
+              # arrives from the RUI as the non-numeric 'TRIGGER' sentinel, and
+              # that is what the current time gets stamped onto. float() of the
+              # whole control_value list raised TypeError on every path into
+              # here -- including the [0] seed create_controls_dict checks at
+              # registration -- so a Button could only ever hold 0.
+              try:
+                add_value = float(add_value)
               except:
-                add_value = 0
+                add_value = nepi_utils.get_time()
 
           values.append(add_value)
         value = values
@@ -683,8 +693,12 @@ def get_value(controls_dict, control_name, index = None):
             else:
               try:
                 index = int(index)
-                if index > 0:
-                  if isinstance(control_value, list):
+                # index >= 0 and index < len(...), the same bounds test the Menu
+                # branch of get_clean_value uses. Written > 0, reading component
+                # 0 returned None -- ColorRGB's red, and the first entry of every
+                # Ints/Floats/Toggles control.
+                if index >= 0:
+                  if isinstance(control_value, (list, tuple)):
                     if len(control_value) > index:
                       value = control_value[index]
               except:
@@ -695,17 +709,23 @@ def get_value(controls_dict, control_name, index = None):
 
     ###################
     # Special Types Support
-    if value is not None and control_type == 'ColorRGB':
+    # Only the whole value is a color triple. Ungated, an indexed read of one
+    # channel got tuple()'d too, so component 0 of 99 came back as ('9','9').
+    if value is not None and control_type == 'ColorRGB' and index is None:
       try:
         value = tuple(value)
       except:
         value = None
 
-    if control_type == 'Button':
-      if value <= 0:
-        value = -999
-      else:
-        value = nepi_utils.get_time() - value
+    # No Button transform here. This accessor returns the value as it is
+    # STORED, so that set_value(name, get_value(name)) is a no-op for every
+    # type -- which is what _updateControlCb, _updateSettingCb and
+    # save_params_dict/init all assume. A Button stores the time it last
+    # fired, and reporting seconds-since here made it the one type where a
+    # read written straight back replaced the trigger time with an age a few
+    # milliseconds from zero. The seconds-since view belongs to the reporting
+    # path and already lives there, computed from the raw value in
+    # update_status_msg -- which is where the RUI reads it from.
 
   return value
 
@@ -741,9 +761,14 @@ def set_value(controls_dict, control_name, update_value, index = None,  check_va
       if index is not None:
         try:
           index = int(index)
-          if index > 0:
+          # Same bounds test as get_value. Written > 0, index 0 never merged:
+          # the single component replaced the whole value instead.
+          if index >= 0:
             control_value = get_value(controls_dict,control_name)
-            if isinstance(control_value, list):
+            # get_value hands back a TUPLE for ColorRGB, which a list-only test
+            # skipped -- the one type that is always addressed by index.
+            if isinstance(control_value, (list, tuple)):
+              control_value = list(control_value)
               if len(control_value) > index:
                 control_value[index] = update_value
                 update_value = control_value
@@ -1179,7 +1204,14 @@ def apply_update_msg( controls_dict, msg):
   # treated "field omitted" as "set this field to nothing".
   value = list(msg.value)
   if len(value) > 0 and value != ['']:
-    value = get_clean_value(controls_dict, name, value)
+    # An index update carries ONE component, not the whole value, so it cannot
+    # be cleaned here: get_clean_value length-checks against the control's
+    # arity and returns None for it. set_value merges the component at index
+    # into the current value and validates the merged list.
+    if index is None:
+      value = get_clean_value(controls_dict, name, value)
+    else:
+      value = value[0]
     if value is not None:
       controls_dict = set_value(controls_dict, name, value, index = index)
 
