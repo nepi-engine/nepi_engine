@@ -92,16 +92,16 @@ EXAMPLE_INIT_DICT = {
             'display_name': 'Demo Color RGB', 'description': 'A rbg color.', 'display_hidden': False},
 
 
-        'button': {
+        'trigger': {
             'type': 'Trigger', 'value': True,
             'display_name': 'Demo Trigger', 'description': 'A trigger that toggles every update.', 'display_hidden': False},
 
 
-        'button_column': {
+        'trigger_column': {
             'type': 'Trigger', 'value': [0,2.1],
             'display_name': 'Demo Trigger', 'description': 'A trigger that toggles every update.', 'display_hidden': False},
 
-        'buttons_row': {
+        'triggers_row': {
             'type': 'Triggers', 'value': [0,2.1],
             'display_name': 'Demo Triggers', 'description': 'Two triggers, always opposite.', 'display_hidden': False, 'display_row': True},
 
@@ -109,11 +109,11 @@ EXAMPLE_INIT_DICT = {
             'type': 'Bools', 'value': True,
             'display_name': 'Demo Bools', 'description': 'Two booleans, always opposite.', 'display_hidden': False},
 
-        'toggles_column': {
+        'bools_column': {
             'type': 'Bools', 'value': [True, False, False],
             'display_name': 'Demo Bools', 'description': 'Two booleans, always opposite.', 'display_hidden': False},
 
-        'toggles_row': {
+        'bools_row': {
             'type': 'Bools', 'value': [True, False, False],
             'display_name': 'Demo Bools', 'description': 'Two booleans, always opposite.', 'display_hidden': False, 'display_row': True},
 
