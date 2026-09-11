@@ -81,34 +81,75 @@ BLANK_CNTROLS_DICT = dict()
 
 
 EXAMPLE_INIT_DICT = {
-        'demo_bool_data': {
-            'type': 'Bool', 'value': True,
-            'display_name': 'Demo Bool', 'description': 'A boolean that toggles every update.', 'display_hidden': False},
 
-        'demo_bools_data': {
-            'type': 'Bools', 'value': [True, False],
-            'display_name': 'Demo Bools', 'description': 'Two booleans, always opposite.', 'display_hidden': False},
-
-        'demo_string_data': {
+        'string': {
             'type': 'String', 'value': 'starting',
             'display_name': 'Demo String', 'description': 'A wall-clock timestamp string.', 'display_hidden': False},
 
 
-        'demo_int_data': {
-            'type': 'Int', 'value': 0,
-            'display_name': 'Demo Int', 'description': 'A monotonic update counter.', 'display_hidden': False},
+        'color_rgb': {
+            'type': 'ColorRBB', 'value': [0,255,0],
+            'display_name': 'Demo Color RGB', 'description': 'A rbg color.', 'display_hidden': False},
 
-        'demo_ints_data': {
-            'type': 'Ints', 'value': [0, 0],
-            'display_name': 'Demo Ints', 'description': 'The counter and its negation.', 'display_hidden': False},
 
-        'demo_float_data': {
-            'type': 'Float', 'value': 0.0, 'round_value': 3, 'round_display': 3,
-            'display_name': 'Demo Float', 'description': 'A sine wave over the update counter.', 'display_hidden': False},
+        'trigger': {
+            'type': 'Trigger', 'value': True,
+            'display_name': 'Demo Trigger', 'description': 'A trigger age secs.', 'display_hidden': False},
 
-        'demo_floats_data': {
-            'type': 'Floats', 'value': [0.0, 0.0], 'round_value': 3, 'round_display': 3,
-            'display_name': 'Demo Floats', 'description': 'The sine wave and its negation.', 'display_hidden': False},
+
+        'trigger_column': {
+            'type': 'Trigger', 'value': [0,2.1],
+            'display_name': 'Demo Trigger', 'description': 'Two triggers age secs.', 'display_hidden': False},
+
+        'triggers_row': {
+            'type': 'Triggers', 'value': [0,2.1],
+            'display_name': 'Demo Triggers', 'description': 'Two triggers age secs.', 'display_hidden': False, 'display_row': True},
+
+        'toggle_data': {
+            'type': 'Bools', 'value': True,
+            'display_name': 'Demo Bools', 'description': 'A booleans.', 'display_hidden': False},
+
+        'bools_column': {
+            'type': 'Bools', 'value': [True, False, False],
+            'display_name': 'Demo Bools', 'description': 'Two booleans.', 'display_hidden': False},
+
+        'bools_row': {
+            'type': 'Bools', 'value': [True, False, False],
+            'display_name': 'Demo Bools', 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
+
+
+        'int': {
+            'type': 'Int', 'default': 5, 'bounds': [0, 10],
+            'display_name': 'Demo Int', 'description': 'Integer value within [0, 10].', 'display_hidden': False},
+
+        'ints_column': {
+            'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
+            'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_hidden': False},
+
+        'ints_row': {
+            'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
+            'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_hidden': False, 'display_row': True},
+
+        'float': {
+            'type': 'Float', 'default': 2.5, 'bounds': [0.0, 10.0], 'round_value': 2,
+            'display_name': 'Demo Float', 'description': 'Float value within [0.0, 10.0].', 'display_hidden': False},
+
+        'floats_column': {
+            'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
+            'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False},
+
+        'floats_row': {
+            'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
+            'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False, 'display_row': True},
+
+        'float_slider': {
+            'type': 'Float', 'default': 50.0, 'bounds': [0.0, 100.0], 'round_value': 1,
+            'display_name': 'Demo Float Slider', 'description': 'Single-value slider over [0, 100].', 'display_hidden': False},
+
+        'range_slider': {
+            'type': 'Floats', 'default': [0.25, 0.75], 'bounds': [0.0, 1.0], 'round_value': 2,
+            'display_name': 'Demo Floats Slider', 'description': 'Dual-value range slider (0.0-1.0 ratio).', 'display_hidden': False},
+
     }
 
 
