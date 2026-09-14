@@ -342,17 +342,26 @@ def create_controls_dict(init_dict):
         #############
         # Clean Display Options
         #############
+        # The message field is display_optionS. This read and the write below
+        # were spelled display_option (singular), a key BLANK_CONTROL_DICT never
+        # carries because it is built from Control(), so EVERY control of every
+        # type raised KeyError here and was dropped at registration -- the whole
+        # platform's controls, not one app's. display_labels below has always
+        # used the plural correctly; these two lines were the outlier.
         display_options_list = DISPLAY_OPTIONS_DICT.get(control_type,[])
-        display_options = control_dict['display_option']
+        display_options = control_dict['display_options']
         if display_options is None:
           display_options = []
         else:
           if isinstance(display_options, list) == False:
               display_options = [str(display_options)]
-        for display_option in display_options:
-          if display_options not in display_options_list:
-            display_options.remove(display_option)
-        control_dict['display_option'] = display_options
+        # Iterate a copy and test the ITEM. The original tested the whole list
+        # against the allowed list and removed while iterating, which skips
+        # every other element. Inert today only because every entry in
+        # DISPLAY_OPTIONS_DICT is an empty list, so nothing is ever allowed.
+        display_options = [option for option in display_options
+                           if option in display_options_list]
+        control_dict['display_options'] = display_options
 
         #############
         # Clean Display Name
