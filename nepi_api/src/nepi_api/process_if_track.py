@@ -33,6 +33,9 @@ from nepi_interfaces.msg import Track, TrackStatus
 from nepi_interfaces.msg import Targets, TargetsStatus
 from nepi_interfaces.msg import NavPose
 
+
+from nepi_api.process_if import ProcessIF
+
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_process_track"
 logger = Logger(log_name = log_name)
