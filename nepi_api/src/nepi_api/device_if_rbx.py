@@ -50,7 +50,7 @@ from nepi_interfaces.msg import DeviceRBXInfo, DeviceRBXStatus
 from nepi_interfaces.msg import AxisControls, ErrorBounds
 from nepi_interfaces.msg import MotorControl
 from nepi_interfaces.msg import MotorStatus, MotorsStatus
-from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, MotorControl, GotoErrors
+from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, GotoVelocity, MotorControl, GotoErrors
 
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
 
@@ -208,6 +208,7 @@ class RBXRobotIF:
                  autonomousControlsReadyFunction=None,
                  goHomeFunction=None, goStopFunction=None, 
                  gotoPoseFunction=None, gotoPositionFunction=None, gotoLocationFunction=None,
+                 gotoVelocityFunction=None,
                  getNavPoseCb=None,
                  navpose_update_rate = 10,
                 log_name = None,
@@ -441,6 +442,12 @@ class RBXRobotIF:
         else:
             self.caps_report.has_goto_location = True
 
+        self.gotoVelocityFunction = gotoVelocityFunction
+        if self.gotoVelocityFunction is None:
+            self.caps_report.has_goto_velocity = False
+        else:
+            self.caps_report.has_goto_velocity = True
+
         self.status_msg.cmd_success = False
 
 
@@ -668,6 +675,14 @@ class RBXRobotIF:
                 'msg': GotoPose,
                 'qsize': None,
                 'callback': self.gotoPoseCb, 
+                'callback_args': ()
+            },
+            'goto_velocity': {
+                'namespace': self.namespace,
+                'topic': 'goto_velocity',
+                'msg': GotoVelocity,
+                'qsize': None,
+                'callback': self.gotoVelocityCb, 
                 'callback_args': ()
             },
             'go_stop': {
@@ -1321,6 +1336,53 @@ class RBXRobotIF:
         else:
             self.update_error_msg("Ignoring Go command, Autononous Controls not Ready")
 
+
+
+    ### Callback to start rbx goto velocity process
+    #
+    # STRUCTURALLY DIFFERENT from gotoPoseCb and gotoPositionCb above, and this
+    # is the thing a later reader will get wrong. Those two call
+    # setpoint_attitude_ned / setpoint_position_local_body, which are BLOCKING
+    # CONVERGENCE LOOPS: they hold a target and compare it against the live
+    # navpose until the error is inside bounds or cmd_timeout expires.
+    #
+    # goto_velocity has no target to converge on. It is OPEN LOOP. The injected
+    # gotoVelocityFunction owns the timing and is expected to block for
+    # duration_s, and NOTHING IN THIS CLASS MEASURES THE RESULT -- the errors are
+    # zeroed on entry and never updated, and cmd_success is whatever the driver
+    # function returned, not a verdict on where the robot ended up. A device is
+    # expected to stop itself when duration_s elapses; this class does not stop
+    # it.
+    def gotoVelocityCb(self,velocity_cmd_msg):
+        self.msg_if.pub_info("Recieved GoTo Velocity Message", log_name_list = self.log_name_list)
+        self.msg_if.pub_info(velocity_cmd_msg)
+        if self.autonomousControlsReadyFunction() is True:
+            setpoint_data=[velocity_cmd_msg.x_mps,velocity_cmd_msg.y_mps,velocity_cmd_msg.z_mps,
+                           velocity_cmd_msg.yaw_degps,velocity_cmd_msg.duration_s]
+            if self.status_msg.ready is False:
+                self.update_error_msg("Ignoring GoTo Velocity Request, Another GoTo Command Process is Active")
+            else:
+                self.status_msg.process_current = "GoTo Velocity"
+                self.status_msg.ready = False
+                self.rbx_cmd_success_current = False
+                self.update_current_errors( [0,0,0,0,0,0,0] )
+                if self.gotoVelocityFunction is not None:
+                    self.rbx_cmd_success_current = self.gotoVelocityFunction(velocity_cmd_msg.x_mps,
+                                                                             velocity_cmd_msg.y_mps,
+                                                                             velocity_cmd_msg.z_mps,
+                                                                             velocity_cmd_msg.yaw_degps,
+                                                                             velocity_cmd_msg.duration_s)
+                self.status_msg.process_last = "GoTo Velocity"
+                self.status_msg.process_current = "None"
+                self.status_msg.cmd_success = self.rbx_cmd_success_current
+                time.sleep(0.5)
+                self.status_msg.ready = True
+
+                str_val = str(setpoint_data)
+                self.last_cmd_string = "goto_rbx_velocity(self,'" + str_val + "',timeout_sec = " + str(self.rbx_info.cmd_timeout)
+                self.publishInfo()
+        else:
+            self.update_error_msg("Ignoring Go command, Autononous Controls not Ready")
 
 
     ### Callback to start rbx goto position process

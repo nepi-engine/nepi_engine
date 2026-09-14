@@ -34,7 +34,9 @@ from nepi_interfaces.msg import SaveDataRate
 from nepi_interfaces.msg import DeviceRBXStatus, DeviceRBXInfo
 from nepi_interfaces.msg import MotorStatus, MotorsStatus
 from nepi_interfaces.msg import ErrorBounds, MotorControl
-from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation
+from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, GotoVelocity
+
+from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryRequest, RBXCapabilitiesQueryResponse
 
 from nepi_api.messages_if import MsgIF
 
@@ -77,6 +79,8 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     statusCb = None # Backwards Compatibility
     infoCb = None # Backwards Compatibility
     motorStatusCb = None # Backwards Compatibility
+
+    connect_topic_srvs_dict = None
 
     dataCB = None
 
@@ -287,6 +291,39 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 or None if no info has been received yet.
         """
         return self.info_msg
+
+    def get_capabilities(self):
+        """Query and return the RBX device capabilities report.
+
+        Returns:
+            RBXCapabilitiesQueryResponse: The capabilities response, or None if
+                no device is selected or the call failed.
+        """
+        resp = None
+        if self.node_if is not None:
+            resp = self.node_if.call_service('rbx_capabilities_query', RBXCapabilitiesQueryRequest())
+        return resp
+
+    def get_goto_capabilities(self):
+        """Return the goto capability flags the connected RBX device reports.
+
+        Each flag says whether the device advertises that goto command at all.
+        A device that reports False for a flag does not subscribe to the
+        matching command topic, so publishing to it does nothing.
+
+        Returns:
+            dict: Keys has_goto_pose, has_goto_position, has_goto_location and
+                has_goto_velocity, or None if the capabilities query failed.
+        """
+        resp = self.get_capabilities()
+        if resp is None:
+            return None
+        return {
+            'has_goto_pose': resp.has_goto_pose,
+            'has_goto_position': resp.has_goto_position,
+            'has_goto_location': resp.has_goto_location,
+            'has_goto_velocity': resp.has_goto_velocity
+        }
 
     def get_motors_status_dict(self):
         """Return the latest multi-motor status as a dictionary.
@@ -613,6 +650,29 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         msg.yaw_deg = yaw_deg
         self.node_if.publish_pub(pub_name, msg)
 
+    def goto_velocity(self, x_mps, y_mps, z_mps, yaw_degps, duration_s):
+        """Command the RBX device to hold a body-frame velocity for a fixed time.
+
+        Open loop and timed, unlike goto_position: there is no target to
+        converge on, the device applies the commanded velocity and is expected
+        to stop itself when duration_s elapses.
+
+        Args:
+            x_mps (float): Forward velocity in meters per second, robot body frame.
+            y_mps (float): Left velocity in meters per second, robot body frame.
+            z_mps (float): Up velocity in meters per second, robot body frame.
+            yaw_degps (float): Yaw rate in degrees per second, positive to port.
+            duration_s (float): How long the device holds the command, in seconds.
+        """
+        pub_name = 'goto_velocity'
+        msg = GotoVelocity()
+        msg.x_mps = x_mps
+        msg.y_mps = y_mps
+        msg.z_mps = z_mps
+        msg.yaw_degps = yaw_degps
+        msg.duration_s = duration_s
+        self.node_if.publish_pub(pub_name, msg)
+
     def goto_pose(self, roll_deg, pitch_deg, yaw_deg):
         """Command the RBX device to move to an absolute orientation pose.
 
@@ -897,6 +957,12 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 'msg': GotoPose,
                 'qsize': 1,
             },
+            'goto_velocity': {
+                'namespace': self.selected_topic,
+                'topic': 'goto_velocity',
+                'msg': GotoVelocity,
+                'qsize': 1,
+            },
             'go_stop': {
                 'namespace': self.selected_topic,
                 'topic': 'go_stop',
@@ -943,9 +1009,25 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
         }
 
+        # Services Config Dict ####################
+        # Re-registered on every selection rather than unregistered on teardown:
+        # register_service replaces the keyed entry, which drops the old proxy
+        # and builds one on the newly selected device.
+        self.connect_topic_srvs_dict = {
+            'rbx_capabilities_query': {
+                'namespace': self.selected_topic,
+                'topic': 'capabilities_query',
+                'srv': RBXCapabilitiesQuery,
+                'req': RBXCapabilitiesQueryRequest(),
+                'resp': RBXCapabilitiesQueryResponse()
+            }
+        }
+
         if self.node_if is not None:
             self.node_if.register_pubs(self.connect_topic_pubs_dict)
             self.node_if.register_subs(self.connect_topic_subs_dict)
+            for srv_name in self.connect_topic_srvs_dict.keys():
+                self.node_if.register_service(srv_name, self.connect_topic_srvs_dict[srv_name])
             self.connecting = True
             self.connected = False
             self.connected_topic = 'None'
