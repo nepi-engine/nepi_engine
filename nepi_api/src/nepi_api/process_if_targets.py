@@ -30,9 +30,12 @@ from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data
 from nepi_sdk import nepi_img
 
-from nepi_interfaces.msg import ProcessResultsTargets
+from nepi_interfaces.msg import TargetsStatus
 from nepi_interfaces.msg import Image, ImageStatus
 from nepi_interfaces.msg import NavPose
+
+
+from nepi_api.process_if import ProcessIF
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_process_targets"
@@ -51,8 +54,8 @@ SOURCE_STATUS_TYPE = 'nepi_interfaces/ImageStatus'
 SOURCE_NAME_FILTERS = ['color_image']
 
 
-RESULTS_PUB_MSG = ProcessResultsTargets
-RESULTS_PUB_TYPE = 'nepi_interfaces/ProcessResultsTargets'
+RESULTS_PUB_MSG = TargetsStatus
+RESULTS_PUB_TYPE = 'nepi_interfaces/TargetsStatus'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
 RESULTS_PUB_TOPIC = 'targets'
 
