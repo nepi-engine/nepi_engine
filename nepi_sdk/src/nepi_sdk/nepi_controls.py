@@ -383,6 +383,29 @@ def create_controls_dict(init_dict):
 
 
         #############
+        # Clean Row Grouping
+        #############
+        # Both fields come straight off the init dict through the copy loop
+        # above, so a wrong type here reaches convert_dict2msg, which returns
+        # None and drops the control with no error. Coerce instead: a group is
+        # a string, a width is a non-negative int, and the defaults ('' and 0)
+        # are what every control carried before these fields existed.
+        display_group = control_dict['display_group']
+        if display_group is None or display_group == 'None':
+          display_group = ''
+        control_dict['display_group'] = str(display_group)
+
+        display_width = control_dict['display_width']
+        try:
+          display_width = int(float(display_width))
+        except Exception:
+          display_width = 0
+        if display_width < 0:
+          display_width = 0
+        control_dict['display_width'] = display_width
+
+
+        #############
         # Clean Options and Labels
         options = control_dict['options']
         if isinstance(options, list) == False:
