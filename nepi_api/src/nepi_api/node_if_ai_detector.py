@@ -214,8 +214,8 @@ class AiDetectorIF:
     overlay_clf_name = False
     overlay_img_name = False
     threshold = DEFAULT_THRESHOLD
-    max_process_rate_hz = DEFAULT_MAX_PROC_RATE
-    max_image_pub_rate_hz = DEFAULT_MAX_IMG_RATE
+    set_process_rate = DEFAULT_MAX_PROC_RATE
+    set_image_rate = DEFAULT_MAX_IMG_RATE
     use_last_image = DEFAULT_USE_LAST_IMAGE
 
     auto_select_enabled = True
@@ -389,11 +389,11 @@ class AiDetectorIF:
                 'namespace': self.node_namespace,
                 'factory_val': DEFAULT_THRESHOLD
             },
-            'max_process_rate_hz': {
+            'set_process_rate': {
                 'namespace': self.node_namespace,
                 'factory_val': DEFAULT_MAX_PROC_RATE
             },
-            'max_image_pub_rate_hz': {
+            'set_image_rate': {
                 'namespace': self.node_namespace,
                 'factory_val': DEFAULT_MAX_IMG_RATE
             },
@@ -1222,14 +1222,14 @@ class AiDetectorIF:
         # inline PUBS_DICT entries used. They share the detector's SaveDataIF so
         # detections/targets saving stays centralized (and rate-gated), and
         # follow the file convention of building their own node_if.
-        self.msg_if.pub_warn("Pre DetectionsIF max_process_rate: " + str(self.max_process_rate_hz), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Pre DetectionsIF set_process_rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
         self.detections_if = DetectionsIF(namespace = self.namespace,
                         data_product = 'detections',
                         save_data_if = self.save_data_if,
                         log_name_list = self.log_name_list,
                         msg_if = self.msg_if)
 
-        self.msg_if.pub_warn("Pre TargetsIF max_process_rate: " + str(self.max_process_rate_hz), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Pre TargetsIF set_process_rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
         self.targets_if = TargetsIF(namespace = self.namespace,
                         data_product = 'targets',
                         save_data_if = self.save_data_if,
@@ -1251,7 +1251,7 @@ class AiDetectorIF:
         self.msg_str = 'Loaded'
         ##########################
         self.msg_if.pub_warn("IF Initialization Complete", log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("max_process_rate: " + str(self.max_process_rate_hz), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("set_process_rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
         ##########################
 
     def systemStatusCb(self,msg):
@@ -1359,9 +1359,9 @@ class AiDetectorIF:
             self.selected_classes = self.node_if.get_param('selected_classes')
             self.selected_classes_targets = self.node_if.get_param('selected_classes')
             self.threshold = self.node_if.get_param('threshold')
-            self.max_process_rate_hz = self.node_if.get_param('max_process_rate_hz')
-            self.msg_if.pub_warn("Init max process rate: " + str(self.max_process_rate_hz), log_name_list = self.log_name_list)
-            self.max_image_pub_rate_hz = self.node_if.get_param('max_image_pub_rate_hz')
+            self.set_process_rate = self.node_if.get_param('set_process_rate')
+            self.msg_if.pub_warn("Init max process rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
+            self.set_image_rate = self.node_if.get_param('set_image_rate')
             self.use_last_image = self.node_if.get_param('use_last_image')
 
             # Restore the auto-select flags directly, the way every other value in
@@ -1634,11 +1634,11 @@ class AiDetectorIF:
             max_rate = MIN_MAX_RATE
         elif max_rate > MAX_MAX_RATE:
             max_rate = MAX_MAX_RATE
-        if max_rate != self.max_process_rate_hz:
-            self.max_process_rate_hz = max_rate
+        if max_rate != self.set_process_rate:
+            self.set_process_rate = max_rate
             self.publish_status()
             if self.node_if is not None:
-                self.node_if.set_param('max_process_rate_hz',self.max_process_rate_hz)
+                self.node_if.set_param('set_process_rate',self.set_process_rate)
                 
 
  
@@ -1650,11 +1650,11 @@ class AiDetectorIF:
             max_rate = MIN_MAX_RATE
         elif max_rate > MAX_MAX_RATE:
             max_rate = MAX_MAX_RATE
-        if max_rate != self.max_image_pub_rate_hz:
-            self.max_image_pub_rate_hz = max_rate
+        if max_rate != self.set_image_rate:
+            self.set_image_rate = max_rate
             self.publish_status()
             if self.node_if is not None:
-                self.node_if.set_param('max_image_pub_rate_hz',self.max_image_pub_rate_hz)
+                self.node_if.set_param('set_image_rate',self.set_image_rate)
                 
 
     def setUseLastImageCb(self,msg):
@@ -2413,7 +2413,7 @@ class AiDetectorIF:
 
         #####################################
         process_time = nepi_utils.get_time() - start_time
-        max_rate = self.max_process_rate_hz
+        max_rate = self.set_process_rate
         delay_time = (float(1) / max_rate) - process_time
         if delay_time < 0.01:
             delay_time = 0.01
@@ -2825,7 +2825,7 @@ class AiDetectorIF:
 
     def updateProcessStatus(self):
 
-        self.process_status_msg.max_process_rate_hz = self.max_process_rate_hz
+        self.process_status_msg.set_process_rate = self.set_process_rate
 
         self.process_status_msg.available_source_topics = self.available_source_topics
         self.process_status_msg.auto_select_enabled = self.auto_select_enabled
@@ -2865,7 +2865,7 @@ class AiDetectorIF:
         self.process_status_msg.image_source_topics = img_source_topics
         self.process_status_msg.image_pub_topics = img_pub_topics
 
-        self.process_status_msg.max_image_pub_rate_hz = self.max_image_pub_rate_hz
+        self.process_status_msg.set_image_rate = self.set_image_rate
         self.process_status_msg.use_last_image = self.use_last_image
         #################
 
@@ -2925,6 +2925,7 @@ class AiDetectorIF:
 
         detector_status_msg = DetectorStatus()
         detector_status_msg.process_status = self.process_status_msg
+        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.process_status_msg), throttle_s = 5)
         detector_status_msg.process_status.namespace = self.detections_namespace
         detector_status_msg.available_classes = self.classes
         detector_status_msg.selected_classes = self.selected_classes
@@ -2932,7 +2933,7 @@ class AiDetectorIF:
 
 
         #self.msg_if.pub_warn("Ending Detector Status Pub")
-        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.process_status_msg), throttle_s = 5)
+        #
         # DetectorStatus is published on <node_ns>/detections/status by
         # DetectionsIF (same wire topic/type as the removed 'detector_status'
         # inline pub).
@@ -2941,6 +2942,7 @@ class AiDetectorIF:
         
         detections_if = getattr(self, 'detections_if', None)
         if detections_if is not None:
+            #self.msg_if.pub_warn("Publishing detections status msg: " + str(detector_status_msg), throttle_s = 10)
             detections_if.publish_status(detector_status_msg)
             # Publish for each connected image
             sources_connected = []
@@ -2973,8 +2975,8 @@ class AiDetectorIF:
         
     
         targeting_status_msg = TargetingStatus()
-        # targeting_status_msg.process_status = self.process_status_msg
-        # targeting_status_msg.process_status.namespace = self.targets_namespace
+        targeting_status_msg.process_status = self.process_status_msg
+        targeting_status_msg.process_status.namespace = self.targets_namespace
         targeting_status_msg.available_classes = self.classes
         targeting_status_msg.selected_classes = self.selected_classes
         targeting_status_msg.threshold_filter = self.threshold

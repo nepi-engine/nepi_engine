@@ -376,17 +376,13 @@ def create_data_dict(init_dict):
         #############
         # Clean Display Options
         #############
-        display_options_list = DISPLAY_OPTIONS_DICT.get(datum_type,[])
-        display_options = datum_dict['display_option']
+        display_options = datum_dict['display_options']
         if display_options is None:
           display_options = []
         else:
           if isinstance(display_options, list) == False:
               display_options = [str(display_options)]
-        for display_option in display_options:
-          if display_options not in display_options_list:
-            display_options.remove(display_option)
-        datum_dict['display_option'] = display_options
+        datum_dict['display_options'] = display_options
 
         #############
         # Clean Display Name

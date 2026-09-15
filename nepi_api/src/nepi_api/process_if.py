@@ -60,6 +60,43 @@ from nepi_api.system_if import SaveDataIF
 # Process IF Class
 #########################################
 
+
+
+BLANK_CALLBACK_DICT = dict(
+        process_callback = None,
+        selection_callback = None,
+        controls_callback = None,
+    )
+
+
+BLANK_CONFIG_DICT = dict(
+        manages_sources = False,
+        has_process_rate = False,
+        min_max_process_rates = [1,20],
+        default_process_rate = 10,
+        has_results_pub = True,
+        has_image_pub = True,
+        has_image_rate = False,
+        min_max_image_rates = [1,20],
+        default_image_rate = 10,
+    )
+
+
+
+BLANK_SHOW_DICT = dict(
+        show_enable = False,
+        show_rates = True,
+        show_selector = True,
+        show_process = False,
+        show_data = True,
+        show_controls = True,
+        show_results = True,
+        show_stats = True,
+        show_save_data = False,
+    )
+
+
+
 CONNECTED_TIMEOUT = 2
 class ProcessIF:
     
@@ -90,14 +127,15 @@ class ProcessIF:
     controls_msg = ControlsStatus()
     controls_dict = dict()
 
+    states_dict = dict()
+
     has_results = False
     results_msg = DataStatus()
     results_dict = None
     pub_results = True
     has_results_pub = False
     results_pub_msg = None
-    results_pub_topic = None
-    results_pub_namespace = ''
+    results_pub_topic = ''
 
     
     process_node_pubs_dict = None
@@ -123,7 +161,7 @@ class ProcessIF:
     process_callback = None
 
     min_max_process_rates = [0.1,100]
-    max_process_rate_hz = 10.0
+    set_process_rate = 10.0
 
 
 
@@ -140,21 +178,17 @@ class ProcessIF:
     process_times = [1.0] * 10
     last_process_time = None
 
+    
     image_pub_name = ''
-    min_max_image_pub_rates = [1,20]
-    max_image_pub_rate_hz = 10.0
+    min_max_image_rates = [1,20]
+    set_image_rate = 10.0
     image_pub_topics = []
+    image_pub_enabled = True
+    
 
-
-    show_enable = False
-    show_rates = True
-    show_selector = True
-    show_process = False
-    show_data = True
-    show_controls = True
-    show_results = True
-    show_stats = True
-    show_save_data = False
+    callback_dict = copy.deepcopy(BLANK_CALLBACK_DICT)
+    config_dict = copy.deepcopy(BLANK_CONFIG_DICT)
+    show_dict = copy.deepcopy(BLANK_SHOW_DICT)
 
     status_has_published = False
 
@@ -164,17 +198,10 @@ class ProcessIF:
                 process_name = 'process',
                 process_group = 'PROCESS',
                 process_description = 'Process',
-                process_module = None,
-                process_image_name = None,
-                pub_results = True,
-                show_enable = False,
-                show_rates = True,
-                show_selector = True,
-                show_process = True,
-                show_controls = True,
-                show_results = True,
-                show_stats = True,
-                show_save_data = False,
+                process_module = None,              
+                callback_dict = None,
+                config_dict = None,
+                show_dict = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -196,10 +223,10 @@ class ProcessIF:
         else:
             self.msg_if = MsgIF()
         self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
         if log_name is not None:
             log_name = nepi_utils.get_clean_name(log_name)
             self.log_name_list.append(log_name)
+        self.log_name_list.append(self.class_name)
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
         # Create Process Name
@@ -209,11 +236,57 @@ class ProcessIF:
             return
         self.msg_if.pub_info("Using Process Name: " + self.process_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
-
         self.data_products = [self.process_name]
-        if process_image_name is not None:
-            self.image_pub_name = nepi_utils.get_clean_name(process_image_name)
-            self.data_products.append(self.image_pub_name)
+
+
+
+
+        if callback_dict is not None:
+            try:
+                for key in callback_dict.keys():
+                    if key in self.show_dict.keys():
+                        self.callback_dict[key] = callback_dict[key]
+            except:
+                pass
+
+        if config_dict is not None:
+            try:
+                for key in config_dict.keys():
+                    if key in self.config_dict.keys():
+                        self.config_dict[key] = config_dict[key]
+            except:
+                pass
+
+        if show_dict is not None:
+            try:
+                for key in show_dict.keys():
+                    if key in self.show_dict.keys():
+                        self.show_dict[key] = show_dict[key]
+            except:
+                pass
+
+
+
+        if process_module is None:
+            self.msg_if.pub_warn("No Process Module Provided")
+            return
+
+        self.process_module = process_module
+
+        self.pub_results = self.config_dict['has_results_pub']
+
+        has_image_pub = self.config_dict['has_image_pub']
+        try:
+            image_pub_topic = process_module.IMAGE_PUB_TOPIC
+        except:
+            image_pub_topic = process_name.replace('_image','') + '_image'
+        image_pub_topic = nepi_utils.get_clean_name(image_pub_topic)
+        if image_pub_topic is not None and image_pub_topic != '':
+            self.image_pub_name = image_pub_topic
+            if image_pub_topic not in self.data_products and has_image_pub == True:
+                self.data_products.append(self.image_pub_name)
+
+
         # Registry keys on a shared node_if must be domain-unique, so every key
         # this IF adds carries the process name. Param wire names ARE
         # namespace + key, so the prefix is part of the external param surface.
@@ -227,12 +300,7 @@ class ProcessIF:
         self.process_description = str(process_description)
         # Check Process Status Msg Type
 
-        if process_module is None:
-            self.msg_if.pub_warn("No Process Module Provided")
-            return
 
-        self.process_module = process_module
-        self.pub_results = pub_results
 
         success = self._reloadProcesses()
         if success == False:
@@ -242,14 +310,7 @@ class ProcessIF:
 
 
 
-        self.show_enable = show_enable
-        self.show_rates = show_rates
-        self.show_selector = show_selector
-        self.show_process = show_process
-        self.show_controls = show_controls
-        self.show_results = show_results
-        self.show_stats = show_stats
-        self.show_save_data = show_save_data
+
 
         ##############################   
         ## Node Setup
@@ -285,15 +346,15 @@ class ProcessIF:
                 'namespace': self.namespace,
                 'factory_val': self.enabled
             },
-            self.node_if_prefix + 'max_process_rate_hz': {
-                'name': 'max_process_rate_hz',
+            self.node_if_prefix + 'set_process_rate': {
+                'name': 'set_process_rate',
                 'namespace': self.namespace,
-                'factory_val': self.max_process_rate_hz
+                'factory_val': self.set_process_rate
             },
-            self.node_if_prefix +  'max_image_pub_rate_hz': {
-                'name': 'max_image_pub_rate_hz',
+            self.node_if_prefix +  'set_image_rate': {
+                'name': 'set_image_rate',
                 'namespace': self.namespace,
-                'factory_val': self.max_image_pub_rate_hz
+                'factory_val': self.set_image_rate
             },
         }
 
@@ -316,17 +377,15 @@ class ProcessIF:
 
         
         if self.pub_results == True:
-            results_pub_topic = nepi_utils.get_clean_name(self.results_pub_topic)
-            if results_pub_topic != '':
-                self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
-                    'namespace': self.namespace,
-                    'topic': results_pub_topic,
-                    'msg': self.results_pub_msg,
-                    'qsize': 1,
-                    'latch': True
-                }
-                self.results_pub_namespace = self.namespace + '/' + results_pub_topic
-                self.has_results_pub = True
+            self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
+                'namespace': self.namespace,
+                'topic': process_name,
+                'msg': self.results_pub_msg,
+                'qsize': 1,
+                'latch': True
+            }
+            self.results_pub_topic = self.namespace + '/' + process_name
+            self.has_results_pub = True
 
 
         # Subscribers Config Dict ####################
@@ -525,7 +584,7 @@ class ProcessIF:
                 nepi_sdk.sleep(1)
                 success = True
                 self.msg_if.pub_warn("Process Ready: " + str(process_name))
-                #self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict,self.controls_dict,self.results_dict,self.process_function]))
+                self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict,self.controls_dict,self.results_dict,self.states_dict,self.process_function]))
 
         self.process_ready = self.selected_process in self.available_processes
         self.enabled = True
@@ -791,13 +850,14 @@ class ProcessIF:
         #self.msg_if.pub_warn("Processing results: " + str( [self.data_dict, self.controls_dict, self.results_dict, self.process_function]), throttle_s = 5)
         if self.enabled == True:
             process_ready = self.wait_for_process_ready()
+            results_pub_dict =  None
             if process_ready == True:
                 try:
                     [self.data_dict, self.controls_dict, self.results_dict, self.states_dict, results_pub_dict] = self.process_function(self.data_dict, self.controls_dict, self.results_dict, self.states_dict)
                     #self.msg_if.pub_warn("Processed results: " + str( [self.results_dict, results_pub_msg]), throttle_s = 5)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
-                if self.pub_results == True:
+                if self.pub_results == True and results_pub_dict is not None:
                     self._publishResults(results_pub_dict, source_topic)
             else:
                 self.msg_if.pub_warn("Processes Not Ready", throttle_s = 10)
@@ -845,7 +905,7 @@ class ProcessIF:
         status_msg.connected_source_topics = self.connected_source_topics
 
         status_msg.min_max_process_rates = self.min_max_process_rates
-        status_msg.max_process_rate_hz = self.max_process_rate_hz
+        status_msg.set_process_rate = self.set_process_rate
 
         status_msg.has_process_reload = True
         status_msg.available_processes = self.available_processes
@@ -872,23 +932,23 @@ class ProcessIF:
 
         status_msg.has_results_pub = self.has_results_pub
         if self.has_results_pub == True:
-            status_msg.results_pub_namespace = self.results_pub_namespace
+            status_msg.results_pub_topic = self.results_pub_topic
 
 
         status_msg.image_pub_name = self.image_pub_name
-        status_msg.min_max_image_pub_rates = self.min_max_image_pub_rates
-        status_msg.max_image_pub_rate_hz = self.max_image_pub_rate_hz
+        status_msg.min_max_image_rates = self.min_max_image_rates
+        status_msg.set_image_rate = self.set_image_rate
         status_msg.image_pub_topics = self.image_pub_topics
 
 
-        status_msg.show_enable = self.show_enable
-        status_msg.show_rates = self.show_rates
-        status_msg.show_selector = self.show_selector
-        status_msg.show_process = self.show_process
-        status_msg.show_controls = self.show_controls
-        status_msg.show_results = self.show_results
-        status_msg.show_stats = self.show_stats
-        status_msg.show_save_data = self.show_save_data
+        status_msg.show_enable = self.show_dict['show_enable']
+        status_msg.show_rates = self.show_dict['show_rates']
+        status_msg.show_selector = self.show_dict['show_selector']
+        status_msg.show_process = self.show_dict['show_process']
+        status_msg.show_controls = self.show_dict['show_controls']
+        status_msg.show_results = self.show_dict['show_results']
+        status_msg.show_stats = self.show_dict['show_stats']
+        status_msg.show_save_data = self.show_dict['show_save_data']
 
 
         ###########
@@ -1025,10 +1085,8 @@ class ProcessIF:
 
 
                     try:
-                        self.data_products[0] = self.process_module.RESULTS_PUB_TOPIC
                         self.results_pub_msg = self.process_module.RESULTS_PUB_MSG
-                        self.results_pub_topic = self.process_module.RESULTS_PUB_TOPIC
-                        self.pub_results = self.pub_results == True and self.results_pub_msg is not None and self.results_pub_topic is not None
+                        self.pub_results = self.pub_results == True and self.results_pub_msg is not None
                     except:
                         self.pub_results = False
 
@@ -2747,7 +2805,7 @@ class TargetsImageIF:
 
 #     process_node_pubs_dict = None
 #     process_node_subs_dict = None
-#     max_process_rate_hz = 10
+#     set_process_rate = 10
 #     process_updater_function = None
 #     process_ready = False
 
@@ -2797,7 +2855,7 @@ class TargetsImageIF:
 
 #     has_image_pub = False
 #     image_pub_name = 'image'
-#     max_image_pub_rate_hz = 10
+#     set_image_rate = 10
 #     image_pub_enabled = True
 #     use_last_image = False
 #     imaging_source_topics = []
@@ -2817,7 +2875,7 @@ class TargetsImageIF:
 #                 process_data_msg = None,
 #                 process_data_products = [],
 #                 process_results_msg = None,
-#                 max_process_rate_hz = 10,
+#                 set_process_rate = 10,
 #                 source_status_msg_type = None,
 #                 source_data_msg_type = None,       
 #                 source_callback_dict = None,       
@@ -2827,7 +2885,7 @@ class TargetsImageIF:
 #                 selected_sources = [],
 #                 has_image_pub = False,
 #                 image_pub_name = 'image',
-#                 max_image_pub_rate_hz = 10,
+#                 set_image_rate = 10,
 #                 show_selector = True,
 #                 show_controls = True,
 #                 show_data = True,
@@ -2885,7 +2943,7 @@ class TargetsImageIF:
 #         # Check Process Status Msg Type
 
 
-#         self.max_process_rate_hz = max_process_rate_hz
+#         self.set_process_rate = set_process_rate
 
 #         # Check Status Msg Type
 #         if source_status_msg_type is None:
@@ -2916,7 +2974,7 @@ class TargetsImageIF:
 
 #         if has_image_pub == True:
 #             self.has_image_pub = has_image_pub
-#             self.max_image_pub_rate_hz = max_image_pub_rate_hz
+#             self.set_image_rate = set_image_rate
 
 
 
