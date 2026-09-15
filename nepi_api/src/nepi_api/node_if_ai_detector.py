@@ -2825,6 +2825,7 @@ class AiDetectorIF:
 
     def updateProcessStatus(self):
 
+        #self.msg_if.pub_warn("Updating Process Status Msg: " + str(self.process_status_msg), throttle_s = 10)
         self.process_status_msg.set_process_rate = self.set_process_rate
 
         self.process_status_msg.available_source_topics = self.available_source_topics
