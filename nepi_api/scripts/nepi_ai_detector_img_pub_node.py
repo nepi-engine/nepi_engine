@@ -200,7 +200,7 @@ class AiDetectorImgPub:
         self.model_name = 'None'
         self.enabled = False
         self.state_str_msg = "Unknown"
-        self.max_image_pub_rate_hz = 10
+        self.set_image_rate = 10
         self.use_last_image = True
 
         self.imaging_enabled = True
@@ -405,7 +405,7 @@ class AiDetectorImgPub:
         #self.msg_if.pub_warn("Subscriber Check with selected image topics: " +  str(selected_source_topics))
         #self.msg_if.pub_warn("Subscriber Check  with active image topics: " +  str(active_source_topics))
         purge_list = []
-        if self.max_image_pub_rate_hz == -1 :
+        if self.set_image_rate == -1 :
             purge_list = selected_source_topics
         elif self.imaging_enabled == True:
             # Update Image subscribers
@@ -694,8 +694,8 @@ class AiDetectorImgPub:
 
 
                 sel_imgs = copy.deepcopy(self.selected_source_topics) 
-                max_image_pub_rate_hz = copy.deepcopy(self.max_image_pub_rate_hz)
-                if source_topic in self.imgs_info_dict.keys() and source_topic in sel_imgs and max_image_pub_rate_hz > .01:
+                set_image_rate = copy.deepcopy(self.set_image_rate)
+                if source_topic in self.imgs_info_dict.keys() and source_topic in sel_imgs and set_image_rate > .01:
                     if self.imgs_info_dict[source_topic]['connected'] == False:
                         self.msg_if.pub_warn("Got image topic: " + str(source_topic))
                     self.imgs_info_dict[source_topic]['connected'] = True
@@ -705,7 +705,7 @@ class AiDetectorImgPub:
                         #     self.msg_if.pub_warn("Processing image topic: " + str(source_topic))
 
                         # Check if time to publish
-                        delay_time = float(1) / max_image_pub_rate_hz 
+                        delay_time = float(1) / set_image_rate 
                         last_img_time = self.imgs_info_dict[source_topic]['last_img_time']
                         current_time = nepi_utils.get_time()
                         timer = round((current_time - last_img_time), 3)
@@ -772,13 +772,13 @@ class AiDetectorImgPub:
 
     def processFileImg(self, img_file,det_dict_list):   
         source_topic = 'img_file'      
-        max_image_pub_rate_hz = copy.deepcopy(self.max_image_pub_rate_hz)
-        if max_image_pub_rate_hz > .01:
+        set_image_rate = copy.deepcopy(self.set_image_rate)
+        if set_image_rate > .01:
             if self.enabled == True and self.state_str_msg == 'Detecting':
 
 
                 # Check if time to publish
-                delay_time = float(1) / max_image_pub_rate_hz 
+                delay_time = float(1) / set_image_rate 
                 last_img_time = 0
                 if 'last_img_time' in self.imgs_info_dict['img_file'].keys():
                     last_img_time = self.imgs_info_dict['img_file']['last_img_time']
@@ -1120,7 +1120,7 @@ class AiDetectorImgPub:
         self.name = self.status_msg.name
         self.enabled = self.status_msg.enabled
         self.state_str_msg = self.status_msg.msg_str
-        self.max_image_pub_rate_hz = self.status_msg.max_image_pub_rate_hz
+        self.set_image_rate = self.status_msg.set_image_rate
         self.use_last_image = self.status_msg.use_last_image
 
 
