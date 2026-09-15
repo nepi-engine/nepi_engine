@@ -710,7 +710,8 @@ def get_bounds(data_dict, datum_name):
   if datum_name in data_dict.keys():
       min_bound = data_dict[datum_name]['min_bound']
       max_bound = data_dict[datum_name]['max_bound']
-  return [min_bound, max_bound]
+      bounds = [min_bound, max_bound]
+  return bounds
 
 
 

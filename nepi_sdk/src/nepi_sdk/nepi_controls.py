@@ -234,12 +234,19 @@ def create_controls_dict(init_dict):
 
 
         #############
-        # Clean Name
-        control_type = control_dict['name']
-        if control_type == 'Discrete':
-          control_type = 'Selection'
-        control_type = control_type.replace('Trigger','Button')
-        control_dict['name'] = control_type
+        # Control Type
+        # Read the TYPE here, not the name. This read 'name', which did two
+        # things. It corrupted the name field: a name containing 'Trigger'
+        # became 'Button' while the dict KEY kept the original spelling, so
+        # the RUI displayed and published the mangled name and the update
+        # never matched its own key. And it left control_type holding a NAME
+        # for the two reads below -- the DISPLAY_OPTIONS_DICT lookup and the
+        # LIST_TYPES test -- so neither ever matched and the list-type
+        # display_name fallback never fired.
+        # The type is already normalized ('Discrete' -> 'Selection') and
+        # validated against CONTROL_TYPES above, so nothing more is needed
+        # here. 'Trigger' is not in CONTROL_TYPES and never reached this line.
+        control_type = control_dict['type']
 
 
         #############
@@ -882,7 +889,8 @@ def get_bounds(controls_dict, control_name):
   if control_name in controls_dict.keys():
       min_bound = controls_dict[control_name]['min_bound']
       max_bound = controls_dict[control_name]['max_bound']
-  return [min_bound, max_bound]
+      bounds = [min_bound, max_bound]
+  return bounds
 
 
 

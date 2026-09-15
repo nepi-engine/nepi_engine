@@ -323,22 +323,27 @@ class ControlsIF:
     def unregister(self):
         """Shut down this settings interface and release its ROS resources."""
         self.ready = False
+        success = False
         if self.node_if is not None:
             if self.node_if_shared == False:
                 self.node_if.unregister_class()
                 nepi_sdk.wait()
                 self.node_if = None
             else:
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
+                # These were SUBS_DICT/PUBS_DICT, which this class never
+                # defines -- it builds controls_node_subs_dict and
+                # controls_node_pubs_dict. The shared-node_if branch therefore
+                # raised AttributeError instead of unregistering anything.
+                if self.controls_node_subs_dict is not None:
+                        for sub_name in self.controls_node_subs_dict.keys():
                             self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
+                self.controls_node_subs_dict = None
 
-                if self.PUBS_DICT is not None:
-                        for pub_name in self.PUBS_DICT.keys():
+                if self.controls_node_pubs_dict is not None:
+                        for pub_name in self.controls_node_pubs_dict.keys():
                             self.node_if.unregister_pub(pub_name)
-                self.PUBS_DICT = None
-                
+                self.controls_node_pubs_dict = None
+
         time.sleep(1)
         try:
             self.node_if = None
@@ -425,7 +430,7 @@ class ControlsIF:
 
     def set_control_max_bound(self, control_name, max_bound = None):
         controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_min_bound(controls_dict, control_name, max_bound = max_bound)
+        self.controls_dict = nepi_controls.set_max_bound(controls_dict, control_name, max_bound = max_bound)
         if self.controls_dict != controls_dict:
             self.publish_status()
             self.save_params_dict()
@@ -1406,16 +1411,20 @@ class DataIF:
                 nepi_sdk.wait()
                 self.node_if = None
             else:
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
+                # Same defect as ControlsIF.unregister above: this class builds
+                # data_node_subs_dict/data_node_pubs_dict, never SUBS_DICT or
+                # PUBS_DICT, so the shared-node_if branch raised AttributeError
+                # instead of unregistering anything.
+                if self.data_node_subs_dict is not None:
+                        for sub_name in self.data_node_subs_dict.keys():
                             self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
+                self.data_node_subs_dict = None
 
-                if self.PUBS_DICT is not None:
-                        for pub_name in self.PUBS_DICT.keys():
+                if self.data_node_pubs_dict is not None:
+                        for pub_name in self.data_node_pubs_dict.keys():
                             self.node_if.unregister_pub(pub_name)
-                self.PUBS_DICT = None
-                
+                self.data_node_pubs_dict = None
+
         time.sleep(1)
         try:
             self.node_if = None
@@ -1475,7 +1484,7 @@ class DataIF:
 
     def set_datum_max_bound(self, datum_name, max_bound = None):
         data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = nepi_data.set_min_bound(data_dict, datum_name, max_bound = max_bound)
+        self.data_dict = nepi_data.set_max_bound(data_dict, datum_name, max_bound = max_bound)
         if self.data_dict != data_dict:
             self.publish_status()
 
