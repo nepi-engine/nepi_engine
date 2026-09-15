@@ -390,19 +390,32 @@ def create_controls_dict(init_dict):
         # None and drops the control with no error. Coerce instead: a group is
         # a string, a width is a non-negative int, and the defaults ('' and 0)
         # are what every control carried before these fields existed.
-        display_group = control_dict['display_group']
-        if display_group is None or display_group == 'None':
-          display_group = ''
-        control_dict['display_group'] = str(display_group)
+        #
+        # PRESENCE-GUARDED, and that guard is load bearing. BLANK_CONTROL_DICT
+        # is built from Control(), so these keys exist only where nepi_interfaces
+        # has been rebuilt with them. Reading them unguarded raised KeyError on a
+        # node running new SDK code against an older generated message, and the
+        # per-control except below swallowed it -- dropping EVERY control of
+        # EVERY set, which reads as a control panel that renders its headings
+        # and nothing underneath. Skipping instead means such a node registers
+        # its controls exactly as it did before, just without row grouping.
+        # Adding the keys here regardless would not help: convert_dict2msg
+        # rejects a dict carrying fields the message does not declare.
+        if 'display_group' in control_dict:
+          display_group = control_dict['display_group']
+          if display_group is None or display_group == 'None':
+            display_group = ''
+          control_dict['display_group'] = str(display_group)
 
-        display_width = control_dict['display_width']
-        try:
-          display_width = int(float(display_width))
-        except Exception:
-          display_width = 0
-        if display_width < 0:
-          display_width = 0
-        control_dict['display_width'] = display_width
+        if 'display_width' in control_dict:
+          display_width = control_dict['display_width']
+          try:
+            display_width = int(float(display_width))
+          except Exception:
+            display_width = 0
+          if display_width < 0:
+            display_width = 0
+          control_dict['display_width'] = display_width
 
 
         #############
