@@ -209,7 +209,9 @@ def create_controls_dict(init_dict):
       input_type = init_control_dict['type']
       if input_type == 'Discrete':
         input_type = 'Selection'
-      if input_type in CONTROL_TYPES:
+      if input_type not in CONTROL_TYPES:
+        logger.log_warn("create_controls_dict: dropped control not in control_types " + str(name) + " : " + str(input_type))
+      else:
         control_dict = copy.deepcopy(BLANK_CONTROL_DICT)
         control_dict['type'] = input_type
         control_dict['description'] = name
@@ -470,7 +472,8 @@ def create_controls_dict(init_dict):
         check_dict[check_name] = copy.deepcopy(control_dict)
 
         check_value = copy.deepcopy(value)
-        if len(check_value) == 0:
+        if len(check_value) == 0 and input_type not in OPTION_TYPES:
+          logger.log_warn("create_controls_dict: dropped control returned empty init value for type" + str(name) + " : " + str(input_type))
           continue
         if isinstance(check_value, list) == False:
           check_value = [check_value]
@@ -483,9 +486,7 @@ def create_controls_dict(init_dict):
         clean_value = get_clean_value(check_dict, check_name, check_value)
         #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(clean_value) + ": " + str(check_value))
         if clean_value is None:
-          logger.log_warn("create_controls_dict: dropped control '" + str(name) +
-                          "' of declared type '" + str(input_type) +
-                          "': value " + str(check_value) + " is not valid for the control")
+          logger.log_warn("create_controls_dict: dropped control returned None clean value " + str(name) + " : " + str(clean_value))
           continue
 
         # Store the LIST form of the cleaned value. This took len() of
@@ -561,7 +562,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
       options = control_dict['options']
       min_bound = control_dict['min_bound']
       max_bound = control_dict['max_bound']
-
+      #logger.log_warn("Checking control value: " + str(control_value))
       if control_value is None:
         try:
           control_value = copy.deepcopy(current_value)
@@ -590,7 +591,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
 
       if control_type in OPTION_TYPES: ###########################################################
-
+        #logger.log_warn("Checking Options control value: " + str(control_value))
         if control_type == "Menu": ###########################################################
           # The value of a Menu is an INDEX into options. int() of the whole
           # list raised every time, so this only ever reached its own except
@@ -731,7 +732,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
   clean_value = None
   if value is not None:
-    if len(value) > 0:
+    if len(value) > 0 or control_type in OPTION_TYPES:
       if control_type in SINGLE_TYPES and len(value) > 0:
           clean_value = value[0]
       elif control_type in DOUBLE_TYPES and len(value) > 1:

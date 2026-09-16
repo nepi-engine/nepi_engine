@@ -71,14 +71,18 @@ BLANK_CALLBACK_DICT = dict(
 
 BLANK_CONFIG_DICT = dict(
         manages_sources = False,
+        multi_source_enabled = False,
+        auto_select_enabled = True,
         has_process_rate = False,
         min_max_process_rates = [1,20],
         default_process_rate = 10,
-        has_results_pub = True,
+        pub_results = True,
         has_image_pub = True,
         has_image_rate = False,
         min_max_image_rates = [1,20],
         default_image_rate = 10,
+        has_use_last_image = False,
+        use_last_image = False,
     )
 
 
@@ -129,9 +133,12 @@ class ProcessIF:
 
     states_dict = dict()
 
-    has_results = False
-    results_msg = DataStatus()
+    has_results = False    
     results_dict = None
+
+    results_display_dict = None
+    results_display_msg = DataStatus()
+
     pub_results = True
     has_results_pub = False
     results_pub_msg = None
@@ -273,7 +280,7 @@ class ProcessIF:
 
         self.process_module = process_module
 
-        self.pub_results = self.config_dict['has_results_pub']
+        self.pub_results = self.config_dict['pub_results']
 
         has_image_pub = self.config_dict['has_image_pub']
         try:
@@ -579,12 +586,12 @@ class ProcessIF:
                 self.publish_status()
                 nepi_sdk.sleep(1)
                 processes_dict = copy.deepcopy(self.processes_dict)
-                [self.data_dict,self.controls_dict,self.results_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_name)
+                [self.data_dict,self.controls_dict,self.results_display_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_name)
                 self.process_function = self.processes_functions_dict[process_name]
                 nepi_sdk.sleep(1)
                 success = True
                 self.msg_if.pub_warn("Process Ready: " + str(process_name))
-                self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict,self.controls_dict,self.results_dict,self.states_dict,self.process_function]))
+                self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict.keys(),self.controls_dict.keys(),self.results_display_dict.keys(),self.states_dict.keys(),self.process_function]))
 
         self.process_ready = self.selected_process in self.available_processes
         self.enabled = True
@@ -835,30 +842,44 @@ class ProcessIF:
     # Process Results Functions
 
 
-    def get_results(self):
-        values_dict = None
-        results_dict = copy.deepcopy(self.results_dict)
-        if results_dict is not None:
-            values_dict = nepi_data.get_values_dict(results_dict)
-        return values_dict
+    # def get_results(self):
+    #     values_dict = None
+    #     results_dict = copy.deepcopy(self.results_display_dict)
+    #     if results_dict is not None:
+    #         values_dict = nepi_data.get_values_dict(results_dict)
+    #     return values_dict
 
 
     def process_results(self, source_topic = ''):
         if source_topic != '' and source_topic not in self.connected_source_topics:
             self.connected_source_topics.append(source_topic)
         results_pub_msg = None
-        #self.msg_if.pub_warn("Processing results: " + str( [self.data_dict, self.controls_dict, self.results_dict, self.process_function]), throttle_s = 5)
+        #self.msg_if.pub_warn("Processing results: " + str( [self.data_dict, self.controls_dict, self.results_display_dict, self.process_function]), throttle_s = 5)
+        results_dict = None
         if self.enabled == True:
             process_ready = self.wait_for_process_ready()
-            results_pub_dict =  None
             if process_ready == True:
-                try:
-                    [self.data_dict, self.controls_dict, self.results_dict, self.states_dict, results_pub_dict] = self.process_function(self.data_dict, self.controls_dict, self.results_dict, self.states_dict)
-                    #self.msg_if.pub_warn("Processed results: " + str( [self.results_dict, results_pub_msg]), throttle_s = 5)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
-                if self.pub_results == True and results_pub_dict is not None:
-                    self._publishResults(results_pub_dict, source_topic)
+                # try:
+                #     [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict)
+                #     self.results_dict = results_dict
+                #     if self.results_dict is not None:
+                #         self.results_display_dict = nepi_data.updated_values(self.results_display_dict,self.results_dict)
+                #     else:
+                #         self.results_display_dict = nepi_data.reset_values(self.results_display_dict)
+                #     #self.msg_if.pub_warn("Processed results: " + str( [self.results_display_dict, results_pub_msg]), throttle_s = 5)
+                # except Exception as e:
+                #     self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
+
+                [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict)
+                self.results_dict = results_dict
+                if self.results_dict is not None:
+                    self.results_display_dict = nepi_data.updated_values(self.results_display_dict,self.results_dict)
+                else:
+                    self.results_display_dict = nepi_data.reset_values(self.results_display_dict)
+                #self.msg_if.pub_warn("Processed results: " + str( [self.results_display_dict, results_pub_msg]), throttle_s = 5)
+
+                if self.pub_results == True and self.results_dict is not None:
+                    self._publishResults(self.results_dict, source_topic)
             else:
                 self.msg_if.pub_warn("Processes Not Ready", throttle_s = 10)
             
@@ -918,17 +939,15 @@ class ProcessIF:
             status_msg.has_controls = has_controls
             if has_controls == True:
                 self.controls_msg = nepi_controls.update_status_msg(self.controls_msg, controls_dict)
-                self.controls_msg.show_controls = self.show_controls
                 status_msg.controls = self.controls_msg
 
-        results_dict = copy.deepcopy(self.results_dict)
-        if results_dict is not None:
-            has_results = len(list(results_dict.keys())) > 0
+        results_display_dict = copy.deepcopy(self.results_display_dict)
+        if results_display_dict is not None:
+            has_results = len(list(results_display_dict.keys())) > 0
             status_msg.has_results = has_results
             if has_results == True:
-                self.results_msg = nepi_data.update_status_msg(self.results_msg, results_dict)
-                self.results_msg.show_data = self.show_results
-                status_msg.results = self.results_msg
+                self.results_display_msg = nepi_data.update_status_msg(self.results_display_msg, results_display_dict)
+                status_msg.results = self.results_display_msg
 
         status_msg.has_results_pub = self.has_results_pub
         if self.has_results_pub == True:
@@ -1066,17 +1085,16 @@ class ProcessIF:
         self.set_enable_process(enabled)
 
     def _reloadProcesses(self):
+        success = False
         if self.process_module is not None:
             self.process_ready = False           
             nepi_sdk.sleep(1)
             process_busy = self.wait_on_process_busy()
-            success = True
             if process_busy == True:
                 self.msg_if.pub_info("Failed to load process. Process Busy: " + str(process_busy))
             else:
                 processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
                 try:
-                    success = False
                     importlib.reload(self.process_module)
                     processes_dict = self.process_module.PROCESSES_DICT
                     self.msg_if.pub_warn("################################")
@@ -1134,8 +1152,8 @@ class ProcessIF:
                     success = self.set_selected_process(self.selected_process, check_updates = False)
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to reload process class: " + str(e)) 
-        success = self.selected_process in self.available_processes
-        self.process_ready = success
+        if success == False:
+            self.process_ready = False
         return success
 
 
@@ -1149,20 +1167,20 @@ class ProcessIF:
         control_value = nepi_controls.get_value(controls_dict, control_name )
         self.set_control_value(control_name, control_value)
 
-    def _publishResults(self, results_pub_dict, source_topic = ''):
+    def _publishResults(self, results_dict, source_topic = ''):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 
         results_dict = None
         try:
-            results_dict = copy.deepcopy(self.process_module.RESULTS_PUB_DICT)
+            results_pub_dict = copy.deepcopy(self.process_module.RESULTS_PUB_DICT)
         except:
-            results_dict = None
-        if results_dict is not None and results_pub_dict is not None:
+            results_pub_dict = None
+        if results_pub_dict is not None and results_pub_dict is not None:
             for key in results_pub_dict.keys():
-                if key in results_dict.keys():
-                    results_dict[key] = results_pub_dict[key]
+                if key in results_pub_dict.keys():
+                    results_pub_dict[key] = results_pub_dict[key]
 
 
-            if 'data_header' in results_dict.keys():
+            if 'data_header' in results_pub_dict.keys():
                 data_header = dict()
                 data_header['timestamp'] = nepi_utils.get_time()
                 data_header['process_name'] = self.node_name
@@ -1170,8 +1188,8 @@ class ProcessIF:
                 data_header['source_topic'] = source_topic
                 data_header['source_timestamp'] = nepi_utils.get_time() 
                 for key in data_header.keys():
-                    if key in results_dict['data_header'].keys():
-                        results_dict['data_header'][key] = data_header[key]
+                    if key in results_pub_dict['data_header'].keys():
+                        results_pub_dict['data_header'][key] = data_header[key]
 
             try:          
                 msg = self.process_module.RESULTS_PUB_MSG
@@ -1183,7 +1201,7 @@ class ProcessIF:
             if self.node_if is not None and self.results_pub_msg is not None:
                 self.node_if.publish_pub(self.node_if_prefix + 'results_pub', results_pub_msg) 
             else:
-                #self.msg_if.pub_warn("Failed to Pub. Results Msg is None: " + str([results_dict, self.results_pub_msg]), throttle_s = 10) 
+                #self.msg_if.pub_warn("Failed to Pub. Results Msg is None: " + str([results_pub_dict, self.results_pub_msg]), throttle_s = 10) 
                 pass
 
 
