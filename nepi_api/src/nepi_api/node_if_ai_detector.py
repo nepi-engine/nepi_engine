@@ -2982,7 +2982,7 @@ class AiDetectorIF:
         targeting_status_msg.selected_classes = self.selected_classes
         targeting_status_msg.threshold_filter = self.threshold
         
-        self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(targeting_status_msg), throttle_s = 5)
+        #self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(targeting_status_msg), throttle_s = 5)
         # TargetingStatus is published on <node_ns>/targets/status by TargetsIF
         # (same wire topic/type as the removed 'targeting_status' inline pub).
         targets_if = getattr(self, 'targets_if', None)
