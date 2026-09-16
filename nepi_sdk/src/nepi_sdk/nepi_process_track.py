@@ -203,23 +203,16 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
     return best_target
 
 def update_results(results_dict, track_dict):
-    results_pub_dict = None
+    results_dict = None
     if track_dict is not None:
-        results_dict = nepi_data.set_data_values(results_dict, track_dict)
-    
-        results_pub_dict = copy.deepcopy(RESULTS_PUB_DICT)
-        #print([results_dict,results_pub_dict])
-        for key in track_dict.keys():
-            if key in results_pub_dict.keys():
-                results_pub_dict[key] = track_dict[key]
-
-    timestamp = nepi_data.get_datum_value(results_dict, 'timestamp')
-    if timestamp == -999:
-        age_sec = -999
-    else:
-        age_sec =  nepi_utils.get_time() - timestamp
-    results_dict = nepi_data.set_datum_value(results_dict, 'age_sec', age_sec)
-    return results_dict, results_pub_dict
+       
+        timestamp = track_dict['timestamp']
+        if timestamp == -999:
+            age_sec = -999
+        else:
+            age_sec =  nepi_utils.get_time() - timestamp
+        results_dict['age_sec'] = age_sec
+    return results_dict
 
 
 
@@ -362,7 +355,6 @@ functions_dict = dict()
 
 track_1_dict = {
 
-    'if_dict': dict(),
    
     'data_dict': dict(
         targets_dict_list = [], 
@@ -374,33 +366,33 @@ track_1_dict = {
 
     'controls_dict': dict(
 
-        class_filters = {"type":"Selections", "default":[], "options":[], 
+        class_filters = {"type":"Selections", "value":[], "options":[], 
                    # OPTIONAL
                    'display_name':'Select Classes', 'description':'Set Class Filters', 'display_hidden':False}, 
 
         size_min_filter = {
-            'type': 'FloatSlider', 'default': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
+            'type': 'FloatSlider', 'value': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with pixel areas less than min.', 'display_hidden': False},
 
         size_max_filter = {
-            'type': 'FloatSlider', 'default': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
+            'type': 'FloatSlider', 'value': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with pixel areas larger than max.', 'display_hidden': False},
 
         threshold_filter = {
-            'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
+            'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with confidance lower than threshold.', 'display_hidden': False},
 
-        best_filter = {"type":"Selection", "default":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
+        best_filter = {"type":"Selection", "value":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
                    # OPTIONAL
                    'display_name':'Best Filter', 'description':'Set Best Filte', 'display_hidden':False}, 
 
     ),
 
 
-    'results_dict': dict(
+    'results_display_dict': dict(
 
         timestamp = {"type":"Float", "value":-999,
                     # OPTIONAL
@@ -432,17 +424,16 @@ track_1_dict = {
 }
 
 
-def track_1_process(data_dict, controls_dict, results_dict, states_dict):
+def track_1_process(data_dict, controls_dict, states_dict, results_dict,):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
-    controls_values_dict = nepi_controls.get_controls_values_dict(controls_dict)
-    #logger.log_warn("Got Data: " + str(data_dict), throttle_s = 5)
-    #logger.log_warn("Got Controls: " + str(controls_values_dict), throttle_s = 10)
+    controls_values_dict = nepi_controls.get_values_dict(controls_dict)
+    logger.log_warn("Got  Data: " + str(data_dict), throttle_s = 10)
+    #logger.log_warn("Got  Data,Controls: " + str([data_dict,controls_values_dict]), throttle_s = 10)
 
 
     #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
-    results_pub_dict = None
     track_dict = None
     filtered_targets = data_dict.get('targets_dict_list', [])
     if filtered_targets is None:
@@ -465,9 +456,9 @@ def track_1_process(data_dict, controls_dict, results_dict, states_dict):
         data_dict['last_track_time'] = nepi_utils.get_time()
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
-    [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
-    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_dict]), throttle_s = 5)
-    return data_dict, controls_dict, results_dict, states_dict, results_pub_dict
+    results_dict = update_results(results_dict, track_dict)
+    #logger.log_warn("Process Completed: " + str(results_dict), throttle_s = 5)
+    return data_dict, controls_dict, states_dict, results_dict
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_1', process_dict = track_1_dict)
@@ -485,7 +476,6 @@ functions_dict['track_1'] = track_1_process
 
 track_2_dict = {
 
-    'if_dict': dict(),
    
     'data_dict': dict(
         targets_dict_list = [], 
@@ -497,33 +487,33 @@ track_2_dict = {
 
     'controls_dict': dict(
 
-        class_filters = {"type":"Selections", "default":[], "options":[], 
+        class_filters = {"type":"Selections", "value":[], "options":[], 
                    # OPTIONAL
                    'display_name':'Select Classes', 'description':'Set Class Filters', 'display_hidden':False}, 
 
         size_min_filter = {
-            'type': 'FloatSlider', 'default': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
+            'type': 'FloatSlider', 'value': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with pixel areas less than min.', 'display_hidden': False},
 
         size_max_filter = {
-            'type': 'FloatSlider', 'default': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
+            'type': 'FloatSlider', 'value': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with pixel areas larger than max.', 'display_hidden': False},
 
         threshold_filter = {
-            'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
+            'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with confidance lower than threshold.', 'display_hidden': False},
 
-        best_filter = {"type":"Selection", "default":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
+        best_filter = {"type":"Selection", "value":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
                    # OPTIONAL
                    'display_name':'Best Filter', 'description':'Set Best Filte', 'display_hidden':False}, 
 
     ),
 
 
-    'results_dict': dict(
+    'results_display_dict': dict(
 
         timestamp = {"type":"Float", "value":-999,
                     # OPTIONAL
@@ -555,17 +545,16 @@ track_2_dict = {
 }
 
 
-def track_2_process(data_dict, controls_dict, results_dict, states_dict):
+def track_2_process(data_dict, controls_dict, states_dict, results_dict,):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
-    controls_values_dict = nepi_controls.get_controls_values_dict(controls_dict)
+    controls_values_dict = nepi_controls.get_values_dict(controls_dict)
     #logger.log_warn("Got Data: " + str(data_dict), throttle_s = 5)
     #logger.log_warn("Got Controls: " + str(controls_values_dict), throttle_s = 10)
 
 
     #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
-    results_pub_dict = None
     track_dict = None
     filtered_targets = data_dict.get('targets_dict_list', [])
     if filtered_targets is None:
@@ -588,9 +577,10 @@ def track_2_process(data_dict, controls_dict, results_dict, states_dict):
         data_dict['last_track_time'] = nepi_utils.get_time()
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
-    [results_dict, results_pub_dict] = update_results(results_dict, track_dict)
-    #logger.log_warn("Process Completed: " + str([results_dict, results_pub_dict]), throttle_s = 5)
-    return data_dict, controls_dict, results_dict, states_dict, results_pub_dict
+    results_dict = update_results(results_dict, track_dict)
+    #logger.log_warn("Process Completed: " + str(results_dict), throttle_s = 5)
+    return data_dict, controls_dict, states_dict, results_dict
+
 
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_2', process_dict = track_2_dict)
