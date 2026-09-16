@@ -2907,7 +2907,7 @@ class AiDetectorIF:
 
     def publish_status(self):
         self.publish_detector_status()
-        #self.publish_targeting_status()
+        self.publish_targeting_status()
 
 
     def publish_detector_status(self):

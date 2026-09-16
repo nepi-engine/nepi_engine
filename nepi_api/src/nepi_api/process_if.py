@@ -746,7 +746,7 @@ class ProcessIF:
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_values_dict = None
         if controls_dict is not None:
-            controls_values_dict = get_controls_values_dict = nepi_controls.gets_values_dict(controls_dict)
+            controls_values_dict = get_controls_values_dict = nepi_controls.get_values_dict(controls_dict)
         return controls_values_dict
 
     def set_control_value(self, control_name, update_value, index = None):
@@ -762,7 +762,7 @@ class ProcessIF:
                         if process_name in self.processes_dict.keys():
                             self.processes_dict[process_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_name] = nepi_controls.gets_values_dict(self.processes_dict[process_name]['controls_dict'])
+                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
@@ -787,7 +787,7 @@ class ProcessIF:
                         if process_name in self.processes_dict.keys():
                             self.processes_dict[process_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_name] = nepi_controls.gets_values_dict(self.processes_dict[process_name]['controls_dict'])
+                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
@@ -819,7 +819,7 @@ class ProcessIF:
                         if process_name in self.processes_dict.keys():
                             self.processes_dict[process_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_name] = nepi_controls.gets_values_dict(self.processes_dict[process_name]['controls_dict'])
+                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
