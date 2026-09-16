@@ -855,6 +855,7 @@ class ProcessIF:
             self.connected_source_topics.append(source_topic)
         results_pub_msg = None
         #self.msg_if.pub_warn("Processing results: " + str( [self.data_dict, self.controls_dict, self.results_display_dict, self.process_function]), throttle_s = 5)
+        last_results_dict = copy.deepcopy(self.results_dict)
         results_dict = None
         if self.enabled == True:
             process_ready = self.wait_for_process_ready()
@@ -888,6 +889,8 @@ class ProcessIF:
         else:
             #self.msg_if.pub_warn("Process Not Ready. Can't Pub Results", throttle_s = 5)
             pass
+        if last_results_dict != self.results_dict:
+            self.publish_status()
         return self.results_dict
 
 
@@ -2285,6 +2288,14 @@ class TargetsIF:
         """
         if self.node_if is None or data_msg is None:
             return False
+        
+        # data_dict = nepi_sdk.convert_msg2dict(data_msg)
+        # timestamps=[data_dict['timestamp'],data_dict['source_timestamp']] 
+        # targets_list = data_dict['targets']
+        # for target in targets_list:
+        #     timestamps.append(target['timestamp'])
+        # self.msg_if.pub_warn("Pub Targets timestamps" + str(timestamps), throttle_s = 10)
+
         self.node_if.publish_pub(self.data_pub_name, data_msg)
         self._updatePubStats()
         if self.save_data_if is not None:

@@ -436,8 +436,22 @@ class ConnectTargetsIF(ConnectNodeIF):
 
         data_dict = dict()
         data_dict['namespace'] = self.selected_topic
-        data_dict['data'] = data
+
+
+        
         data_dict['timestamp'] = data_msg.timestamp
+
+        source_timestamp = data_msg.source_timestamp
+
+        timestamps = [source_timestamp]
+        for i, target_dict in enumerate(data['targets']):
+            data['targets'][i]['timestamp'] = source_timestamp
+            timestamps.append(data['targets'][i]['timestamp'])
+        data_dict['data'] = data
+        #self.msg_if.pub_warn("Connect Targets timestamps" + str(timestamps), throttle_s = 10)
+
+
+
         ##############################
 
         process_time = round( (nepi_sdk.get_time() - start_time) , 3)

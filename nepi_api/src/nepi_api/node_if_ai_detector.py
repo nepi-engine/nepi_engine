@@ -2204,7 +2204,7 @@ class AiDetectorIF:
         
         stamp = img_msg.header.stamp
         timestamp = copy.deepcopy(float(stamp.to_sec()))
-        
+        #self.msg_if.pub_warn("Processing Image timestamp " + str([stamp,timestamp]), throttle_s = 10)
         ###############################
         source_receive_latency = round(nepi_sdk.get_time() - timestamp, 3)
         source_receive_delay = (nepi_sdk.get_time() - self.last_receive_source_time)
@@ -2655,6 +2655,7 @@ class AiDetectorIF:
                     target_msg = Target()
 
                     target_msg.timestamp = float(img_dict['timestamp'])
+                    #self.msg_if.pub_warn("Pub Targets timestamp " + str(target_msg.timestamp), throttle_s = 10)
 
                     target_msg.name = detect_dict['name']
                     target_msg.uid = detect_dict['uid']
@@ -2732,6 +2733,14 @@ class AiDetectorIF:
             # TargetsIF; the collective 'all' fan-out stays inline.
             self.targets_if.publish_data(targets_msg, timestamp = timestamp)
             self.node_if.publish_pub('all_targets', targets_msg)
+
+
+            # data_dict = nepi_sdk.convert_msg2dict(targets_msg)
+            # timestamps=[data_dict['timestamp'],data_dict['source_timestamp']] 
+            # targets_list = data_dict['targets']
+            # for target in targets_list:
+            #     timestamps.append(target['timestamp'])
+            # self.msg_if.pub_warn("Sending Targets timestamps" + str(timestamps), throttle_s = 10)
 
             try:
                self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('targets_pub',targets_msg)
