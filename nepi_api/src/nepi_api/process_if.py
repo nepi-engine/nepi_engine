@@ -385,7 +385,7 @@ class ProcessIF:
         
         if self.pub_results == True:
             self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
-                'namespace': self.namespace,
+                'namespace': self.namespace.replace('/' + process_name,''),
                 'topic': process_name,
                 'msg': self.results_pub_msg,
                 'qsize': 1,
@@ -1169,15 +1169,14 @@ class ProcessIF:
 
     def _publishResults(self, results_dict, source_topic = ''):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 
-        results_dict = None
         try:
             results_pub_dict = copy.deepcopy(self.process_module.RESULTS_PUB_DICT)
         except:
             results_pub_dict = None
-        if results_pub_dict is not None and results_pub_dict is not None:
+        if results_pub_dict is not None and results_dict is not None:
             for key in results_pub_dict.keys():
-                if key in results_pub_dict.keys():
-                    results_pub_dict[key] = results_pub_dict[key]
+                if key in results_dict.keys():
+                    results_pub_dict[key] = results_dict[key]
 
 
             if 'data_header' in results_pub_dict.keys():
