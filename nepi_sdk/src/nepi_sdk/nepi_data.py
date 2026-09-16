@@ -660,19 +660,22 @@ def set_value(data_dict, datum_name, update_value, index = None,  check_valid = 
       # for an Int -- while a caller passing check_valid = False to SKIP the check
       # got it run. drivers_mgr's discovery pass is that caller.
       if check_valid == True:
+        #logger.log_warn("Checking set datum value: " + str(update_value))
         update_value = get_clean_value(data_dict, datum_name, update_value)
+        #logger.log_warn("Got set datum clean value: " + str(update_value))
       if update_value is not None:
         # Stored as a list of strings, the one shape the dict holds: 'length'
         # counts list entries and get_clean_value re-lists whatever it reads, so
         # a scalar written here comes back out one character per entry.
         data_dict[datum_name]['value'] = get_value_list(update_value)
+        # logger.log_warn("Upated datum value: " + str(data_dict[datum_name]['value']))
   return data_dict
 
-def sets_values(data_dict, data_values_dict):
-  data_values_dict = dict()
-  for datum_name in data_values_dict.keys():
-     datum_value = data_values_dict[datum_name]
-     data_dict = set_value(data_dict, datum_name, datum_value)
+def set_values(data_dict, data_values_dict):
+  if data_values_dict is not None:
+    for datum_name in data_values_dict.keys():
+      datum_value = data_values_dict[datum_name]
+      data_dict = set_value(data_dict, datum_name, datum_value)
   return data_dict
 
 

@@ -204,7 +204,7 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
 
 def update_results(results_dict):
     if results_dict is not None:
-        logger.log_warn("Got Track Dict: " + str([results_dict]), throttle_s = 5)
+        #logger.log_warn("Got Track Dict: " + str([results_dict]), throttle_s = 5)
         timestamp = results_dict.get('timestamp',-999)
         if timestamp == -999:
             age_sec = -999
@@ -409,7 +409,7 @@ track_1_dict = {
                     # OPTIONAL
                     'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'display_hidden':False, 'round_display': 1,},
 
-        range_m = {"type":"Float", "value":2.0, 'round_value': 2,
+        range_m = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
                     'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'display_hidden':False, 'round_display': 1,},
     ),
@@ -423,7 +423,7 @@ track_1_dict = {
 }
 
 
-def track_1_process(data_dict, controls_dict, states_dict, results_dict,):
+def track_1_process(data_dict, controls_dict, states_dict, results_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
@@ -454,7 +454,7 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict,):
         track_dict = find_best(filtered_targets, best_filter = best_filter)
         data_dict['last_track_time'] = nepi_utils.get_time()
         data_dict['last_track_dict'] = track_dict
-    logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
+    #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
     results_dict = track_dict
     results_dict = update_results(results_dict)
     #logger.log_warn("Process Completed: " + str(results_dict), throttle_s = 5)
@@ -545,13 +545,13 @@ track_2_dict = {
 }
 
 
-def track_2_process(data_dict, controls_dict, states_dict, results_dict,):
+def track_2_process(data_dict, controls_dict, states_dict, results_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
     controls_values_dict = nepi_controls.get_values_dict(controls_dict)
-    #logger.log_warn("Got Data: " + str(data_dict), throttle_s = 5)
-    #logger.log_warn("Got Controls: " + str(controls_values_dict), throttle_s = 10)
+    #logger.log_warn("Got  Data: " + str(data_dict), throttle_s = 10)
+    #logger.log_warn("Got  Data,Controls: " + str([data_dict,controls_values_dict]), throttle_s = 10)
 
 
     #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
@@ -577,7 +577,8 @@ def track_2_process(data_dict, controls_dict, states_dict, results_dict,):
         data_dict['last_track_time'] = nepi_utils.get_time()
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
-    results_dict = update_results(results_dict, track_dict)
+    results_dict = track_dict
+    results_dict = update_results(results_dict)
     #logger.log_warn("Process Completed: " + str(results_dict), throttle_s = 5)
     return data_dict, controls_dict, states_dict, results_dict
 

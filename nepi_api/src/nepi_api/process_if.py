@@ -88,15 +88,15 @@ BLANK_CONFIG_DICT = dict(
 
 
 BLANK_SHOW_DICT = dict(
-        show_enable = False,
+        show_enable = True,
         show_rates = True,
         show_selector = True,
-        show_process = False,
+        show_process = True,
         show_data = True,
         show_controls = True,
         show_results = True,
         show_stats = True,
-        show_save_data = False,
+        show_save_data = True,
     )
 
 
@@ -859,21 +859,22 @@ class ProcessIF:
         if self.enabled == True:
             process_ready = self.wait_for_process_ready()
             if process_ready == True:
-                # try:
-                #     [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict)
-                #     self.results_dict = results_dict
-                #     if self.results_dict is not None:
-                #         self.results_display_dict = nepi_data.updated_values(self.results_display_dict,self.results_dict)
-                #     else:
-                #         self.results_display_dict = nepi_data.reset_values(self.results_display_dict)
-                #     #self.msg_if.pub_warn("Processed results: " + str( [self.results_display_dict, results_pub_msg]), throttle_s = 5)
-                # except Exception as e:
-                #     self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
+                try:
+                    [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict)
+                    self.results_dict = results_dict
+                    if self.results_dict is not None:
+                        [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict)
+                        
+                    else:
+                        self.results_display_dict = nepi_data.reset_values(self.results_display_dict)
+                    #self.msg_if.pub_warn("Processed results: " + str( [self.results_display_dict, results_pub_msg]), throttle_s = 5)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
 
-                [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict)
                 self.results_dict = results_dict
                 if self.results_dict is not None:
-                    self.results_display_dict = nepi_data.updated_values(self.results_display_dict,self.results_dict)
+                    self.results_display_dict = nepi_data.set_values(self.results_display_dict,self.results_dict)
+                    #self.msg_if.pub_warn("Updated results display results: " + str( [self.results_display_dict, results_dict]), throttle_s = 5)
                 else:
                     self.results_display_dict = nepi_data.reset_values(self.results_display_dict)
                 #self.msg_if.pub_warn("Processed results: " + str( [self.results_display_dict, results_pub_msg]), throttle_s = 5)
