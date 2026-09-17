@@ -110,7 +110,7 @@ def convert_target_msg2dict(target_msg, log_name_list = []):
 def get_boxes_list_from_msg(targets_msg):
     targets_list = targets_msg.targets
     boxes_list = []
-    for target in detections_list:
+    for target in targets_list:
         box_dict = {
             'name': target.name ,
             'id': target.id ,
