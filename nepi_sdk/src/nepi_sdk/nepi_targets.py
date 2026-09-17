@@ -25,7 +25,7 @@ from nepi_sdk import nepi_sdk
 
 from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 
-from nepi_interfaces.msg import Target, Targets, TargetingStatus
+from nepi_interfaces.msg import Target, Targets, TargetsStatus
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_targets"
@@ -40,7 +40,7 @@ logger = Logger(log_name = log_name)
 ## Misc AI Helper Functions
 def get_targeting_source_publisher_namespaces(topics_list = None, types_list = None):
     namespace = []
-    namespaces = nepi_sdk.find_topics_by_msg('TargetingStatus', topics_list = topics_list, types_list = types_list)
+    namespaces = nepi_sdk.find_topics_by_msg('TargetsStatus', topics_list = topics_list, types_list = types_list)
     for i, namespace in enumerate(namespaces):
         namespaces[i] = os.path.dirname(namespaces[i])
     return namespaces 

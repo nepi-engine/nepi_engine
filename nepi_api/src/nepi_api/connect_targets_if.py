@@ -25,7 +25,7 @@ from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty
 
-from nepi_interfaces.msg import Targets, TargetingStatus
+from nepi_interfaces.msg import Targets, TargetsStatus
 
 from nepi_api.messages_if import MsgIF
 
@@ -40,7 +40,7 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 #########################################
 # Client-side connect class mirroring process_if.TargetsIF. The connected
 # source publishes a nepi_interfaces/Targets message on its base namespace and a
-# nepi_interfaces/TargetingStatus message on <namespace>/status. This connect
+# nepi_interfaces/TargetsStatus message on <namespace>/status. This connect
 # class subclasses ConnectNodeIF directly and follows the ConnectNavPoseIF
 # pattern: every retrieved Targets message is converted to a targets dictionary,
 # handed to dataCB when one is provided, and cached (thread-safe) as the latest
@@ -48,7 +48,7 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 
 
 TARGETS_CONNECT_ID = 'TARGETS'
-TARGETS_CONNECT_STATUS_MSG = 'TargetingStatus'
+TARGETS_CONNECT_STATUS_MSG = 'TargetsStatus'
 TARGETS_CONNECT_NAME = 'targets_connect'
 
 
@@ -243,7 +243,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         """Return the latest targets source status as a dictionary.
 
         Returns:
-            dict: A dictionary representation of the most recent TargetingStatus message,
+            dict: A dictionary representation of the most recent TargetsStatus message,
                 or None if no status has been received yet.
         """
         status_dict = None
@@ -255,7 +255,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         """Return the latest targets source status as a msg.
 
         Returns:
-            TargetingStatus: The most recent TargetingStatus message,
+            TargetsStatus: The most recent TargetsStatus message,
                 or None if no status has been received yet.
         """
         return self.status_msg
@@ -329,7 +329,7 @@ class ConnectTargetsIF(ConnectNodeIF):
             'status_sub': {
                 'namespace': self.selected_topic,
                 'topic': 'status',
-                'msg': TargetingStatus,
+                'msg': TargetsStatus,
                 'qsize': 10,
                 'callback': self._statusCb
             },

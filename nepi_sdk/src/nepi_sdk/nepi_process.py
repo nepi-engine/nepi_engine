@@ -91,7 +91,7 @@ def get_available_source_topics(msg_type, name_filters = [], topics_list = None,
     if name_filters is None:
         name_filters = []
 
-    topics = nepi_sdk.find_topics_by_msg('TargetingStatus', topics_list = topics_list, types_list = types_list)
+    topics = nepi_sdk.find_topics_by_msg(msg_type, topics_list = topics_list, types_list = types_list)
     for i, topic in enumerate(topics):
         valid = True
         if len(name_filters) > 0:

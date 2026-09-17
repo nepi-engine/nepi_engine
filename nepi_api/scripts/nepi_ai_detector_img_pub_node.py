@@ -40,8 +40,7 @@ from sensor_msgs.msg import Image
 
 from nepi_interfaces.msg import ImageStatus
 from nepi_interfaces.msg import ProcessStatus
-from nepi_interfaces.msg import Detections, DetectorStatus
-from nepi_interfaces.msg import Targets, TargetingStatus
+from nepi_interfaces.msg import Targets, TargetsStatus
 
 
 
@@ -52,34 +51,6 @@ from nepi_api.data_if import ColorImageIF
 
 
 
-
-
-
-EXAMPLE_BOXES_INFO_DICT_ENTRY = {
-    'model_name': 'test_model',
-    'detect_timestamp': 0.0 ,
-    'source_topic': '/test_topic',
-    'source_timestamp': 0.0 ,
-    'image_height': 600,
-    'image_width': 1000,
-    'prc_height': 300,
-    'prc_width': 500,
-}
-
-
-
-EXAMPLE_BOX_DICT_ENTRY = {
-    'name': 'chair', # Class String Name
-    'id': 1, # Class Index from Classes List
-    'uid': '', # Reserved for unique tracking by downstream applications
-    'prob': .3, # Probability of detection
-    'xmin': 10,
-    'ymin': 10,
-    'xmax': 100,
-    'ymax': 100,
-    'area_ratio': 0.054,
-    'area_pixels': 8100
-}
 
 
 NONE_IMG_DICT = {       
@@ -110,17 +81,12 @@ WATCHDOG_TIMEOUT=3
 
 class AiDetectorImgPub:
 
-    DATA_PRODUCTS = ['detections','detections_image','targets','targets_image']
-    DETECTIONS_IMG_DATA_PRODUCT = 'detections_image'
+    DATA_PRODUCTS = ['targets','targets_image']
     TARGETS_IMG_DATA_PRODUCT = 'targets_image'
 
-    # Never subscribe to our own overlay outputs as input image sources; skip
-    # these product basenames even if the parent detector's selected_sources
-    # lists them (they resolve as real topics under the image namespace).
-    OUTPUT_IMG_PRODUCTS = [DETECTIONS_IMG_DATA_PRODUCT, TARGETS_IMG_DATA_PRODUCT]
+    OUTPUT_IMG_PRODUCTS = [ TARGETS_IMG_DATA_PRODUCT]
 
 
-    det_sub_names = ['detections']
     target_sub_names = ['targets']
 
     node_if = None
@@ -154,8 +120,7 @@ class AiDetectorImgPub:
 
     clear_img_time = 1.0
 
-    first_detect_complete = False
-    clear_det_time = 1.0
+    clear_targets_time = 1.0
 
     detection_state = False
 
@@ -212,7 +177,7 @@ class AiDetectorImgPub:
         self.selected_source_topics = []
         self.selected_img_navpose_topics = []
         self.img_process_namespaces = []
-        self.img_det_states = []
+        self.img_targets_states = []
 
         
 
@@ -245,26 +210,9 @@ class AiDetectorImgPub:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            'status_sub': {
-                'msg': DetectorStatus,
-                'namespace': self.process_namespace + '/detections',
-                'topic': 'status',
-                'qsize': 10,
-                'callback': self.statusCb,
-                'callback_args': ()
-            },
-            'detections': {
-                'msg': Detections,
-                'namespace': self.process_namespace,
-                'topic': 'detections',
-                'qsize': 10,
-                'callback': self.objectDetectedCb,
-                'callback_args': ()
-            },
-            # Symmetric targets path -- same wire topics AiDetectorIF's TargetsIF
-            # publishes on (<process_ns>/targets and <process_ns>/targets/status).
+
             'targets_status_sub': {
-                'msg': TargetingStatus,
+                'msg': TargetsStatus,
                 'namespace': self.process_namespace + '/targets',
                 'topic': 'status',
                 'qsize': 10,
@@ -276,7 +224,7 @@ class AiDetectorImgPub:
                 'namespace': self.process_namespace,
                 'topic': 'targets',
                 'qsize': 10,
-                'callback': self.targetsDetectedCb,
+                'callback': self.targetsCb,
                 'callback_args': ()
             }
 
@@ -347,13 +295,13 @@ class AiDetectorImgPub:
 
 
     def resetCb(self,do_updates = True):
-        self.last_det_dict_list = []
+        self.last_targets_dict_list = []
         if do_updates == True:
             pass
         self.initCb()
 
     def factoryResetCb(self,do_updates = True):
-        self.last_det_dict_list = []
+        self.last_targets_dict_list = []
         if do_updates == True:
             pass
         self.initCb()
@@ -389,12 +337,12 @@ class AiDetectorImgPub:
         #self.msg_if.pub_warn("Updating with active image topics: " +  str(active_source_topics))
         current_time = nepi_utils.get_time()
         for source_topic in self.imgs_info_dict.keys():
-            last_time = self.imgs_info_dict[source_topic]['last_det_time']
+            last_time = self.imgs_info_dict[source_topic]['last_targets_time']
             check_time = current_time - last_time
             '''
-            if check_time > self.clear_det_time or self.enabled == False or self.state_str_msg != 'Detecting':
+            if check_time > self.clear_targets_time or self.enabled == False or self.state_str_msg != 'Detecting':
                 try:
-                    self.imgs_info_dict[source_topic]['det_dict_list'] = None
+                    self.imgs_info_dict[source_topic]['target_dict_list'] = None
                 except:
                     pass
             '''
@@ -484,10 +432,10 @@ class AiDetectorImgPub:
         self.msg_if.pub_warn('Subscribing to image topic: ' + source_topic)
 
         img_source_topic = os.path.dirname(source_topic)
-        det_name = os.path.basename(self.process_namespace)
+        targets_name = os.path.basename(self.process_namespace)
         #self.msg_if.pub_warn('Creating namespace for image name: ' + img_source_topic)
 
-        pub_namespace = img_source_topic #os.path.join(os.path.dirname(source_topic),det_name)
+        pub_namespace = img_source_topic #os.path.join(os.path.dirname(source_topic),targets_name)
         img_pub_topic = os.path.join(pub_namespace,self.DETECTIONS_IMG_DATA_PRODUCT)
         targets_img_pub_topic = os.path.join(pub_namespace,self.TARGETS_IMG_DATA_PRODUCT)
         self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + img_pub_topic)
@@ -583,8 +531,7 @@ class AiDetectorImgPub:
         img_info_dict['pub_latency_time'] = 0
         img_info_dict['process_time'] = 0
         img_info_dict['last_img_time'] = 0
-        img_info_dict['last_det_time'] = 0
-        img_info_dict['det_dict_list'] = []
+        img_info_dict['last_targets_time'] = 0
         img_info_dict['target_dict_list'] = []
         img_info_dict['last_img'] = None
 
@@ -723,12 +670,6 @@ class AiDetectorImgPub:
                             current_time = nepi_utils.get_time()
                             latency = (current_time - timestamp )
                             self.imgs_info_dict[source_topic]['get_latency_time'] = latency
-                            #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency)
-                            # Request new img
-                            det_dict_list = copy.deepcopy(self.imgs_info_dict[source_topic]['det_dict_list'])
-                            #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
-                            if det_dict_list == None:
-                                det_dict_list = []                            
 
                             if self.use_last_image == False:
                                 # process image for next time
@@ -739,18 +680,14 @@ class AiDetectorImgPub:
                                 use_cv2_img = copy.deepcopy(self.imgs_info_dict[source_topic]['last_img'])
                                 self.cv2_img_lock.release()
                                 #self.msg_if.pub_info("Image updated is None: " + str(use_cv2_img is None))
+
+
                             target_dict_list = copy.deepcopy(self.imgs_info_dict[source_topic]['target_dict_list'])
                             if target_dict_list == None:
                                 target_dict_list = []
                             if use_cv2_img is not None:
                                 # if self.imgs_info_dict[source_topic]['publishing'] == False:
                                 #     self.msg_if.pub_warn("Will process img with shape: " + str(use_cv2_img.shape) )
-                                success = self.processDetImage(source_topic,
-                                                            use_cv2_img,
-                                                            det_dict_list,
-                                                            timestamp = timestamp,
-                                )
-
                                 # Symmetric targets overlay image, built from the
                                 # same source image and the latest targets list.
                                 success = self.processTargetImage(source_topic,
@@ -770,7 +707,7 @@ class AiDetectorImgPub:
 
                            
 
-    def processFileImg(self, img_file,det_dict_list):   
+    def processFileImg(self, img_file,target_dict_list):   
         source_topic = 'img_file'      
         set_image_rate = copy.deepcopy(self.set_image_rate)
         if set_image_rate > .01:
@@ -797,15 +734,12 @@ class AiDetectorImgPub:
                         current_time = nepi_utils.get_time()
                         latency = (current_time - timestamp)
                         self.imgs_info_dict['img_file']['get_latency_time'] = latency
-                        #self.msg_if.pub_info("Detect Pub Latency: {:.2f}".format(latency)
-                        # Request new img
-                        
-                        #self.msg_if.pub_info("Got Detection List: " + str(det_dict_list))
-                        if det_dict_list == None:
-                            det_dict_list = []           
-                        success = self.processDetImage(source_topic, 
+
+                        if target_dict_list == None:
+                            target_dict_list = []           
+                        success = self.processTargetsImage(source_topic, 
                                                     cv2_img, 
-                                                    det_dict_list, 
+                                                    target_dict_list, 
                                                     timestamp = timestamp,  
                                                     )
 
@@ -815,50 +749,11 @@ class AiDetectorImgPub:
 
                            
 
-
-    def processDetImage(self,source_topic, cv2_img, detect_dict_list, timestamp = None):
-      
-        # Post process image with overlays
-        if detect_dict_list is not None:
-            # Publish image first for consumers
-            #self.msg_if.pub_warn("Starting detect image: " + str(cv2_img.shape))
-            cv2_img = self.apply_detection_overlay(source_topic, detect_dict_list, cv2_img)
-            #self.msg_if.pub_warn("Return detect image: " + str(cv2_img.shape)
-
-            add_overlay_text_list = []
-            ## Overlay Detector Name
-
-            # if self.overlay_clf_name:
-            #     add_overlay_text_list.append(self.model_name)
-
-            # if self.overlay_img_name:
-            #     add_overlay_text_list.append(nepi_img.getImgShortName(source_topic))
-
-            self.publishImgData(source_topic,
-                                cv2_img,
-                                timestamp = timestamp,
-                                add_overlay_text_list = add_overlay_text_list
-                                )
-            
-            if self.imgs_info_dict[source_topic]['img_published'] == False:
-                namespace = self.imgs_info_dict[source_topic]['pub_namespace']
-                topic = os.path.join(namespace,'detections_image')
-                self.msg_if.pub_warn('Published image topic: ' + topic)
-            self.imgs_info_dict[source_topic]['img_published'] = True
-                
-        
-            # Save Image Data if needed
-            data_product = 'detections_image'
-            if self.save_data_if is not None:
-                self.save_data_if.save(data_product,cv2_img,timestamp)
-        return True
-
-
-    def processTargetImage(self,source_topic, cv2_img, target_dict_list, timestamp = None):
+    def processTargetsImage(self,source_topic, cv2_img, target_dict_list, timestamp = None):
         # Symmetric mirror of processDetImage for the targets_image data product.
         # Post process image with overlays
         if target_dict_list is not None:
-            cv2_img = self.apply_detection_overlay(source_topic, target_dict_list, cv2_img)
+            cv2_img = self.apply_targets_overlay(source_topic, target_dict_list, cv2_img)
 
             add_overlay_text_list = []
 
@@ -936,8 +831,8 @@ class AiDetectorImgPub:
 
                
 
-    def apply_detection_overlay(self,source_topic, detect_dict_list, cv2_img):
-        cv2_det_img = copy.deepcopy(cv2_img)
+    def apply_targets_overlay(self,source_topic, detect_dict_list, cv2_img):
+        cv2_targets_img = copy.deepcopy(cv2_img)
         cv2_shape = cv2_img.shape
         img_width = cv2_shape[1] 
         img_height = cv2_shape[0] 
@@ -989,7 +884,7 @@ class AiDetectorImgPub:
 
             success = False
             try:
-                cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, class_color, thickness=line_thickness)
+                cv2.rectangle(cv2_targets_img, bot_left_box, top_right_box, class_color, thickness=line_thickness)
                 success = True
             except Exception as e:
                 self.msg_if.pub_warn("Failed to create bounding box rectangle: " + str(e))
@@ -1040,8 +935,8 @@ class AiDetectorImgPub:
                     box_color = [0,0,0]
 
                     try:
-                        cv2.rectangle(cv2_det_img, bot_left_box, top_right_box, box_color , -1)
-                        cv2.putText(cv2_det_img,text2overlay, 
+                        cv2.rectangle(cv2_targets_img, bot_left_box, top_right_box, box_color , -1)
+                        cv2.putText(cv2_targets_img,text2overlay, 
                             bot_left_text, 
                             font, 
                             fontScale,
@@ -1056,32 +951,11 @@ class AiDetectorImgPub:
                     y_start = int(img_height * 0.05)
 
 
-        return cv2_det_img
+        return cv2_targets_img
 
 
 
-    def objectDetectedCb(self,msg):
-        self.connected = True
-        #self.msg_if.pub_info("Got Detection Msg: " + str(msg))
-        img_stamp = msg.source_timestamp
-        source_topic = msg.source_topic
-        current_time = nepi_utils.get_time()
-        detections_dict = nepi_sdk.convert_msg2dict(msg)
-        dlist = detections_dict['detections']
-        if source_topic in self.imgs_info_dict.keys():
-            self.imgs_info_dict[source_topic]['det_dict_list'] = dlist
-            self.imgs_info_dict[source_topic]['img_stamp'] = img_stamp      
-            self.imgs_info_dict[source_topic]['last_det_time'] = current_time
-        else:
-            if os.path.exists(source_topic):
-                self.imgs_info_dict['img_file'] = dict()
-                self.imgs_info_dict['img_file']['img_stamp'] = img_stamp
-                self.imgs_info_dict['img_file']['last_det_time'] = current_time
-                self.processFileImg(source_topic,dlist)
-
-
-    def targetsDetectedCb(self,msg):
-        # Symmetric mirror of objectDetectedCb for the targets data product.
+    def targetsCb(self,msg):
         self.connected = True
         img_stamp = msg.source_timestamp
         source_topic = msg.source_topic
@@ -1089,7 +963,7 @@ class AiDetectorImgPub:
         targets_dict = nepi_sdk.convert_msg2dict(msg)
         tlist = targets_dict['targets']
         # Map Target fields (xmin_pixel, ...) onto the box-overlay dict keys
-        # apply_detection_overlay expects (xmin/ymin/xmax/ymax), preserving the
+        # apply_targets_overlay expects (xmin/ymin/xmax/ymax), preserving the
         # range/bearing fields used for overlay text.
         overlay_list = []
         for t in tlist:
@@ -1106,13 +980,18 @@ class AiDetectorImgPub:
         if source_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict[source_topic]['target_dict_list'] = overlay_list
             self.imgs_info_dict[source_topic]['img_stamp'] = img_stamp
-            self.imgs_info_dict[source_topic]['last_det_time'] = current_time
+            self.imgs_info_dict[source_topic]['last_targets_time'] = current_time
+        else:
+            if os.path.exists(source_topic):
+                self.imgs_info_dict['img_file'] = dict()
+                self.imgs_info_dict['img_file']['img_stamp'] = img_stamp
+                self.imgs_info_dict['img_file']['last_targets_time'] = current_time
+                self.processFileImg(source_topic,dlist)
 
 
 
 
-
-    def statusCb(self,msg):
+    def targetsStatusCb(self,msg):
         self.last_status_time=nepi_utils.get_time()
 
         self.status_msg = msg.process_status
@@ -1139,18 +1018,6 @@ class AiDetectorImgPub:
             self.classes_colors_list = nepi_img.create_bgr_jet_colormap_list(num_colors)
             #self.msg_if.pub_warn("Created classes color list: " + str(self.classes_colors_list))
 
-
-    def targetsStatusCb(self,msg):
-        # Symmetric targets status subscription. Feeds the watchdog from the
-        # targets status stream and refreshes the class list/colors used for the
-        # targets overlay; primary control state is driven by statusCb (both
-        # wrap the same process_status).
-        self.last_status_time=nepi_utils.get_time()
-        self.classes_list = msg.available_classes
-        self.selected_classes = msg.selected_classes
-        if len(self.classes_colors_list) != len(self.classes_list):
-            num_colors = len(self.classes_list)
-            self.classes_colors_list = nepi_img.create_bgr_jet_colormap_list(num_colors)
 
 
     def shutdownCb(self):

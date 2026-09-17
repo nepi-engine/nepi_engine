@@ -35,9 +35,7 @@ from nepi_interfaces.msg import ImageStatus
 from nepi_interfaces.msg import MgrSystemStatus
 from nepi_interfaces.msg import StringArray
 from nepi_interfaces.msg import ProcessStatus
-from nepi_interfaces.msg import Detection, Detections, DetectorStatus
-from nepi_interfaces.srv import DetectorStatusQuery, DetectorStatusQueryRequest, DetectorStatusQueryResponse
-from nepi_interfaces.msg import Target, Targets, TargetingStatus
+from nepi_interfaces.msg import Target, Targets, TargetsStatus
 
 
 from nepi_sdk import nepi_sdk
@@ -48,7 +46,7 @@ from nepi_sdk import nepi_img
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
 from nepi_api.system_if import SaveDataIF, StatesIF, TriggersIF
-from nepi_api.process_if import DetectionsIF, TargetsIF
+from nepi_api.process_if_targets import TargetsIF
 
 
 SYSTEM_ALL_TOPIC = 'all'
@@ -56,19 +54,7 @@ SYSTEM_ALL_TOPIC = 'all'
 #########################################
 # AI Detector Node IF
 #########################################
-DETECTIONS_ALL_TOPIC = 'detections'
 TARGETS_ALL_TOPIC = 'targets'
-
-EXAMPLE_DETECTION_DICT_ENTRY = {
-    'name': 'chair', # Class String Name
-    'id': 1, # Class Index from Classes List
-    'uid': '', # Reserved for unique tracking by downstream applications
-    'prob': .3, # Probability of detection
-    'xmin': 10,
-    'ymin': 10,
-    'xmax': 100,
-    'ymax': 100
-}
 
 MIN_THRESHOLD = 0.01
 MAX_THRESHOLD = 1.0
@@ -95,7 +81,6 @@ GET_IMAGE_TIMEOUT_SEC = 1
 class AiDetectorIF:
     
 
-    DETECTIONS_DATA_PRODUCTS = ['detections','detections_image']
     TARGETS_DATA_PRODUCTS = ['targets','targets_image']
                                 
     IMAGE_FILTERS = ['color_image']
@@ -103,21 +88,18 @@ class AiDetectorIF:
     # A detector must never consume its own overlay outputs as an input image
     # source; skip these product basenames even if a stale/explicit selection
     # lists them (they now resolve as real topics under the image namespace).
-    OUTPUT_IMG_PRODUCTS = ['detections_image', 'targets_image']
+    OUTPUT_IMG_PRODUCTS = ['targets_image']
 
     BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
     BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
 
     namespace = '~'
-    detections_namespace = '~'
     targets_namespace = '~'
     all_namespace = None
-    all_detections_namespace = None
     all_targets_namespace = None
 
     process_status_msg = ProcessStatus()
-    detector_status_msg = DetectorStatus()
-    targeting_status_msg = TargetingStatus()
+    targeting_status_msg = TargetsStatus()
 
     states_dict = None
     triggers_dict = dict()
@@ -127,7 +109,7 @@ class AiDetectorIF:
     save_data_namespace = 'None'
     
 
-    data_products = DETECTIONS_DATA_PRODUCTS + TARGETS_DATA_PRODUCTS
+    data_products = TARGETS_DATA_PRODUCTS
 
     available_source_topics = []
 
@@ -174,7 +156,7 @@ class AiDetectorIF:
 
 
 
-    detections_has_published = False
+    targets_has_published = False
     first_detect_complete = False
     detecting_state = False
 
@@ -282,7 +264,6 @@ class AiDetectorIF:
         # Collective controls publish on the shared namespaces, which fans a
         # single command out to every IDX image.
         self.all_namespace = nepi_sdk.create_namespace(self.base_namespace, SYSTEM_ALL_TOPIC)
-        self.all_detections_namespace = nepi_sdk.create_namespace(self.all_namespace, DETECTIONS_ALL_TOPIC)
         self.all_targets_namespace = nepi_sdk.create_namespace(self.all_namespace, TARGETS_ALL_TOPIC)
  
  
@@ -309,7 +290,6 @@ class AiDetectorIF:
         self.namespace = nepi_sdk.get_full_namespace(namespace)
      
 
-        self.detections_namespace = nepi_sdk.create_namespace(self.namespace,'detections')
         self.targets_namespace = nepi_sdk.create_namespace(self.namespace,'targets')
 
 
@@ -414,37 +394,12 @@ class AiDetectorIF:
 
 
         # Services Config Dict ####################
-        self.SRVS_DICT = {
-            'detector_status_query': {
-                'namespace': self.detections_namespace,
-                'topic': 'detector_status_query',
-                'srv': DetectorStatusQuery,
-                'req': DetectorStatusQueryRequest(),
-                'resp': DetectorStatusQueryResponse(),
-                'callback': self.handleStatusRequest
-            }
-        }
+        self.SRVS_DICT = None
 
 
         # Pubs Config Dict ####################
-        # NOTE: The per-detector detections/targets data products and their
-        # status messages are owned by DetectionsIF/TargetsIF (constructed
-        # below), which reproduce the same wire topics
-        # (<node_ns>/detections[/status], <node_ns>/targets[/status]). Only the
-        # collective 'all' fan-out publishers remain inline here, since the
-        # per-data-product IFs do not cover the shared /all/* namespaces.
-        self.PUBS_DICT = {
-            #######################
-            # All Detections
-            #######################
-            'all_detections': {
-                'msg': Detections,
-                'namespace': self.all_namespace,
-                'topic': DETECTIONS_ALL_TOPIC,
-                'qsize': 1,
-                'latch': False
-            },
 
+        self.PUBS_DICT = {
             #######################
             # All Targets
             #######################
@@ -460,324 +415,6 @@ class AiDetectorIF:
 
         # Subs Config Dict ####################
         self.SUBS_DICT = {
-            ############
-            # Detector
-            ############
-            'detector_enable': {
-                'namespace': self.detections_namespace,
-                'topic': 'enable',
-                'msg': Bool,
-                'qsize': 10,
-                'callback': self.setEnableCb, 
-                'callback_args': ()
-            },
-            'detector_set_auto_select_enable': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_auto_select_enable',
-                'msg': Bool,
-                'qsize': 10,
-                'callback': self.setAutoSelectEnableCb, 
-                'callback_args': ()
-            },
-            'detector_set_source_topic': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_source_topic',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.setImageTopicCb, 
-                'callback_args': ()
-            },
-            'detector_set_source_topics': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_source_topics',
-                'msg': StringArray,
-                'qsize': 10,
-                'callback': self.setImageTopicsCb, 
-                'callback_args': ()
-            },
-            'detector_add_source_topic': {
-                'namespace': self.detections_namespace,
-                'topic': 'add_source_topic',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.addImageTopicCb, 
-                'callback_args': ()
-            },
-            'detector_add_source_topics': {
-                'namespace': self.detections_namespace,
-                'topic': 'add_source_topics',
-                'msg': StringArray,
-                'qsize': 10,
-                'callback': self.addImageTopicsCb, 
-                'callback_args': ()
-            },
-            'detector_remove_source_topic': {
-                'namespace': self.detections_namespace,
-                'topic': 'remove_source_topic',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.removeImageTopicCb, 
-                'callback_args': ()
-            },
-            'detector_remove_source_topics': {
-                'namespace': self.detections_namespace,
-                'topic': 'remove_source_topics',
-                'msg': StringArray,
-                'qsize': 10,
-                'callback': self.removeImageTopicsCb, 
-                'callback_args': ()
-            },
-            'detector_process_source_file': {
-                'namespace': self.detections_namespace,
-                'topic': 'process_source_file',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.processImageFileCb, 
-                'callback_args': ()
-            },
-              'detector_set_class': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_class',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.setClassCb, 
-                'callback_args': ()
-            },
-            'detector_set_classes': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_classes',
-                'msg': StringArray,
-                'qsize': 10,
-                'callback': self.setClassesCb, 
-                'callback_args': ()
-            },
-            'detector_add_class': {
-                'namespace': self.detections_namespace,
-                'topic': 'add_class',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.addClassCb, 
-                'callback_args': ()
-            },
-            'detector_remove_class': {
-                'namespace': self.detections_namespace,
-                'topic': 'remove_class',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.removeClassCb, 
-                'callback_args': ()
-            },
-            'detector_add_all_classes': {
-                'namespace': self.detections_namespace,
-                'topic': 'add_all_classes',
-                'msg': Empty,
-                'qsize': 10,
-                'callback': self.addAllClassesCb, 
-                'callback_args': ()
-            },
-            'detector_remove_all_classes': {
-                'namespace': self.detections_namespace,
-                'topic': 'remove_all_classes',
-                'msg': Empty,
-                'qsize': 10,
-                'callback': self.removeAllClassesCb, 
-                'callback_args': ()
-            },
-            'detector_set_threshold': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_threshold',
-                'msg': Float32,
-                'qsize': 10,
-                'callback': self.setThresholdCb, 
-                'callback_args': ()
-            },
-            'detector_set_image_pub': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_image_pub',
-                'msg': Bool,
-                'qsize': 10,
-                'callback': self.setPubImageCb, 
-                'callback_args': ()
-            },
-            'detector_set_max_process_rate': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_max_process_rate',
-                'msg': Float32,
-                'qsize': 10,
-                'callback': self.setMaxProcessRateCb, 
-                'callback_args': ()
-            },
-            'detector_set_max_image_pub_rate': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_max_image_pub_rate',
-                'msg': Float32,
-                'qsize': 10,
-                'callback': self.setMaxImgRateCb, 
-                'callback_args': ()
-            },
-            'detector_set_use_last_image': {
-                'namespace': self.detections_namespace,
-                'topic': 'set_use_last_image',
-                'msg':Bool,
-                'qsize': 10,
-                'callback': self.setUseLastImageCb, 
-                'callback_args': ()
-            },
-            ############
-            # All Detector
-            ############
-            'all_detector_enable': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'enable',
-                'msg': Bool,
-                'qsize': 10,
-                'callback': self.setEnableCb, 
-                'callback_args': ()
-            },
-            'all_detector_set_source_topic': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_source_topic',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.setImageTopicCb, 
-                'callback_args': ()
-            },
-            'all_detector_set_source_topics': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_source_topics',
-                'msg': StringArray,
-                'qsize': 10,
-                'callback': self.setImageTopicsCb, 
-                'callback_args': ()
-            },
-            'all_detector_add_source_topic': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'add_source_topic',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.addImageTopicCb, 
-                'callback_args': ()
-            },
-            'all_detector_add_source_topics': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'add_source_topics',
-                'msg': StringArray,
-                'qsize': 10,
-                'callback': self.addImageTopicsCb, 
-                'callback_args': ()
-            },
-            'all_detector_remove_source_topic': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'remove_source_topic',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.removeImageTopicCb, 
-                'callback_args': ()
-            },
-            'all_detector_remove_source_topics': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'remove_source_topics',
-                'msg': StringArray,
-                'qsize': 10,
-                'callback': self.removeImageTopicsCb, 
-                'callback_args': ()
-            },
-            'all_detector_process_source_file': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'process_source_file',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.processImageFileCb, 
-                'callback_args': ()
-            },
-              'all_detector_set_class': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_class',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.setClassCb, 
-                'callback_args': ()
-            },
-            'all_detector_set_classes': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_classes',
-                'msg': StringArray,
-                'qsize': 10,
-                'callback': self.setClassesCb, 
-                'callback_args': ()
-            },
-            'all_detector_add_class': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'add_class',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.addClassCb, 
-                'callback_args': ()
-            },
-            'all_detector_remove_class': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'remove_class',
-                'msg': String,
-                'qsize': 10,
-                'callback': self.removeClassCb, 
-                'callback_args': ()
-            },
-            'all_detector_add_all_classes': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'add_all_classes',
-                'msg': Empty,
-                'qsize': 10,
-                'callback': self.addAllClassesCb, 
-                'callback_args': ()
-            },
-            'all_detector_remove_all_classes': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'remove_all_classes',
-                'msg': Empty,
-                'qsize': 10,
-                'callback': self.removeAllClassesCb, 
-                'callback_args': ()
-            },
-            'all_detector_set_threshold': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_threshold',
-                'msg': Float32,
-                'qsize': 10,
-                'callback': self.setThresholdCb, 
-                'callback_args': ()
-            },
-            'all_detector_set_image_pub': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_image_pub',
-                'msg': Bool,
-                'qsize': 10,
-                'callback': self.setPubImageCb, 
-                'callback_args': ()
-            },
-            'all_detector_set_max_process_rate': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_max_process_rate',
-                'msg': Float32,
-                'qsize': 10,
-                'callback': self.setMaxProcessRateCb, 
-                'callback_args': ()
-            },
-            'all_detector_set_max_image_pub_rate': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_max_image_pub_rate',
-                'msg': Float32,
-                'qsize': 10,
-                'callback': self.setMaxImgRateCb, 
-                'callback_args': ()
-            },
-            'all_detector_set_use_last_image': {
-                'namespace': self.all_detections_namespace,
-                'topic': 'set_use_last_image',
-                'msg':Bool,
-                'qsize': 10,
-                'callback': self.setUseLastImageCb, 
-                'callback_args': ()
-            },
             ############
             # Targeting
             ############
@@ -1156,14 +793,6 @@ class AiDetectorIF:
 
 
         
-        self.states_if_detections = StatesIF(
-                        states_name = 'detectons',
-                        get_states_dict_function = self.get_detections_states,
-                        log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
 
         self.states_if_targets = StatesIF(
                         states_name = 'targets',
@@ -1215,19 +844,6 @@ class AiDetectorIF:
 
         ###############################
         # Create Per-Data-Product IFs
-        # DetectionsIF/TargetsIF own the detections/targets data products and
-        # their per-product status messages. Given the detector node namespace
-        # they publish on <node_ns>/detections[/status] and
-        # <node_ns>/targets[/status] -- the same wire topics/types the removed
-        # inline PUBS_DICT entries used. They share the detector's SaveDataIF so
-        # detections/targets saving stays centralized (and rate-gated), and
-        # follow the file convention of building their own node_if.
-        self.msg_if.pub_warn("Pre DetectionsIF set_process_rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
-        self.detections_if = DetectionsIF(namespace = self.namespace,
-                        data_product = 'detections',
-                        save_data_if = self.save_data_if,
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if)
 
         self.msg_if.pub_warn("Pre TargetsIF set_process_rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
         self.targets_if = TargetsIF(namespace = self.namespace,
@@ -1837,20 +1453,6 @@ class AiDetectorIF:
         # Create Pubs and Subs IF Dict 
 
         img_pubs_dict = {
-            'detections_pub': {
-                'msg': Detections,
-                'namespace': source_topic,
-                'topic': 'detections',
-                'qsize': 1,
-                'latch': False
-            },
-            'detections_status_pub': {
-                'msg': Targets,
-                'namespace': source_topic + '/detections',
-                'topic': 'status',
-                'qsize': 1,
-                'latch': False
-            },
             'targets_pub': {
                 'msg': Targets,
                 'namespace': source_topic,
@@ -1859,7 +1461,7 @@ class AiDetectorIF:
                 'latch': False
             },
             'targets_status_pub': {
-                'msg': TargetingStatus,
+                'msg': TargetsStatus,
                 'namespace': source_topic + '/targets',
                 'topic': 'status',
                 'qsize': 1,
@@ -1907,7 +1509,7 @@ class AiDetectorIF:
             # Create register new image topic
             self.msg_if.pub_warn('Registering to image topic: ' + source_topic)
             img_base_namespace = os.path.dirname(source_topic) 
-            img_pub_topic = os.path.join(img_base_namespace,'detections_image')
+            img_pub_topic = os.path.join(img_base_namespace,'targets_image')
             self.msg_if.pub_warn('Publishing on namespace: ' + img_pub_topic)
 
             ####################
@@ -2397,7 +1999,6 @@ class AiDetectorIF:
             self.process_times.append(process_time)
 
             ##################################
-            self.publishDetectionsData(source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = np_depth_map)
             self.publishTargetsData(source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = np_depth_map)
             ##################################
 
@@ -2481,134 +2082,6 @@ class AiDetectorIF:
         return clean_boxes
 
             
-            
-
-
-    def publishDetectionsData(self, source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = None):
-        detect_dict_list = self.cleanBoxes(detect_dict_list)
-        #self.msg_if.pub_warn("Publisher got img_dict: " + str(img_dict))
-        det_count = len(detect_dict_list)
-        imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
-        active_source_topics = copy.deepcopy(self.active_source_topics)
-        if source_topic in active_source_topics:
-
-            ###############################
-            # Calculate Localization Data
-
-            detection_msg_list = []
-            l_msg_list = []
-            targets_msg_list = []
-            for detect_dict in detect_dict_list:
-
-                # Calculate target bearings
-                if source_topic in self.imgs_info_dict.keys():
-                    image_fov_vert = self.imgs_info_dict[source_topic]['height_deg']
-                    image_fov_horz = self.imgs_info_dict[source_topic]['width_deg']
-                else:
-                    image_fov_vert = 70
-                    image_fov_horz = 100
-
-                object_loc_y_pix = float(detect_dict['ymin'] + ((detect_dict['ymax'] - detect_dict['ymin']))  / 2) 
-                object_loc_x_pix = float(detect_dict['xmin'] + ((detect_dict['xmax'] - detect_dict['xmin']))  / 2)
-                object_loc_y_ratio_from_center = float(object_loc_y_pix - img_dict['image_height']/2) / float(img_dict['image_height']/2)
-                object_loc_x_ratio_from_center = float(object_loc_x_pix - img_dict['image_width']/2) / float(img_dict['image_width']/2)
-                vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
-                horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
-
-
-                target_range_m = -999
-                if np_depth_map is not None:
-                    self.imgs_info_dict[source_topic]['has_range'] = True
-                    try:
-                        target_range_m = nepi_img.get_range_from_npDepthMap(np_depth_map, detect_dict)
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to get target depth from np_depth_map: " + str(e))
-
-
-
-                ### Print the range and bearings for each detected object
-                #self.msg_if.pub_warn("")
-                #self.msg_if.pub_warn(target_label)
-                #self.msg_if.pub_warn(str(depth_box_adj.shape) + " detections box size")
-                #self.msg_if.pub_warn("%.2f" % target_range_m + "m : " + "%.2f" % horz_angle_deg + "d : " + "%.2f" % vert_angle_deg + "d : ")
-                #self.msg_if.pub_warn("")
-
-                ################
-                # Bounding Boxes
-                try:
-                    detection_msg = Detection()
-                    detection_msg.name = detect_dict['name']
-                    detection_msg.id = detect_dict['id']
-                    detection_msg.uid = detect_dict['uid']
-                    detection_msg.confidence = detect_dict['prob']
-                    detection_msg.xmin = detect_dict['xmin']
-                    detection_msg.ymin = detect_dict['ymin']
-                    detection_msg.xmax = detect_dict['xmax']
-                    detection_msg.ymax = detect_dict['ymax']
-                    area_pixels = (detect_dict['xmax'] - detect_dict['xmin']) * (detect_dict['ymax'] - detect_dict['ymin'])
-                    img_area = img_dict['prc_width']* img_dict['prc_height']
-                    if img_area > 1:
-                        area_ratio = area_pixels / img_area
-                    else:
-                        area_ratio = -999
-                    detection_msg.area_pixels = img_area
-                    detection_msg.area_ratio = area_ratio
-                    detection_msg_list.append(detection_msg)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e)) 
-
-                try:
-                    # Ranl Bearing, Nav, and Pose Data ENU Reference Frame
-                    detection_msg.range_m = target_range_m
-                    detection_msg.azimuth_deg = horz_angle_deg
-                    detection_msg.elevation_deg = vert_angle_deg
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get all data from detect dict: " + str(e))
-
-
-
-                    area_pixels = (detect_dict['xmax'] - detect_dict['xmin']) * (detect_dict['ymax'] - detect_dict['ymin'])
-                    img_area = img_dict['prc_width']* img_dict['prc_height']
-                    if img_area > 1:
-                        area_ratio = area_pixels / img_area
-                    else:
-                        area_ratio = -999
-
-            detections_msg = Detections()
-            detections_msg.timestamp = float(timestamp)
-
-            detections_msg.process_name = self.node_name
-            detections_msg.process_namespace = self.node_namespace
-
-            detections_msg.source_topic = source_topic
-            detections_msg.source_timestamp = float(img_dict['timestamp'])
-            detections_msg.detections = detection_msg_list
-            #self.msg_if.pub_warn("Publisher create detection msg: " + str(detections_msg))
-            # detections data product (publish + rate-gated save) is owned by
-            # DetectionsIF; the collective 'all' fan-out stays inline.
-            self.detections_if.publish_data(detections_msg, timestamp = timestamp)
-            self.node_if.publish_pub('all_detections', detections_msg)
-            try:
-               self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('detections_pub',detections_msg)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to publish detections to source topic: " + str(e), throttle_s = 5)
-
-            if det_count > 0:
-                if 'detections_trigger' in self.triggers_dict.keys():
-                    trigger_dict = self.triggers_dict['detections_trigger']
-                    trigger_dict['time']=nepi_utils.get_time()
-                    try:
-                        self.triggers_if.publish_trigger(trigger_dict)
-                    except:
-                        pass
-                self.detecting_state = True
-                self.process_state = True
-
-            # NOTE: detections/targets saving is now handled inside
-            # DetectionsIF.publish_data / TargetsIF.publish_data (rate-gated via
-            # the shared SaveDataIF), so the previous unconditional inline save
-            # of the detections/targets messages has been removed here.
-
 
     def publishTargetsData(self, source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = None):
         detect_dict_list = self.cleanBoxes(detect_dict_list)
@@ -2756,11 +2229,6 @@ class AiDetectorIF:
                 self.process_state = True
                 
 
-            # NOTE: detections/targets saving is now handled inside
-            # DetectionsIF.publish_data / TargetsIF.publish_data (rate-gated via
-            # the shared SaveDataIF), so the previous unconditional inline save
-            # of the detections/targets messages has been removed here.
-
 
     def updateImgSubsCb(self,timer):
         # Check for data subscribers every second
@@ -2774,7 +2242,7 @@ class AiDetectorIF:
         
         # Check if for all topic subscribers
         topic_names = []
-        filters = ['detections','targets']
+        filters = ['targets']
         for data_product in filters:
             namespace = os.path.join(self.node_namespace, data_product)
             topic_names.append(namespace)
@@ -2804,7 +2272,7 @@ class AiDetectorIF:
                 if source_topic not in active_topics:
                     self.imgs_has_subs_dict[source_topic] = False
                 else:
-                    filters = ['detections_image']
+                    filters = ['targets_image']
                     topic_names = []      
                     if source_topic in self.imgs_info_dict.keys():
                         topic_names.append(self.imgs_info_dict[source_topic]['img_pub_topic'])
@@ -2861,7 +2329,7 @@ class AiDetectorIF:
         self.process_status_msg.source_connected = img_connected 
 
         self.process_status_msg.has_image_pub = True
-        self.process_status_msg.image_pub_name = 'detections_image'
+        self.process_status_msg.image_pub_name = 'targets_image'
         self.process_status_msg.image_pub_enabled = self.imaging_enabled
 
         img_source_topics = []
@@ -2915,56 +2383,7 @@ class AiDetectorIF:
         self.process_state = False
 
     def publish_status(self):
-        self.publish_detector_status()
         self.publish_targeting_status()
-
-
-    def publish_detector_status(self):
-        """Assembles and publishes the AI detector status message.
-
-        Populates all fields of the DetectorStatus message from current
-        internal state — including model metadata, class selections, sleep
-        configuration, overlay flags, rate limits, image topic lists, and
-        performance metrics — then publishes it on the status topic.
-
-        Args:
-            do_updates (bool, optional): Reserved for future use. Defaults to
-                True.
-        """
-        #self.msg_if.pub_warn("Starting Detector Status Pub")
-
-        detector_status_msg = DetectorStatus()
-        detector_status_msg.process_status = self.process_status_msg
-        #self.msg_if.pub_warn("Sending Detection Status Msg: " + str(self.process_status_msg), throttle_s = 5)
-        detector_status_msg.process_status.namespace = self.detections_namespace
-        detector_status_msg.available_classes = self.classes
-        detector_status_msg.selected_classes = self.selected_classes
-        detector_status_msg.threshold_filter = self.threshold
-
-
-        #self.msg_if.pub_warn("Ending Detector Status Pub")
-        #
-        # DetectorStatus is published on <node_ns>/detections/status by
-        # DetectionsIF (same wire topic/type as the removed 'detector_status'
-        # inline pub).
-
-
-        
-        detections_if = getattr(self, 'detections_if', None)
-        if detections_if is not None:
-            #self.msg_if.pub_warn("Publishing detections status msg: " + str(detector_status_msg), throttle_s = 10)
-            detections_if.publish_status(detector_status_msg)
-            # Publish for each connected image
-            sources_connected = []
-            for source_topic in self.imgs_info_dict.keys():
-                if self.imgs_info_dict[source_topic]['img_connected']:
-                    sources_connected.append(source_topic)
-
-            for source_topic in sources_connected:
-                try:
-                    self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('detections_status_pub',detector_status_msg)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to publish detections status to source topic: " + str(e), throttle_s = 5)
 
 
 
@@ -2984,7 +2403,7 @@ class AiDetectorIF:
 
         
     
-        targeting_status_msg = TargetingStatus()
+        targeting_status_msg = TargetsStatus()
         targeting_status_msg.process_status = self.process_status_msg
         targeting_status_msg.process_status.namespace = self.targets_namespace
         targeting_status_msg.available_classes = self.classes
@@ -2992,7 +2411,7 @@ class AiDetectorIF:
         targeting_status_msg.threshold_filter = self.threshold
         
         #self.msg_if.pub_warn("Publishing Targeting Status Msg: " + str(targeting_status_msg), throttle_s = 5)
-        # TargetingStatus is published on <node_ns>/targets/status by TargetsIF
+        # TargetsStatus is published on <node_ns>/targets/status by TargetsIF
         # (same wire topic/type as the removed 'targeting_status' inline pub).
         targets_if = getattr(self, 'targets_if', None)
         if targets_if is not None:
