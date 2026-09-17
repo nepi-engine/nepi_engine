@@ -5728,8 +5728,9 @@ class BaseImageIF:
             angles = [pixel_horz_angle_deg,pixel_vert_angle_deg]
             #self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enabled), log_name_list = self.log_name_list)
             
-            x_ratio = float(pixel[0] / self.width_org) 
-            y_ratio = float(pixel[1] / self.height_org)
+
+            x_ratio = float(pixel[0] / max(1,self.width_org)) 
+            y_ratio = float(pixel[1] / max(1,self.height_org))
             self.msg_if.pub_warn("Got mouse click pixel", log_name_list = self.log_name_list)
             self.msg_if.pub_warn("Click Pixels: " + str([msg.click.x,msg.click.y]), log_name_list = self.log_name_list)
             self.msg_if.pub_warn("Pixel Offsets: " + str([self.x_offset,self.y_offset]), log_name_list = self.log_name_list)

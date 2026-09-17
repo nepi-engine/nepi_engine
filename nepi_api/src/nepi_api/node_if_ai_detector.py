@@ -479,7 +479,7 @@ class AiDetectorIF:
                 'topic': 'process_source_file',
                 'msg': String,
                 'qsize': 10,
-                'callback': self.processImageFileCb, 
+                'callback': self.processFileCb, 
                 'callback_args': ()
             },
              'targeting_set_class': {
@@ -642,7 +642,7 @@ class AiDetectorIF:
                 'topic': 'process_source_file',
                 'msg': String,
                 'qsize': 10,
-                'callback': self.processImageFileCb, 
+                'callback': self.processFileCb, 
                 'callback_args': ()
             },
              'all_targeting_set_class': {
@@ -1852,7 +1852,7 @@ class AiDetectorIF:
     
 
 
-    def processImageFileCb(self,str_msg):    
+    def processFileCb(self,str_msg):    
         source_file = str_msg.data
         source_topic = source_file
 
