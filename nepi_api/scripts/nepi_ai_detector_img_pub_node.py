@@ -822,10 +822,10 @@ class AiDetectorImgPub:
             ###### Apply Image Overlays and Publish Image ROS Message
             # Overlay adjusted detection boxes on image 
             class_name = target_dict['name']
-            xmin = target_dict['xmin_pixels']
-            ymin = target_dict['ymin_pixels']
-            xmax = target_dict['xmax_pixels']
-            ymax = target_dict['ymax_pixels']
+            xmin = target_dict['xmin_pixel']
+            ymin = target_dict['ymin_pixel']
+            xmax = target_dict['xmax_pixel']
+            ymax = target_dict['ymax_pixel']
 
             if xmin <= 0:
                 xmin = 5
@@ -931,24 +931,9 @@ class AiDetectorImgPub:
         source_topic = msg.source_topic
         current_time = nepi_utils.get_time()
         targets_dict = nepi_sdk.convert_msg2dict(msg)
-        tlist = targets_dict['targets']
-        # Map Target fields (xmin_pixel, ...) onto the box-overlay dict keys
-        # apply_targets_overlay expects (xmin/ymin/xmax/ymax), preserving the
-        # range/bearing fields used for overlay text.
-        overlay_list = []
-        for t in tlist:
-            overlay_list.append({
-                'name': t.get('name', ''),
-                'xmin': t.get('xmin_pixel', 0),
-                'ymin': t.get('ymin_pixel', 0),
-                'xmax': t.get('xmax_pixel', 0),
-                'ymax': t.get('ymax_pixel', 0),
-                'range_m': t.get('range_m', -999),
-                'azimuth_deg': t.get('azimuth_deg', -999),
-                'elevation_deg': t.get('elevation_deg', -999),
-            })
+        targets_dict_list = targets_dict['targets']
         if source_topic in self.imgs_info_dict.keys():
-            self.imgs_info_dict[source_topic]['target_dict_list'] = overlay_list
+            self.imgs_info_dict[source_topic]['target_dict_list'] = targets_dict_list
             self.imgs_info_dict[source_topic]['img_stamp'] = img_stamp
             self.imgs_info_dict[source_topic]['last_targets_time'] = current_time
         else:
@@ -956,7 +941,7 @@ class AiDetectorImgPub:
                 self.imgs_info_dict['img_file'] = dict()
                 self.imgs_info_dict['img_file']['img_stamp'] = img_stamp
                 self.imgs_info_dict['img_file']['last_targets_time'] = current_time
-                self.processFileImg(source_topic,dlist)
+                self.processFileImg(source_topic,targets_dict_list)
 
 
 
