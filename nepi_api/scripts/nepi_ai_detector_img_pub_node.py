@@ -662,7 +662,7 @@ class AiDetectorImgPub:
                                 #     self.msg_if.pub_warn("Will process img with shape: " + str(use_cv2_img.shape) )
                                 # Symmetric targets overlay image, built from the
                                 # same source image and the latest targets list.
-                                success = self.processTargetImage(source_topic,
+                                success = self.processTargetsImage(source_topic,
                                                             use_cv2_img,
                                                             target_dict_list,
                                                             timestamp = timestamp,
