@@ -436,8 +436,7 @@ class AiDetectorImgPub:
         #self.msg_if.pub_warn('Creating namespace for image name: ' + img_source_topic)
 
         pub_namespace = img_source_topic #os.path.join(os.path.dirname(source_topic),targets_name)
-        img_pub_topic = os.path.join(pub_namespace,self.DETECTIONS_IMG_DATA_PRODUCT)
-        targets_img_pub_topic = os.path.join(pub_namespace,self.TARGETS_IMG_DATA_PRODUCT)
+        img_pub_topic = os.path.join(pub_namespace,self.TARGETS_IMG_DATA_PRODUCT)
         self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + img_pub_topic)
 
 
@@ -451,18 +450,15 @@ class AiDetectorImgPub:
             if source_topic in self.img_node_dict.keys():
                 self.imgs_info_dict[source_topic]['active'] = True
                 self.img_node_dict[source_topic]['img_pub'] = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1, log_name_list = [])
-                self.img_node_dict[source_topic]['targets_img_pub'] = nepi_sdk.create_publisher(targets_img_pub_topic,Image, queue_size = 1, log_name_list = [])
                 nepi_sdk.sleep(1)
                 self.img_node_dict[source_topic]['img_sub'] = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic), log_name_list = [])
                 self.img_node_dict[source_topic]['img_if'].register_pubs()
-                self.img_node_dict[source_topic]['targets_img_if'].register_pubs()
             self.img_node_lock.release()
 
             return True
 
 
         img_pub = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1, log_name_list = [])
-        targets_img_pub = nepi_sdk.create_publisher(targets_img_pub_topic,Image, queue_size = 1, log_name_list = [])
         nepi_sdk.sleep(1)
         img_sub = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic), log_name_list = [])
         img_status_topic = nepi_sdk.create_namespace(source_topic, 'status')
@@ -472,24 +468,6 @@ class AiDetectorImgPub:
 
         # Create detections image publisher
         img_if = ColorImageIF(namespace = pub_namespace ,
-                        data_product = 'detections_image',
-                        data_source_description = 'image',
-                        data_ref_description = 'image',
-                        perspective = 'pov',
-                        save_data_if = self.save_data_if,
-                        init_overlay_text_list = [],
-                        live_adjustments_disabled = True,
-                        aspect_adjustment_disabled = True,
-                        log_name = 'detections_image',
-                        log_name_list = [],
-                            msg_if = self.msg_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
-
-        # Create targets image publisher (mirrors the detections image IF on the
-        # targets_image data product / <img_source_dir>/targets_image topic)
-        targets_img_if = ColorImageIF(namespace = pub_namespace ,
                         data_product = 'targets_image',
                         data_source_description = 'image',
                         data_ref_description = 'image',
@@ -500,7 +478,10 @@ class AiDetectorImgPub:
                         aspect_adjustment_disabled = True,
                         log_name = 'targets_image',
                         log_name_list = [],
-                            msg_if = self.msg_if)
+                        msg_if = self.msg_if,
+                        node_if = self.node_if
+                        )
+
 
         # Subscribe to new image topic
         self.img_node_lock.acquire()
@@ -509,8 +490,6 @@ class AiDetectorImgPub:
                                         'img_status_sub': img_stutus_sub,
                                         'img_pub': img_pub,
                                         'img_if': img_if,
-                                        'targets_img_pub': targets_img_pub,
-                                        'targets_img_if': targets_img_if
 
                                         }
         self.img_node_lock.release()
@@ -562,15 +541,10 @@ class AiDetectorImgPub:
                         self.img_node_dict[source_topic]['img_pub'].unregister()
                     if self.img_node_dict[source_topic]['img_if'] is not None:
                         self.img_node_dict[source_topic]['img_if'].unregister_pubs()
-                    if self.img_node_dict[source_topic].get('targets_img_pub') is not None:
-                        self.img_node_dict[source_topic]['targets_img_pub'].unregister()
-                    if self.img_node_dict[source_topic].get('targets_img_if') is not None:
-                        self.img_node_dict[source_topic]['targets_img_if'].unregister_pubs()
                     nepi_sdk.sleep(1)
                     self.img_node_dict[source_topic]['img_sub'] = None
                     self.img_node_dict[source_topic]['img_status_sub'] = None
                     self.img_node_dict[source_topic]['img_pub'] = None
-                    self.img_node_dict[source_topic]['targets_img_pub'] = None
                 self.img_node_lock.release()
 
                 if source_topic in self.imgs_info_dict.keys():
@@ -629,8 +603,6 @@ class AiDetectorImgPub:
             if source_topic in self.imgs_info_dict.keys():
                 if  self.img_node_dict[source_topic]['img_if'] is not None:
                     needs_img = self.img_node_dict[source_topic]['img_if'].needs_data_check()
-                if self.img_node_dict[source_topic].get('targets_img_if') is not None:
-                    needs_targets_img = self.img_node_dict[source_topic]['targets_img_if'].needs_data_check()
                 if 'publishing' in self.imgs_info_dict[source_topic].keys():
                     if self.imgs_info_dict[source_topic]['publishing'] == False:
                         pass
@@ -761,8 +733,6 @@ class AiDetectorImgPub:
                                 cv2_img,
                                 timestamp = timestamp,
                                 add_overlay_text_list = add_overlay_text_list,
-                                img_if_key = 'targets_img_if',
-                                img_pub_key = 'targets_img_pub'
                                 )
 
             if self.imgs_info_dict[source_topic]['targets_img_published'] == False:
@@ -778,7 +748,7 @@ class AiDetectorImgPub:
         return True
 
 
-    def publishImgData(self, source_topic, cv2_img, encoding = "bgr8", timestamp = None, add_overlay_text_list = [], img_if_key = 'img_if', img_pub_key = 'img_pub'):
+    def publishImgData(self, source_topic, cv2_img, encoding = "bgr8", timestamp = None, add_overlay_text_list = []):
 
 
             if self.imgs_info_dict[source_topic]['publishing'] == False:
@@ -805,8 +775,8 @@ class AiDetectorImgPub:
                     # the life of the node. Degrade to a logged error instead.
                     self.img_node_lock.acquire()
                     try:
-                        img_if = self.img_node_dict[source_topic][img_if_key]
-                        img_pub = self.img_node_dict[source_topic][img_pub_key]
+                        img_if = self.img_node_dict[source_topic]['img_if']
+                        img_pub = self.img_node_dict[source_topic]['img_pub']
 
                         img_if_ready = img_if.ready
                         if img_if_ready == False:
@@ -831,13 +801,13 @@ class AiDetectorImgPub:
 
                
 
-    def apply_targets_overlay(self,source_topic, detect_dict_list, cv2_img):
+    def apply_targets_overlay(self,source_topic, targets_dict_list, cv2_img):
         cv2_targets_img = copy.deepcopy(cv2_img)
         cv2_shape = cv2_img.shape
         img_width = cv2_shape[1] 
         img_height = cv2_shape[0] 
 
-        for i, detect_dict in enumerate(detect_dict_list):
+        for i, target_dict in enumerate(targets_dict_list):
             img_size = cv2_img.shape[:2]
 
             # Overlay text data on OpenCV image
@@ -851,11 +821,11 @@ class AiDetectorImgPub:
 
             ###### Apply Image Overlays and Publish Image ROS Message
             # Overlay adjusted detection boxes on image 
-            class_name = detect_dict['name']
-            xmin = detect_dict['xmin']
-            ymin = detect_dict['ymin']
-            xmax = detect_dict['xmax']
-            ymax = detect_dict['ymax']
+            class_name = target_dict['name']
+            xmin = target_dict['xmin_pixels']
+            ymin = target_dict['ymin_pixels']
+            xmax = target_dict['xmax_pixels']
+            ymax = target_dict['ymax_pixels']
 
             if xmin <= 0:
                 xmin = 5
@@ -903,11 +873,11 @@ class AiDetectorImgPub:
                     overlay_text = overlay_text + class_name + " "
                 if overlay_range_bearing:
                     rb_text = ''
-                    if detect_dict['range_m'] != -999 and detect_dict['range_m'] != '':
-                        rb_text = rb_text + str(round(detect_dict['range_m'],1)) + 'm :'
-                    if detect_dict['azimuth_deg'] != -999 and detect_dict['elevation_deg'] != -999:
-                        rb_text = rb_text + str(round(detect_dict['azimuth_deg'],1)) + 'deg '
-                        rb_text = rb_text + str(round(detect_dict['elevation_deg'],1)) + 'deg '
+                    if target_dict['range_m'] != -999 and target_dict['range_m'] != '':
+                        rb_text = rb_text + str(round(target_dict['range_m'],1)) + 'm :'
+                    if target_dict['azimuth_deg'] != -999 and target_dict['elevation_deg'] != -999:
+                        rb_text = rb_text + str(round(target_dict['azimuth_deg'],1)) + 'deg '
+                        rb_text = rb_text + str(round(target_dict['elevation_deg'],1)) + 'deg '
                     if len(rb_text) > 0:
                         overlay_text = overlay_text + rb_text
 
