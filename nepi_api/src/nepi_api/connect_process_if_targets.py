@@ -26,6 +26,7 @@ from nepi_sdk import nepi_utils
 from std_msgs.msg import Empty
 
 from nepi_interfaces.msg import Targets, TargetsStatus
+from nepi_interfaces.msg import NavPose
 
 from nepi_api.messages_if import MsgIF
 
@@ -43,7 +44,7 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 # nepi_interfaces/TargetsStatus message on <namespace>/status. This connect
 # class subclasses ConnectNodeIF directly and follows the ConnectNavPoseIF
 # pattern: every retrieved Targets message is converted to a targets dictionary,
-# handed to dataCB when one is provided, and cached (thread-safe) as the latest
+# handed to resultsCb when one is provided, and cached (thread-safe) as the latest
 # targets dictionary for polling consumers.
 
 
@@ -55,7 +56,7 @@ TARGETS_CONNECT_NAME = 'targets_connect'
 CONNECTED_TIMEOUT = 2
 
 
-class ConnectTargetsIF(ConnectNodeIF):
+class ConnectProcessIFTargets(ConnectNodeIF):
 
     # ADD Additional Connect Callback Functions
 
@@ -72,10 +73,10 @@ class ConnectTargetsIF(ConnectNodeIF):
 
     statusCb = None # Backwards Compatibility
 
-    data_dict = None
-    data_dict_lock = threading.Lock()
+    results_dict = None
+    results_dict_lock = threading.Lock()
 
-    dataCB = None
+    resultsCb = None
 
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
@@ -83,11 +84,11 @@ class ConnectTargetsIF(ConnectNodeIF):
     ### IF Initialization
     def __init__(self,
                 connect_name = TARGETS_CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = True,
-                statusCb = None,
-                dataCB = None,
+                connect_namespace = None,
                 filter_topic_list = [],
+                auto_select_enabled = True,
+                status_callback = None,
+                results_callback = None,
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
@@ -100,7 +101,7 @@ class ConnectTargetsIF(ConnectNodeIF):
                 connect_id = TARGETS_CONNECT_ID,
                 connect_status_msg = TARGETS_CONNECT_STATUS_MSG,
                 connect_name = connect_name,
-                selected_topic = namespace,
+                selected_topic = connect_namespace,
                 auto_select_enabled = auto_select_enabled,
                 filter_topics_list = filter_topic_list,
                 show_selector = show_selector,
@@ -118,8 +119,8 @@ class ConnectTargetsIF(ConnectNodeIF):
         ##############################
         # Initialize Class Variables
 
-        self.statusCb = statusCb
-        self.dataCB = dataCB
+        self.statusCb = status_callback
+        self.resultsCb = results_callback
 
 
         ##############################
@@ -260,7 +261,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         """
         return self.status_msg
 
-    def get_data_topic(self):
+    def get_process_topic(self):
         """Return the targets data topic of the connected data source.
 
         Returns:
@@ -269,7 +270,7 @@ class ConnectTargetsIF(ConnectNodeIF):
         """
         return self.selected_topic
 
-    def get_targets_dict(self):
+    def get_results_dict(self):
         """Return the latest targets data dictionary.
 
         Thread-safe. Every incoming targets message is captured, so this returns
@@ -281,10 +282,10 @@ class ConnectTargetsIF(ConnectNodeIF):
                 namespace, and timestamp, or None if no targets message has been
                 received yet.
         """
-        self.data_dict_lock.acquire()
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict_lock.release()
-        return data_dict
+        self.results_dict_lock.acquire()
+        results_dict = copy.deepcopy(self.results_dict)
+        self.results_dict_lock.release()
+        return results_dict
 
     def save_config(self):
         """Publish a save configuration command to persist current settings on the data source.
@@ -338,7 +339,7 @@ class ConnectTargetsIF(ConnectNodeIF):
                 'topic': '',
                 'msg': Targets,
                 'qsize': 1,
-                'callback': self._dataCb
+                'callback': self._resultsCb
             }
         }
 
@@ -403,7 +404,7 @@ class ConnectTargetsIF(ConnectNodeIF):
             self.connected = False
             self.connected_topic = 'None'
             self.status_msg = None
-            self.data_dict = None
+            self.results_dict = None
             success = True
         return success
 
@@ -419,12 +420,14 @@ class ConnectTargetsIF(ConnectNodeIF):
 
         if self.statusCb is not None:
             status_dict = self.get_status_dict()
-            self.statusCb(status_dict)
+            try:
+                self.statusCb(status_dict)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call status_callback function: " + str(e), throttle_s = 10)
 
-
-    def _dataCb(self,data_msg):
+    def _resultsCb(self,results_msg):
         # Every incoming Targets message is converted to a targets dict, handed
-        # to dataCB when one is registered, and cached as the latest targets
+        # to resultsCb when one is registered, and cached as the latest targets
         # dict for polling consumers. Connection state is driven by the status
         # callback. Targets carries a float64 timestamp field (no std_msgs
         # Header), so latency is not computed here.
@@ -432,33 +435,24 @@ class ConnectTargetsIF(ConnectNodeIF):
 
         ##############################
         ### Convert Targets Msg
-        data = nepi_sdk.convert_msg2dict(data_msg)
-
-        data_dict = dict()
-        data_dict['namespace'] = self.selected_topic
-
-
-        
-        data_dict['timestamp'] = data_msg.timestamp
-
-        source_timestamp = data_msg.source_timestamp
-
-        timestamps = [source_timestamp]
-        for i, target_dict in enumerate(data['targets']):
-            data['targets'][i]['timestamp'] = source_timestamp
-            timestamps.append(data['targets'][i]['timestamp'])
-        data_dict['data'] = data
+        results_dict = nepi_sdk.convert_msg2dict(results_msg)
+        if 'navpose_msg' not in results_dict.keys():
+            results_dict['navpose'] = NavPose()
+        # source_timestamp = results_msg.data_header.source_timestamp
+        # results_dict['timestamp'] = source_timestamp
+        # for i, target_dict in enumerate(results_dict['targets']):
+        #     results_dict['targets'][i]['timestamp'] = source_timestamp
+        #     results_dict.append(data['targets'][i]['timestamp'])
+       
         #self.msg_if.pub_warn("Connect Targets timestamps" + str(timestamps), throttle_s = 10)
 
-
-
         ##############################
+        self.results_dict_lock.acquire()
+        self.results_dict = results_dict
+        self.results_dict_lock.release()
 
-        process_time = round( (nepi_sdk.get_time() - start_time) , 3)
-        data_dict['process_time'] = process_time
-
-        if self.dataCB is not None:
-            self.dataCB(data_dict)
-        self.data_dict_lock.acquire()
-        self.data_dict = data_dict
-        self.data_dict_lock.release()
+        if self.resultsCb is not None:
+            try:
+                self.resultsCb(results_dict)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call results_callback function: " + str(e), throttle_s = 10)

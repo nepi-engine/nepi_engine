@@ -29,6 +29,7 @@ import importlib
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_img
 from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data
 from nepi_sdk import nepi_process
@@ -37,7 +38,7 @@ from nepi_sdk import nepi_system
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
 
-
+from nepi_interfaces.msg import StringArray
 
 
 from nepi_interfaces.msg import Control, ControlsStatus, SettingsStatus, UpdateControl, MgrSystemStatus
@@ -49,6 +50,9 @@ from nepi_interfaces.msg import ProcessStatus
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF
+from nepi_api.data_if import ColorImageIF
+
+
 
 
 
@@ -70,6 +74,7 @@ BLANK_CONFIG_DICT = dict(
         multi_source_enabled = False,
         auto_select_enabled = True,
 
+        has_enable = True,
         enable_requires_admin = False,
 
         has_process_pub = True,
@@ -146,7 +151,7 @@ class ProcessIF:
     active_topic_types =  []
     active_services =  []  
 
-    process_name = None
+    process_image_name = None
     namespace = ''
 
     data_dict = dict()
@@ -223,7 +228,7 @@ class ProcessIF:
     #######################
     ### IF Initialization
     def __init__(self, 
-                process_name = 'process',
+                process_image_name = 'process',
                 process_group = 'PROCESS',
                 process_description = 'Process',
                 process_module = None,              
@@ -258,13 +263,13 @@ class ProcessIF:
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
         # Create Process Name
-        self.process_name = nepi_utils.get_clean_name(process_name)
-        if self.process_name is None or self.process_name == '':
-            self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name)) 
+        self.process_image_name = nepi_utils.get_clean_name(process_image_name)
+        if self.process_image_name is None or self.process_image_name == '':
+            self.msg_if.pub_warn("Process Name Not Valid: " + str(process_image_name)) 
             return
-        self.msg_if.pub_info("Using Process Name: " + self.process_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
-        self.data_products = [self.process_name]
+        self.msg_if.pub_info("Using Process Name: " + self.process_image_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_image_name)
+        self.data_products = [self.process_image_name]
 
 
 
@@ -307,7 +312,7 @@ class ProcessIF:
         try:
             image_pub_topic = process_module.IMAGE_PUB_TOPIC
         except:
-            image_pub_topic = process_name.replace('_image','') + '_image'
+            image_pub_topic = process_image_name.replace('_image','') + '_image'
         image_pub_topic = nepi_utils.get_clean_name(image_pub_topic)
         if image_pub_topic is not None and image_pub_topic != '':
             self.image_pub_name = image_pub_topic
@@ -406,13 +411,13 @@ class ProcessIF:
         
         if self.has_results_pub == True:
             self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
-                'namespace': self.namespace.replace('/' + process_name,''),
-                'topic': process_name,
+                'namespace': self.namespace.replace('/' + process_image_name,''),
+                'topic': process_image_name,
                 'msg': self.results_pub_msg,
                 'qsize': 1,
                 'latch': True
             }
-            self.results_pub_topic = self.namespace + '/' + process_name
+            self.results_pub_topic = self.namespace + '/' + process_image_name
             self.has_results_pub = True
 
 
@@ -614,22 +619,22 @@ class ProcessIF:
     def get_selected_process(self):
         return self.selected_process
     
-    def set_selected_process(self, process_name, check_updates = True):
+    def set_selected_process(self, process_image_name, check_updates = True):
         success = False
-        if process_name in self.available_processes:
+        if process_image_name in self.available_processes:
             cur_process = copy.deepcopy(self.selected_process)
-            if process_name != cur_process or check_updates == False:
-                self.msg_if.pub_warn("Process Selected: " + str(process_name))
+            if process_image_name != cur_process or check_updates == False:
+                self.msg_if.pub_warn("Process Selected: " + str(process_image_name))
                 self.process_ready = False
-                self.selected_process = process_name
+                self.selected_process = process_image_name
                 self.publish_status()
                 nepi_sdk.sleep(1)
                 processes_dict = copy.deepcopy(self.processes_dict)
-                [self.data_dict,self.controls_dict,self.results_display_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_name)
-                self.process_function = self.processes_functions_dict[process_name]
+                [self.data_dict,self.controls_dict,self.results_display_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_image_name)
+                self.process_function = self.processes_functions_dict[process_image_name]
                 nepi_sdk.sleep(1)
                 success = True
-                self.msg_if.pub_warn("Process Ready: " + str(process_name))
+                self.msg_if.pub_warn("Process Ready: " + str(process_image_name))
                 self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict.keys(),self.controls_dict.keys(),self.results_display_dict.keys(),self.states_dict.keys(),self.process_function]))
 
         self.process_ready = self.selected_process in self.available_processes
@@ -790,7 +795,7 @@ class ProcessIF:
 
     def set_control_value(self, control_name, update_value, index = None):
         if self.get_process_ready() == True:
-            process_name = copy.deepcopy(self.selected_process)
+            process_image_name = copy.deepcopy(self.selected_process)
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
@@ -798,10 +803,10 @@ class ProcessIF:
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
                         self.publish_status()
-                        if process_name in self.processes_dict.keys():
-                            self.processes_dict[process_name]['controls_dict'] = self.controls_dict
+                        if process_image_name in self.processes_dict.keys():
+                            self.processes_dict[process_image_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
+                            processes_controls_dict[process_image_name] = nepi_controls.get_values_dict(self.processes_dict[process_image_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
@@ -814,7 +819,7 @@ class ProcessIF:
 
     def set_control_options(self, control_name, update_options):
         if self.get_process_ready() == True:
-            process_name = copy.deepcopy(self.selected_process)
+            process_image_name = copy.deepcopy(self.selected_process)
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
@@ -823,10 +828,10 @@ class ProcessIF:
                         self.controls_dict = controls_dict
                         self.publish_status()
 
-                        if process_name in self.processes_dict.keys():
-                            self.processes_dict[process_name]['controls_dict'] = self.controls_dict
+                        if process_image_name in self.processes_dict.keys():
+                            self.processes_dict[process_image_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
+                            processes_controls_dict[process_image_name] = nepi_controls.get_values_dict(self.processes_dict[process_image_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
@@ -846,7 +851,7 @@ class ProcessIF:
 
     def set_control_bounds(self, control_name, min_bound = None, max_bound = None):
         if self.get_process_ready() == True:
-            process_name = copy.deepcopy(self.selected_process)
+            process_image_name = copy.deepcopy(self.selected_process)
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
@@ -855,10 +860,10 @@ class ProcessIF:
                         self.controls_dict = controls_dict
                         self.self.publish_status()
 
-                        if process_name in self.processes_dict.keys():
-                            self.processes_dict[process_name]['controls_dict'] = self.controls_dict
+                        if process_image_name in self.processes_dict.keys():
+                            self.processes_dict[process_image_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
+                            processes_controls_dict[process_image_name] = nepi_controls.get_values_dict(self.processes_dict[process_image_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
@@ -948,7 +953,7 @@ class ProcessIF:
 
         status_msg = ProcessStatus()
 
-        status_msg.name = self.process_name
+        status_msg.name = self.process_image_name
         status_msg.group = self.process_group
         status_msg.description = self.process_description
 
@@ -1016,7 +1021,7 @@ class ProcessIF:
         ###########
         if self.node_if is not None:
             if self.status_has_published == False:
-                self.msg_if.pub_info("Publishing first status for process: " + str(self.process_name))
+                self.msg_if.pub_info("Publishing first status for process: " + str(self.process_image_name))
                 self.status_has_published = True
             self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
         return status_msg
@@ -1087,6 +1092,414 @@ class ProcessIF:
     # Class Private Methods
     ###############################
 
+
+    # def _addProcessSubs(self, subs_dict, namespace = None, add_prefix = ''):
+
+    #     if subs_dict is None:
+    #         subs_dict = dict()
+    #     if namespace is None:
+    #         namespace = self.namespace
+    #     # Subs Config Dict ####################
+    #     if self.config_dict['has_enable'] == True:
+    #         subs_dict[self.node_if_prefix + add_prefix + 'enable'] = {
+    #             'namespace': namespace,
+    #             'topic': 'enable',
+    #             'msg': Bool,
+    #             'qsize': 10,
+    #             'callback': self.setEnableCb, 
+    #             'callback_args': ()
+    #         },
+    #     if self.config_dict['has_sources'] == True:
+    #         subs_dict[self.node_if_prefix + add_prefix + 'set_source_topic'] = {
+    #             'namespace': namespace,
+    #             'topic': 'set_source_topic',
+    #             'msg': String,
+    #             'qsize': 10,
+    #             'callback': self.setImageTopicCb, 
+    #             'callback_args': ()
+    #         }
+    #         subs_dict[self.node_if_prefix + add_prefix + 'set_source_topics']  = {         
+    #             'namespace': namespace,
+    #             'topic': 'set_source_topics',
+    #             'msg': StringArray,
+    #             'qsize': 10,
+    #             'callback': self.setImageTopicsCb, 
+    #             'callback_args': ()
+    #         }
+    #         subs_dict[self.node_if_prefix + add_prefix + 'add_source_topic']  = {          
+    #             'namespace': namespace,
+    #             'topic': 'add_source_topic',
+    #             'msg': String,
+    #             'qsize': 10,
+    #             'callback': self.addImageTopicCb, 
+    #             'callback_args': ()
+    #         }
+    #         subs_dict[self.node_if_prefix + add_prefix + 'add_source_topics']  = {          
+    #             'namespace': namespace,
+    #             'topic': 'add_source_topics',
+    #             'msg': StringArray,
+    #             'qsize': 10,
+    #             'callback': self.addImageTopicsCb, 
+    #             'callback_args': ()
+    #         }
+    #         subs_dict[self.node_if_prefix + add_prefix + 'remove_source_topic']  = {           
+    #             'namespace': namespace,
+    #             'topic': 'remove_source_topic',
+    #             'msg': String,
+    #             'qsize': 10,
+    #             'callback': self.removeImageTopicCb, 
+    #             'callback_args': ()
+    #         }
+    #         subs_dict[self.node_if_prefix + add_prefix + 'remove_source_topics']  = {            
+    #             'namespace': namespace,
+    #             'topic': 'remove_source_topics',
+    #             'msg': StringArray,
+    #             'qsize': 10,
+    #             'callback': self.removeImageTopicsCb, 
+    #             'callback_args': ()
+    #         }
+    #         subs_dict[self.node_if_prefix + add_prefix + 'process_source_file']  = {           
+    #             'namespace': namespace,
+    #             'topic': 'process_source_file',
+    #             'msg': String,
+    #             'qsize': 10,
+    #             'callback': self.processFileCb, 
+    #             'callback_args': ()
+    #         }
+
+         
+    #     if self.config_dict['has_process_rate'] == True:
+    #         subs_dict[self.node_if_prefix + add_prefix + 'set_max_process_rate'] = {
+    #             'namespace': namespace,
+    #             'topic': 'set_max_process_rate',
+    #             'msg': Float32,
+    #             'qsize': 10,
+    #             'callback': self.setMaxProcessRateCb, 
+    #             'callback_args': ()
+    #         }
+    #     if self.config_dict['has_image_pub'] == True:
+    #         subs_dict[self.node_if_prefix + add_prefix + 'set_image_pub'] = {
+    #             'namespace': namespace,
+    #             'topic': 'set_image_pub',
+    #             'msg': Bool,
+    #             'qsize': 10,
+    #             'callback': self.setPubImageCb, 
+    #             'callback_args': ()
+    #         }
+    #     if self.config_dict['has_image_rate'] == True:
+    #         subs_dict[self.node_if_prefix + add_prefix + 'set_max_image_pub_rate'] = {
+    #             'namespace': namespace,
+    #             'topic': 'set_max_image_pub_rate',
+    #             'msg': Float32,
+    #             'qsize': 10,
+    #             'callback': self.setMaxImgRateCb, 
+    #             'callback_args': ()
+    #         }
+    #     if self.config_dict['has_use_last_image'] == True:
+    #         subs_dict[self.node_if_prefix + add_prefix + 'set_use_last_image'] = {
+    #             'namespace': namespace,
+    #             'topic': 'set_use_last_image',
+    #             'msg':Bool,
+    #             'qsize': 10,
+    #             'callback': self.setUseLastImageCb, 
+    #             'callback_args': ()
+    #         }
+
+
+    # def setEnableCb(self,msg):
+    #     #self.msg_if.pub_warn("Received AI enable msg: " + str(msg))
+    #     enabled = msg.data
+    #     self.setEnable(enabled)
+
+
+
+    # def setEnable(self,enabled):
+    #     if self.enabled != enabled:
+    #         self.enabled = enabled
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('enabled',self.enabled)
+                
+    #         if enabled == False and not nepi_sdk.is_shutdown():
+    #             self.next_source_topic = "None"
+
+            
+
+    # def setAutoSelectEnableCb(self,msg):
+    #     #self.msg_if.pub_warn("Received AI auto select source topic msg: " + str(msg))
+    #     enabled = msg.data
+    #     self.setAutoSelectEnable(enabled)
+
+
+    # def setAutoSelectEnable(self, enabled):
+    #     self.selected_sources = []
+    #     self.auto_select_active = enabled
+    #     self.auto_select_enabled = enabled
+    #     self.publish_status()
+    #     if self.node_if is not None:
+    #         self.node_if.set_param('auto_select_enabled',self.auto_select_enabled)
+            
+       
+
+    # def setImageTopicCb(self,msg):
+    #     #self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
+    #     source_topic = msg.data
+    #     self.setImageTopic(source_topic)
+
+
+    # def setImageTopic(self, source_topic):
+    #     #self.msg_if.pub_info("Set Image Topic: " + source_topic)     
+    #     if self.selected_sources != [source_topic]:    
+    #         self.selected_sources = [source_topic]
+    #         self.auto_select_active = False
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_sources',self.selected_sources)
+                
+
+    # def setImageTopicsCb(self,msg):
+    #     #self.msg_if.pub_info("Received Set Image Topic: " + msg.data)
+    #     source_topics = msg.data
+    #     self.setImageTopics(source_topics)
+
+
+    # def setImageTopics(self, source_topics):
+    #     #self.msg_if.pub_info("Set Image Topics: " + str(source_topics))     
+    #     if self.selected_sources != source_topics:    
+    #         self.selected_sources = source_topics
+    #         self.auto_select_active = False
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_sources',self.selected_sources)
+                
+
+
+    # def addImageTopicCb(self,msg):
+    #     #self.msg_if.pub_info("Received Add Image Topic: " + msg.data)
+    #     source_topic = msg.data
+    #     self.addImageTopic(source_topic)
+
+
+    # def addImageTopicsCb(self,msg):
+    #     #self.msg_if.pub_info("Received Add Image Topics: " + str(msg))
+    #     source_topic_list = msg.array
+    #     for source_topic in source_topic_list:
+    #         self.addImageTopic(source_topic)
+
+
+    # def addImageTopic(self,source_topic):   
+    #     #self.msg_if.pub_info("Adding Image Topic: " + source_topic)
+    #     if source_topic not in self.selected_sources: 
+    #         source_topics = copy.deepcopy(self.selected_sources)
+    #         if source_topic not in source_topics:
+    #             source_topics.append(source_topic)
+    #         else:
+    #             self.msg_if.pub_warn('Image topic allready selected')
+    #         self.selected_sources = source_topics
+    #         self.auto_select_active = False
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_sources',self.selected_sources)
+                
+
+
+    # def removeImageTopicCb(self,msg):
+    #     #self.msg_if.pub_info("Received Remove Image Topic: " + str(msg))
+    #     source_topic = msg.data
+    #     self.removeImageTopic(source_topic)
+
+
+    # def removeImageTopicsCb(self,msg):
+    #     #self.msg_if.pub_info("Received Remove Image Topic: " + str(msg))
+    #     source_topic_list = msg.array
+    #     for source_topic in source_topic_list:
+    #         self.removeImageTopic(source_topic)
+
+
+
+    # def removeImageTopic(self,source_topic):
+    #     #self.msg_if.pub_info("Removing Image Topic: " + source_topic)  
+    #     if source_topic in self.selected_sources:       
+    #         source_topics = copy.deepcopy(self.selected_sources)
+    #         if source_topic in source_topics:
+    #             source_topics.remove(source_topic)
+    #         self.selected_sources = source_topics
+    #         self.auto_select_active = False
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_sources',self.selected_sources)
+                
+
+
+    # ###################
+    # # Process Functions
+
+    # def setClassCb(self,msg):
+    #     #self.msg_if.pub_info("Received Set class: " + msg.data)
+    #     class_name = msg.data
+    #     self.setClass(class_name)
+
+
+    # def setClass(self, class_name):
+    #     #self.msg_if.pub_info("Set Class: " + class_name)      
+    #     if self.selected_classes != [class_name]:  
+    #         self.selected_classes = [class_name]
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_classes',self.selected_classes)
+                
+
+    # def setClassesCb(self,msg):
+    #     #self.msg_if.pub_info("Received Set classes: " + msg.data)
+    #     class_names = msg.data
+    #     self.setClasses(class_names)
+
+
+    # def setClasses(self, class_names):
+    #     #self.msg_if.pub_info("Set Class: " + class_name) 
+    #     if self.selected_classes != class_names:        
+    #         self.selected_classes = class_names
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_classes',self.selected_classes)
+                
+
+
+    # def addAllClassesCb(self,msg):
+    #     #self.msg_if.pub_info('Got add all classes msg: ' + str(msg))
+    #     self.addAllClasses()
+
+    # def addAllClasses(self):
+    #     self.publish_status() # Updated Here
+    #     if self.selected_classes != self.classes:
+    #         self.selected_classes = self.classes
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_classes', self.classes)
+                
+
+
+    # def removeAllClassesCb(self,msg):
+    #     #self.msg_if.pub_info('Got remove all classes msg: ' + str(msg))
+    #     if len(self.selected_classes) > 0:
+    #         self.selected_classes = []
+    #         self.publish_status() # Updated Here
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_classes',[])
+                
+
+
+    # def addClassCb(self,msg):
+    #     #self.msg_if.pub_info('Got add class msg: ' + str(msg))
+    #     class_name = msg.data
+    #     if class_name in self.classes and class_name not in self.selected_classes:
+    #         sel_classes = copy.deepcopy(self.selected_classes)
+    #         if class_name not in sel_classes:
+    #             sel_classes.append(class_name)
+    #         self.selected_classes = sel_classes
+    #         self.publish_status() # Updated Here
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_classes', sel_classes)
+                
+
+
+    # def removeClassCb(self,msg):
+    #     #self.msg_if.pub_info('Got remove class msg: ' + str(msg))
+    #     class_name = msg.data
+        
+    #     if class_name in self.selected_classes:
+    #         sel_classes = copy.deepcopy(self.selected_classes)
+    #         sel_classes.remove(class_name)
+    #         self.selected_classes = sel_classes
+    #         self.publish_status() # Updated Here
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('selected_classes', sel_classes)
+                
+
+
+
+    # def setThresholdCb(self,msg):
+    #     threshold = msg.data
+    #     self.setThreshold(threshold)
+
+    # def setThreshold(self,threshold):
+    #     #self.msg_if.pub_info("Received Threshold Update: " + str(threshold))
+    #     if threshold <  MIN_THRESHOLD:
+    #         threshold = MIN_THRESHOLD
+    #     elif threshold > MAX_THRESHOLD:
+    #         threshold = MAX_THRESHOLD
+    #     if self.threshold != threshold:
+    #         self.threshold = threshold
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('threshold',self.threshold)
+                
+
+
+    # def setMaxProcessRateCb(self,msg):
+    #     max_rate = msg.data
+    #     if max_rate <  MIN_MAX_RATE:
+    #         max_rate = MIN_MAX_RATE
+    #     elif max_rate > MAX_MAX_RATE:
+    #         max_rate = MAX_MAX_RATE
+    #     if max_rate != self.set_process_rate:
+    #         self.set_process_rate = max_rate
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('set_process_rate',self.set_process_rate)
+                
+
+ 
+
+
+    # def setMaxImgRateCb(self,msg):
+    #     max_rate = msg.data
+    #     if max_rate <  MIN_MAX_RATE:
+    #         max_rate = MIN_MAX_RATE
+    #     elif max_rate > MAX_MAX_RATE:
+    #         max_rate = MAX_MAX_RATE
+    #     if max_rate != self.set_image_rate:
+    #         self.set_image_rate = max_rate
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('set_image_rate',self.set_image_rate)
+                
+
+    # def setUseLastImageCb(self,msg):
+    #     enable = msg.data
+    #     if self.use_last_image != enable:
+    #         self.use_last_image = enable
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('use_last_image',self.use_last_image)
+                
+
+
+
+
+
+    # def setPubImageCb(self,msg):
+    #     enable = msg.data
+    #     self.set_pub_image(enable)
+
+
+
+
+    # def set_pub_image(self,enable):
+    #     """Enables or disables image publishing and persists the setting.
+
+    #     Args:
+    #         enable (bool): True to enable detections image publishing,
+    #             False to disable it.
+    #     """
+    #     if self.imaging_enabled != enable:
+    #         self.imaging_enabled = enable
+    #         self.publish_status()
+    #         if self.node_if is not None:
+    #             self.node_if.set_param('imaging_enabled',self.imaging_enabled)
+                
+
+
     def _systemStatusCb(self,msg):
             self.active_nodes = msg.active_nodes
             self.active_topics = msg.active_topics
@@ -1121,8 +1534,8 @@ class ProcessIF:
         self._reloadProcesses()
     
     def _setProcessCb(self,msg):
-        process_name = msg.data
-        self.set_selected_process(process_name)
+        process_image_name = msg.data
+        self.set_selected_process(process_image_name)
 
     def _setEnableCb(self,msg):
         enabled = msg.data
@@ -1153,16 +1566,16 @@ class ProcessIF:
                         self.has_results_pub = False
 
                     available_processes = []
-                    for process_name in processes_dict.keys():
-                        available_processes.append(process_name)
-                        if process_name in processes_controls_dict.keys():
+                    for process_image_name in processes_dict.keys():
+                        available_processes.append(process_image_name)
+                        if process_image_name in processes_controls_dict.keys():
 
-                                if 'controls_dict' in processes_dict[process_name].keys():
-                                    for control_name in processes_controls_dict[process_name].keys():
+                                if 'controls_dict' in processes_dict[process_image_name].keys():
+                                    for control_name in processes_controls_dict[process_image_name].keys():
                                         #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]))
-                                        if control_name in processes_dict[process_name]['controls_dict'].keys():
-                                            control_value = processes_controls_dict[process_name][control_name]
-                                            nepi_controls.set_value(processes_dict[process_name]['controls_dict'], control_name, control_value )
+                                        if control_name in processes_dict[process_image_name]['controls_dict'].keys():
+                                            control_value = processes_controls_dict[process_image_name][control_name]
+                                            nepi_controls.set_value(processes_dict[process_image_name]['controls_dict'], control_name, control_value )
 
                     self.available_processes = available_processes
                     self.processes_dict = processes_dict
@@ -1170,9 +1583,9 @@ class ProcessIF:
                     #self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict))
 
                     processes_controls_dict = dict()
-                    for process_name in processes_dict.keys():
+                    for process_image_name in processes_dict.keys():
                         try:
-                            processes_controls_dict[process_name] = processes_dict[process_name]['controls_dict']
+                            processes_controls_dict[process_image_name] = processes_dict[process_image_name]['controls_dict']
                         except:
                             pass
 
@@ -1224,12 +1637,17 @@ class ProcessIF:
 
 
             if 'data_header' in results_pub_dict.keys():
+                process_timestamp = nepi_utils.get_time()
                 data_header = dict()
-                data_header['timestamp'] = nepi_utils.get_time()
                 data_header['process_name'] = self.node_name
                 data_header['process_namespace'] = self.node_namespace
-                data_header['source_topic'] = source_topic
-                data_header['source_timestamp'] = nepi_utils.get_time() 
+                data_header['process_timestamp'] = process_timestamp
+                data_header['sour= nepi_utils.get_time() ce_topic'] = source_topic
+                if 'timestamp' in results_dict.keys():
+                    source_timestamp = results_dict['timestamp']
+                else:
+                    source_timestamp = process_timestamp
+                data_header['source_timestamp'] = source_timestamp
                 for key in data_header.keys():
                     if key in results_pub_dict['data_header'].keys():
                         results_pub_dict['data_header'][key] = data_header[key]
@@ -1251,7 +1669,6 @@ class ProcessIF:
     def _publishStatusCb(self, timer):
         self.admin_enabled = nepi_system.get_admin_mode()
         self.publish_status()
-       
 
 
 # class ProcessIF:
@@ -1261,7 +1678,7 @@ class ProcessIF:
 #     node_if_shared = False
 #     save_data_if = None
 
-#     process_name = None
+#     process_image_name = None
 #     namespace = ''
 #     process_data_products = []
 #     process_module = None
@@ -1339,7 +1756,7 @@ class ProcessIF:
 #     #######################
 #     ### IF Initialization
 #     def __init__(self, 
-#                 process_name = None,
+#                 process_image_name = None,
 #                 process_group = 'PROCESS',
 #                 process_description = 'Process',
 #                 process_module = None,
@@ -1391,18 +1808,18 @@ class ProcessIF:
 #         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
 #         # Create Process Name
-#         self.process_name = nepi_utils.get_clean_name(process_name)
-#         if self.process_name is None or self.process_name == '':
-#             self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name)) 
+#         self.process_image_name = nepi_utils.get_clean_name(process_image_name)
+#         if self.process_image_name is None or self.process_image_name == '':
+#             self.msg_if.pub_warn("Process Name Not Valid: " + str(process_image_name)) 
 #             return
-#         self.msg_if.pub_info("Using Process Name: " + self.process_name)
-#         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
-#         self.node_if_prefix = self.process_name + '_'
+#         self.msg_if.pub_info("Using Process Name: " + self.process_image_name)
+#         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_image_name)
+#         self.node_if_prefix = self.process_image_name + '_'
 
 #         # Load Process Module
         
 #         if process_module is None:
-#             self.msg_if.pub_warn("Process Module Not Provided: " + str(process_name)) 
+#             self.msg_if.pub_warn("Process Module Not Provided: " + str(process_image_name)) 
 #             return
 #         self.process_module = process_module
 #         self.msg_if.pub_info("Using Process Module: " + self.process_module)
@@ -1948,7 +2365,7 @@ class ProcessIF:
 #         selected_sources = copy.deepcopy(self.selected_sources)
 #         status_msg = ProcessStatus()
 
-#         status_msg.name = self.process_name
+#         status_msg.name = self.process_image_name
 #         status_msg.id = self.process_id
 
 #         status_msg.status_msg_type = self.process_status_msg
@@ -2158,3 +2575,1230 @@ class ProcessIF:
 
 #     def _processLoop(self):
        
+
+
+
+
+
+# #########################################
+# # Process Image IF Class
+# #########################################
+
+
+# WATCHDOG_DELAY=60
+# WATCHDOG_TIMEOUT=3
+
+
+
+# NONE_IMG_DICT = {       
+#     'width': 0,
+#     'height': 0,
+#     'timestamp': nepi_sdk.get_time(),
+#     'source_topic': 'None',
+#     'ros_img_header': Header(),
+#     'source_timestamp': Header().stamp
+# }
+
+
+# BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
+
+# BLANK_CV2_IMAGE = nepi_img.create_blank_image((BLANK_SIZE_DICT['h'],BLANK_SIZE_DICT['w'],BLANK_SIZE_DICT['c']))
+
+# BLANK_IMG_DICT = {       
+#     'width': 0,
+#     'height': 0,
+#     'timestamp': nepi_sdk.get_time(),
+#     'source_topic': 'None',
+#     'source_timestamp': nepi_sdk.get_time()
+# }
+
+
+
+
+# class ProcessImageIF:
+#     process_name = 'process'
+#     process_image_name = 'process_image'
+#     process_image_function = None
+
+#     process_ready = False
+
+#     options_dict = None
+
+
+#     DATA_PRODUCTS = ['targets','targets_image']
+#     TARGETS_IMG_DATA_PRODUCT = 'targets_image'
+
+#     OUTPUT_IMG_PRODUCTS = [ TARGETS_IMG_DATA_PRODUCT]
+
+
+#     target_sub_names = ['targets']
+
+#     node_if = None
+
+
+#     self_managed = True
+#     model_name = "None"
+
+
+#     save_data_if = None
+
+#     cv2_img = None
+#     cv2_img_lock = threading.Lock()
+
+#     img_node_dict = dict()
+#     img_node_lock = threading.Lock()
+
+
+#     imgs_info_dict = dict()
+#     imgs_info_lock = threading.Lock()
+#     imgs_img_proc_dict = dict()
+
+#     save_cfg_if = None
+
+#     state_str_msg = 'Loading'
+
+#     cur_source_topic = "None"
+#     get_source_topic = "None"
+#     last_get_image_time = 0
+#     got_source_topic = "None"
+
+#     clear_img_time = 1.0
+
+#     clear_targets_time = 1.0
+
+#     detection_state = False
+
+#     classes_list = []
+#     classes_colors_list = []
+#     selected_classes = []
+    
+#     last_status_time=None
+
+#     data_products = DATA_PRODUCTS
+
+#     connected = False
+
+#     watchdog_timeout = None    
+#     #######################
+#     ### IF Initialization
+#     def __init__(self, 
+#                 process_name = 'process',
+#                 process_image_name = 'process_image',
+#                 process_module = None,              
+#                 log_name = None,
+#                 log_name_list = [],
+#                 msg_if = None,
+#                 node_if = None,
+#                 navpose_if = None,
+#                 save_data_if = None,
+#                 ):
+#         ####  IF INIT SETUP ####
+#         self.class_name = type(self).__name__
+#         self.base_namespace = nepi_sdk.get_base_namespace()
+#         self.node_name = nepi_sdk.get_node_name()
+#         self.node_namespace = nepi_sdk.get_node_namespace()
+
+    
+
+
+
+#         # Create Msg Class
+#         if msg_if is not None:
+#             self.msg_if = msg_if
+#         else:
+#             self.msg_if = MsgIF()
+#         self.log_name_list = copy.deepcopy(log_name_list)
+#         if log_name is not None:
+#             log_name = nepi_utils.get_clean_name(log_name)
+#             self.log_name_list.append(log_name)
+#         self.log_name_list.append(self.class_name)
+#         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+
+#         # Create Process Name
+#         self.process_image_name = nepi_utils.get_clean_name(process_image_name)
+#         if self.process_image_name is None or self.process_image_name == '':
+#             self.msg_if.pub_warn("Process Name Not Valid: " + str(process_image_name)) 
+#             return
+#         self.msg_if.pub_info("Using Process Name: " + self.process_image_name)
+
+#         if process_image_namespace is None:
+#             process_image_namespace = self.node_namespace
+#         self.namespace = nepi_sdk.create_namespace(process_image_namespace,self.process_image_name)
+#         self.data_products = [self.process_image_name]
+
+
+
+#         if process_module is None:
+#             self.msg_if.pub_warn("No Process Module Provided")
+#             return
+
+#         self.process_module = process_module
+
+#         # Registry keys on a shared node_if must be domain-unique, so every key
+#         # this IF adds carries the process name. Param wire names ARE
+#         # namespace + key, so the prefix is part of the external param surface.
+#         self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+
+       
+#         ##############################    
+#         # Initialize Class Variables
+
+#         success = self._reloadProcesses()
+#         if success == False:
+#             self.msg_if.pub_warn("INITIAL PROCESS LOAD FAILED" + str(self.process_image_function))
+#         else:
+#             self.msg_if.pub_warn("INITIAL PROCESS LOAD SUCCEEDED: " + str(self.process_image_function))
+
+#         option_keys = None
+#         if self.options_dict is not None:
+#             option_keys = list(self.options_dict.keys())
+#         self.msg_if.pub_warn("Got Image Options" + str(option_keys))
+
+#         # if data_product is not None:
+#         #     data_product = nepi_utils.get_clean_name(data_product)
+#         #     if data_product is not None:
+#         #         self.data_product = data_product
+#         self.save_data_if = save_data_if
+#         self.navpose_if = navpose_if
+#         self.node_if = node_if
+#         # # Call the parent class constructor
+#         # super().__init__(namespace = self.namespace ,
+#         #         data_product = self.process_image_name,
+#         #         data_source_description = self.process_name,
+#         #         data_ref_description = self.process_name,
+#         #         perspective = 'pov',
+#         #         init_overlay_text_list = [],
+#         #         options_dict = self.options_dict,
+#         #         callback_dict = self.callback_dict,
+#         #         navpose_if = self.navpose_if,
+#         #         navpose_namespace = None,
+#         #         transform_namespace = None,
+#         #         save_data_if = self.save_data_if,
+#         #         live_adjustments_disabled = False,
+#         #         aspect_adjustment_disabled = False,
+#         #         log_name = None,
+#         #         log_name_list = [],
+#         #         msg_if = self.msg_if,
+#         #         node_if = self.node_if
+#         # )
+
+
+
+#         self.msg_if.pub_warn("Starting with Data Products: " + str(self.data_products))
+        
+#         self.process_namespace = self.node_namespace.replace("_img_pub","")
+#         self.msg_if.pub_warn("Starting with Process Namespace: " + str(self.process_namespace))
+
+
+#         self.status_msg = ProcessStatus()
+#         self.model_name = 'None'
+#         self.enabled = False
+#         self.state_str_msg = "Unknown"
+#         self.set_image_rate = 10
+#         self.use_last_image = True
+
+#         self.imaging_enabled = True
+#         self.overlay_labels = True
+#         self.overlay_range_bearing = True
+#         # self.overlay_clf_name = False
+#         # self.overlay_img_name = False
+
+#         self.selected_source_topics = []
+#         self.selected_img_navpose_topics = []
+#         self.img_process_namespaces = []
+#         self.img_targets_states = []
+
+        
+
+#         ##############################  
+#         # Create NodeClassIF Class  
+
+#         # Configs Dict ########################
+#         self.CONFIGS_DICT = None
+#         '''
+#                 {
+#                 'init_callback': self.initCb,
+#                 'reset_callback': self.resetCb,
+#                 'factory_reset_callback': self.factoryResetCb,
+#                 'init_configs': True,
+#                 'namespace':  self.process_namespace,
+#         }
+#         '''
+
+
+#         # Params Config Dict ####################
+#         self.PARAMS_DICT = None
+
+
+#         # Services Config Dict ####################
+#         self.SRVS_DICT = None
+
+
+#         self.PUBS_DICT = None
+
+
+#         # Subs Config Dict ####################
+#         self.SUBS_DICT = {
+#             self.node_if_prefix + 'reload_process': {
+#                 'namespace': self.namespace,
+#                 'topic': 'reload_process',
+#                 'msg': Empty,
+#                 'qsize': 10,
+#                 'callback': self._reloadProcessesCb
+#             },
+#             'targets_status_sub': {
+#                 'msg': TargetsStatus,
+#                 'namespace': self.process_namespace + '/targets',
+#                 'topic': 'status',
+#                 'qsize': 10,
+#                 'callback': self.targetsStatusCb,
+#                 'callback_args': ()
+#             },
+#             'targets': {
+#                 'msg': Targets,
+#                 'namespace': self.process_namespace,
+#                 'topic': 'targets',
+#                 'qsize': 10,
+#                 'callback': self.targetsCb,
+#                 'callback_args': ()
+#             },
+#             self.node_if_prefix + 'system_status': {
+#                 'msg': MgrSystemStatus,
+#                 'namespace': self.base_namespace,
+#                 'topic': 'status',
+#                 'qsize': 5,
+#                 'callback': self._systemStatusCb
+#             },
+
+#         }
+
+
+
+
+
+
+
+#     if node_if is None:
+#         self.node_if = NodeClassIF(
+#                         configs_dict = CFGS_DICT,
+#                         params_dict = PARAMS_DICT,
+#                         services_dict = None,
+#                         pubs_dict = self.process_node_pubs_dict,
+#                         subs_dict = self.process_node_subs_dict,
+#                         log_name_list = [],
+#                         msg_if = self.msg_if
+#         )
+#         self.node_if.wait_for_ready()
+#     else:
+#         self.config_if = self.namespace
+#         self.node_if_shared = True
+#         try:
+#             self.node_if = node_if
+#             self.node_if.register_pubs(self.process_node_pubs_dict)
+#             self.node_if.register_subs(self.process_node_subs_dict)
+#             # Register this IF's params on the shared node_if too, or
+#             # get_param/set_param below resolve to no namespace and the
+#             # controls dict and enable state never persist.
+#             self.node_if.add_params(PARAMS_DICT)
+#             nepi_sdk.sleep(1)
+#         except Exception as e:
+#             self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
+#             return
+
+
+
+
+
+#         ###############################
+#         # Create System IFs
+
+       
+#         # Setup Save Data IF
+#         factory_data_rates= {}
+#         for d in self.data_products:
+#             factory_data_rates[d] = [1.0, 0.0, 100]            
+#         self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False, factory_rate_dict = factory_data_rates, namespace = self.process_namespace,
+#                         msg_if = self.msg_if,
+#                             node_if = self.node_if
+#                         )
+        
+#         nepi_sdk.sleep(1)
+#         if self.save_data_if is not None:
+#             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
+#             self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
+
+
+#         time.sleep(1)
+
+
+#         ##########################
+#         # Complete Initialization
+
+#         # Start Timer Processes
+        
+#         nepi_sdk.start_timer_process((0.1), self.updaterCb, oneshot = True)
+#         #nepi_sdk.start_timer_process((0.1), self.updateImgSubsCb, oneshot = True)
+#         self.last_status_time=nepi_utils.get_time()
+#         nepi_sdk.start_timer_process(1, self.watchdogCb, oneshot = True)
+#         nepi_sdk.on_shutdown(self.shutdownCb)
+        
+#         #########################################################
+#         ## Initiation Complete
+#         self.msg_if.pub_info("Initialization Complete")
+#         # Spin forever (until object is detected)
+#         nepi_sdk.spin()
+#         #########################################################
+
+
+#     def initCb(self,do_updates = False):
+#         self.msg_if.pub_info(" Setting init values to param values")
+#         if do_updates == True:
+#             pass
+
+
+#     def resetCb(self,do_updates = True):
+#         self.last_targets_dict_list = []
+#         if do_updates == True:
+#             pass
+#         self.initCb()
+
+#     def factoryResetCb(self,do_updates = True):
+#         self.last_targets_dict_list = []
+#         if do_updates == True:
+#             pass
+#         self.initCb()
+
+
+
+#     #######################
+#     # Class Public Methods
+#     #######################
+
+#     ###############################
+#     # Class Private Methods
+#     ###############################
+
+
+#     def unregister_pubs(self):
+#         """Unregister all ROS publishers managed by this interface."""
+#         if self.node_if is not None:
+#             if self.node_if_shared == False:
+#                 self.node_if.unregister_pubs()
+#             else:
+#                 if self.process_node_pubs_dict is not None:
+#                     for pub_name in self.process_node_pubs_dict.keys():
+#                         self.node_if.unregister_pub(pub_name)
+
+#     def unsubscribe(self):
+#         """Shut down this interface, unregister all owned ROS resources, and clear state."""
+#         self.ready = False
+#         if self.node_if is not None and self.node_if_shared == False:
+#             self.node_if.unregister_class()
+#         else:
+#             self.unregister_pubs()
+#         time.sleep(1)
+#         self.namespace = None
+
+#     def init(self, do_updates = False):
+#         """Initialize or re-initialize interface state and publish status.
+
+#         Args:
+#             do_updates (bool, optional): Reserved for future use. Defaults to False.
+#         """
+#         if self.node_if is not None:
+#             processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
+#             if processes_controls_dict is not None:
+#                 self.processes_controls_dict = processes_controls_dict
+#             selected_process =  self.node_if.get_param(self.node_if_prefix + 'selected_process')
+#             if selected_process is not None:
+#                 self.selected_process = selected_process
+#             self.enabled =  self.node_if.get_param(self.node_if_prefix + 'enabled')
+#         if do_updates == True:
+#             success = self._reloadProcesses()
+#             if success == False:
+#                 self.msg_if.pub_warn("PROCESS LOAD FAILED: " + str(self.processes_functions_dict))
+#             else:
+#                 self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict.keys()))
+#                 # self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict))
+#                 # self.msg_if.pub_warn("Process Selected: " + str(self.selected_process))
+#         self.publish_status()
+
+#     def reset(self):
+#         """Reset the interface to its initialized state."""   
+#         if self.node_if is not None and self.node_if_shared == False:
+#             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+#             self.node_if.reset_params()
+#         nepi_sdk.sleep(1)     
+#         self.init(do_updates = True)
+
+#     def factory_reset(self):
+#         """Reset the interface to factory defaults."""
+#         if self.node_if is not None and self.node_if_shared == False:
+#             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+#             self.node_if.factory_reset_params()
+#         self.init(do_updates = True)
+
+#     ###############################
+#     # Class Private Methods
+#     ###############################
+
+
+
+
+
+
+
+#     def getImgInfoDict(self):
+#         self.imgs_info_lock.acquire()
+#         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
+#         self.imgs_info_lock.release()
+#         return imgs_info_dict
+
+#     def getActiveImgTopics(self):
+#         self.imgs_info_lock.acquire()
+#         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
+#         self.imgs_info_lock.release()
+#         source_topics = list(imgs_info_dict.keys())
+#         #self.msg_if.pub_warn("Updating active topics: " +  str(source_topics))
+#         active_source_topics = []
+#         for source_topic in source_topics:
+#             if 'active' in imgs_info_dict[source_topic].keys():
+#                 if imgs_info_dict[source_topic]['active'] == True:
+#                     #self.msg_if.pub_warn("Found active topic: " +  str(source_topic))
+#                     active_source_topics.append(source_topic)
+#         return active_source_topics
+
+
+#     def updaterCb(self,timer):
+#         # Clear boxes if stall
+#         selected_source_topics = copy.deepcopy(self.selected_source_topics)
+#         active_source_topics = self.getActiveImgTopics()
+#         #self.msg_if.pub_warn("")
+#         #self.msg_if.pub_warn("Updating with image topics: " +  str(selected_source_topics))
+#         #self.msg_if.pub_warn("Updating with active image topics: " +  str(active_source_topics))
+#         current_time = nepi_utils.get_time()
+#         for source_topic in self.imgs_info_dict.keys():
+#             last_time = self.imgs_info_dict[source_topic]['last_targets_time']
+#             check_time = current_time - last_time
+#             '''
+#             if check_time > self.clear_targets_time or self.enabled == False or self.state_str_msg != 'Detecting':
+#                 try:
+#                     self.imgs_info_dict[source_topic]['target_dict_list'] = None
+#                 except:
+#                     pass
+#             '''
+
+
+#         # Do Image Subs updating
+
+#         #self.msg_if.pub_warn("Subscriber Check with selected image topics: " +  str(selected_source_topics))
+#         #self.msg_if.pub_warn("Subscriber Check  with active image topics: " +  str(active_source_topics))
+#         purge_list = []
+#         if self.set_image_rate == -1 :
+#             purge_list = selected_source_topics
+#         elif self.imaging_enabled == True:
+#             # Update Image subscribers
+#             found_source_topics = []
+#             for source_topic in selected_source_topics:
+#                 if os.path.basename(source_topic) in self.OUTPUT_IMG_PRODUCTS:
+#                     continue
+#                 source_topic = nepi_sdk.find_topic(source_topic, exact = True)
+#                 if source_topic != '':
+#                     found_source_topics.append(source_topic)
+#                     if source_topic not in active_source_topics:
+#                         self.msg_if.pub_warn('Will subscribe to image topic: ' + source_topic)
+#                         success = self.subscribeImgTopic(source_topic)
+#                         #self.msg_if.pub_warn('Subscribe process returned: ' + str(success))
+                       
+#             # Update Image Subs purge list      
+#             active_source_topics = self.getActiveImgTopics() 
+#             #self.msg_if.pub_warn('Purge Check with active topics: ' + str(active_source_topics))       
+#             #self.msg_if.pub_warn('Purge Check with found topics: ' + str(active_source_topics)) 
+#             for source_topic in active_source_topics:
+#                 if source_topic not in found_source_topics:
+#                     purge_list.append(source_topic)
+#         elif self.imaging_enabled == False:
+#              purge_list = copy.deepcopy(list(self.imgs_info_dict.keys()))
+
+#         # Do image sub purging if required
+#         #self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
+#         #self.msg_if.pub_warn("")
+#         for source_topic in purge_list:
+#                 if source_topic not in active_source_topics:
+#                     purge_list.remove(source_topic)
+#         if len(purge_list) > 0:
+#             self.msg_if.pub_warn('Purging image topics: ' + str(purge_list))
+#         for source_topic in purge_list:
+#             self.msg_if.pub_warn('Will unsubscribe from image topic: ' + source_topic)
+#             success = self.unsubscribeImgTopic(source_topic)
+#             self.msg_if.pub_warn('Unsubsribe process returned: ' + str(success))
+#             nepi_sdk.sleep(1)
+
+#         '''
+#         self.pub_img_if.publish_msg_img("Detector not Enabled")
+
+#         self.pub_img_if.publish_msg_img("Detector Sleeping")
+
+#         self.pub_img_if.publish_msg_img("Waiting for Image")
+
+#         self.pub_img_if.publish_msg_img("Image not Connected")
+#         '''
+#         nepi_sdk.start_timer_process((1), self.updaterCb, oneshot = True)
+
+
+#     def watchdogCb(self,timer):
+#         cur_time=nepi_utils.get_time()
+#         timer=cur_time-self.last_status_time
+#         if self.watchdog_timeout is None:
+#             self.watchdog_timeout = WATCHDOG_TIMEOUT
+#             nepi_sdk.sleep(WATCHDOG_DELAY)
+#         else:
+#             if timer > WATCHDOG_TIMEOUT:
+                
+#                 msg="Lost connection to parent node status msg.  Shutting down"
+#                 self.msg_if.pub_warn(msg)
+#                 nepi_sdk.signal_shutdown(msg)
+            
+#         nepi_sdk.start_timer_process(1, self.watchdogCb, oneshot = True)
+
+
+#     def subscribeImgTopic(self,source_topic):
+#         success = False
+#         #self.msg_if.pub_warn('Subscribing with image dict keys: ' + str(self.imgs_info_dict.keys()))
+#         if source_topic == "None" or source_topic == "":
+#             self.msg_if.pub_warn('Skipping subscribe, Image topic is None: ' + str(source_topic))
+#             return False
+        
+#         # Create Publishers
+#         self.msg_if.pub_warn('Subscribing to image topic: ' + source_topic)
+
+#         img_source_topic = os.path.dirname(source_topic)
+#         targets_name = os.path.basename(self.process_namespace)
+#         #self.msg_if.pub_warn('Creating namespace for image name: ' + img_source_topic)
+
+#         pub_namespace = img_source_topic #os.path.join(os.path.dirname(source_topic),targets_name)
+#         img_pub_topic = os.path.join(pub_namespace,self.TARGETS_IMG_DATA_PRODUCT)
+#         self.msg_if.pub_warn('Publishing imgage ' + img_source_topic + ' on namespace: ' + img_pub_topic)
+
+
+#         if source_topic in self.imgs_info_dict.keys():
+
+#             imgs_info_dict = self.getImgInfoDict()
+#             if imgs_info_dict[source_topic]['active'] == True:
+#                 self.msg_if.pub_warn('Skipping subscribe, Image Topic is active: ' + source_topic)
+#                 return  False
+#             self.img_node_lock.acquire()
+#             if source_topic in self.img_node_dict.keys():
+#                 self.imgs_info_dict[source_topic]['active'] = True
+#                 self.img_node_dict[source_topic]['img_pub'] = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1, log_name_list = [])
+#                 nepi_sdk.sleep(1)
+#                 self.img_node_dict[source_topic]['img_sub'] = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic), log_name_list = [])
+#                 self.img_node_dict[source_topic]['img_if'].register_pubs()
+#             self.img_node_lock.release()
+
+#             return True
+
+
+#         img_pub = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1, log_name_list = [])
+#         nepi_sdk.sleep(1)
+#         img_sub = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic), log_name_list = [])
+#         img_status_topic = nepi_sdk.create_namespace(source_topic, 'status')
+#         self.msg_if.pub_warn('Subscribing to image status topic: ' + img_status_topic)
+#         img_stutus_sub = nepi_sdk.create_subscriber(img_status_topic,ImageStatus, self.imageStatusCb, queue_size = 1, callback_args= (source_topic), log_name_list = [])
+
+
+#         # Create detections image publisher
+#         img_if = ColorImageIF(namespace = pub_namespace ,
+#                         data_product = 'targets_image',
+#                         data_source_description = 'image',
+#                         data_ref_description = 'image',
+#                         perspective = 'pov',
+#                         save_data_if = self.save_data_if,
+#                         init_overlay_text_list = [],
+#                         live_adjustments_disabled = True,
+#                         aspect_adjustment_disabled = True,
+#                         log_name = 'targets_image',
+#                         log_name_list = [],
+#                         msg_if = self.msg_if,
+#                         node_if = self.node_if
+#                         )
+
+
+#         # Subscribe to new image topic
+#         self.img_node_lock.acquire()
+#         self.img_node_dict[source_topic] = {
+#                                         'img_sub': img_sub,
+#                                         'img_status_sub': img_stutus_sub,
+#                                         'img_pub': img_pub,
+#                                         'img_if': img_if,
+
+#                                         }
+#         self.img_node_lock.release()
+
+#         ####################
+#         # Create img info dict
+#         img_info_dict = dict()  
+#         img_info_dict['active'] = True
+#         img_info_dict['img_connected'] = False
+#         img_info_dict['img_published'] = False
+#         img_info_dict['targets_img_published'] = False
+#         img_info_dict['status_dict'] = None
+#         img_info_dict['pub_namespace'] = pub_namespace
+
+#         img_info_dict['connected'] = False
+#         img_info_dict['publishing'] = False
+#         img_info_dict['get_latency_time'] = 0
+#         img_info_dict['pub_latency_time'] = 0
+#         img_info_dict['process_time'] = 0
+#         img_info_dict['last_img_time'] = 0
+#         img_info_dict['last_targets_time'] = 0
+#         img_info_dict['target_dict_list'] = []
+#         img_info_dict['last_img'] = None
+
+#         self.imgs_info_lock.acquire()
+#         self.imgs_info_dict[source_topic] = img_info_dict
+#         self.imgs_info_lock.release()
+#         #self.msg_if.pub_warn('Subscribed with image dict key: ' + str(img_info_dict.keys()))
+#         #self.msg_if.pub_warn('Subscribed with images dict: ' + str(self.imgs_info_dict))
+       
+#         return True
+    
+
+
+#     def unsubscribeImgTopic(self,source_topic):
+#         if source_topic in self.imgs_info_dict.keys():
+#             if self.imgs_info_dict[source_topic]['active'] == True:
+#                 self.msg_if.pub_warn('Unsubscribing from image topic: ' + source_topic)
+
+
+#                 # Unsubscribe
+#                 self.img_node_lock.acquire()
+#                 if source_topic in self.img_node_dict.keys():
+#                     if self.img_node_dict[source_topic]['img_sub'] is not None:
+#                         self.img_node_dict[source_topic]['img_sub'].unregister()
+#                     if self.img_node_dict[source_topic]['img_status_sub'] is not None:
+#                         self.img_node_dict[source_topic]['img_status_sub'].unregister
+#                     if self.img_node_dict[source_topic]['img_pub'] is not None:
+#                         self.img_node_dict[source_topic]['img_pub'].unregister()
+#                     if self.img_node_dict[source_topic]['img_if'] is not None:
+#                         self.img_node_dict[source_topic]['img_if'].unregister_pubs()
+#                     nepi_sdk.sleep(1)
+#                     self.img_node_dict[source_topic]['img_sub'] = None
+#                     self.img_node_dict[source_topic]['img_status_sub'] = None
+#                     self.img_node_dict[source_topic]['img_pub'] = None
+#                 self.img_node_lock.release()
+
+#                 if source_topic in self.imgs_info_dict.keys():
+#                     self.msg_if.pub_warn('Setting image topic inactive: ' + source_topic)
+#                     self.imgs_info_lock.acquire()
+#                     self.imgs_info_dict[source_topic]['active'] = False
+#                     self.imgs_info_dict[source_topic]['status_dict'] = None
+#                     self.imgs_info_dict[source_topic]['connected'] = False 
+#                     self.imgs_info_dict[source_topic]['publishing'] = False
+#                     self.imgs_info_dict[source_topic]['img_connected'] = False
+#                     self.imgs_info_dict[source_topic]['img_published'] = False
+#                     self.imgs_info_dict[source_topic]['targets_img_published'] = False
+#                     self.imgs_info_dict[source_topic]['last_img'] = None
+
+#                     self.imgs_info_lock.release()
+#                     #self.msg_if.pub_warn('Unubscribed with images dict: ' + str(self.imgs_info_dict))
+
+#                 nepi_sdk.sleep(1)
+
+                    
+#                 return True
+#         return False
+
+
+
+
+#     def imageStatusCb(self, status_msg, args):   
+#             source_topic = args  
+#             if source_topic not in self.imgs_info_dict.keys():
+#                 return
+#             self.imgs_info_lock.acquire()
+#             if source_topic in self.imgs_info_dict.keys():
+#                 status_dict = nepi_sdk.convert_msg2dict(status_msg)
+#                 if self.imgs_info_dict[source_topic]['status_dict'] is None:
+#                     self.msg_if.pub_warn('Connected to image status topic: ' + source_topic + '/status')
+#                     self.msg_if.pub_warn('Got width,height degs: ' + str([status_dict['width_deg'],status_dict['height_deg']]))
+#                 self.imgs_info_dict[source_topic]['status_dict'] = status_dict
+#             self.imgs_info_lock.release()                
+
+
+#     def imageCb(self, image_msg, args):   
+#             source_topic = args  
+
+#             if source_topic not in self.imgs_info_dict.keys():
+#                 return
+
+
+#             if self.imgs_info_dict[source_topic]['img_connected'] == False:
+#                 self.msg_if.pub_warn('Connected to image topic: ' + source_topic)
+#             self.imgs_info_dict[source_topic]['img_connected'] = True
+
+
+
+#             needs_img = False
+#             needs_targets_img = False
+#             if source_topic in self.imgs_info_dict.keys():
+#                 if  self.img_node_dict[source_topic]['img_if'] is not None:
+#                     needs_img = self.img_node_dict[source_topic]['img_if'].needs_data_check()
+#                 if 'publishing' in self.imgs_info_dict[source_topic].keys():
+#                     if self.imgs_info_dict[source_topic]['publishing'] == False:
+#                         pass
+
+#             if ( needs_img or needs_targets_img ) and self.imaging_enabled:
+#                 start_time = nepi_sdk.get_time()
+                
+
+
+#                 sel_imgs = copy.deepcopy(self.selected_source_topics) 
+#                 set_image_rate = copy.deepcopy(self.set_image_rate)
+#                 if source_topic in self.imgs_info_dict.keys() and source_topic in sel_imgs and set_image_rate > .01:
+#                     if self.imgs_info_dict[source_topic]['connected'] == False:
+#                         self.msg_if.pub_warn("Got image topic: " + str(source_topic))
+#                     self.imgs_info_dict[source_topic]['connected'] = True
+#                     if self.enabled == True and self.state_str_msg == 'Detecting':
+
+#                         # if self.imgs_info_dict[source_topic]['publishing'] == False:
+#                         #     self.msg_if.pub_warn("Processing image topic: " + str(source_topic))
+
+#                         # Check if time to publish
+#                         delay_time = float(1) / set_image_rate 
+#                         last_img_time = self.imgs_info_dict[source_topic]['last_img_time']
+#                         current_time = nepi_utils.get_time()
+#                         timer = round((current_time - last_img_time), 3)
+#                         # if self.imgs_info_dict[source_topic]['publishing'] == False:   
+#                         #     self.msg_if.pub_warn("Process Delay and Timer: " + str(delay_time) + " " + str(timer))
+#                         if timer > delay_time: 
+#                             self.imgs_info_dict[source_topic]['last_img_time'] = current_time
+
+
+#                             stamp = image_msg.header.stamp
+#                             timestamp = copy.deepcopy(float(stamp.to_sec()))
+
+#                             ros_frame_id = image_msg.header.frame_id
+
+#                             current_time = nepi_utils.get_time()
+#                             latency = (current_time - timestamp )
+#                             self.imgs_info_dict[source_topic]['get_latency_time'] = latency
+
+#                             if self.use_last_image == False:
+#                                 # process image for next time
+#                                 use_cv2_img = nepi_img.rosimg_to_cv2img(image_msg)
+#                             else: 
+#                                 # Use last image to align with detection data
+#                                 self.cv2_img_lock.acquire()
+#                                 use_cv2_img = copy.deepcopy(self.imgs_info_dict[source_topic]['last_img'])
+#                                 self.cv2_img_lock.release()
+#                                 #self.msg_if.pub_info("Image updated is None: " + str(use_cv2_img is None))
+
+
+#                             target_dict_list = copy.deepcopy(self.imgs_info_dict[source_topic]['target_dict_list'])
+#                             if target_dict_list == None:
+#                                 target_dict_list = []
+#                             if use_cv2_img is not None:
+#                                 # if self.imgs_info_dict[source_topic]['publishing'] == False:
+#                                 #     self.msg_if.pub_warn("Will process img with shape: " + str(use_cv2_img.shape) )
+#                                 # Symmetric targets overlay image, built from the
+#                                 # same source image and the latest targets list.
+#                                 success = self.processTargetsImage(source_topic,
+#                                                             use_cv2_img,
+#                                                             target_dict_list,
+#                                                             timestamp = timestamp,
+#                                 )
+
+#                                 current_time = nepi_utils.get_time()
+#                                 latency = (current_time - timestamp )
+#                                 self.imgs_info_dict[source_topic]['pub_latency_time'] = latency
+
+                                
+#                             if self.use_last_image == True:
+#                                 # process image for next time
+#                                 self.imgs_info_dict[source_topic]['last_img'] = nepi_img.rosimg_to_cv2img(image_msg)
+
+                           
+
+#     def processFileImg(self, img_file,target_dict_list):   
+#         source_topic = 'img_file'      
+#         set_image_rate = copy.deepcopy(self.set_image_rate)
+#         if set_image_rate > .01:
+#             if self.enabled == True and self.state_str_msg == 'Detecting':
+
+
+#                 # Check if time to publish
+#                 delay_time = float(1) / set_image_rate 
+#                 last_img_time = 0
+#                 if 'last_img_time' in self.imgs_info_dict['img_file'].keys():
+#                     last_img_time = self.imgs_info_dict['img_file']['last_img_time']
+#                 current_time = nepi_utils.get_time()
+#                 timer = round((current_time - last_img_time), 3)
+#                 #self.msg_if.pub_warn("Delay and Timer: " + str(delay_time) + " " + str(timer))
+#                 if timer > delay_time: 
+#                     cv2_img = cv2.imread(img_file)
+#                     if cv2_img is not None:
+#                         self.imgs_info_dict['img_file']['last_img_time'] = current_time
+
+
+#                         timestamp = nepi_utils.get_time()
+#                         ros_frame_id = 'nepi_base'
+
+#                         current_time = nepi_utils.get_time()
+#                         latency = (current_time - timestamp)
+#                         self.imgs_info_dict['img_file']['get_latency_time'] = latency
+
+#                         if target_dict_list == None:
+#                             target_dict_list = []           
+#                         success = self.processTargetsImage(source_topic, 
+#                                                     cv2_img, 
+#                                                     target_dict_list, 
+#                                                     timestamp = timestamp,  
+#                                                     )
+
+#                         current_time = nepi_utils.get_time()
+#                         latency = (current_time - timestamp)
+#                         self.imgs_info_dict['img_file']['pub_latency_time'] = latency                              
+
+                           
+
+#     def processTargetsImage(self,source_topic, cv2_img, target_dict_list, timestamp = None):
+#         # Symmetric mirror of processDetImage for the targets_image data product.
+#         # Post process image with overlays
+#         if target_dict_list is not None:
+#             cv2_img = self.apply_targets_overlay(source_topic, target_dict_list, cv2_img)
+
+#             add_overlay_text_list = []
+
+#             self.publishImgData(source_topic,
+#                                 cv2_img,
+#                                 timestamp = timestamp,
+#                                 add_overlay_text_list = add_overlay_text_list,
+#                                 )
+
+#             if self.imgs_info_dict[source_topic]['targets_img_published'] == False:
+#                 namespace = self.imgs_info_dict[source_topic]['pub_namespace']
+#                 topic = os.path.join(namespace,'targets_image')
+#                 self.msg_if.pub_warn('Published image topic: ' + topic)
+#             self.imgs_info_dict[source_topic]['targets_img_published'] = True
+
+#             # Save Image Data if needed
+#             data_product = 'targets_image'
+#             if self.save_data_if is not None:
+#                 self.save_data_if.save(data_product,cv2_img,timestamp)
+#         return True
+
+
+#     def publishImgData(self, source_topic, cv2_img, encoding = "bgr8", timestamp = None, add_overlay_text_list = []):
+
+
+#             if self.imgs_info_dict[source_topic]['publishing'] == False:
+#                 pass
+#             if self.imaging_enabled:
+
+#                 if source_topic in self.imgs_info_dict.keys():
+
+#                     # if self.imgs_info_dict[source_topic]['publishing'] == False:
+#                     #     self.msg_if.pub_warn("Publishing image topic: " + str(source_topic))
+#                     self.imgs_info_dict[source_topic]['publishing'] = True
+#                     status_dict = copy.deepcopy(self.imgs_info_dict[source_topic]['status_dict'])
+#                     if status_dict is not None:
+#                         width_deg = status_dict['width_deg']
+#                         height_deg = status_dict['height_deg']
+#                         #self.msg_if.pub_warn('Using status provided image width,height degs: ' + str([width_deg,height_deg]))
+#                     else:
+#                         width_deg = 100
+#                         height_deg = 70
+
+#                     # try/finally: any raise between acquire and release (a
+#                     # publish_cv2_img signature drift, a missing dict key) would
+#                     # otherwise leave the lock held and wedge image publishing for
+#                     # the life of the node. Degrade to a logged error instead.
+#                     self.img_node_lock.acquire()
+#                     try:
+#                         img_if = self.img_node_dict[source_topic]['img_if']
+#                         img_pub = self.img_node_dict[source_topic]['img_pub']
+
+#                         img_if_ready = img_if.ready
+#                         if img_if_ready == False:
+#                             img_msg = nepi_img.cv2img_to_rosimg(cv2_img)
+#                             nepi_sdk.publish_pub(img_pub,img_msg)
+#                         else:
+#                             img_if.publish_cv2_img(cv2_img,
+#                                                 encoding = encoding,
+#                                                 timestamp = timestamp,
+#                                                 width_deg = width_deg,
+#                                                 height_deg = height_deg,
+#                                                 add_overlay_text_list = add_overlay_text_list
+#                                                 )
+#                     except Exception as e:
+#                         self.msg_if.pub_warn("Failed to publish image for source: " + str(source_topic) + " : " + str(e))
+#                     finally:
+#                         self.img_node_lock.release()
+
+#                     # img_pub = self.img_node_dict[source_topic]['img_pub']
+#                     # img_msg = nepi_img.cv2img_to_rosimg(cv2_img)
+#                     # nepi_sdk.publish_pub(img_pub,img_msg)
+
+               
+
+#     def apply_targets_overlay(self,source_topic, targets_dict_list, cv2_img):
+#         cv2_targets_img = copy.deepcopy(cv2_img)
+#         cv2_shape = cv2_img.shape
+#         img_width = cv2_shape[1] 
+#         img_height = cv2_shape[0] 
+
+#         for i, target_dict in enumerate(targets_dict_list):
+#             img_size = cv2_img.shape[:2]
+
+#             # Overlay text data on OpenCV image
+#             font = cv2.FONT_HERSHEY_DUPLEX
+#             scale = 1.5e-3 - 0.1e-3 * math.ceil(max([img_height, img_width])/700)
+#             fontScale, fontThickness  = nepi_img.get_optimal_font_dims(cv2_img,font_scale = scale, thickness_scale = scale) 
+#             fontColor = (255, 255, 255)
+#             fontColorBk = (0,0,0)
+#             lineType = cv2.LINE_AA
+
+
+#             ###### Apply Image Overlays and Publish Image ROS Message
+#             # Overlay adjusted detection boxes on image 
+#             class_name = target_dict['name']
+#             xmin = target_dict['xmin_pixel']
+#             ymin = target_dict['ymin_pixel']
+#             xmax = target_dict['xmax_pixel']
+#             ymax = target_dict['ymax_pixel']
+
+#             if xmin <= 0:
+#                 xmin = 5
+#             if ymin <= 0:
+#                 ymin = 5
+#             if xmax >= img_size[1]:
+#                 xmax = img_size[1] - 5
+#             if ymax >= img_size[0]:
+#                 ymax = img_size[0] - 5
+
+
+#             bot_left_box = (xmin, ymin)
+#             top_right_box = (xmax, ymax)
+
+
+#             class_color = (0,0,127)
+#             if class_name in self.classes_list:
+#                 class_ind = self.classes_list.index(class_name)
+#                 #self.msg_if.pub_warn("Got Class Index: " + str(class_ind))
+#                 if class_ind < len(self.classes_colors_list):
+#                     class_color = self.classes_colors_list[class_ind]
+
+#             #self.msg_if.pub_warn("Got Class Color: " + str(class_color) + ' type: ' + str(type(class_color)) + " type: " + str(type(class_color[0])) )
+#             line_thickness = 1 + math.ceil(max([img_height, img_width])/2000)
+            
+
+#             success = False
+#             try:
+#                 cv2.rectangle(cv2_targets_img, bot_left_box, top_right_box, class_color, thickness=line_thickness)
+#                 success = True
+#             except Exception as e:
+#                 self.msg_if.pub_warn("Failed to create bounding box rectangle: " + str(e))
+
+#             # Overlay text data on OpenCV image
+#             if success == True:
+
+
+#                 ## Overlay Text
+#                 overlay_labels =  self.overlay_labels
+#                 overlay_range_bearing =  self.overlay_range_bearing
+
+#                 overlay_text = ""
+
+#                 if overlay_labels:
+#                     overlay_text = overlay_text + class_name + " "
+#                 if overlay_range_bearing:
+#                     rb_text = ''
+#                     if target_dict['range_m'] != -999 and target_dict['range_m'] != '':
+#                         rb_text = rb_text + str(round(target_dict['range_m'],1)) + 'm :'
+#                     if target_dict['azimuth_deg'] != -999 and target_dict['elevation_deg'] != -999:
+#                         rb_text = rb_text + str(round(target_dict['azimuth_deg'],1)) + 'deg '
+#                         rb_text = rb_text + str(round(target_dict['elevation_deg'],1)) + 'deg '
+#                     if len(rb_text) > 0:
+#                         overlay_text = overlay_text + rb_text
+
+
+
+#                 if len(overlay_text) > 0:
+#                     text2overlay=overlay_text
+#                     text_size = cv2.getTextSize(text2overlay, 
+#                         font, 
+#                         fontScale,
+#                         fontThickness)
+#                     #self.msg_if.pub_warn("Text Size: " + str(text_size))
+#                     line_height = text_size[0][1]
+#                     line_width = text_size[0][0]
+#                     x_padding = int(line_height*0.4)
+#                     y_padding = int(line_height*0.4)
+                    
+#                     center = bot_left_box[0] + int(( top_right_box[0] - bot_left_box[0]) / 2 )
+#                     #bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
+#                     bot_left_text = (center + x_padding , ymin - (line_thickness * 2) - y_padding)
+#                     # Create Text Background Box
+#                     #bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
+#                     bot_left_box =  ( center - x_padding, bot_left_text[1] + y_padding)
+#                     top_right_box = (center + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
+#                     box_color = [0,0,0]
+
+#                     try:
+#                         cv2.rectangle(cv2_targets_img, bot_left_box, top_right_box, box_color , -1)
+#                         cv2.putText(cv2_targets_img,text2overlay, 
+#                             bot_left_text, 
+#                             font, 
+#                             fontScale,
+#                             fontColor,
+#                             fontThickness,
+#                             lineType)
+#                     except Exception as e:
+#                         self.msg_if.pub_warn("Failed to apply overlay label text: " + str(e))
+
+#                     # Start name overlays    
+#                     x_start = int(img_width * 0.05)
+#                     y_start = int(img_height * 0.05)
+
+
+#         return cv2_targets_img
+
+
+
+#     def targetsCb(self,msg):
+#         self.connected = True
+#         img_stamp = msg.source_timestamp
+#         source_topic = msg.source_topic
+#         current_time = nepi_utils.get_time()
+#         targets_dict = nepi_sdk.convert_msg2dict(msg)
+#         targets_dict_list = targets_dict['targets']
+#         if source_topic in self.imgs_info_dict.keys():
+#             self.imgs_info_dict[source_topic]['target_dict_list'] = targets_dict_list
+#             self.imgs_info_dict[source_topic]['img_stamp'] = img_stamp
+#             self.imgs_info_dict[source_topic]['last_targets_time'] = current_time
+#         else:
+#             if os.path.exists(source_topic):
+#                 self.imgs_info_dict['img_file'] = dict()
+#                 self.imgs_info_dict['img_file']['img_stamp'] = img_stamp
+#                 self.imgs_info_dict['img_file']['last_targets_time'] = current_time
+#                 self.processFileImg(source_topic,targets_dict_list)
+
+
+
+
+#     def targetsStatusCb(self,msg):
+#         self.last_status_time=nepi_utils.get_time()
+
+#         self.status_msg = msg.process_status
+
+#         self.name = self.status_msg.name
+#         self.enabled = self.status_msg.enabled
+#         self.state_str_msg = self.status_msg.msg_str
+#         self.set_image_rate = self.status_msg.set_image_rate
+#         self.use_last_image = self.status_msg.use_last_image
+
+
+#         self.imaging_enabled = self.status_msg.image_pub_enabled
+#         last_sel_imgs = copy.deepcopy(self.selected_source_topics)
+#         self.selected_source_topics = self.status_msg.selected_sources
+#         if last_sel_imgs != self.selected_source_topics:
+#             self.msg_if.pub_warn("Updating selected images topics: " + str(self.selected_source_topics))
+        
+#         self.classes_list = msg.available_classes
+#         self.selected_classes = msg.selected_classes
+
+#         if len(self.classes_colors_list) != len(self.classes_list) :
+#             #self.msg_if.pub_warn("Detector provided classes list: " + str(self.classes))
+#             num_colors = len(self.classes_list)
+#             self.classes_colors_list = nepi_img.create_bgr_jet_colormap_list(num_colors)
+#             #self.msg_if.pub_warn("Created classes color list: " + str(self.classes_colors_list))
+
+#     def _reloadProcesses(self):
+#         success = False
+#         if self.process_module is not None:
+#             self.process_ready = False           
+#             nepi_sdk.sleep(1)
+#             process_busy = self.wait_on_process_busy()
+#             if process_busy == True:
+#                 self.msg_if.pub_info("Failed to load process. Process Busy: " + str(process_busy))
+#             else:
+#                 processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
+#                 try:
+#                     importlib.reload(self.process_module)
+#                     processes_dict = self.process_module.PROCESSES_DICT
+#                     self.msg_if.pub_warn("################################")
+#                     self.msg_if.pub_warn("Process Reloaded")
+#                     self.msg_if.pub_warn("Updating Process Dictionaries")
+
+
+#                     try:
+#                         self.results_pub_msg = self.process_module.RESULTS_PUB_MSG
+#                         self.has_results_pub = self.has_results_pub == True and self.results_pub_msg is not None
+#                     except:
+#                         self.has_results_pub = False
+
+#                     available_processes = []
+#                     for process_image_name in processes_dict.keys():
+#                         available_processes.append(process_image_name)
+#                         if process_image_name in processes_controls_dict.keys():
+
+#                                 if 'controls_dict' in processes_dict[process_image_name].keys():
+#                                     for control_name in processes_controls_dict[process_image_name].keys():
+#                                         #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]))
+#                                         if control_name in processes_dict[process_image_name]['controls_dict'].keys():
+#                                             control_value = processes_controls_dict[process_image_name][control_name]
+#                                             nepi_controls.set_value(processes_dict[process_image_name]['controls_dict'], control_name, control_value )
+
+#                     self.available_processes = available_processes
+#                     self.processes_dict = processes_dict
+#                     self.processes_functions_dict = self.process_module.FUNCTIONS_DICT
+#                     #self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict))
+
+#                     processes_controls_dict = dict()
+#                     for process_image_name in processes_dict.keys():
+#                         try:
+#                             processes_controls_dict[process_image_name] = processes_dict[process_image_name]['controls_dict']
+#                         except:
+#                             pass
+
+
+
+
+#                     #self.msg_if.pub_warn("")
+#                     #self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict))
+#                     #self.msg_if.pub_warn("################################")
+#                     if self.selected_process is None:
+#                         self.selected_process = 'None'
+#                     selected_process = self.selected_process    
+#                     if selected_process == 'None' or selected_process not in self.available_processes:
+#                         selected_process = self.available_processes[0]
+#                         try:
+#                             selected_process = self.process_module.DEFAULT_PROCESS
+#                         except:
+#                             pass
+#                     self.selected_process = selected_process
+#                     #self.msg_if.pub_warn("Process Selected: " + str(self.selected_process))
+#                     success = self.set_selected_process(self.selected_process, check_updates = False)
+#                 except Exception as e:
+#                     self.msg_if.pub_warn("Failed to reload process class: " + str(e)) 
+#         if success == False:
+#             self.process_ready = False
+#         return success
+
+
+#     def _updateControlCb(self,msg):
+#         self.msg_if.pub_info("Received control update msg: " + str(msg), log_name_list = self.log_name_list)
+#         control_name = msg.name
+#         # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
+#         # through the dict it is handed.
+#         controls_dict = copy.deepcopy(self.controls_dict)
+#         controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
+#         control_value = nepi_controls.get_value(controls_dict, control_name )
+#         self.set_control_value(control_name, control_value)
+
+
+
+#     def shutdownCb(self):
+#         pass
+

@@ -1526,6 +1526,7 @@ class AiDetectorIF:
             img_info_dict['height_deg'] = 70
 
             img_info_dict['napose_topic'] = ''
+            img_info_dict['napose_msg'] = None
             img_info_dict['napose_connecting'] = False
             img_info_dict['napose_connected'] = False
             img_info_dict['napose_last_connection'] = 0
@@ -1791,6 +1792,7 @@ class AiDetectorIF:
             self.imgs_info_dict[source_topic]['width_deg'] = status_msg.width_deg
             self.imgs_info_dict[source_topic]['height_deg'] = status_msg.height_deg
             self.imgs_info_dict[source_topic]['navpose_topic'] = status_msg.navpose_topic
+            self.imgs_info_dict[source_topic]['navpose_msg'] = status_msg.navpose_msg
             self.imgs_info_dict[source_topic]['depth_map_topic'] = status_msg.depth_map_topic
             self.imgs_info_dict[source_topic]['pointcloud_topic'] = status_msg.pointcloud_topic
 
@@ -2178,26 +2180,21 @@ class AiDetectorIF:
             targets_msg = Targets()
 
             
-            targets_msg.timestamp = float(timestamp)
+            
 
-            targets_msg.process_name = self.node_name
-            targets_msg.process_namespace = self.node_namespace
+            targets_msg.data_header.process_name = self.node_name
+            targets_msg.data_header.process_namespace = self.node_namespace
+            targets_msg.data_header.process_timestamp = float(timestamp)
 
+            targets_msg.data_header.source_topic = source_topic
+            targets_msg.data_header.source_timestamp = float(img_dict['timestamp'])
 
-            targets_msg.source_topic = source_topic
-            targets_msg.source_timestamp = float(img_dict['timestamp'])
-            #targets_msg.source_nav_pose
+            targets_msg.timestamp = float(img_dict['timestamp'])
 
-            # targets_msg.has_2d_data = True
-            # targets_msg.has_3d_data = False
-            # targets_msg.has_range_data = True
-            # targets_msg.has_bearing_data = True
+            navpose_msg = img_dict['navpose_msg'] 
+            if navpose_msg is not None:
+                targets_msg.navpose_msg = navpose_msg
 
-            # targets_msg.has_navpose_data = True
-
-            # targets_msg.has_color_data = False
-            # targets_msg.has_countour_data = False
-            # targets_msg.has_shape_data = False
 
             targets_msg.targets = targets_msg_list
 

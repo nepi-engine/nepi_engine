@@ -69,7 +69,7 @@ from sensor_msgs.msg import PointCloud2
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SaveDataIF, Transform3DIF
+from nepi_api.system_if import ControlsIF, DataIF, SaveDataIF, Transform3DIF
 from nepi_api.connect_data_if import ConnectNavPoseIF
 
 
@@ -185,7 +185,7 @@ class NavPoseIF:
     frame_depth = 'MSL'
 
 
-
+    navpose_msg = NavPose()
     navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
     navpose_frame = 'None'
@@ -268,6 +268,7 @@ class NavPoseIF:
         self.pub_pan_tilt = pub_pan_tilt
 
         # Create Capabilities Report
+
 
         self.caps_report.has_navpose_pub = self.pub_navpose
         self.caps_report.has_location_pub = self.pub_location
@@ -576,6 +577,15 @@ class NavPoseIF:
         """
         return self.data_product
 
+    def get_navpose_msg(self):
+        """Return a deep copy of the most recently published nav pose dictionary.
+
+        Returns:
+            dict: The last nav pose data dictionary.
+        """
+        navpose_msg =  copy.deepcopy(self.navpose_msg)
+        return navpose_msg
+
     def get_blank_navpose_dict(self):
         """Return a deep copy of the blank nav pose dictionary template.
 
@@ -791,6 +801,7 @@ class NavPoseIF:
                 if data_msg is not None:
                     try:
                         self.node_if.publish_pub(self.node_if_prefix + 'navpose_pub', data_msg)
+                        self.navpose_msg = data_msg
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
                         success = False
@@ -1054,7 +1065,8 @@ class BaseImageIF:
         drag_callback = None,
         window_callback = None,
         scroll_callback = None,
-        frame_updated_callback = None
+        frame_updated_callback = None,
+        options_updated_callback = None
     )
 
     BLANK_CROSSHAIR_DICT = dict(
@@ -1121,8 +1133,9 @@ class BaseImageIF:
 
     node_if = None
     node_if_shared = True
+    navpose_if = None
     save_data_if = None
-
+    options_if = None
     status_msg = ImageStatus()
     
     last_width = DEFUALT_IMG_WIDTH_PX
@@ -1167,7 +1180,6 @@ class BaseImageIF:
 
     data_product = 'image'
 
-    save_data_if = None
 
     perspective = 'pov'
 
@@ -1213,8 +1225,7 @@ class BaseImageIF:
 
     publishing = False
 
-    navpose_if = None
-    save_data_if = None
+
 
     pubs_dict = dict()
     subs_dict = dict()
@@ -1254,6 +1265,8 @@ class BaseImageIF:
                 services_dict,
                 pubs_dict,
                 subs_dict,
+                options_dict,
+                callback_dict,
                 save_data_if,
                 navpose_if,
                 navpose_namespace,
@@ -1341,9 +1354,18 @@ class BaseImageIF:
                     self.caps_dict[cap] = caps_dict[cap]
 
 
+        if callback_dict is not None:
+            try:
+                for key in callback_dict.keys():
+                    if key in self.callback_dict.keys():
+                        self.callback_dict[key] = callback_dict[key]
+            except:
+                pass
 
 
 
+        if options_dict is not None:
+            self.caps_report.has_options = self.has_options
         self.caps_report.has_resolution = self.caps_dict['has_resolution']
         self.caps_report.has_contrast = self.caps_dict['has_contrast']
         self.caps_report.has_brightness = self.caps_dict['has_brightness']
@@ -2952,6 +2974,25 @@ class BaseImageIF:
         self.init(do_updates = True)
         self.publish_status()
 
+
+
+        ##############################
+        # Create Options IF if needed
+        if options_dict is not None:
+            self.status_msg.control_options_topic = self.node_namespace + '/options'
+            self.options_if = ControlsIF( controls_name = 'options',
+                controls_display_name = 'Options',
+                controls_description = 'Custom Options',
+                controls_init_dict = options_dict,
+                controls_updated_callback = self.callback_dict['options_updated_callback'], 
+                save_params = True,
+                log_name = None,
+                log_name_list = self.log_name_list,
+                msg_if = self.msg_if,
+                node_if = self.node_if
+            )
+
+
         ####################
         self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
         self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
@@ -2987,7 +3028,7 @@ class BaseImageIF:
                                     factory_filename_dict = factory_filename_dict,
                                     log_name_list = self.log_name_list,
                                     msg_if = self.msg_if,
-                                        node_if = self.node_if
+                                    node_if = self.node_if
                                     )
             nepi_sdk.sleep(1)
 
@@ -3230,6 +3271,39 @@ class BaseImageIF:
             self.msg_if.pub_warn("Callback set for: " + str(name), log_name_list = self.log_name_list)
             self.callback_dict[name] = function
         #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict), log_name_list = self.log_name_list)
+
+
+    def get_options_dict(self):
+        """Return the list of supported image callback names.
+
+        Returns:
+            list: Callback name strings registered in the callback dictionary.
+        """
+        options = dict()
+        if self.options_if is not None:
+            self.options_if.get_values_dict()
+
+        return options
+
+    def set_option_value(self,name,value):
+        """Register a callable for the named image callback slot.
+
+        Args:
+            name (str): Name of the callback slot (must be in the callback dict).
+            function (callable): Function to call when the event fires.
+        """
+        if self.options_if is not None:
+            self.options_if.set_value(name,value)
+
+    def set_option_values(self,options_dict):
+        """Register a callable for the named image callback slot.
+
+        Args:
+            name (str): Name of the callback slot (must be in the callback dict).
+            function (callable): Function to call when the event fires.
+        """
+        if self.options_if is not None:
+            self.options_if.set_values(options_dict)
 
     def clear_image_callback(self,name):
         """Clear (un-register) the callable for the named image callback slot.
@@ -5124,6 +5198,12 @@ class BaseImageIF:
         """Populate the status message from current controls and publish it."""
         if self.node_if is not None and self.status_msg is not None:
             try:
+
+                if self.navpose_if is not None:
+                    navpose_msg = self.navpose_if.get_navpose_msg()
+                    if navpose_msg is not None:
+                        self.status_msg.navpose_msg = navpose_msg
+
                 self.status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
                 self.status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
                 self.status_msg.contrast_ratio = self.controls_dict['contrast_ratio']
@@ -6475,6 +6555,8 @@ class ImageIF(BaseImageIF):
                 data_source_description = 'image',
                 data_ref_description = 'image',
                 perspective = 'pov',
+                options_dict = None,
+                callback_dict = None,
                 init_overlay_text_list = [],
                 navpose_if = None,
                 navpose_namespace = None,
@@ -6508,6 +6590,8 @@ class ImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
+                options_dict,
+                callback_dict,
                 self.save_data_if,
                 self.navpose_if,
                 navpose_namespace,
@@ -6617,6 +6701,8 @@ class ColorImageIF(BaseImageIF):
                 data_ref_description = 'sensor',
                 perspective = 'pov',
                 init_overlay_text_list = [],
+                options_dict = None,
+                callback_dict = None,
                 navpose_if = None,
                 navpose_namespace = None,
                 transform_namespace = None,
@@ -6649,6 +6735,8 @@ class ColorImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
+                options_dict,
+                callback_dict,
                 self.save_data_if,
                 self.navpose_if,
                 navpose_namespace,
@@ -6800,7 +6888,8 @@ class DepthMapIF:
         click_angle_callback = None,
         drag_callback = None,
         window_callback = None,
-        frame_updated_callback = None
+        frame_updated_callback = None,
+        options_updated_callback = None
     )
 
     callback_dict = copy.deepcopy(DEFAULT_CALLBACK_DICT)
@@ -6840,6 +6929,7 @@ class DepthMapIF:
     save_data_if = None
     navpose_if = None
     image_if = None
+    options_if = None
 
     pubs_dict = dict()
     subs_dict = dict()
@@ -6862,6 +6952,8 @@ class DepthMapIF:
                 navpose_if = None,
                 navpose_namespace = None,
                 init_overlay_text_list = [],
+                options_dict = None,
+                callback_dict = None,
                 live_adjustments_disabled = False,
                 aspect_adjustment_disabled = False,
                 log_name = None,
@@ -7022,6 +7114,24 @@ class DepthMapIF:
 
         self.init(do_updates = True)
 
+
+
+        ##############################
+        # Create Options IF if needed
+        if options_dict is not None:
+            self.status_msg.control_options_topic = self.node_namespace + '/options'
+            self.options_if = ControlsIF( controls_name = 'options',
+                controls_display_name = 'Options',
+                controls_description = 'Custom Options',
+                controls_init_dict = options_dict,
+                controls_updated_callback = self.callback_dict['options_updated_callback'], 
+                save_params = True,
+                log_name = None,
+                log_name_list = self.log_name_list,
+                msg_if = self.msg_if,
+                node_if = self.node_if
+            )
+
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
@@ -7101,6 +7211,8 @@ class DepthMapIF:
                         data_ref_description = self.data_ref_description,
                         perspective = self.perspective,
                         init_overlay_text_list = init_overlay_text_list,
+                        options_dict = options_dict,
+                        callback_dict = callback_dict,
                         save_data_if = self.save_data_if,
                         navpose_if = self.navpose_if,
                         navpose_namespace = navpose_namespace,
@@ -7506,6 +7618,10 @@ class DepthMapIF:
         if self.node_if is not None:
 
             try:
+                if self.navpose_if is not None:
+                    navpose_msg = self.navpose_if.get_navpose_msg()
+                    if navpose_msg is not None:
+                        self.status_msg.navpose_msg = navpose_msg
 
                 self.status_msg.min_range_m = self.min_range_m
                 self.status_msg.max_range_m = self.max_range_m
@@ -7690,6 +7806,8 @@ class DepthMapImageIF(BaseImageIF):
                 data_ref_description = 'sensor',
                 perspective = 'pov',
                 init_overlay_text_list = [],
+                options_dict = None,
+                callback_dict = None,
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
@@ -7724,6 +7842,8 @@ class DepthMapImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
+                options_dict,
+                callback_dict,
                 self.save_data_if,
                 self.navpose_if,
                 navpose_namespace,
@@ -7971,6 +8091,11 @@ class PointcloudIF:
         outlier_removal_std_ratio = 1.0 # Only applied when outlier_removal_num_neighbors > 0
         )
 
+    DEFAULT_CALLBACK_DICT = dict(
+        options_updated_callback = None
+    )
+
+    callback_dict = copy.deepcopy(DEFAULT_CALLBACK_DICT)
 
     ready = False
     namespace = '~'
@@ -8014,6 +8139,7 @@ class PointcloudIF:
     save_data_if = None
     navpose_if = None
     image_if = None
+    options_if = None
 
     pubs_dict = dict()
     subs_dict = dict()
@@ -8035,6 +8161,8 @@ class PointcloudIF:
                 navpose_if = None,
                 navpose_namespace = None,
                 init_overlay_text_list = [],
+                options_dict = None,
+                callback_dict = None,
                 log_name = None,
                 log_name_list = [],
                 msg_if = None,
@@ -8371,6 +8499,25 @@ class PointcloudIF:
         success = nepi_sdk.wait()
 
         self.init(do_updates = True)
+
+
+
+        ##############################
+        # Create Options IF if needed
+        if options_dict is not None:
+            self.status_msg.control_options_topic = self.node_namespace + '/options'
+            self.options_if = ControlsIF( controls_name = 'options',
+                controls_display_name = 'Options',
+                controls_description = 'Custom Options',
+                controls_init_dict = options_dict,
+                controls_updated_callback = self.callback_dict['options_updated_callback'], 
+                save_params = True,
+                log_name = None,
+                log_name_list = self.log_name_list,
+                msg_if = self.msg_if,
+                node_if = self.node_if
+            )
+
 
         ##############################
         # Start Node Processes
@@ -8858,6 +9005,10 @@ class PointcloudIF:
         if self.node_if is not None:
             try:
                 if do_updates == True:
+                    if self.navpose_if is not None:
+                        navpose_msg = self.navpose_if.get_navpose_msg()
+                        if navpose_msg is not None:
+                            self.status_msg.navpose_msg = navpose_msg
 
                     self.status_msg.clip_enabled = self.node_if.get_param(self.node_if_prefix +  'clip_enabled')
                     self.status_msg.clip_options = self.clip_options
@@ -9358,6 +9509,8 @@ class PointcloudImageIF(BaseImageIF):
                 data_ref_description = 'sensor',
                 perspective = 'pov',
                 init_overlay_text_list = [],
+                options_dict = None,
+                callback_dict = None,
                 save_data_if = None,
                 navpose_if = None,
                 navpose_namespace = None,
@@ -9392,6 +9545,8 @@ class PointcloudImageIF(BaseImageIF):
                 self.services_dict,
                 self.pubs_dict,
                 self.subs_dict,
+                options_dict,
+                callback_dict,
                 self.save_data_if,
                 self.navpose_if,
                 navpose_namespace,

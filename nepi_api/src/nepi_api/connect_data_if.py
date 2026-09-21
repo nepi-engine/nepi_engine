@@ -98,11 +98,12 @@ class ConnectDataIF(ConnectNodeIF):
     # base namespace and an ImageStatus on <namespace>/status. Retrieved image
     # frames are cached here (thread-safe) for polling consumers, or handed
     # straight to data_callback when one is provided.
-    # data_dict_lock is created per instance in __init__. As a class attribute it
+    # data_lock is created per instance in __init__. As a class attribute it
     # would be one lock shared by every connect instance in the process, needlessly
     # serialising instances that only ever guard their own data_dict.
+    data_msg = None
     data_dict = None
-    data_dict_lock = None
+    data_lock = None
 
     navpose_dict = None
     navpose_dict_lock = None
@@ -205,7 +206,7 @@ class ConnectDataIF(ConnectNodeIF):
         self.connect_data_msg = connect_data_msg
         self.connect_data = connect_data and connect_data_msg is not None
         self.data_callback = data_callback
-        self.data_dict_lock = threading.Lock()
+        self.data_lock = threading.Lock()
 
 
         ##############################
@@ -710,6 +711,26 @@ class ConnectNavPoseIF(ConnectDataIF):
     #################
     ## Data Functions
 
+
+    def get_navpose_msg(self):
+        """Return a deep copy of the most recently received nav pose dictionary.
+
+        Mirrors data_if.NavPoseIF.get_navpose_dict, which is the contract the
+        data_if image, depth map and pointcloud classes call against whichever
+        navpose interface they hold -- a server-side NavPoseIF when one is passed
+        in, or a ConnectNavPoseIF built from a namespace when one is not.
+
+        Returns:
+            dict: The last nav pose data dictionary, or None if no NavPose message
+                has arrived from the connected source yet.
+        """
+        if self.data_msg is None:
+            return None
+        self.data_lock.acquire()
+        data_msg = copy.deepcopy(self.data_msg)
+        self.data_lock.release()
+        return data_msg
+
     def get_navpose_dict(self):
         """Return a deep copy of the most recently received nav pose dictionary.
 
@@ -724,9 +745,9 @@ class ConnectNavPoseIF(ConnectDataIF):
         """
         if self.data_dict is None:
             return None
-        self.data_dict_lock.acquire()
+        self.data_lock.acquire()
         navpose_dict = copy.deepcopy(self.data_dict)
-        self.data_dict_lock.release()
+        self.data_lock.release()
         return navpose_dict
 
 
@@ -776,11 +797,12 @@ class ConnectNavPoseIF(ConnectDataIF):
 
         if self.data_callback is not None:
             self.data_callback(navpose_dict)
-        else:
-            self.data_dict_lock.acquire()
-            self.data_dict = navpose_dict
-            self.data_dict_lock.release()
-            self.got_data = True
+        
+        self.data_lock.acquire()
+        self.data_msg = data_msg
+        self.data_dict = navpose_dict
+        self.data_lock.release()
+        self.got_data = True
 
 
 
@@ -3053,10 +3075,10 @@ class ConnectDepthMapIF(ConnectDataIF):
                 dimensions, timestamps, and latency metrics, or None if no depth
                 map is available.
         """
-        self.data_dict_lock.acquire()
+        self.data_lock.acquire()
         data_dict = copy.deepcopy(self.data_dict)
         self.data_dict = None
-        self.data_dict_lock.release()
+        self.data_lock.release()
         return data_dict
 
 
@@ -3103,9 +3125,9 @@ class ConnectDepthMapIF(ConnectDataIF):
         if self.data_callback is not None:
             self.data_callback(data_dict)
 
-        self.data_dict_lock.acquire()
+        self.data_lock.acquire()
         self.data_dict = data_dict
-        self.data_dict_lock.release()
+        self.data_lock.release()
 
 
 
@@ -3373,10 +3395,10 @@ class ConnectPointcloudIF(ConnectDataIF):
                 point count, timestamps, and latency metrics, or None if no
                 pointcloud is available.
         """
-        self.data_dict_lock.acquire()
+        self.data_lock.acquire()
         data_dict = copy.deepcopy(self.data_dict)
         self.data_dict = None
-        self.data_dict_lock.release()
+        self.data_lock.release()
         return data_dict
 
 
@@ -3580,9 +3602,9 @@ class ConnectPointcloudIF(ConnectDataIF):
         if self.data_callback is not None:
             self.data_callback(data_dict)
 
-        self.data_dict_lock.acquire()
+        self.data_lock.acquire()
         self.data_dict = data_dict
-        self.data_dict_lock.release()
+        self.data_lock.release()
 
 
 

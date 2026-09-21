@@ -30,7 +30,7 @@ from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data
 from nepi_sdk import nepi_img
 
-from nepi_interfaces.msg import TargetsStatus
+from nepi_interfaces.msg import Targets, TargetsStatus
 from nepi_interfaces.msg import Image, ImageStatus
 from nepi_interfaces.msg import NavPose
 
@@ -42,25 +42,165 @@ log_name = "nepi_process_targets"
 logger = Logger(log_name = log_name)
 
 
+
 ########################
 ## REQUIRED Process IF Utilities
-
-
+DEFAULT_PROCESS_NAME = 'targets'
 DEFAULT_PROCESS = 'targets_1'
 
-SOURCE_MSG = Image
-SOURCE_STATUS_MSG = ImageStatus
-SOURCE_STATUS_TYPE = 'nepi_interfaces/ImageStatus'
-SOURCE_NAME_FILTERS = ['color_image']
 
+SOURCE_MSG = Targets
+SOURCE_STATUS_MSG = TargetsStatus
+SOURCE_STATUS_TYPE = 'nepi_interfaces/TargetsStatus'
+SOURCE_NAME_FILTERS = None
 
 RESULTS_PUB_MSG = TargetsStatus
 RESULTS_PUB_TYPE = 'nepi_interfaces/TargetsStatus'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
 RESULTS_PUB_TOPIC = 'targets'
 
+IMAGE_PUB_TOPIC = 'targets_image'
 
-def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
+
+
+########################
+## Process Utility Functions
+
+
+def update_results(results_dict):
+    if results_dict is not None:
+        #logger.log_warn("Got Targets Dict: " + str([results_dict]), throttle_s = 5)
+        timestamp = results_dict.get('timestamp',-999)
+        if timestamp == -999:
+            age_sec = -999
+        else:
+            age_sec =  nepi_utils.get_time() - timestamp
+        results_dict['timestamp'] = timestamp
+        results_dict['age_sec'] = age_sec
+    return results_dict
+
+
+
+
+########################
+## Process Functions   
+#######################
+processes_dict = dict()
+functions_dict = dict()
+
+
+
+########################
+## Process 1   
+
+
+
+targets_1_dict = {
+
+    'if_dict': dict(),
+    
+    'data_dict': dict(
+        targets_dict_list = [], 
+        navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
+        last_targets_time = 0,
+        last_targets_dict = None
+    ),
+
+
+    'controls_dict': dict(
+
+        class_filters = {"type":"Selections", "default":[], "options":[], 
+                   # OPTIONAL
+                   'display_name':'Select Classes', 'description':'Set Class Filters', 'hidden':False}, 
+
+
+        threshold_filter = {
+            'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
+            'display_name': 'Max Range (m)',
+            'description': 'Ignore targets with confidance lower than threshold.', 'hidden': False},
+
+    ),
+
+
+    'results_display_dict': dict(
+
+        timestamp = {"type":"Float", "value":-999,
+                    # OPTIONAL
+                    'display_name':'Timestamp', 'description':'Timestamp', 'hidden':True},
+
+        age_sec = {"type":"Float", "value":-999, 'round_value': 3,
+                    # OPTIONAL
+                    'display_name':'Age (Sec)', 'description':'Age in seconds', 'hidden':False, 'round_display': 3,},
+
+    ),
+
+    'states_dict': dict(
+
+        targeting = {"type":"Bool", "value": False,
+                    # OPTIONAL
+                    'display_name':'Targeting'},
+    ),    
+
+}
+
+
+def targets_1_process(data_dict, controls_dict, states_dict, results_dict):
+    start_time = nepi_utils.get_time()
+    last_data_dict = copy.deepcopy(data_dict)
+    last_results_dict = copy.deepcopy(results_dict)
+    controls_values_dict = nepi_controls.get_values_dict(controls_dict)
+    #logger.log_warn("Got  Data: " + str(data_dict), throttle_s = 10)
+    #logger.log_warn("Got  Data,Controls: " + str([data_dict,controls_values_dict]), throttle_s = 10)
+    results_dict = None
+
+    results_dict = update_results(results_dict)
+    #logger.log_warn("Process Completed: " + str(results_dict), throttle_s = 5)
+    return data_dict, controls_dict, states_dict, results_dict
+
+
+processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_1', process_dict = targets_1_dict)
+#logger.log_warn("Updated processes dict: " + str(processes_dict))
+functions_dict['targets_1'] = targets_1_process
+
+
+
+########################
+## Processes Init Dict  
+PROCESSES_DICT = copy.deepcopy(processes_dict)
+FUNCTIONS_DICT = functions_dict
+
+
+
+
+########################
+## Process Image Functions   
+#######################
+
+
+process_image_dict = {
+    
+    'data_dict': dict(
+        last_image_time = 0,
+        image_status = nepi_sdk.convert_msg2dict(ImageStatus()),
+    ),
+
+
+    'controls_dict': dict(
+        options_dict = dict(),
+        overlay_color = (0,0,127),
+        overlay_colors = [],
+        overlay_font = nepi_img.OVERLAY_FONT,
+        overlay_font_color = nepi_img.OVERLAY_FONT_COLOR,
+        overlay_line_type = nepi_img.OVERLAY_LINE_TYPE,
+        overlay_line_color = nepi_img.OVERLAY_LINE_COLOR,
+        overlay_labels = True,
+        overlay_range_bearing = True,
+    ),
+
+}
+
+
+def process_results_image(cv2_img, data_dict, controls_dict, results_dict):
         ##################
         # Get Image Data
         try:
@@ -69,22 +209,31 @@ def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
         except:
             return cv2_img
 
-        if status_dict is None:
-            status_dict = dict()
-        width_deg = status_dict.get('width_deg', 100)
-        height_deg = status_dict.get('height_deg', 70)
+        last_image_time = copy.deepcopy(data_dict.get('last_image_time', 0))
+        data_dict.get('last_image_time') = nepi_utils.get_time()
+        width_deg = data_dict['image_status'].get('width_deg', 100)
+        height_deg = data_dict['image_status'].get('height_deg', 70)
 
         ##################
-        # Get Controls Data
+        # Get Image Controls
         if controls_dict is None:
             controls_dict = dict()
         overlay_color = controls_dict.get('overlay_color',(0,0,127))
+        overlay_colors = controls_dict.get('overlay_colors',[])
         overlay_font = controls_dict.get('overlay_color',nepi_img.OVERLAY_FONT)
         overlay_font_color = controls_dict.get('overlay_color',nepi_img.OVERLAY_FONT_COLOR)
         overlay_line_type = controls_dict.get('overlay_color',nepi_img.OVERLAY_LINE_TYPE)
         overlay_line_color = controls_dict.get('overlay_color',nepi_img.OVERLAY_LINE_COLOR)
         overlay_labels = controls_dict.get('overlay_labels',True)
         overlay_range_bearing = controls_dict.get('overlay_range_bearing',True)
+
+
+        ##################
+        # Get Image Options
+        options_dict = controls_dict.get('options_dict',None)
+        if options_dict is None:
+            options_dict = dict()
+
 
         ##################
         # Get Results Data
@@ -124,8 +273,10 @@ def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
                 bot_left_px = (xmin, ymin)
                 top_right_px = (xmax, ymax)
 
-
                 class_color = overlay_color
+                if len(overlay_colors) > i:
+                    class_color = overlay_colors[i]
+                
             
                 #logger.log_warn("Got Class Color: " + str(class_color) + ' type: ' + str(type(class_color)) + " type: " + str(type(class_color[0])) )
                 line_thickness = max(1, math.ceil(max([img_height, img_width])/2000))
@@ -179,199 +330,5 @@ def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
             except:
                 pass
 
-        return cv2_img_results
+        return cv2_img_results, data_dict, controls_dict
     
-
-
-
-########################
-## Process Utility Functions
-
-def update_results(results_dict, targets_dict):
-    results_pub_dict = None
-    if targets_dict is not None:
-        results_dict = nepi_data.set_data_values(results_dict, targets_dict)
-    
-        results_pub_dict = copy.deepcopy(RESULTS_PUB_DICT)
-        #print([results_dict,results_pub_dict])
-        for key in targets_dict.keys():
-            if key in results_pub_dict.keys():
-                results_pub_dict[key] = targets_dict[key]
-
-    timestamp = nepi_data.get_datum_value(results_dict, 'timestamp')
-    if timestamp == -999:
-        age_sec = -999
-    else:
-        age_sec =  nepi_utils.get_time() - timestamp
-    results_dict = nepi_data.set_datum_value(results_dict, 'age_sec', age_sec)
-    return results_dict, results_pub_dict
-
-
-########################
-## Process Functions   
-#######################
-processes_dict = dict()
-functions_dict = dict()
-
-
-
-########################
-## Process 1   
-
-
-
-targets_1_dict = {
-
-    'if_dict': dict(),
-    
-    'data_dict': dict(
-        targets_dict_list = [], 
-        navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
-        last_targets_time = 0,
-        last_targets_dict = None
-    ),
-
-
-    'controls_dict': dict(
-
-        class_filters = {"type":"Selections", "default":[], "options":[], 
-                   # OPTIONAL
-                   'display_name':'Select Classes', 'description':'Set Class Filters', 'hidden':False}, 
-
-
-        threshold_filter = {
-            'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with confidance lower than threshold.', 'hidden': False},
-
-    ),
-
-
-    'results_dict': dict(
-
-        timestamp = {"type":"Float", "value":-999,
-                    # OPTIONAL
-                    'display_name':'Timestamp', 'description':'Timestamp', 'hidden':True},
-
-        age_sec = {"type":"Float", "value":-999, 'round_value': 3,
-                    # OPTIONAL
-                    'display_name':'Age (Sec)', 'description':'Age in seconds', 'hidden':False, 'round_display': 3,},
-
-    ),
-
-    'states_dict': dict(
-
-        targeting = {"type":"Bool", "value": False,
-                    # OPTIONAL
-                    'display_name':'Targeting'},
-    ),    
-
-}
-
-
-def targets_1_process(data_dict, controls_dict, results_dict, states_dict):
-    start_time = nepi_utils.get_time()
-    last_data_dict = copy.deepcopy(data_dict)
-    last_results_dict = copy.deepcopy(results_dict)
-    controls_values_dict = nepi_controls.get_controls_values_dict(controls_dict)
-    #logger.log_warn("Got Data: " + str(data_dict), throttle_s = 5)
-    #logger.log_warn("Got Controls: " + str(controls_values_dict), throttle_s = 10)
-
-
-    #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
-    results_pub_dict = None
-    targets_dict = None
-
-    results_pub_dict = None
-
-    return data_dict, controls_dict, results_dict, states_dict, results_pub_dict
-
-
-processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_1', process_dict = targets_1_dict)
-#logger.log_warn("Updated processes dict: " + str(processes_dict))
-functions_dict['targets_1'] = targets_1_process
-
-
-
-
-
-########################
-## Process 2  
-
-
-
-targets_2_dict = {
-
-    'if_dict': dict(),
-    
-    'data_dict': dict(
-        targets_dict_list = [], 
-        navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
-        last_targets_time = 0,
-        last_targets_dict = None
-    ),
-
-
-    'controls_dict': dict(
-
-        class_filters = {"type":"Selections", "default":[], "options":[], 
-                   # OPTIONAL
-                   'display_name':'Select Classes', 'description':'Set Class Filters', 'hidden':False}, 
-
-
-        threshold_filter = {
-            'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with confidance lower than threshold.', 'hidden': False},
-
-    ),
-
-
-    'results_dict': dict(
-
-        timestamp = {"type":"Float", "value":-999,
-                    # OPTIONAL
-                    'display_name':'Timestamp', 'description':'Timestamp', 'hidden':True},
-
-        age_sec = {"type":"Float", "value":-999, 'round_value': 3,
-                    # OPTIONAL
-                    'display_name':'Age (Sec)', 'description':'Age in seconds', 'hidden':False, 'round_display': 3,},
-
-    ),
-
-    'states_dict': dict(
-
-        targeting = {"type":"Bool", "value": False,
-                    # OPTIONAL
-                    'display_name':'Targeting'},
-    ),    
-
-}
-
-
-def targets_2_process(data_dict, controls_dict, results_dict, states_dict):
-    start_time = nepi_utils.get_time()
-    last_data_dict = copy.deepcopy(data_dict)
-    last_results_dict = copy.deepcopy(results_dict)
-    controls_values_dict = nepi_controls.get_controls_values_dict(controls_dict)
-    #logger.log_warn("Got Data: " + str(data_dict), throttle_s = 5)
-    #logger.log_warn("Got Controls: " + str(controls_values_dict), throttle_s = 10)
-
-
-    #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
-    results_pub_dict = None
-    targets_dict = None
-
-    results_pub_dict = None
-
-    return data_dict, controls_dict, results_dict, states_dict, results_pub_dict
-
-
-processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'targets_2', process_dict = targets_2_dict)
-#logger.log_warn("Updated processes dict: " + str(processes_dict))
-functions_dict['targets_2'] = targets_2_process
-
-########################
-## Processes Init Dict  
-PROCESSES_DICT = copy.deepcopy(processes_dict)
-FUNCTIONS_DICT = functions_dict

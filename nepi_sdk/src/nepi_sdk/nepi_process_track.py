@@ -32,6 +32,7 @@ from nepi_sdk import nepi_img
 from nepi_interfaces.msg import Track, TrackStatus
 from nepi_interfaces.msg import Targets, TargetsStatus
 from nepi_interfaces.msg import NavPose
+from nepi_interfaces.msg import Image, ImageStatus
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
@@ -204,138 +205,16 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
 
 def update_results(results_dict):
     if results_dict is not None:
-        #logger.log_warn("Got Track Dict: " + str([results_dict]), throttle_s = 5)
+        #logger.log_warn("Got Targets Dict: " + str([results_dict]), throttle_s = 5)
         timestamp = results_dict.get('timestamp',-999)
         if timestamp == -999:
             age_sec = -999
         else:
             age_sec =  nepi_utils.get_time() - timestamp
+        results_dict['timestamp'] = timestamp
         results_dict['age_sec'] = age_sec
     return results_dict
 
-
-
-def process_results_image(cv2_img, status_dict, controls_dict, results_dict):
-        ##################
-        # Get Image Data
-        try:
-            cv2_img_results = copy.deepcopy(cv2_img)
-
-        except:
-            return cv2_img
-
-        if status_dict is None:
-            status_dict = dict()
-        width_deg = status_dict.get('width_deg', 100)
-        height_deg = status_dict.get('height_deg', 70)
-
-        ##################
-        # Get Controls Data
-        if controls_dict is None:
-            controls_dict = dict()
-        overlay_color = controls_dict.get('overlay_color',(0,0,127))
-        overlay_font = controls_dict.get('overlay_color',nepi_img.OVERLAY_FONT)
-        overlay_font_color = controls_dict.get('overlay_color',nepi_img.OVERLAY_FONT_COLOR)
-        overlay_line_type = controls_dict.get('overlay_color',nepi_img.OVERLAY_LINE_TYPE)
-        overlay_line_color = controls_dict.get('overlay_color',nepi_img.OVERLAY_LINE_COLOR)
-        overlay_labels = controls_dict.get('overlay_labels',True)
-        overlay_range_bearing = controls_dict.get('overlay_range_bearing',True)
-
-        ##################
-        # Get Results Data
-        if results_dict is None:
-            results_dict = dict()       
-        targets_list = results_dict.get('targets', [])
-
-        ##################
-        # Process Results Image
-
-
-        for i, target_dict in enumerate(targets_list):
-            try:
-                cv2_shape = cv2_img.shape
-                img_width = cv2_shape[1] 
-                img_height = cv2_shape[0] 
-
-
-                ###### Apply Image Overlays and Publish Image ROS Message
-                # Overlay adjusted detection boxes on image 
-                class_name = target_dict['name']
-                xmin = target_dict['xmin_pixel']
-                ymin = target_dict['ymin_pixel']
-                xmax = target_dict['xmax_pixel']
-                ymax = target_dict['ymax_pixel']
-
-                if xmin <= 0:
-                    xmin = 5
-                if ymin <= 0:
-                    ymin = 5
-                if xmax >= img_width:
-                    xmax = img_width - 5
-                if ymax >= img_height:
-                    ymax = img_height - 5
-
-
-                bot_left_px = (xmin, ymin)
-                top_right_px = (xmax, ymax)
-
-
-                class_color = overlay_color
-            
-                #logger.log_warn("Got Class Color: " + str(class_color) + ' type: ' + str(type(class_color)) + " type: " + str(type(class_color[0])) )
-                line_thickness = max(1, math.ceil(max([img_height, img_width])/2000))
-                
-
-                success = False
-                try:
-                    cv2_img_results = nepi_img.overlay_bounding_box(cv2_img_results,bot_left_px, top_right_px, line_color=class_color, line_thickness=line_thickness)
-                    success = True
-                except Exception as e:
-                    logger.log_warn("Failed to create bounding box rectangle: " + str(e))
-
-                # Overlay text data on OpenCV image
-                if success == True:
-
-                    overlay_text = ""
-
-                    if overlay_labels:
-                        overlay_text = overlay_text + class_name + " "
-                        
-                    if overlay_range_bearing:
-                        rb_text = ''
-                        if target_dict['range_m'] != -999 and target_dict['range_m'] != '':
-                            rb_text = rb_text + str(round(target_dict['range_m'],1)) + 'm :'
-                        if target_dict['azimuth_deg'] != -999 and target_dict['elevation_deg'] != -999:
-                            rb_text = rb_text + str(round(target_dict['azimuth_deg'],1)) + 'deg '
-                            rb_text = rb_text + str(round(target_dict['elevation_deg'],1)) + 'deg '
-                        if len(rb_text) > 0:
-                            overlay_text = overlay_text + rb_text
-
-
-                    if len(overlay_text) > 0:
-
-                        text_size = nepi_img.optimal_text_size
-                        #logger.log_warn("Text Size: " + str(text_size))
-                        line_height = text_size[0][1]
-                        line_width = text_size[0][0]
-                        x_padding = int(line_height*0.4)
-                        y_padding = int(line_height*0.4)
-                        
-                        center = bot_left_box[0] + int(( top_right_box[0] - bot_left_box[0]) / 2 )
-                        #bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
-                        bot_left_text = (center + x_padding , ymin - (line_thickness * 2) - y_padding)
-                        # Create Text Background Box
-                        #bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
-                        bot_left_box =  ( center - x_padding, bot_left_text[1] + y_padding)
-                        top_right_box = (center + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
-
-                        cv2_img_results = overlay_text(cv2_img_results, overlay_text, x_px = 10 , y_px = 10, color_rgb = class_color, scale = None, thickness = None, background_rgb = None, apply_shadow = True)
-
-            except:
-                pass
-
-        return cv2_img_results
-    
 
 
 
@@ -596,3 +475,161 @@ PROCESSES_DICT = copy.deepcopy(processes_dict)
 FUNCTIONS_DICT = functions_dict
 
 
+
+########################
+## Process Image Functions   
+#######################
+
+
+process_image_dict = {
+    
+    'data_dict': dict(
+        last_image_time = 0,
+        image_status = nepi_sdk.convert_msg2dict(ImageStatus()),
+    ),
+
+
+    'controls_dict': dict(
+        options_dict = dict(),
+        overlay_color = (0,0,127),
+        overlay_colors = [],
+        overlay_font = nepi_img.OVERLAY_FONT,
+        overlay_font_color = nepi_img.OVERLAY_FONT_COLOR,
+        overlay_line_type = nepi_img.OVERLAY_LINE_TYPE,
+        overlay_line_color = nepi_img.OVERLAY_LINE_COLOR,
+        overlay_labels = True,
+        overlay_range_bearing = True,
+    ),
+
+}
+
+
+def process_results_image(cv2_img, data_dict, controls_dict, results_dict):
+        ##################
+        # Get Image Data
+        try:
+            cv2_img_results = copy.deepcopy(cv2_img)
+
+        except:
+            return cv2_img
+
+        last_image_time = copy.deepcopy(data_dict.get('last_image_time', 0))
+        data_dict.get('last_image_time') = nepi_utils.get_time()
+        width_deg = data_dict['image_status'].get('width_deg', 100)
+        height_deg = data_dict['image_status'].get('height_deg', 70)
+
+        ##################
+        # Get Image Controls
+        if controls_dict is None:
+            controls_dict = dict()
+        overlay_color = controls_dict.get('overlay_color',(0,0,127))
+        overlay_colors = controls_dict.get('overlay_colors',[])
+        overlay_font = controls_dict.get('overlay_color',nepi_img.OVERLAY_FONT)
+        overlay_font_color = controls_dict.get('overlay_color',nepi_img.OVERLAY_FONT_COLOR)
+        overlay_line_type = controls_dict.get('overlay_color',nepi_img.OVERLAY_LINE_TYPE)
+        overlay_line_color = controls_dict.get('overlay_color',nepi_img.OVERLAY_LINE_COLOR)
+        overlay_labels = controls_dict.get('overlay_labels',True)
+        overlay_range_bearing = controls_dict.get('overlay_range_bearing',True)
+
+
+        ##################
+        # Get Image Options
+        options_dict = controls_dict.get('options_dict',None)
+        if options_dict is None:
+            options_dict = dict()
+
+
+        ##################
+        # Get Results Data
+        if results_dict is None:
+            results_dict = dict()       
+        targets_list = results_dict.get('targets', [])
+
+        ##################
+        # Process Results Image
+
+        for i, target_dict in enumerate(targets_list):
+            try:
+                cv2_shape = cv2_img.shape
+                img_width = cv2_shape[1] 
+                img_height = cv2_shape[0] 
+
+
+                ###### Apply Image Overlays and Publish Image ROS Message
+                # Overlay adjusted detection boxes on image 
+                class_name = target_dict['name']
+                xmin = target_dict['xmin_pixel']
+                ymin = target_dict['ymin_pixel']
+                xmax = target_dict['xmax_pixel']
+                ymax = target_dict['ymax_pixel']
+
+                if xmin <= 0:
+                    xmin = 5
+                if ymin <= 0:
+                    ymin = 5
+                if xmax >= img_width:
+                    xmax = img_width - 5
+                if ymax >= img_height:
+                    ymax = img_height - 5
+
+
+                bot_left_px = (xmin, ymin)
+                top_right_px = (xmax, ymax)
+
+
+                class_color = overlay_color
+            
+                #logger.log_warn("Got Class Color: " + str(class_color) + ' type: ' + str(type(class_color)) + " type: " + str(type(class_color[0])) )
+                line_thickness = max(1, math.ceil(max([img_height, img_width])/2000))
+                
+
+                success = False
+                try:
+                    cv2_img_results = nepi_img.overlay_bounding_box(cv2_img_results,bot_left_px, top_right_px, line_color=class_color, line_thickness=line_thickness)
+                    success = True
+                except Exception as e:
+                    logger.log_warn("Failed to create bounding box rectangle: " + str(e))
+
+                # Overlay text data on OpenCV image
+                if success == True:
+
+                    overlay_text = ""
+
+                    if overlay_labels:
+                        overlay_text = overlay_text + class_name + " "
+                        
+                    if overlay_range_bearing:
+                        rb_text = ''
+                        if target_dict['range_m'] != -999 and target_dict['range_m'] != '':
+                            rb_text = rb_text + str(round(target_dict['range_m'],1)) + 'm :'
+                        if target_dict['azimuth_deg'] != -999 and target_dict['elevation_deg'] != -999:
+                            rb_text = rb_text + str(round(target_dict['azimuth_deg'],1)) + 'deg '
+                            rb_text = rb_text + str(round(target_dict['elevation_deg'],1)) + 'deg '
+                        if len(rb_text) > 0:
+                            overlay_text = overlay_text + rb_text
+
+
+                    if len(overlay_text) > 0:
+
+                        text_size = nepi_img.optimal_text_size
+                        #logger.log_warn("Text Size: " + str(text_size))
+                        line_height = text_size[0][1]
+                        line_width = text_size[0][0]
+                        x_padding = int(line_height*0.4)
+                        y_padding = int(line_height*0.4)
+                        
+                        center = bot_left_box[0] + int(( top_right_box[0] - bot_left_box[0]) / 2 )
+                        #bot_left_text = (xmin + (line_thickness * 2) + x_padding , ymin + line_height + (line_thickness * 2) + y_padding)
+                        bot_left_text = (center + x_padding , ymin - (line_thickness * 2) - y_padding)
+                        # Create Text Background Box
+                        #bot_left_box =  (bot_left_text[0] - x_padding , bot_left_text[1] + y_padding)
+                        bot_left_box =  ( center - x_padding, bot_left_text[1] + y_padding)
+                        top_right_box = (center + line_width + x_padding, bot_left_text[1] - line_height - y_padding )
+
+                        cv2_img_results = overlay_text(cv2_img_results, overlay_text, x_px = 10 , y_px = 10, color_rgb = class_color, scale = None, thickness = None, background_rgb = None, apply_shadow = True)
+
+            except:
+                pass
+
+        return cv2_img_results, data_dict, controls_dict
+    

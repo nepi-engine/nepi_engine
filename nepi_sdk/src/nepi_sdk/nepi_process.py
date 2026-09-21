@@ -122,3 +122,23 @@ def convert_results_pub_dict2msg( msg, msg_type, results_pub_dict):
 def convert_results_pub_msg2dict(self, results_msg):
     results_display_dict = nepi_sdk.convert_msg2dict(results_msg)
     return results_display_dict
+
+
+
+
+def get_process_image_dicts(process_image_dict):
+    data_dict = dict()
+    controls_dict = dict()
+   
+    try:
+        data_dict = process_image_dict.get('data_dict', dict())
+    except Exception as e:
+        logger.log_warn("Failed to get dict from proccess dict " + str(e)) 
+
+    try:
+        controls_dict = process_image_dict.get('controls_dict', dict())
+    except Exception as e:
+        logger.log_warn("Failed to get dict from process dict " + str(e)) 
+
+      
+    return data_dict,controls_dict
