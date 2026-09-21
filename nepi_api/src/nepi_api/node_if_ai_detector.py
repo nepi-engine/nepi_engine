@@ -1605,7 +1605,7 @@ class AiDetectorIF:
             # Create Img Dict
             img_dict = dict()
             img_dict['lock'] = threading.Lock()
-            img_dict['topic'] = source_topic
+            img_dict['source_topic'] = source_topic
             img_dict['timestamp'] = nepi_utils.get_time()
             img_dict['cv2_img'] = None
             self.images_dict[source_topic] = img_dict
@@ -1837,7 +1837,6 @@ class AiDetectorIF:
             if source_topic in self.images_dict.keys():
                 try:
                     self.images_dict[source_topic]['lock'].acquire()
-                    self.images_dict[source_topic]['topic'] = source_topic
                     self.images_dict[source_topic]['timestamp'] = timestamp 
                     self.images_dict[source_topic]['cv2_img'] = cv2_img    
                     self.images_dict[source_topic]['lock'].release()
@@ -1854,7 +1853,7 @@ class AiDetectorIF:
 
     def processFileCb(self,str_msg):    
         source_file = str_msg.data
-        source_topic = source_file
+        self.msg_if.pub_warn("Got Process Source File:  " + source_file)
 
 
         ##############################
@@ -1871,22 +1870,23 @@ class AiDetectorIF:
 
         if 'file' not in self.images_dict.keys():
             img_dict = dict()
-            img_dict['source_file'] = source_file
+            img_dict['source_topic'] = source_file
             img_dict['timestamp'] = timestamp
             img_dict['lock'] = threading.Lock()
             self.images_dict['file'] = img_dict
             
         else:
             self.images_dict['file']['lock'].acquire()
-            self.images_dict['file']['source_file'] = source_file
+            self.images_dict['file']['source_topic'] = source_file
             self.images_dict['file']['timestamp'] = timestamp   
             self.images_dict['file']['lock'].release()
-
+        
 
 
     def processDetectionsCb(self,timer):
         start_time = nepi_sdk.get_time()  
         if self.is_processing == True:
+            self.msg_if.pub_warn("Failed - Process Busy")
             return
         
         ##############################
@@ -1897,19 +1897,28 @@ class AiDetectorIF:
         img_dict = None
         source_file = None
         source_topic = copy.deepcopy(self.got_source_topic)
+        np_depth_map = None
         if 'file' in self.images_dict.keys():
-            img_dict = dict()
+            
             self.images_dict['file']['lock'].acquire()
-            source_file = copy.deepcopy(self.images_dict['file']['source_file'])
-            self.images_dict['file']['source_file'] = None
-            img_dict['topic'] = source_file
-            img_dict['timestamp'] = self.images_dict['file']['timestamp']    
+            source_file = copy.deepcopy(self.images_dict['file']['source_topic'])
+            timestamp = copy.deepcopy(self.images_dict['file']['timestamp'])
+            self.images_dict['file']['source_topic'] = None
             self.images_dict['file']['lock'].release()
-        if source_file is None and  source_topic is not None:
+            if source_file is not None:
+                self.msg_if.pub_warn("Processing Image File:  " + str([source_file,timestamp]))
+                source_topic = source_file
+                img_dict = dict()
+                img_dict['source_topic'] = source_file
+                img_dict['timestamp'] = timestamp
+                
+
+        if source_file is None and source_topic is not None:
+           
             if source_topic in self.images_dict.keys():
                 img_dict = dict()
                 self.images_dict[source_topic]['lock'].acquire()
-                img_dict['topic'] = self.images_dict[source_topic]['topic']
+                img_dict['source_topic'] = source_topic
                 img_dict['timestamp'] = self.images_dict[source_topic]['timestamp'] 
                 cv2_img = copy.deepcopy(self.images_dict[source_topic]['cv2_img'])   
                 self.images_dict[source_topic]['cv2_img'] = None
@@ -1917,14 +1926,26 @@ class AiDetectorIF:
                 if cv2_img is not None:
                     self.got_source_topic = None
 
+                    #####################################
+                    # Update Depth Map Data if available
+                    depth_map_connected = self.imgs_info_dict[source_topic]['depth_map_connected']
+                    depth_map_last_connection = self.imgs_info_dict[source_topic]['depth_map_last_connection']
+                    depth_map_age = start_time - depth_map_last_connection
+                    if depth_map_connected == True and depth_map_age < 1:
+                        self.depth_map_dict_lock.acquire()
+                        np_depth_map = copy.deepcopy(self.depth_map_dict[source_topic])
+                        self.depth_map_dict_lock.release()
+                        self.imgs_info_dict[source_topic]['has_range'] = True
+
+
         #####################################
-        if cv2_img is not None or source_file is not None:
+        if cv2_img is not None or (source_file is not None and img_dict is not None):
             ##############################
             ### Start Processing
             ###############################
             self.is_processing = True
             
-            source_topic = img_dict['topic']
+            
             timestamp = img_dict['timestamp']
             preprocess_time = round( (nepi_sdk.get_time() - start_time ) , 3)
             self.preprocess_times.pop(0)
@@ -1935,17 +1956,7 @@ class AiDetectorIF:
             # self.msg_if.pub_warn("Image_Process Times: " + str(self.preprocess_latencies))
 
             
-            #####################################
-            # Update Depth Map Data if available
-            np_depth_map = None
-            if cv2_img is not None and source_topic in self.imgs_info_dict.keys():
-                depth_map_connected = self.imgs_info_dict[source_topic]['depth_map_connected']
-                depth_map_last_connection = self.imgs_info_dict[source_topic]['depth_map_last_connection']
-                depth_map_age = start_time - depth_map_last_connection
-                if depth_map_connected == True and depth_map_age < 1:
-                    self.depth_map_dict_lock.acquire()
-                    np_depth_map = copy.deepcopy(self.depth_map_dict[source_topic])
-                    self.depth_map_dict_lock.release()
+
 
             preprocess_latency = (nepi_sdk.get_time() - timestamp)
             self.preprocess_latencies.pop(0)
@@ -1967,6 +1978,7 @@ class AiDetectorIF:
                     [detect_dicts, img_dict] = self.processImage(cv2_img, img_dict, threshold = threshold, resize = False, verbose = False) 
                 elif source_file is not None:
                     [detect_dicts, img_dict] = self.processFile(source_file, img_dict, threshold = threshold, resize = False, verbose = False) 
+                    self.msg_if.pub_warn("Got Process Image file detect_dicts: " + str(detect_dicts))
                 #self.msg_if.pub_warn("AIF got img_dict: " + str(img_dict))
                 #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dicts))
                 ##################################
@@ -2089,7 +2101,7 @@ class AiDetectorIF:
         det_count = len(detect_dict_list)
         imgs_info_dict = copy.deepcopy(self.imgs_info_dict)
         active_source_topics = copy.deepcopy(self.active_source_topics)
-        if source_topic in active_source_topics:
+        if True: # source_topic in active_source_topics:
 
             ###############################
             # Calculate Localization Data
@@ -2115,7 +2127,6 @@ class AiDetectorIF:
 
                 target_range_m = -999
                 if np_depth_map is not None:
-                    self.imgs_info_dict[source_topic]['has_range'] = True
                     try:
                         target_range_m = nepi_img.get_range_from_npDepthMap(np_depth_map, detect_dict)
                     except Exception as e:
@@ -2212,10 +2223,11 @@ class AiDetectorIF:
             #     timestamps.append(target['timestamp'])
             # self.msg_if.pub_warn("Sending Targets timestamps" + str(timestamps), throttle_s = 10)
 
-            try:
-               self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('targets_pub',targets_msg)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to publish targets to source topic: " + str(e), throttle_s = 5)
+            if source_topic in self.imgs_info_dict.keys():
+                try:
+                    self.img_ifs_dict[source_topic]['pubs_if'].publish_pub('targets_pub',targets_msg)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to publish targets to source topic: " + str(e), throttle_s = 5)
 
             if det_count > 0:
                 if 'targeting_trigger' in self.triggers_dict.keys():

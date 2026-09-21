@@ -267,15 +267,26 @@ def get_bounding_box_image(cv2_img, bounding_box_dict):
     cv2_sub_img = None
     if cv2_img is not None:
       [height, width, channels] = cv2_img.shape
-      try:
-          xmin = bounding_box_dict['xmin']
-          xmax = bounding_box_dict['xmax']
-          ymin = bounding_box_dict['ymin']
-          ymax = bounding_box_dict['ymax']
-          success = True
-      except Exception as e:
-          logger.log_warn("Failed to get bounding box data: " + str(e))
-          success = False
+      if 'xmin' in bounding_box_dict.keys():
+        try:
+            xmin = bounding_box_dict['xmin']
+            xmax = bounding_box_dict['xmax']
+            ymin = bounding_box_dict['ymin']
+            ymax = bounding_box_dict['ymax']
+            success = True
+        except Exception as e:
+            logger.log_warn("Failed to get bounding box data: " + str(e))
+            success = False
+      elif 'xmin_pixel' in bounding_box_dict.keys():
+        try:
+            xmin = bounding_box_dict['xmin_pixel']
+            xmax = bounding_box_dict['xmax_pixel']
+            ymin = bounding_box_dict['ymin_pixel']
+            ymax = bounding_box_dict['ymax_pixel']
+            success = True
+        except Exception as e:
+            logger.log_warn("Failed to get bounding box data: " + str(e))
+            success = False
       if success == True:
         cv2_sub_img = cv2_img[ymin:ymax, xmin:xmax]
     return cv2_sub_img
