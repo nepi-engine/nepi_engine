@@ -827,6 +827,8 @@ class AIDetectorManager:
                     else:
                         self.msg_if.pub_warn("Changing Model State to: False")
                         models_dict[model_name]['active'] = False
+        else:
+            self.msg_if.pub_warn("Ignoring request. Model not in Models Dict Keys: " + str(model_name) + " : " + str(models_dict.keys()))
         if self.models_dict != models_dict:
             self.updateModelsDict(models_dict)
             self.publish_status()

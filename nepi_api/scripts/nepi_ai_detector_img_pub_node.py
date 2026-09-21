@@ -927,19 +927,19 @@ class AiDetectorImgPub:
 
     def targetsCb(self,msg):
         self.connected = True
-        img_stamp = msg.source_timestamp
-        source_topic = msg.source_topic
+        timestamp = msg.timestamp
+        source_topic = msg.data_header.source_topic
         current_time = nepi_utils.get_time()
         targets_dict = nepi_sdk.convert_msg2dict(msg)
         targets_dict_list = targets_dict['targets']
         if source_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict[source_topic]['target_dict_list'] = targets_dict_list
-            self.imgs_info_dict[source_topic]['img_stamp'] = img_stamp
+            self.imgs_info_dict[source_topic]['timestamp'] = timestamp
             self.imgs_info_dict[source_topic]['last_targets_time'] = current_time
         else:
             if os.path.exists(source_topic):
                 self.imgs_info_dict['img_file'] = dict()
-                self.imgs_info_dict['img_file']['img_stamp'] = img_stamp
+                self.imgs_info_dict['img_file']['timestamp'] = timestamp
                 self.imgs_info_dict['img_file']['last_targets_time'] = current_time
                 self.processFileImg(source_topic,targets_dict_list)
 

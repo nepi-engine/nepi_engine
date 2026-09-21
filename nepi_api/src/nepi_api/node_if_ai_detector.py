@@ -35,7 +35,7 @@ from nepi_interfaces.msg import ImageStatus
 from nepi_interfaces.msg import MgrSystemStatus
 from nepi_interfaces.msg import StringArray
 from nepi_interfaces.msg import ProcessStatus
-from nepi_interfaces.msg import Target, Targets, TargetsStatus
+from nepi_interfaces.msg import Target, Targets, TargetsStatus, NavPose
 
 
 from nepi_sdk import nepi_sdk
@@ -1525,8 +1525,7 @@ class AiDetectorIF:
             img_info_dict['width_deg'] = 110
             img_info_dict['height_deg'] = 70
 
-            img_info_dict['napose_topic'] = ''
-            img_info_dict['napose_msg'] = None
+            img_info_dict['napose_msg'] = NavPose()
             img_info_dict['napose_connecting'] = False
             img_info_dict['napose_connected'] = False
             img_info_dict['napose_last_connection'] = 0
@@ -1791,7 +1790,6 @@ class AiDetectorIF:
         if source_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict[source_topic]['width_deg'] = status_msg.width_deg
             self.imgs_info_dict[source_topic]['height_deg'] = status_msg.height_deg
-            self.imgs_info_dict[source_topic]['navpose_topic'] = status_msg.navpose_topic
             self.imgs_info_dict[source_topic]['navpose_msg'] = status_msg.navpose_msg
             self.imgs_info_dict[source_topic]['depth_map_topic'] = status_msg.depth_map_topic
             self.imgs_info_dict[source_topic]['pointcloud_topic'] = status_msg.pointcloud_topic
@@ -2190,8 +2188,10 @@ class AiDetectorIF:
             targets_msg.data_header.source_timestamp = float(img_dict['timestamp'])
 
             targets_msg.timestamp = float(img_dict['timestamp'])
-
-            navpose_msg = img_dict['navpose_msg'] 
+            try:
+                navpose_msg = img_dict['navpose_msg'] 
+            except:
+                navpose_msg = NavPose()
             if navpose_msg is not None:
                 targets_msg.navpose_msg = navpose_msg
 
