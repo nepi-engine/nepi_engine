@@ -228,7 +228,7 @@ class ProcessIF:
     #######################
     ### IF Initialization
     def __init__(self, 
-                process_image_name = 'process',
+                process_name = 'process',
                 process_group = 'PROCESS',
                 process_description = 'Process',
                 process_module = None,              
@@ -263,13 +263,13 @@ class ProcessIF:
         self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
 
         # Create Process Name
-        self.process_image_name = nepi_utils.get_clean_name(process_image_name)
-        if self.process_image_name is None or self.process_image_name == '':
-            self.msg_if.pub_warn("Process Name Not Valid: " + str(process_image_name)) 
+        self.process_name = nepi_utils.get_clean_name(process_name)
+        if self.process_name is None or self.process_name == '':
+            self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name)) 
             return
-        self.msg_if.pub_info("Using Process Name: " + self.process_image_name)
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_image_name)
-        self.data_products = [self.process_image_name]
+        self.msg_if.pub_info("Using Process Name: " + self.process_name)
+        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
+        self.data_products = [self.process_name]
 
 
 
@@ -312,7 +312,7 @@ class ProcessIF:
         try:
             image_pub_topic = process_module.IMAGE_PUB_TOPIC
         except:
-            image_pub_topic = process_image_name.replace('_image','') + '_image'
+            image_pub_topic = process_name.replace('_image','') + '_image'
         image_pub_topic = nepi_utils.get_clean_name(image_pub_topic)
         if image_pub_topic is not None and image_pub_topic != '':
             self.image_pub_name = image_pub_topic
@@ -411,13 +411,13 @@ class ProcessIF:
         
         if self.has_results_pub == True:
             self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
-                'namespace': self.namespace.replace('/' + process_image_name,''),
-                'topic': process_image_name,
+                'namespace': self.namespace.replace('/' + process_name,''),
+                'topic': process_name,
                 'msg': self.results_pub_msg,
                 'qsize': 1,
                 'latch': True
             }
-            self.results_pub_topic = self.namespace + '/' + process_image_name
+            self.results_pub_topic = self.namespace + '/' + process_name
             self.has_results_pub = True
 
 
@@ -619,22 +619,22 @@ class ProcessIF:
     def get_selected_process(self):
         return self.selected_process
     
-    def set_selected_process(self, process_image_name, check_updates = True):
+    def set_selected_process(self, process_name, check_updates = True):
         success = False
-        if process_image_name in self.available_processes:
+        if process_name in self.available_processes:
             cur_process = copy.deepcopy(self.selected_process)
-            if process_image_name != cur_process or check_updates == False:
-                self.msg_if.pub_warn("Process Selected: " + str(process_image_name))
+            if process_name != cur_process or check_updates == False:
+                self.msg_if.pub_warn("Process Selected: " + str(process_name))
                 self.process_ready = False
-                self.selected_process = process_image_name
+                self.selected_process = process_name
                 self.publish_status()
                 nepi_sdk.sleep(1)
                 processes_dict = copy.deepcopy(self.processes_dict)
-                [self.data_dict,self.controls_dict,self.results_display_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_image_name)
-                self.process_function = self.processes_functions_dict[process_image_name]
+                [self.data_dict,self.controls_dict,self.results_display_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_name)
+                self.process_function = self.processes_functions_dict[process_name]
                 nepi_sdk.sleep(1)
                 success = True
-                self.msg_if.pub_warn("Process Ready: " + str(process_image_name))
+                self.msg_if.pub_warn("Process Ready: " + str(process_name))
                 self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict.keys(),self.controls_dict.keys(),self.results_display_dict.keys(),self.states_dict.keys(),self.process_function]))
 
         self.process_ready = self.selected_process in self.available_processes
@@ -795,7 +795,7 @@ class ProcessIF:
 
     def set_control_value(self, control_name, update_value, index = None):
         if self.get_process_ready() == True:
-            process_image_name = copy.deepcopy(self.selected_process)
+            process_name = copy.deepcopy(self.selected_process)
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
@@ -803,10 +803,10 @@ class ProcessIF:
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
                         self.publish_status()
-                        if process_image_name in self.processes_dict.keys():
-                            self.processes_dict[process_image_name]['controls_dict'] = self.controls_dict
+                        if process_name in self.processes_dict.keys():
+                            self.processes_dict[process_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_image_name] = nepi_controls.get_values_dict(self.processes_dict[process_image_name]['controls_dict'])
+                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
@@ -819,7 +819,7 @@ class ProcessIF:
 
     def set_control_options(self, control_name, update_options):
         if self.get_process_ready() == True:
-            process_image_name = copy.deepcopy(self.selected_process)
+            process_name = copy.deepcopy(self.selected_process)
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
@@ -828,10 +828,10 @@ class ProcessIF:
                         self.controls_dict = controls_dict
                         self.publish_status()
 
-                        if process_image_name in self.processes_dict.keys():
-                            self.processes_dict[process_image_name]['controls_dict'] = self.controls_dict
+                        if process_name in self.processes_dict.keys():
+                            self.processes_dict[process_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_image_name] = nepi_controls.get_values_dict(self.processes_dict[process_image_name]['controls_dict'])
+                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
@@ -851,7 +851,7 @@ class ProcessIF:
 
     def set_control_bounds(self, control_name, min_bound = None, max_bound = None):
         if self.get_process_ready() == True:
-            process_image_name = copy.deepcopy(self.selected_process)
+            process_name = copy.deepcopy(self.selected_process)
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
@@ -860,10 +860,10 @@ class ProcessIF:
                         self.controls_dict = controls_dict
                         self.self.publish_status()
 
-                        if process_image_name in self.processes_dict.keys():
-                            self.processes_dict[process_image_name]['controls_dict'] = self.controls_dict
+                        if process_name in self.processes_dict.keys():
+                            self.processes_dict[process_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                            processes_controls_dict[process_image_name] = nepi_controls.get_values_dict(self.processes_dict[process_image_name]['controls_dict'])
+                            processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.processes_dict[process_name]['controls_dict'])
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
@@ -953,7 +953,7 @@ class ProcessIF:
 
         status_msg = ProcessStatus()
 
-        status_msg.name = self.process_image_name
+        status_msg.name = self.process_name
         status_msg.group = self.process_group
         status_msg.description = self.process_description
 
@@ -1021,7 +1021,7 @@ class ProcessIF:
         ###########
         if self.node_if is not None:
             if self.status_has_published == False:
-                self.msg_if.pub_info("Publishing first status for process: " + str(self.process_image_name))
+                self.msg_if.pub_info("Publishing first status for process: " + str(self.process_name))
                 self.status_has_published = True
             self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
         return status_msg
@@ -1534,8 +1534,8 @@ class ProcessIF:
         self._reloadProcesses()
     
     def _setProcessCb(self,msg):
-        process_image_name = msg.data
-        self.set_selected_process(process_image_name)
+        process_name = msg.data
+        self.set_selected_process(process_name)
 
     def _setEnableCb(self,msg):
         enabled = msg.data
@@ -1566,16 +1566,16 @@ class ProcessIF:
                         self.has_results_pub = False
 
                     available_processes = []
-                    for process_image_name in processes_dict.keys():
-                        available_processes.append(process_image_name)
-                        if process_image_name in processes_controls_dict.keys():
+                    for process_name in processes_dict.keys():
+                        available_processes.append(process_name)
+                        if process_name in processes_controls_dict.keys():
 
-                                if 'controls_dict' in processes_dict[process_image_name].keys():
-                                    for control_name in processes_controls_dict[process_image_name].keys():
+                                if 'controls_dict' in processes_dict[process_name].keys():
+                                    for control_name in processes_controls_dict[process_name].keys():
                                         #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]))
-                                        if control_name in processes_dict[process_image_name]['controls_dict'].keys():
-                                            control_value = processes_controls_dict[process_image_name][control_name]
-                                            nepi_controls.set_value(processes_dict[process_image_name]['controls_dict'], control_name, control_value )
+                                        if control_name in processes_dict[process_name]['controls_dict'].keys():
+                                            control_value = processes_controls_dict[process_name][control_name]
+                                            nepi_controls.set_value(processes_dict[process_name]['controls_dict'], control_name, control_value )
 
                     self.available_processes = available_processes
                     self.processes_dict = processes_dict
@@ -1583,9 +1583,9 @@ class ProcessIF:
                     #self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict))
 
                     processes_controls_dict = dict()
-                    for process_image_name in processes_dict.keys():
+                    for process_name in processes_dict.keys():
                         try:
-                            processes_controls_dict[process_image_name] = processes_dict[process_image_name]['controls_dict']
+                            processes_controls_dict[process_name] = processes_dict[process_name]['controls_dict']
                         except:
                             pass
 
