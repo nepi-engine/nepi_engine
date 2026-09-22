@@ -493,15 +493,15 @@ class ProcessIF:
 
         ####################
         # Config
-        has_config = config_dict['has_config']
+        has_config = self.config_dict['has_config']
         if has_config == True:
             self.status_msg.has_config = has_config 
-            self.status_msg.config_topic = self.node_if.get_namespace
+            self.status_msg.config_topic = self.node_if.get_namespace()
             self.status_msg.show_config = self.show_dict['show_config'] == True
 
         ####################
         # Save Data
-        has_save_data = config_dict['has_save_data']
+        has_save_data = self.config_dict['has_save_data']
         if has_save_data == False or len(self.data_products) == 0:
             self.save_data_topic = ''
             self.data_products = []
