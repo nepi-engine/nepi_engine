@@ -641,7 +641,7 @@ class AiDetectorIF:
                 'namespace': self.all_targets_namespace,
                 'topic': 'process_source_file',
                 'msg': String,
-                'qsize': 10,
+                'qsize': 1,
                 'callback': self.processFileCb, 
                 'callback_args': ()
             },
@@ -1853,7 +1853,7 @@ class AiDetectorIF:
 
     def processFileCb(self,str_msg):    
         source_file = str_msg.data
-        self.msg_if.pub_warn("Got Process Source File:  " + source_file)
+        #self.msg_if.pub_warn("Got Process Source File:  " + source_file)
 
 
         ##############################
@@ -1906,7 +1906,7 @@ class AiDetectorIF:
             self.images_dict['file']['source_topic'] = None
             self.images_dict['file']['lock'].release()
             if source_file is not None:
-                self.msg_if.pub_warn("Processing Image File:  " + str([source_file,timestamp]))
+                #self.msg_if.pub_warn("Processing Image File:  " + str([source_file,timestamp]))
                 source_topic = source_file
                 img_dict = dict()
                 img_dict['source_topic'] = source_file
@@ -1978,7 +1978,7 @@ class AiDetectorIF:
                     [detect_dicts, img_dict] = self.processImage(cv2_img, img_dict, threshold = threshold, resize = False, verbose = False) 
                 elif source_file is not None:
                     [detect_dicts, img_dict] = self.processFile(source_file, img_dict, threshold = threshold, resize = False, verbose = False) 
-                    self.msg_if.pub_warn("Got Process Image file detect_dicts: " + str(detect_dicts))
+                    #self.msg_if.pub_warn("Got Process Image file detect_dicts: " + str(detect_dicts))
                 #self.msg_if.pub_warn("AIF got img_dict: " + str(img_dict))
                 #self.msg_if.pub_warn("AIF got back detect_dict: " + str(detect_dicts))
                 ##################################

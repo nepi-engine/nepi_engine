@@ -557,7 +557,7 @@ class ControlsIF:
             self.controls_status_msg.config_topic = self.config_topic
             if self.node_if is not None:
                 if self.status_has_published == False:
-                    self.msg_if.pub_warn("Publishing Status: " + str(self.controls_status_msg))
+                    #self.msg_if.pub_warn("Publishing Status: " + str(self.controls_status_msg))
                     self.status_has_published = True
                 self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.controls_status_msg) 
             return
@@ -1582,7 +1582,7 @@ class DataIF:
             self.data_status_msg = nepi_data.update_status_msg(self.data_status_msg, data_dict)
             if self.node_if is not None:
                 if self.status_has_published == False:
-                    self.msg_if.pub_warn("Publishing Status: " + str(self.data_status_msg))
+                    #self.msg_if.pub_warn("Publishing Status: " + str(self.data_status_msg))
                     self.status_has_published = True
                 self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.data_status_msg) 
             return
