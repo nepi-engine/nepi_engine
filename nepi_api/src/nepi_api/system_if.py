@@ -372,7 +372,7 @@ class ControlsIF:
                 controls_dict = nepi_controls.set_value(controls_dict, control_name, update_value, index = index)
                 if controls_dict != self.controls_dict:
                     self.controls_dict = controls_dict
-                    self.publish_status()
+                    #self.publish_status()
                     if self.controls_updated_callback is not None:
                         self.controls_updated_callback(control_name)
                     self.save_params_dict()

@@ -21,7 +21,7 @@ import copy
 import math
 import cv2
 import numpy as np
-from collections import defaultdict
+from scipy.optimize import linear_sum_assignment
 
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_sdk
@@ -88,11 +88,6 @@ BASE_DATA_DICT = dict(
 
 BASE_CONTROLS_DICT = dict(
 
-    detect_threshold = {
-        'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
-        'display_name': 'Detect Threshold',
-        'description': 'Detect Threshold', 'display_hidden': False},
-
 
     denoise_level = {
         'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
@@ -112,7 +107,7 @@ BASE_CONTROLS_DICT = dict(
     quality_threshold = {
         'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
         'display_name': 'Quality Threshold',
-        'description': 'Quality Threshold', 'display_hidden': False},
+        'description': 'Quality Threshold', 'display_hidden': True},
 
 )
 
@@ -146,43 +141,47 @@ def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
 
 
 
-# def sanitize_points(points_dict: dict) -> dict:
-#     """Converts 'x' and 'y' values in a dictionary to integers."""
-#     return {k: int(v) for k, v in points_dict.items() if k in ("x", "y")}
+def sanitize_points(line_dict: dict) -> dict:
+    """Converts 'x' and 'y' values in a dictionary to integers."""
+    return {k: int(v) for k, v in line_dict.items() if k in ("x", "y")}
 
-# def average_by_index(data: list[dict[str, float]], grid_size: float = 1.0) -> list[dict[str, float]]:
-#     """
-#     Groups a list of x, y points by their grid index and returns the average 
-#     x and y coordinates for each unique index.
-    
-#     :param data: List of dictionaries, e.g., [{'x': 1.2, 'y': 3.4}, ...]
-#     :param grid_size: The size of the index grid slot (default is 1.0 for integer grouping)
-#     :return: List of averaged x, y dictionaries
-#     """
-#     grid_size = 
-#     groups = defaultdict(list)
-    
-#     # 1. Group points by their spatial grid index
-#     for point in data:
-#         x, y = point['x'], point['y']
-#         # Using round() or floor (//) determines how you define the "index" boundary
-#         grid_index = (round(x / grid_size), round(y / grid_size))
-#         groups[grid_index].append((x, y))
-        
-#     # 2. Calculate the average for each index group
-#     averaged_points = []
-#     for coords in groups.values():
-#         total_x = sum(pt[0] for pt in coords)
-#         total_y = sum(pt[1] for pt in coords)
-#         count = len(coords)
-        
-#         averaged_points.append({
-#             'x': total_x / count,
-#             'y': total_y / count
-#         })
-        
-#     return sanitize_points(averaged_points)
+def calculate_average_points(line_dict):
+    [x_list, y_list] =[line_dict['x'],line_dict['y']]
 
+    unique_x = np.unique(x_list)
+    unique_y = np.unique(y_list)
+    
+    # The result will match the size of the smaller unique set to ensure 1:1 mapping
+    n_points = min(len(unique_x), len(unique_y))
+    
+    # 2. Build a cost matrix (Distance between every unique X and unique Y)
+    # We want to place paired points as close as possible to the original distribution
+    cost_matrix = np.zeros((len(unique_x), len(unique_y)))
+    
+    # Create a lookup for existing points to give them a lower cost (higher priority)
+    existing_points = set(zip(x_list, y_list))
+    
+    for i, x in enumerate(unique_x):
+        for j, y in enumerate(unique_y):
+            # Base cost is the Euclidean distance from the origin or spatial distance
+            # If the combination existed originally, we reduce its cost
+            base_dist = np.abs(x - y) 
+            if (x, y) in existing_points:
+                cost_matrix[i, j] = base_dist - 1000 # Prioritize original pairs
+            else:
+                cost_matrix[i, j] = base_dist
+                
+    # 3. Solve the assignment problem
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)
+    
+    # 4. Extract the optimal unique pairs
+    avg_line_dict = dict()
+    avg_line_dict['x'] = unique_x[row_ind[:n_points]].tolist()
+    avg_line_dict['y'] = unique_y[col_ind[:n_points]].tolist()
+
+    clean_line_dict = sanitize_points(avg_line_dict)
+    
+    return clean_line_dict
 
 
 
@@ -271,7 +270,7 @@ def process_line_brightest(cv2_img, line_color_bgr = DEFAULT_COLOR_BGR, sensitiv
         line_dict['x'] = [item + x_offset for item in list(cols1)]
         line_dict['y'] = [item + y_offset for item in list(cols2)]
     
-    #line_dict = average_by_index(line_dict)
+    #line_dict = calculate_average_points(line_dict)
     return line_dict
 
 
@@ -470,40 +469,37 @@ def line_brightness_process(data_dict, controls_dict, states_dict, results_dict)
     line_dict = get_blank_line_dict()
     cv2_img = data_dict['cv2_img']
     line_color_bgr = data_dict['line_color_bgr']
-    line_color_list = data_dict['line_color_list']
+    line_colors_bgr = data_dict['line_colors_bgr']
 
     results_dict = get_blank_results_dict()
     results_dict['line_color_bgr'] = line_color_bgr
 
     if cv2_img is not None:
 
-        detect_quality = data_dict['x_offset']
-        detect_threshold = controls_values_dict['detect_threshold']
 
-        if detect_quality > detect_threshold:
 
-            x_offset = data_dict['x_offset']
-            y_offset = data_dict['y_offset']
-            
-            
-            denoise_level = controls_values_dict['denoise_level']
-            cv2_img = filter_image_denoise(cv2_img, denoise_level )
+        x_offset = data_dict['x_offset']
+        y_offset = data_dict['y_offset']
+        
+        
+        denoise_level = controls_values_dict['denoise_level']
+        cv2_img = filter_image_denoise(cv2_img, denoise_level )
 
-            color_sensitivity = controls_values_dict['color_sensitivity']
-            line_dict = points_dict = process_line_brightest(cv2_img, line_color_bgr , color_sensitivity , x_offset, y_offset)
+        color_sensitivity = controls_values_dict['color_sensitivity']
+        line_dict = points_dict = process_line_brightest(cv2_img, line_color_bgr , color_sensitivity , x_offset, y_offset)
 
-            # filter_level = controls_values_dict['filter_level']
-            # line_dict = filter_line_IQR(line_dict, line_color_bgr, filter_level)
+        # filter_level = controls_values_dict['filter_level']
+        # line_dict = filter_line_IQR(line_dict, line_color_bgr, filter_level)
 
 
 
-            quality = get_line_quality(line_dict)
-            quality_threshold = controls_values_dict['quality_threshold']
+        quality = get_line_quality(line_dict)
+        quality_threshold = controls_values_dict['quality_threshold']
 
-            if quality > quality_threshold:
-                results_dict['line_dict'] = line_dict
-                results_dict['quality'] = quality
-                data_dict['cv2_img'] = cv2_img
+        if quality > quality_threshold:
+            results_dict['line_dict'] = line_dict
+            results_dict['quality'] = quality
+            data_dict['cv2_img'] = cv2_img
 
     return data_dict, controls_dict, states_dict, results_dict
 

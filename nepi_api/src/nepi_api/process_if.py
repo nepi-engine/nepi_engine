@@ -97,6 +97,9 @@ BLANK_CONFIG_DICT = dict(
         default_image_rate = 10,
         has_use_last_image = False,
         use_last_image = False,
+
+        has_status_pub = True,
+        throttle_status_sec = 0.5
     )
 
 
@@ -224,7 +227,7 @@ class ProcessIF:
     show_dict = copy.deepcopy(BLANK_SHOW_DICT)
 
     status_has_published = False
-
+    last_status_time = 0
     #######################
     ### IF Initialization
     def __init__(self, 
@@ -715,7 +718,7 @@ class ProcessIF:
     ##################
     # Data Dict Functions
 
-    def get_data(self):
+    def get_data_dict(self):
         """Return a copy of the full data dict, keyed by datum name.
 
         Returns:
@@ -802,7 +805,7 @@ class ProcessIF:
                     controls_dict = nepi_controls.set_value(controls_dict, control_name, update_value, index = index)
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
-                        self.publish_status()
+                        # self.publish_status()
                         if process_name in self.processes_dict.keys():
                             self.processes_dict[process_name]['controls_dict'] = self.controls_dict
                             processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
@@ -951,6 +954,7 @@ class ProcessIF:
 
     def publish_status(self):
 
+
         status_msg = ProcessStatus()
 
         status_msg.name = self.process_name
@@ -1019,11 +1023,17 @@ class ProcessIF:
 
 
         ###########
+
         if self.node_if is not None:
-            if self.status_has_published == False:
-                self.msg_if.pub_info("Publishing first status for process: " + str(self.process_name))
-                self.status_has_published = True
-            self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
+            cur_time = nepi_utils.get_time()
+            timer = cur_time - self.last_status_time
+            if self.config_dict['has_status_pub'] == True and timer >= self.config_dict['throttle_status_sec']:
+                self.last_status_time = nepi_utils.get_time()
+
+                if self.status_has_published == False:
+                    self.msg_if.pub_info("Publishing first status for process: " + str(self.process_name))
+                    self.status_has_published = True
+                self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
         return status_msg
 
 
