@@ -750,9 +750,6 @@ class AiDetectorImgPub:
 
     def publishImgData(self, source_topic, cv2_img, encoding = "bgr8", timestamp = None, add_overlay_text_list = []):
 
-
-            if self.imgs_info_dict[source_topic]['publishing'] == False:
-                pass
             if self.imaging_enabled:
 
                 if source_topic in self.imgs_info_dict.keys():

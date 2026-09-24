@@ -42,8 +42,8 @@ logger = Logger(log_name = log_name)
 
 ########################
 ## REQUIRED Process IF Utilities
-DEFAULT_PROCESS_NAME = 'line'
-DEFAULT_PROCESS = 'line_brightness'
+DEFAULT_PROCESS_NAME = 'lines'
+DEFAULT_PROCESS = 'lines_1'
 
 
 SOURCE_MSG = Image
@@ -64,6 +64,7 @@ IMAGE_PUB_TOPIC = 'lines_image'
 ## Process Utility Functions
 
 DEFAULT_COLOR_BGR = (147, 175, 35)
+DEFAULT_COLOR_RGB = DEFAULT_COLOR_BGR[::-1]
 COLOR_AVG_LEN=20
 
 BLANK_LINE_DICT = dict()
@@ -74,7 +75,7 @@ BLANK_LINE_DICT['y'] = []
 BLANK_RESULTS_DICT = dict()
 BLANK_RESULTS_DICT['line_dict'] = copy.deepcopy(BLANK_LINE_DICT)
 BLANK_RESULTS_DICT['quality'] = 0
-BLANK_RESULTS_DICT['line_color_bgr'] = BLANK_LINE_DICT 
+BLANK_RESULTS_DICT['color_rgb'] = DEFAULT_COLOR_RGB 
 
 BASE_DATA_DICT = dict(
     detect_quality = 0,
@@ -111,7 +112,15 @@ BASE_CONTROLS_DICT = dict(
 
 )
 
+BASE_DISPLAY_RESULTS_DICT = dict(
 
+
+    color_rgb = {
+        'type': 'ColorRGB', 'value': DEFAULT_COLOR_BGR,
+        'display_name': 'Line Color',
+        'description': 'Line Color', 'display_hidden': False},
+
+)
 
 
 
@@ -442,7 +451,7 @@ functions_dict = dict()
 
 
 
-line_brightness_dict = {
+lines_1_dict = {
 
    
     'data_dict': copy.deepcopy(BASE_DATA_DICT),
@@ -451,15 +460,14 @@ line_brightness_dict = {
     'controls_dict': copy.deepcopy(BASE_CONTROLS_DICT),
 
 
-    'results_display_dict': dict(
-    ),
+    'results_display_dict': copy.deepcopy(BASE_DISPLAY_RESULTS_DICT),
 
     'states_dict': dict(
     )
 }
 
 
-def line_brightness_process(data_dict, controls_dict, states_dict, results_dict):
+def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
@@ -504,9 +512,9 @@ def line_brightness_process(data_dict, controls_dict, states_dict, results_dict)
     return data_dict, controls_dict, states_dict, results_dict
 
 
-processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'line_brightness', process_dict = line_brightness_dict)
+processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'lines_1', process_dict = lines_1_dict)
 #logger.log_warn("Updated processes dict: " + str(processes_dict))
-functions_dict['line_brightness'] = line_brightness_process
+functions_dict['lines_1'] = lines_1_process
 
 
 ########################

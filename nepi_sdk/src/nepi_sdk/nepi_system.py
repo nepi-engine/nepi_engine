@@ -340,11 +340,30 @@ def load_nepi_factory_config():
 
     config_dict = nepi_utils.read_dict_from_file(target_file)
     if config_dict is None:
+        try:
+            shutil.copyfile(backup_file, target_file)
+            config_dict = nepi_utils.read_dict_from_file(target_file)
+                
+        except Exception as e:
+            print("Unable load backup file: " + str(e))
+    if config_dict is not None:
+        if len(list(config_dict.keys())) == 0:
+            try:
+                shutil.copyfile(backup_file, target_file)
+                config_dict = nepi_utils.read_dict_from_file(target_file)
+                    
+            except Exception as e:
+                print("Unable load backup file: " + str(e))
+
+    if config_dict is None:
         config_dict = dict()
-    for key in config_dict.keys(): # Fixe empty arrays
-        if config_dict[key] is None:
-            config_dict[key]=[]
-    # print("Printing System Config Dict " + str(config_dict))
+    elif config_dict is not None:
+        if len(list(config_dict.keys())) == 0:    
+            config_dict = dict()
+    else:
+        for key in config_dict.keys(): # Fixe empty arrays
+            if config_dict[key] is None:
+                config_dict[key]=[]
     return config_dict
 
 def save_nepi_system_config(config_dict):
@@ -409,13 +428,29 @@ def load_nepi_docker_config():
             print("Unable to copy file: " + str(e))
     if os.path.exists(target_file) == True:
         config_dict = nepi_utils.read_dict_from_file(target_file)
+        if config_dict is None:
+            try:
+                shutil.copyfile(backup_file, target_file)
+                config_dict = nepi_utils.read_dict_from_file(target_file)
+                    
+            except Exception as e:
+                print("Unable load backup file: " + str(e))
         if config_dict is not None:
             if len(list(config_dict.keys())) == 0:
+                try:
+                    shutil.copyfile(backup_file, target_file)
+                    config_dict = nepi_utils.read_dict_from_file(target_file)
+                       
+                except Exception as e:
+                    print("Unable load backup file: " + str(e))
+
+        if config_dict is not None:
+            if len(list(config_dict.keys())) == 0:    
                 config_dict = None
-            else:
-                for key in config_dict.keys(): # Fixe empty arrays
-                    if config_dict[key] is None:
-                        config_dict[key]=[]
+        else:
+            for key in config_dict.keys(): # Fixe empty arrays
+                if config_dict[key] is None:
+                    config_dict[key]=[]
             
     return config_dict
 

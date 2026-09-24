@@ -374,7 +374,7 @@ class ControlsIF:
                     self.controls_dict = controls_dict
                     #self.publish_status()
                     if self.controls_updated_callback is not None:
-                        self.controls_updated_callback(control_name)
+                        self.controls_updated_callback(control_name, update_value)
                     self.save_params_dict()
 
 

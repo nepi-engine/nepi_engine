@@ -1629,10 +1629,21 @@ class ProcessIF:
         control_name = msg.name
         # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
         # through the dict it is handed.
+
         controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
-        control_value = nepi_controls.get_value(controls_dict, control_name )
-        self.set_control_value(control_name, control_value)
+        cur_value = nepi_controls.get_value(control_name)
+        if cur_value is not None:
+            controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
+            update_value = nepi_controls.get_value(controls_dict, control_name )
+            if cur_value != update_value:
+                self.set_control_value(control_name, update_value)
+           
+                controls_updated_callback = self.callback_dict['controls_updated_callback']
+                if controls_updated_callback is not None:
+                    try:
+                        controls_updated_callback(control_name, update_value)
+                    except:
+                        pass
 
     def _publishResults(self, results_dict, source_topic = ''):
         #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 
