@@ -1637,11 +1637,10 @@ class ProcessIF:
             update_value = nepi_controls.get_value(controls_dict, control_name )
             if cur_value != update_value:
                 self.set_control_value(control_name, update_value)
-           
-                controls_updated_callback = self.callback_dict['controls_updated_callback']
-                if controls_updated_callback is not None:
+                control_value = self.get_control_value(control_name)
+                if self.callback_dict['controls_updated_callback'] is not None:
                     try:
-                        controls_updated_callback(control_name, update_value)
+                        self.callback_dict['controls_updated_callback'](control_name, update_value)
                     except:
                         pass
 
