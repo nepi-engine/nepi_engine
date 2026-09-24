@@ -757,7 +757,10 @@ class AiDetectorImgPub:
                     # if self.imgs_info_dict[source_topic]['publishing'] == False:
                     #     self.msg_if.pub_warn("Publishing image topic: " + str(source_topic))
                     self.imgs_info_dict[source_topic]['publishing'] = True
-                    status_dict = copy.deepcopy(self.imgs_info_dict[source_topic]['status_dict'])
+                    try:
+                        status_dict = copy.deepcopy(self.imgs_info_dict[source_topic]['status_dict'])
+                    except:
+                        status_dict = None
                     if status_dict is not None:
                         width_deg = status_dict['width_deg']
                         height_deg = status_dict['height_deg']

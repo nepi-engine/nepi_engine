@@ -1987,42 +1987,44 @@ class AiDetectorIF:
             except Exception as e:
                 nepi_sdk.sleep(1)
                 self.msg_if.pub_warn("Failed to process detections img with exception: " + str(e))
+
             self.is_processing = False
+            
+            if detect_dicts is not None:
+
+                #self.msg_if.pub_warn("Processed Image Topic " + source_topic) 
+                timestamp = nepi_utils.get_time()
+                self.last_detect_time = nepi_sdk.get_time()
+                ##############################
+                # Publish Detections
+                # Filter selected classes
+                sel_classes = copy.deepcopy(self.selected_classes)
+                sel_detect_ind = []
+                for i, detect in enumerate(detect_dicts):
+                    if detect['name'] in sel_classes:
+                        sel_detect_ind.append(i)
+                for ind in sel_detect_ind:
+                    detect_dict_list.append(detect_dicts[ind])
 
 
-            #self.msg_if.pub_warn("Processed Image Topic " + source_topic) 
-            timestamp = nepi_utils.get_time()
-            self.last_detect_time = nepi_sdk.get_time()
-            ##############################
-            # Publish Detections
-            # Filter selected classes
-            sel_classes = copy.deepcopy(self.selected_classes)
-            sel_detect_ind = []
-            for i, detect in enumerate(detect_dicts):
-                if detect['name'] in sel_classes:
-                    sel_detect_ind.append(i)
-            for ind in sel_detect_ind:
-                detect_dict_list.append(detect_dicts[ind])
+                ###############################
+                process_time = round( (nepi_sdk.get_time() - start_process_time ) , 3)
+                self.process_times.pop(0)
+                self.process_times.append(process_time)
 
+                ##################################
+                self.publishTargetsData(source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = np_depth_map)
+                ##################################
 
-            ###############################
-            process_time = round( (nepi_sdk.get_time() - start_process_time ) , 3)
-            self.process_times.pop(0)
-            self.process_times.append(process_time)
+                process_latency = (nepi_sdk.get_time() - timestamp)
 
-            ##################################
-            self.publishTargetsData(source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = np_depth_map)
-            ##################################
+                self.process_latencies.pop(0)
+                self.process_latencies.append(process_latency)
 
-            process_latency = (nepi_sdk.get_time() - timestamp)
-
-            self.process_latencies.pop(0)
-            self.process_latencies.append(process_latency)
-
-            process_rate = round( 1.0 / (nepi_sdk.get_time() - self.last_process_detect_time) , 3)
-            self.process_rates.pop(0)
-            self.process_rates.append(process_rate)
-            self.last_process_detect_time = nepi_sdk.get_time()
+                process_rate = round( 1.0 / (nepi_sdk.get_time() - self.last_process_detect_time) , 3)
+                self.process_rates.pop(0)
+                self.process_rates.append(process_rate)
+                self.last_process_detect_time = nepi_sdk.get_time()
 
         #####################################
         process_time = nepi_utils.get_time() - start_time

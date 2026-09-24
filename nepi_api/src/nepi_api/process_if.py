@@ -1631,7 +1631,7 @@ class ProcessIF:
         # through the dict it is handed.
 
         controls_dict = copy.deepcopy(self.controls_dict)
-        cur_value = nepi_controls.get_value(control_name)
+        cur_value = nepi_controls.get_value(controls_dict, control_name)
         if cur_value is not None:
             controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
             update_value = nepi_controls.get_value(controls_dict, control_name )
