@@ -65,7 +65,7 @@ IMAGE_PUB_TOPIC = 'lines_image'
 
 DEFAULT_COLOR_BGR = (147, 175, 35)
 DEFAULT_COLOR_RGB = DEFAULT_COLOR_BGR[::-1]
-COLOR_AVG_LEN=20
+
 
 BLANK_LINE_DICT = dict()
 BLANK_LINE_DICT['x'] = []
@@ -75,14 +75,14 @@ BLANK_LINE_DICT['y'] = []
 BLANK_RESULTS_DICT = dict()
 BLANK_RESULTS_DICT['line_dict'] = copy.deepcopy(BLANK_LINE_DICT)
 BLANK_RESULTS_DICT['quality'] = 0
-BLANK_RESULTS_DICT['color_rgb'] = DEFAULT_COLOR_RGB 
+BLANK_RESULTS_DICT['color_bgr'] = DEFAULT_COLOR_BGR 
 
 BASE_DATA_DICT = dict(
     detect_quality = 0,
     cv2_img = None,
     x_offset = 0,
     y_offset = 0,
-    line_color_bgr = copy.deepcopy(DEFAULT_COLOR_BGR),
+    color_bgr = copy.deepcopy(DEFAULT_COLOR_BGR),
 )
 
 
@@ -112,12 +112,6 @@ BASE_CONTROLS_DICT = dict(
 )
 
 BASE_DISPLAY_RESULTS_DICT = dict(
-
-
-    color_rgb = {
-        'type': 'ColorRGB', 'value': DEFAULT_COLOR_BGR,
-        'display_name': 'Line Color',
-        'description': 'Line Color', 'display_hidden': False},
 
 )
 
@@ -251,13 +245,13 @@ def find_brightest_pixels_per_column(cv2_img):
 
 
 
-def process_line_brightest(cv2_img, line_color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 , x_offset = 0, y_offset = 0):
+def process_line_brightest(cv2_img, color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 , x_offset = 0, y_offset = 0):
     line_dict = dict()
     line_dict['x'] = []
     line_dict['y'] = []
 
         
-    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = line_color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
+    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
 
     mask_img = cv2.bitwise_and(cv2_img,cv2_img,mask = c_mask)
 
@@ -280,7 +274,7 @@ def process_line_brightest(cv2_img, line_color_bgr = DEFAULT_COLOR_BGR, sensitiv
         
     return line_dict
 
-def get_line_avg_color(cv2_img, line_dict, line_color_bgr = DEFAULT_COLOR_BGR, x_offset = 0, y_offset = 0):
+def get_line_avg_color(cv2_img, line_dict, color_bgr = DEFAULT_COLOR_BGR, x_offset = 0, y_offset = 0):
 
     x_points = [item - x_offset for item in list(line_dict['x'])]
     y_points = [item - y_offset for item in list(line_dict['y'])]
@@ -301,43 +295,44 @@ def get_line_avg_color(cv2_img, line_dict, line_color_bgr = DEFAULT_COLOR_BGR, x
         color_b = int(sum(color_b_list)/len(color_b_list))
         color_g = int(sum(color_g_list)/len(color_g_list))
         color_r = int(sum(color_r_list)/len(color_r_list))
-        line_color_bgr = (color_b,color_g,color_r)
+        color_bgr = (color_b,color_g,color_r)
     except:
         pass
         
-    return line_color_bgr
+    return color_bgr
 
-# def update_color_from_lines(results_dict_list, fallback_color):
-#     color_b_list = []
-#     color_g_list = []
-#     color_r_list = []
-#     for results_dict in results_dict_list:
-#         color_b_list.append(results_dict['line_color_bgr'][0])
-#         color_g_list.append(results_dict['line_color_bgr'][1])
-#         color_r_list.append(results_dict['line_color_bgr'][2])
-#     color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
-#     color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
-#     color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
-#     color_bgr = (color_b,color_g,color_r)
+def get_color_from_colors(colors_bgr_list):
+    color_bgr = None
+    color_b_list = []
+    color_g_list = []
+    color_r_list = []
+    if len(colors_bgr_list) > 0:
+        for color_bgr in colors_bgr_list:
+            color_b_list.append(color_bgr[0])
+            color_g_list.append(color_bgr[1])
+            color_r_list.append(color_bgr[2])
+        color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
+        color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
+        color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
+        color_bgr = (color_b,color_g,color_r)
+    return color_bgr
 
-#     colors_bgr = []
-#     colors_bgr.append(color_bgr)
-#     if len(colors_bgr) > COLOR_AVG_LEN:
-#         colors_bgr.pop(0)
-#     color_b_list = []
-#     color_g_list = []
-#     color_r_list = []
-#     for color in colors_bgr:
-#         color_b_list.append(color[0])
-#         color_g_list.append(color[1])
-#         color_r_list.append(color[2])
-#     color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
-#     color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
-#     color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
-#     color_bgr = (color_b,color_g,color_r)
-    
-#     return color_bgr, colors_bgr
-
+def get_color_from_results(results_dict_list):
+    color_bgr = None
+    color_b_list = []
+    color_g_list = []
+    color_r_list = []
+    if len(results_dict_list) > 0:
+        for results_dict in results_dict_list:
+            color_bgr = results_dict['color_bgr']
+            color_b_list.append(color_bgr[0])
+            color_g_list.append(color_bgr[1])
+            color_r_list.append(color_bgr[2])
+        color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
+        color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
+        color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
+        color_bgr = (color_b,color_g,color_r)
+    return color_bgr
 
 
 def get_line_bounds(line_dict):
@@ -412,7 +407,7 @@ def merge_lines(results_dict_list):
 #########################
 # Line Filter Functions
 
-def filter_line_IQR(line_dict, line_color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 ):
+def filter_line_IQR(line_dict, color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 ):
 
     lower_q_value = 0.4 - (0.4 * (1 - sensitivity))
     upper_q_value = 0.6 + (0.4 * (1 - sensitivity))
@@ -492,12 +487,10 @@ def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
     #logger.log_warn("Got  Data,Controls: " + str([data_dict,controls_values_dict]), throttle_s = 10)
     line_dict = get_blank_line_dict()
     cv2_img = data_dict['cv2_img']
-    line_color_bgr = data_dict['line_color_bgr']
-    line_colors_bgr = data_dict['line_colors_bgr']
+    color_bgr = data_dict['color_bgr']
 
     results_dict = get_blank_results_dict()
-    results_dict['line_color_bgr'] = line_color_bgr
-    results_dict['color_rgb'] = [line_color_bgr[2],line_color_bgr[1],line_color_bgr[0]]
+    results_dict['color_bgr'] = color_bgr
 
     if cv2_img is not None:
 
@@ -511,10 +504,10 @@ def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
         cv2_img = filter_image_denoise(cv2_img, denoise_level )
 
         color_sensitivity = controls_values_dict['color_sensitivity']
-        line_dict = points_dict = process_line_brightest(cv2_img, line_color_bgr , color_sensitivity , x_offset, y_offset)
+        line_dict = points_dict = process_line_brightest(cv2_img, color_bgr , color_sensitivity , x_offset, y_offset)
 
         # filter_level = controls_values_dict['filter_level']
-        # line_dict = filter_line_IQR(line_dict, line_color_bgr, filter_level)
+        # line_dict = filter_line_IQR(line_dict, color_bgr, filter_level)
 
 
 
@@ -524,7 +517,7 @@ def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
         if quality > quality_threshold:
             results_dict['line_dict'] = line_dict
             results_dict['quality'] = quality
-            results_dict['line_color_bgr'] = get_line_avg_color(cv2_img, line_dict, line_color_bgr, x_offset, y_offset)
+            results_dict['color_bgr'] = get_line_avg_color(cv2_img, line_dict, color_bgr, x_offset, y_offset)
             data_dict['cv2_img'] = cv2_img
 
     return data_dict, controls_dict, states_dict, results_dict
