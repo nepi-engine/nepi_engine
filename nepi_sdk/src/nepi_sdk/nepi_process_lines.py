@@ -22,6 +22,7 @@ import math
 import cv2
 import numpy as np
 from scipy.optimize import linear_sum_assignment
+from scipy.interpolate import splprep, splev
 
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_sdk
@@ -99,10 +100,15 @@ BASE_CONTROLS_DICT = dict(
         'display_name': 'Color Sensitivity',
         'description': 'Line Point Picking Color Sensitivity', 'display_hidden': False},
 
-    filter_level = {
-        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
-        'display_name': 'Filter Level',
-        'description': 'Line Points Filter Level', 'display_hidden': False},
+    # avg_filter = {
+    #     'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 1,
+    #     'display_name': 'Avg Filter Level',
+    #     'description': 'Line Points Avg Filter Level', 'display_hidden': False},
+
+    dist_filter = {
+        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 1,
+        'display_name': 'Dist Filter Level',
+        'description': 'Line Points Distance Filter Level', 'display_hidden': False},
 
     quality_threshold = {
         'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
@@ -201,6 +207,79 @@ def calculate_average_points(line_dict):
     
     return avg_line_dict
 
+def calculate_average_points_distance(line_dict, max_distance = 20):
+
+
+    """
+    Fits a line minimizing perpendicular distances (Total Least Squares)
+    and returns the average (x, y) coordinates of the perpendicular projection points.
+    
+    """
+    avg_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
+        return line_dict
+    x = np.array(x_data, dtype=float)
+    y = np.array(y_data, dtype=float)
+    
+    # 2. Fit a 1st-degree polynomial (line): y = mx + c
+    # Using numpy.polyfit to retrieve slope (m) and intercept (c)
+    m, c = np.polyfit(x, y, 1)
+    
+    # 3. Define the direction vector of the line and its perpendicular
+    # Line vector v = (1, m). Perpendicular vector u = (-m, 1)
+    # We normalize 'u' so distances are scaled correctly
+    u = np.array([-m, 1.0])
+    u /= np.linalg.norm(u)
+    
+    # 4. Project each point onto the fitted line
+    # The closest point on y = mx + c to (x_i, y_i) has a known geometric formula
+    x_proj = (x + m * y - m * c) / (m**2 + 1)
+    y_proj = m * x_proj + c
+    
+    # 5. Map the projected points into integer bins to find "averages"
+    # We round the projection points to the nearest integer coordinates 
+    # to group adjacent points perpendicular to the line.
+    unique_bins = {}
+    point_weights = {}
+    for xp, yp, xi, yi in zip(x_proj, y_proj, x, y):
+        # Round the line anchor point to create a discrete bucket key
+        distance = abs(math.dist((xp,yp), (xi,yi)))
+
+        if distance <= max_distance or max_distance < 1:
+            bin_key = (int(np.round(xp)), int(np.round(yp)))
+            
+            if bin_key not in unique_bins:
+                unique_bins[bin_key] = []
+                point_weights[bin_key] = []
+            unique_bins[bin_key].append((xi, yi))
+            if max_distance < 1:
+                point_weights[bin_key].append(1)
+            else:
+                point_weights[bin_key].append(0.1 + 0.9 * distance/max_distance)
+    #logger.log_warn("Avg Line got point weights len " + str(len(point_weights)))
+    
+    # 6. Compute the average (x, y) integer point for each perpendicular slice
+    avg_perp_points = []
+    for bin_key, original_points in unique_bins.items():
+        pts_array = np.array(original_points)
+        pts_weights = np.array(point_weights[bin_key])
+        # Average the original coordinates clustered in this slice
+        try:
+            x_points = pts_array[:, 0]
+            y_points = pts_array[:, 1]
+            #logger.log_warn("Got x,y,w shapes " + str([x_points.shape,y_points.shape,pts_weights.shape]))
+            weighted_avg_x = np.average(x_points, weights=pts_weights)
+            avg_line_dict['x'].append(int(np.round(weighted_avg_x)))
+            weighted_avg_y = np.average(y_points, weights=pts_weights)
+            avg_line_dict['y'].append(int(np.round(weighted_avg_y)))
+        except Exception as e:
+            #logger.log_warn("Bin avg failed " + str(e))
+            pass
+
+    #logger.log_warn("Avg Line got avg line data size " + str([len(avg_line_dict['x']),len(avg_line_dict['y'])]))
+    
+    return avg_line_dict
 
 
 def find_brightest_pixels_per_row(cv2_img):
@@ -267,7 +346,7 @@ def process_line_brightest(cv2_img, color_bgr = DEFAULT_COLOR_BGR, sensitivity =
     line_dict['y'] = []
 
         
-    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
+    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [2,2], vscalers = [2,2])
 
     mask_img = cv2.bitwise_and(cv2_img,cv2_img,mask = c_mask)
 
@@ -373,6 +452,35 @@ def check_lines_overlap(bounds_1,bounds_2):
 
     return x_overlap and y_overlap
 
+
+
+def remove_points_in_window(line_dict, bounds):
+    """
+    Removes points (x, y) that fall inside the specified window boundaries (inclusive).
+    """
+    # Filter out points where both x is in [x_min, x_max] AND y is in [y_min, y_max]
+    filtered_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
+        return line_dict
+
+    [x_min, x_max, y_min, y_max] = bounds
+    filtered_points = [
+        (x, y) for x, y in zip(x_data, y_data)
+        if not (x_min <= x <= x_max and y_min <= y <= y_max)
+    ]
+    
+    # If all points were removed, return two empty lists
+    if not filtered_points:
+        return [], []
+        
+    # Unzip the filtered pairs back into two separate lists
+    new_x, new_y = map(list, zip(*filtered_points))
+    filtered_line_dict['x'] = new_x
+    filtered_line_dict['y'] = new_y
+    return new_x, new_y
+
+
 def merge_lines(results_dict_list):
     line_dict = get_blank_line_dict
 
@@ -398,6 +506,7 @@ def merge_lines(results_dict_list):
                 lines_overlap = check_lines_overlap(new_bounds,overlap_bounds)
                 if lines_overlap == True:
                     line_overlaped = True
+                    overlap_list[i2] = remove_points_in_window(overlap_list[i2], overlap_bounds)
                     overlap_list[i2]['x'].append(new_line['x'])
                     overlap_list[i2]['y'].append(new_line['y'])
                     break
@@ -422,6 +531,69 @@ def merge_lines(results_dict_list):
 
 #########################
 # Line Filter Functions
+
+
+
+def filter_isolated_points(line_dict, max_distance = 5):
+    """
+    Removes points that do not have at least one other point within max_distance.
+    """
+    # Pair the coordinates into a list of tuples
+    filtered_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data) or max_distance < 1:
+        return line_dict
+    points = list(zip(x_data, y_data))
+    n = len(points)
+    
+    keep_x = []
+    keep_y = []
+    
+    # Check each point against all other points
+    for i, (x1, y1) in enumerate(points):
+        has_neighbor = False
+        for j, (x2, y2) in enumerate(points):
+            if i == j:
+                continue  # Skip comparing the point to itself
+                
+            # Calculate Euclidean distance
+            if math.hypot(x1 - x2, y1 - y2) <= max_distance:
+                has_neighbor = True
+                break  # Stop searching early if a neighbor is found
+                
+        if has_neighbor:
+            filtered_line_dict['x'].append(x1)
+            filtered_line_dict['y'].append(y1)
+            
+    return filtered_line_dict
+
+
+
+def smooth_line_spline(line_dict, sensitivity = 0.5):
+    smooth_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data) or sensitivity < 0.01:
+        return line_dict
+    # 2. Fit the spline curve
+    # s=smoothing factor (increase for smoother curves, 0 forces it through all points)
+    s_factor = (1 - sensitivity) / 10
+    tck, u = splprep([x_data, y_data], s=s_factor)
+
+    # 3. Generate a dense grid of points along the fitted curve
+    u_fine = np.linspace(0, 1, 200)
+    x_smooth, y_smooth = splev(u_fine, tck)
+    x_smooth = x_smooth.astype(int)
+    y_smooth = y_smooth.astype(int)
+    logged_pts = []
+    for i, x in enumerate(x_smooth):
+        pt_key = str(x_smooth) + ":" + str(y_smooth)
+        if pt_key not in logged_pts:
+            logged_pts.append(pt_key)
+            smooth_line_dict['x'] = x_smooth
+            smooth_line_dict['y'] = y_smooth
+    #logger.log_warn("Smooth Line got line data size " + str([len(smooth_line_dict['x']),len(smooth_line_dict['y'])]))
+    #logger.log_warn("Smooth Line got line data " + str(smooth_line_dict))
+    return smooth_line_dict
 
 def filter_line_IQR(line_dict, color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 ):
 
@@ -522,10 +694,16 @@ def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
         color_sensitivity = controls_values_dict['color_sensitivity']
         line_dict = points_dict = process_line_brightest(cv2_img, color_bgr , color_sensitivity , x_offset, y_offset)
 
-        # filter_level = controls_values_dict['filter_level']
-        # line_dict = filter_line_IQR(line_dict, color_bgr, filter_level)
-
         line_dict = calculate_average_points(line_dict)
+
+        # avg_filter = controls_values_dict['avg_filter']
+        # max_dist = avg_filter * 100
+        # line_dict = calculate_average_points_distance(line_dict, max_distance=max_dist)
+
+        dist_filter = controls_values_dict['dist_filter']
+        max_dist = 1 + dist_filter * 9
+        line_dict = filter_isolated_points(line_dict, max_distance = max_dist)
+        #line_dict = smooth_line_spline(line_dict, sensitivity = 0.5)
 
         quality = get_line_quality(line_dict)
         quality_threshold = controls_values_dict['quality_threshold']

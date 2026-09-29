@@ -99,7 +99,7 @@ BLANK_CONFIG_DICT = dict(
         use_last_image = False,
 
         has_status_pub = True,
-        throttle_status_sec = 0.5
+        throttle_status_sec = 0.1
     )
 
 
@@ -280,7 +280,7 @@ class ProcessIF:
         if callback_dict is not None:
             try:
                 for key in callback_dict.keys():
-                    if key in self.show_dict.keys():
+                    if key in self.callback_dict.keys():
                         self.callback_dict[key] = callback_dict[key]
             except:
                 pass
@@ -814,7 +814,8 @@ class ProcessIF:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
                         try:
-                            self.msg_if.pub_warn("Updated Control Value: " + str([ control_name, update_value, self.controls_dict[control_name] ]), throttle_s = 5)
+                            #self.msg_if.pub_warn("Updated Control Value: " + str([ control_name, update_value, self.controls_dict[control_name] ]), throttle_s = 5)
+                            pass
                         except Exception as e:
                             self.msg_if.pub_info("Failed pub Updated Control Value msg: " + str(e), throttle_s = 5)
                 else:
@@ -1625,7 +1626,7 @@ class ProcessIF:
 
 
     def _updateControlCb(self,msg):
-        self.msg_if.pub_info("Received control update msg: " + str(msg), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Received control update msg: " + str(msg), log_name_list = self.log_name_list)
         control_name = msg.name
         # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
         # through the dict it is handed.
@@ -1637,11 +1638,13 @@ class ProcessIF:
             update_value = nepi_controls.get_value(controls_dict, control_name )
             if cur_value != update_value:
                 self.set_control_value(control_name, update_value)
+                self.publish_status()
                 control_value = self.get_control_value(control_name)
                 if self.callback_dict['controls_updated_callback'] is not None:
                     try:
                         self.callback_dict['controls_updated_callback'](control_name, update_value)
-                    except:
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to call controls_updated_callback: " + str(e), throttle_s = 1) 
                         pass
 
     def _publishResults(self, results_dict, source_topic = ''):
