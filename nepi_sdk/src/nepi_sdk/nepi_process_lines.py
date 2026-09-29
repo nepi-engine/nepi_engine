@@ -148,42 +148,58 @@ def sanitize_points(line_dict: dict) -> dict:
     return {k: int(v) for k, v in line_dict.items() if k in ("x", "y")}
 
 def calculate_average_points(line_dict):
-    [x_list, y_list] =[line_dict['x'],line_dict['y']]
 
-    unique_x = np.unique(x_list)
-    unique_y = np.unique(y_list)
-    
-    # The result will match the size of the smaller unique set to ensure 1:1 mapping
-    n_points = min(len(unique_x), len(unique_y))
-    
-    # 2. Build a cost matrix (Distance between every unique X and unique Y)
-    # We want to place paired points as close as possible to the original distribution
-    cost_matrix = np.zeros((len(unique_x), len(unique_y)))
-    
-    # Create a lookup for existing points to give them a lower cost (higher priority)
-    existing_points = set(zip(x_list, y_list))
-    
-    for i, x in enumerate(unique_x):
-        for j, y in enumerate(unique_y):
-            # Base cost is the Euclidean distance from the origin or spatial distance
-            # If the combination existed originally, we reduce its cost
-            base_dist = np.abs(x - y) 
-            if (x, y) in existing_points:
-                cost_matrix[i, j] = base_dist - 1000 # Prioritize original pairs
-            else:
-                cost_matrix[i, j] = base_dist
-                
-    # 3. Solve the assignment problem
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
-    
-    # 4. Extract the optimal unique pairs
-    avg_line_dict = dict()
-    avg_line_dict['x'] = unique_x[row_ind[:n_points]].tolist()
-    avg_line_dict['y'] = unique_y[col_ind[:n_points]].tolist()
 
-    clean_line_dict = sanitize_points(avg_line_dict)
+    """
+    Fits a line minimizing perpendicular distances (Total Least Squares)
+    and returns the average (x, y) coordinates of the perpendicular projection points.
     
-    return clean_line_dict
+    """
+    avg_line_dict = get_blank_line_dict()
+    [x_data, y_data] =[line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
+        return line_dict
+    x = np.array(x_data, dtype=float)
+    y = np.array(y_data, dtype=float)
+    
+    # 2. Fit a 1st-degree polynomial (line): y = mx + c
+    # Using numpy.polyfit to retrieve slope (m) and intercept (c)
+    m, c = np.polyfit(x, y, 1)
+    
+    # 3. Define the direction vector of the line and its perpendicular
+    # Line vector v = (1, m). Perpendicular vector u = (-m, 1)
+    # We normalize 'u' so distances are scaled correctly
+    u = np.array([-m, 1.0])
+    u /= np.linalg.norm(u)
+    
+    # 4. Project each point onto the fitted line
+    # The closest point on y = mx + c to (x_i, y_i) has a known geometric formula
+    x_proj = (x + m * y - m * c) / (m**2 + 1)
+    y_proj = m * x_proj + c
+    
+    # 5. Map the projected points into integer bins to find "averages"
+    # We round the projection points to the nearest integer coordinates 
+    # to group adjacent points perpendicular to the line.
+    unique_bins = {}
+    for xp, yp, xi, yi in zip(x_proj, y_proj, x, y):
+        # Round the line anchor point to create a discrete bucket key
+        bin_key = (int(np.round(xp)), int(np.round(yp)))
+        
+        if bin_key not in unique_bins:
+            unique_bins[bin_key] = []
+        unique_bins[bin_key].append((xi, yi))
+        
+    # 6. Compute the average (x, y) integer point for each perpendicular slice
+    avg_perp_points = []
+    for bin_key, original_points in unique_bins.items():
+        pts_array = np.array(original_points)
+        # Average the original coordinates clustered in this slice
+        avg_line_dict['x'].append(int(np.round(np.mean(pts_array[:, 0]))))
+        avg_line_dict['y'].append(int(np.round(np.mean(pts_array[:, 1]))))
+
+    #logger.log_warn("Avg Line got avg line data size " + str([len(avg_line_dict['x']),len(avg_line_dict['y'])]))
+    
+    return avg_line_dict
 
 
 
@@ -509,7 +525,7 @@ def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
         # filter_level = controls_values_dict['filter_level']
         # line_dict = filter_line_IQR(line_dict, color_bgr, filter_level)
 
-
+        line_dict = calculate_average_points(line_dict)
 
         quality = get_line_quality(line_dict)
         quality_threshold = controls_values_dict['quality_threshold']
