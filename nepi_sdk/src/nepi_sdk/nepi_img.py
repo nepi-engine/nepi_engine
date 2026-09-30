@@ -1299,7 +1299,7 @@ def create_color_mask(cv2_img, color_bgr = (147, 175, 35), sensitivity = 0.5 , h
     hsv_color = cv2.cvtColor(color_array, cv2.COLOR_BGR2HSV)[0,0,:]
     #logger.log_warn("Using HSV Color " + str(hsv_color ))
 
-    sensitivity = 1 - sensitivity
+    sensitivity = 1 - (sensitivity * 0.9 + 0.1)
 
     
   

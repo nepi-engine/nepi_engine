@@ -512,6 +512,7 @@ class AiDetectorImgPub:
         img_info_dict['last_img_time'] = 0
         img_info_dict['last_targets_time'] = 0
         img_info_dict['target_dict_list'] = []
+        img_info_dict['targets_img_published'] = False
         img_info_dict['last_img'] = None
 
         self.imgs_info_lock.acquire()
