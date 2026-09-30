@@ -99,6 +99,13 @@ BASE_CONTROLS_DICT = dict(
         'display_name': 'Color Sensitivity',
         'description': 'Line Point Picking Color Sensitivity', 'display_hidden': False},
 
+    filter_x = {
+        'type': 'Toggle', 'value': True,
+        'display_name': 'Filter X', 'description': 'Filter along x axis.', 'display_hidden': True},
+
+    filter_y = {
+        'type': 'Toggle', 'value': True,
+        'display_name': 'Filter Y', 'description': 'Filter along y axis.', 'display_hidden': True},
 
     quality_threshold = {
         'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
@@ -497,22 +504,25 @@ def find_avg_pixels_per_column(line_dict, max_distance = 10):
     return filtered_line_dict
 
 
-def filter_line_avg(line_dict, max_distance = 5):
+def filter_line_avg(line_dict, max_distance = 5, filter_x = True, filter_y = False):
     filtered_line_dict = get_blank_line_dict()
     [x_data, y_data] = [line_dict['x'],line_dict['y']]
     if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
         return line_dict
-
-    line_dict_x = find_avg_pixels_per_row(line_dict, max_distance)
-    filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_x['x']
-    filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_x['y']
-    line_dict_y = find_avg_pixels_per_column(line_dict, max_distance)
-    filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_y['x']
-    filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_y['y']
+    if filter_x == False and filter_x == False:
+        return line_dict
+    if filter_x == True:
+        line_dict_x = find_avg_pixels_per_row(line_dict, max_distance)
+        filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_x['x']
+        filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_x['y']
+    if filter_y == True:
+        line_dict_y = find_avg_pixels_per_column(line_dict, max_distance)
+        filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_y['x']
+        filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_y['y']
     #logger.log_warn("Avg Filter got line data size " + str([len(filtered_line_dict['x']),len(filtered_line_dict['y'])]))
     return filtered_line_dict
 
-def merge_results(cv2_img, results_dict_list):
+def merge_results(cv2_img, results_dict_list, filter_x = True, filter_y = False):
     line_dict = get_blank_line_dict
     all_results = get_blank_results_dict()
     #logger.log_warn("Merge Line got results list len " + str(len(results_dict_list)))
@@ -562,7 +572,7 @@ def merge_results(cv2_img, results_dict_list):
     # Merge Lines
     #logger.log_warn("Merge Line has n lines " + str(len(lines_overlap_list)))
     for overlap_list in lines_overlap_list:   
-        overlap_list = filter_line_avg(overlap_list) 
+        overlap_list = filter_line_avg(overlap_list, filter_x, filter_y)
 
         line_dict['x'] = line_dict['x'] + overlap_list['x']
         line_dict['y'] = line_dict['y'] + overlap_list['y']
@@ -680,11 +690,13 @@ def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
 
         quality = get_line_quality(line_dict)
         quality_threshold = controls_values_dict['quality_threshold']
-
+        line_color = get_line_avg_color(cv2_img, line_dict, color_bgr, x_offset, y_offset)
+        if line_color is None:
+            line_color = color_bgr
         if quality > quality_threshold:
             results_dict['line_dict'] = line_dict
             results_dict['quality'] = quality
-            results_dict['color_bgr'] = get_line_avg_color(cv2_img, line_dict, color_bgr, x_offset, y_offset)
+            results_dict['color_bgr'] = line_color
             data_dict['cv2_img'] = cv2_img
 
     return data_dict, controls_dict, states_dict, results_dict
