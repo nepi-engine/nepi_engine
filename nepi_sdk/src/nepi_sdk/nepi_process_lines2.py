@@ -22,6 +22,8 @@ import math
 import cv2
 import numpy as np
 from collections import defaultdict
+from scipy.optimize import linear_sum_assignment
+from scipy.interpolate import splprep, splev
 
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_sdk
@@ -95,10 +97,14 @@ BASE_CONTROLS_DICT = dict(
         'description': 'Denoise Image Filter Level', 'display_hidden': False},
 
     color_sensitivity = {
-        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
+        'type': 'FloatSlider', 'value': 0.0, 'bounds': [0.0, 1.0], 'round_value': 3,
         'display_name': 'Color Sensitivity',
         'description': 'Line Point Picking Color Sensitivity', 'display_hidden': False},
 
+    dist_filter = {
+        'type': 'FloatSlider', 'value': 1.0, 'bounds': [0.0, 1.0], 'round_value': 1,
+        'display_name': 'Dist Filter Level',
+        'description': 'Line Points Distance Filter Level', 'display_hidden': False},
 
     quality_threshold = {
         'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
@@ -142,250 +148,6 @@ def filter_image_denoise(cv2_img, sensitivity = 0.5 ):
 def sanitize_points(line_dict: dict) -> dict:
     """Converts 'x' and 'y' values in a dictionary to integers."""
     return {k: int(v) for k, v in line_dict.items() if k in ("x", "y")}
-
-def calculate_average_points(line_dict):
-    [x_list, y_list] =[line_dict['x'],line_dict['y']]
-
-    unique_x = np.unique(x_list)
-    unique_y = np.unique(y_list)
-    
-    # The result will match the size of the smaller unique set to ensure 1:1 mapping
-    n_points = min(len(unique_x), len(unique_y))
-    
-    # 2. Build a cost matrix (Distance between every unique X and unique Y)
-    # We want to place paired points as close as possible to the original distribution
-    cost_matrix = np.zeros((len(unique_x), len(unique_y)))
-    
-    # Create a lookup for existing points to give them a lower cost (higher priority)
-    existing_points = set(zip(x_list, y_list))
-    
-    for i, x in enumerate(unique_x):
-        for j, y in enumerate(unique_y):
-            # Base cost is the Euclidean distance from the origin or spatial distance
-            # If the combination existed originally, we reduce its cost
-            base_dist = np.abs(x - y) 
-            if (x, y) in existing_points:
-                cost_matrix[i, j] = base_dist - 1000 # Prioritize original pairs
-            else:
-                cost_matrix[i, j] = base_dist
-                
-    # 3. Solve the assignment problem
-    row_ind, col_ind = linear_sum_assignment(cost_matrix)
-    
-    # 4. Extract the optimal unique pairs
-    avg_line_dict = dict()
-    avg_line_dict['x'] = unique_x[row_ind[:n_points]].tolist()
-    avg_line_dict['y'] = unique_y[col_ind[:n_points]].tolist()
-
-    clean_line_dict = sanitize_points(avg_line_dict)
-    
-    return clean_line_dict
-
-
-
-def find_brightest_pixels_per_row(cv2_img):
-
-    # Convert the image to grayscale for single-channel intensity analysis
-    # This simplifies finding "brightness"
-    if nepi_img.is_gray(cv2_img) == True:
-        cv2_img_gray = cv2_img
-    else:
-        cv2_img_gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
-
-    # Find the x-coordinate (column index) of the maximum intensity in each row
-    # np.argmax with axis=1 returns the index of the max value in each row
-    x_coords = np.argmax(cv2_img_gray, axis=1)
-
-    # Get the total number of rows (height) of the image
-    height = cv2_img_gray.shape[0]
-
-    # Generate the corresponding y-coordinates (row indices)
-    y_coords = np.arange(height)
-
-    # Combine x and y coordinates into a list of (x, y) tuples
-    # The format in OpenCV generally uses (x, y) coordinates for location, 
-    # where x is the column and y is the row
-    brightest_pixel_positions = list(zip(x_coords, y_coords))
-
-    return brightest_pixel_positions
-
-def find_brightest_pixels_per_column(cv2_img):
-
-    # Convert the image to grayscale for single-channel intensity analysis
-    # This simplifies finding "brightness"
-
-    if nepi_img.is_gray(cv2_img) == True:
-        cv2_img_gray = cv2_img
-    else:
-        cv2_img_gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
-
-    # Find the y-coordinate (row index) of the maximum intensity in each row
-    # np.argmax with axis=1 returns the index of the max value in each row
-    y_coords = np.argmax(cv2_img_gray, axis=0)
-
-    # Get the total number of rows (height) of the image
-    width = cv2_img_gray.shape[1]
-
-    # Generate the corresponding x-coordinates (columns indices)
-    x_coords = np.arange(width)
-
-
-    # Combine x and y coordinates into a list of (x, y) tuples
-    # The format in OpenCV generally uses (x, y) coordinates for location, 
-    # where x is the column and y is the row
-    brightest_pixel_positions = list(zip(x_coords, y_coords))
-
-    return brightest_pixel_positions
-
-
-
-
-
-def process_line_brightest(cv2_img, color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 , x_offset = 0, y_offset = 0):
-
-    line_dict = get_blank_line_dict()
-    #logger.log_warn("Color Filter got image shape " + str(cv2_img.shape))
-
-    # 1. Convert sensitivity fraction to a channel variation range (0 to 255)
-    tolerance = int(sensitivity * 255)
-    
-    # 2. Extract BGR components from the target color
-    target_b, target_g, target_r = color_bgr
-    
-    # 3. Calculate lower and upper bounds, safely clamping them between 0 and 255
-    lower_bound = np.array([
-        max(0, target_b - int(sensitivity * color_bgr[0])),
-        max(0, target_g - int(sensitivity * color_bgr[1])),
-        max(0, target_r - int(sensitivity * color_bgr[2]))
-    ], dtype=np.uint8)
-    
-    upper_bound = np.array([
-        min(255, target_b + int(sensitivity * color_bgr[0])),
-        min(255, target_g + int(sensitivity * color_bgr[1])),
-        min(255, target_r + int(sensitivity * color_bgr[2]))
-    ], dtype=np.uint8)
-    
-    # 4. Create a binary mask where matching pixels are 255 (white) and others are 0 (black)
-    mask = cv2.inRange(cv2_img, lower_bound, upper_bound)
-    # c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity, hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
-
-    
-    # 5. Extract indices where the mask is active. 
-    # np.where returns (row_indices, col_indices), which correspond to (y, x)
-    y_indices, x_indices = np.where(mask > 0)
-    #y_indices = [(x, y) for x, y in mask_img if x != 0 and y != cv2_img.shape[1] and y != 0 and y != cv2_img.shape[0] and not np.isnan(x) and not np.isnan(y)]
-    
-    # 6. Pair them up into a list of (x, y) tuples
-    line_dict['x'] = x_indices
-    line_dict['y'] = y_indices
-
-        
-    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
-
-    mask_img = cv2.bitwise_and(cv2_img,cv2_img,mask = c_mask)
-
-    # Process brightest for each row and column
-  
-    b_pixels = []
-    b_pixels = b_pixels + find_brightest_pixels_per_row(mask_img)
-    b_pixels = b_pixels + find_brightest_pixels_per_column(mask_img)
-
-    if len(b_pixels) == 0:
-        filtered_points = b_pixels
-    else:
-        # Filter out Edge pixels
-        filtered_points = [(x, y) for x, y in b_pixels if x != 0 and y != mask_img.shape[1] and y != 0 and y != mask_img.shape[0] and not np.isnan(x) and not np.isnan(y)]
-    
-    if len(filtered_points) > 0:
-        x_points, y_points = zip(*filtered_points)
-        line_dict['x'] = [item + x_offset for item in list(x_points)]
-        line_dict['y'] = [item + y_offset for item in list(y_points)]
-        
-    return line_dict
-
-def get_line_avg_color(cv2_img, line_dict, color_bgr = DEFAULT_COLOR_BGR, x_offset = 0, y_offset = 0):
-
-    x_points = [item - x_offset for item in list(line_dict['x'])]
-    y_points = [item - y_offset for item in list(line_dict['y'])]
-    color_b_list = []
-    color_g_list = []
-    color_r_list = []
-    for i, x in enumerate(x_points):
-        color_bgr = None
-        try:
-            color_bgr = cv2_img[y_points[i],x_points[i]]
-            color_b_list.append(color_bgr[0])
-            color_g_list.append(color_bgr[1])
-            color_r_list.append(color_bgr[2])
-        except:
-            pass
-
-    try:
-        color_b = int(sum(color_b_list)/len(color_b_list))
-        color_g = int(sum(color_g_list)/len(color_g_list))
-        color_r = int(sum(color_r_list)/len(color_r_list))
-        color_bgr = (color_b,color_g,color_r)
-    except:
-        pass
-        
-    return color_bgr
-
-def get_color_from_colors(colors_bgr_list):
-    color_bgr = None
-    color_b_list = []
-    color_g_list = []
-    color_r_list = []
-    if len(colors_bgr_list) > 0:
-        for color_bgr in colors_bgr_list:
-            color_b_list.append(color_bgr[0])
-            color_g_list.append(color_bgr[1])
-            color_r_list.append(color_bgr[2])
-        color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
-        color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
-        color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
-        color_bgr = (color_b,color_g,color_r)
-    return color_bgr
-
-def get_color_from_results(results_dict_list):
-    color_bgr = None
-    color_b_list = []
-    color_g_list = []
-    color_r_list = []
-    if len(results_dict_list) > 0:
-        for results_dict in results_dict_list:
-            color_bgr = results_dict['color_bgr']
-            color_b_list.append(color_bgr[0])
-            color_g_list.append(color_bgr[1])
-            color_r_list.append(color_bgr[2])
-        color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
-        color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
-        color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
-        color_bgr = (color_b,color_g,color_r)
-    return color_bgr
-
-
-def get_line_bounds(line_dict):
-        xmin = min(line_dict['x'])
-        xmax = max(line_dict['x'])
-        ymin = min(line_dict['y'])
-        ymax = max(line_dict['y'])
-        return [xmin,xmax,ymin,ymax]
-
-def check_lines_overlap(bounds_1,bounds_2):
-    """
-    Checks if two bounding boxes overlap.
-    Boxes are in the format [xmin, xmax, ymin, ymax]
-    """
-    # Unpack the coordinates for clarity
-    xmin1, xmax1, ymin1, ymax1 = bounds_1
-    xmin2, xmax2, ymin2, ymax2 = bounds_2
-
-    # Check for overlap along both axes
-    x_overlap = xmin1 <= xmax2 and xmax1 >= xmin2
-    y_overlap = ymin1 <= ymax2 and ymax1 >= ymin2
-
-    return x_overlap and y_overlap
-
 
 def remove_isolated_entries_fast(numbers, max_distance):
     """
@@ -488,6 +250,375 @@ def find_avg_pixels_per_column(line_dict, max_distance = 10):
     return filtered_line_dict
 
 
+
+
+# def calculate_average_points(line_dict):
+
+
+#     """
+#     Fits a line minimizing perpendicular distances (Total Least Squares)
+#     and returns the average (x, y) coordinates of the perpendicular projection points.
+    
+#     """
+#     avg_line_dict = get_blank_line_dict()
+#     [x_data, y_data] =[line_dict['x'],line_dict['y']]
+#     if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
+#         return line_dict
+#     x = np.array(x_data, dtype=float)
+#     y = np.array(y_data, dtype=float)
+    
+#     # 2. Fit a 1st-degree polynomial (line): y = mx + c
+#     # Using numpy.polyfit to retrieve slope (m) and intercept (c)
+#     m, c = np.polyfit(x, y, 1)
+    
+#     # 3. Define the direction vector of the line and its perpendicular
+#     # Line vector v = (1, m). Perpendicular vector u = (-m, 1)
+#     # We normalize 'u' so distances are scaled correctly
+#     u = np.array([-m, 1.0])
+#     u /= np.linalg.norm(u)
+    
+#     # 4. Project each point onto the fitted line
+#     # The closest point on y = mx + c to (x_i, y_i) has a known geometric formula
+#     x_proj = (x + m * y - m * c) / (m**2 + 1)
+#     y_proj = m * x_proj + c
+    
+#     # 5. Map the projected points into integer bins to find "averages"
+#     # We round the projection points to the nearest integer coordinates 
+#     # to group adjacent points perpendicular to the line.
+#     unique_bins = {}
+#     for xp, yp, xi, yi in zip(x_proj, y_proj, x, y):
+#         # Round the line anchor point to create a discrete bucket key
+#         bin_key = (int(np.round(xp)), int(np.round(yp)))
+        
+#         if bin_key not in unique_bins:
+#             unique_bins[bin_key] = []
+#         unique_bins[bin_key].append((xi, yi))
+        
+#     # 6. Compute the average (x, y) integer point for each perpendicular slice
+#     avg_perp_points = []
+#     for bin_key, original_points in unique_bins.items():
+#         pts_array = np.array(original_points)
+#         # Average the original coordinates clustered in this slice
+#         avg_line_dict['x'].append(int(np.round(np.mean(pts_array[:, 0]))))
+#         avg_line_dict['y'].append(int(np.round(np.mean(pts_array[:, 1]))))
+
+#     #logger.log_warn("Avg Line got avg line data size " + str([len(avg_line_dict['x']),len(avg_line_dict['y'])]))
+    
+#     return avg_line_dict
+
+
+
+def find_brightest_pixels_per_row(cv2_img, line_dict):
+    """
+    Filters a list of x and y coordinates, returning only the coordinates 
+    that represent the brightest pixel for each unique y-axis row.
+    """
+    filtered_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
+        return line_dict
+    
+    # Convert image to grayscale if it is in BGR format
+    if len(cv2_img.shape) == 3:
+        gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = cv2_img
+
+    # Group x coordinates by their corresponding y coordinates
+    y_to_x_map = {}
+    for x, y in zip(x_data, y_data):
+        if y not in y_to_x_map:
+            y_to_x_map[y] = []
+        y_to_x_map[y].append(x)
+
+    filtered_x = []
+    filtered_y = []
+
+    # Find the brightest x for each unique y
+    for y, x_candidates in y_to_x_map.items():
+        # Get pixel intensities for all x candidates in this row
+        intensities = [gray[y, x] for x in x_candidates]
+        
+        # Find the index of the maximum intensity
+        max_idx = np.argmax(intensities)
+        
+        # Append the brightest candidate to our filtered lists
+        filtered_x.append(x_candidates[max_idx])
+        filtered_y.append(y)
+
+
+    filtered_line_dict['x'] = filtered_x
+    filtered_line_dict['y'] = filtered_y
+    return filtered_line_dict
+
+def find_brightest_pixels_per_column(cv2_img, line_dict):
+    """
+    Filters a list of x and y coordinates, returning only the coordinates 
+    that represent the brightest pixel for each unique x-axis row.
+    """
+    filtered_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
+        return line_dict
+    
+ # Convert image to grayscale if it is in BGR format
+    if len(cv2_img.shape) == 3:
+        gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = cv2_img
+
+    # Group y coordinates by their corresponding x coordinates
+    x_to_y_map = {}
+    for x, y in zip(x_data, y_data):
+        if x not in x_to_y_map:
+            x_to_y_map[x] = []
+        x_to_y_map[x].append(y)
+
+    filtered_x = []
+    filtered_y = []
+
+    # Find the brightest y for each unique x
+    for x, y_candidates in x_to_y_map.items():
+        # Get pixel intensities for all y candidates in this column
+        # Note: OpenCV indexing is gray[y, x] (row, column)
+        intensities = [gray[y, x] for y in y_candidates]
+        
+        # Find the index of the maximum intensity
+        max_idx = np.argmax(intensities)
+        
+        # Append the brightest candidate to our filtered lists
+        filtered_x.append(x)
+        filtered_y.append(y_candidates[max_idx])
+
+    filtered_line_dict['x'] = filtered_x
+    filtered_line_dict['y'] = filtered_y
+    return filtered_line_dict
+
+
+
+
+
+def get_line_avg_color(cv2_img, line_dict, color_bgr = DEFAULT_COLOR_BGR):
+
+    x_points = [item for item in list(line_dict['x'])]
+    y_points = [item for item in list(line_dict['y'])]
+    color_b_list = []
+    color_g_list = []
+    color_r_list = []
+    for i, x in enumerate(x_points):
+        color_bgr = None
+        try:
+            color_bgr = cv2_img[y_points[i],x_points[i]]
+            color_b_list.append(color_bgr[0])
+            color_g_list.append(color_bgr[1])
+            color_r_list.append(color_bgr[2])
+        except:
+            pass
+
+    if len(color_b_list) > 0:
+        try:
+            color_b = int(sum(color_b_list)/len(color_b_list))
+            color_g = int(sum(color_g_list)/len(color_g_list))
+            color_r = int(sum(color_r_list)/len(color_r_list))
+            color_bgr = (color_b,color_g,color_r)
+        except:
+            pass
+        
+    return color_bgr
+
+def get_color_from_colors(colors_bgr_list):
+    color_bgr = None
+    color_b_list = []
+    color_g_list = []
+    color_r_list = []
+    if len(colors_bgr_list) > 0:
+        for color_bgr in colors_bgr_list:
+            if color_bgr is not None:
+                color_b_list.append(color_bgr[0])
+                color_g_list.append(color_bgr[1])
+                color_r_list.append(color_bgr[2])
+        if len(color_b_list) > 0:
+            color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
+            color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
+            color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
+            color_bgr = (color_b,color_g,color_r)
+    return color_bgr
+
+def get_color_from_results(results_dict_list):
+    color_bgr = None
+    color_b_list = []
+    color_g_list = []
+    color_r_list = []
+    if len(results_dict_list) > 0:
+        for results_dict in results_dict_list:
+            color_bgr = results_dict['color_bgr']
+            if color_bgr is not None:
+                color_b_list.append(color_bgr[0])
+                color_g_list.append(color_bgr[1])
+                color_r_list.append(color_bgr[2])
+        if len(color_b_list) > 0:
+            color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
+            color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
+            color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
+            color_bgr = (color_b,color_g,color_r)
+    return color_bgr
+
+
+def get_line_bounds(line_dict):
+        xmin = min(line_dict['x'])
+        xmax = max(line_dict['x'])
+        ymin = min(line_dict['y'])
+        ymax = max(line_dict['y'])
+        return [xmin,xmax,ymin,ymax]
+
+def check_lines_overlap(bounds_1,bounds_2):
+    """
+    Checks if two bounding boxes overlap.
+    Boxes are in the format [xmin, xmax, ymin, ymax]
+    """
+    # Unpack the coordinates for clarity
+    xmin1, xmax1, ymin1, ymax1 = bounds_1
+    xmin2, xmax2, ymin2, ymax2 = bounds_2
+
+    # Check for overlap along both axes
+    x_overlap = xmin1 <= xmax2 and xmax1 >= xmin2
+    y_overlap = ymin1 <= ymax2 and ymax1 >= ymin2
+
+    return x_overlap and y_overlap
+
+
+
+
+#########################
+# Line Filter Functions
+
+
+def filter_line_color(cv2_img, color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5):
+
+
+    """
+    Finds (x, y) coordinates matching a target BGR color within a sensitivity range.
+    
+    Parameters:
+    - img: cv2 image (NumPy array in BGR format)
+    - color_bgr: tuple/list of 3 integers representing (Blue, Green, Red)
+    - sensitivity: float from 0 to 1 (0 = strict match, 1 = matches everything)
+    
+    Returns:
+    - list of (x, y) coordinate tuples matching the filtered criteria.
+    """
+
+    line_dict = get_blank_line_dict()
+    #logger.log_warn("Color Filter got image shape " + str(cv2_img.shape))
+
+    # 1. Convert sensitivity fraction to a channel variation range (0 to 255)
+    tolerance = int(sensitivity * 255)
+    
+    # 2. Extract BGR components from the target color
+    target_b, target_g, target_r = color_bgr
+    
+    # 3. Calculate lower and upper bounds, safely clamping them between 0 and 255
+    lower_bound = np.array([
+        max(0, target_b - int(sensitivity * color_bgr[0])),
+        max(0, target_g - int(sensitivity * color_bgr[1])),
+        max(0, target_r - int(sensitivity * color_bgr[2]))
+    ], dtype=np.uint8)
+    
+    upper_bound = np.array([
+        min(255, target_b + int(sensitivity * color_bgr[0])),
+        min(255, target_g + int(sensitivity * color_bgr[1])),
+        min(255, target_r + int(sensitivity * color_bgr[2]))
+    ], dtype=np.uint8)
+    
+    # 4. Create a binary mask where matching pixels are 255 (white) and others are 0 (black)
+    mask = cv2.inRange(cv2_img, lower_bound, upper_bound)
+    # c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity, hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
+
+    
+    # 5. Extract indices where the mask is active. 
+    # np.where returns (row_indices, col_indices), which correspond to (y, x)
+    y_indices, x_indices = np.where(mask > 0)
+    #y_indices = [(x, y) for x, y in mask_img if x != 0 and y != cv2_img.shape[1] and y != 0 and y != cv2_img.shape[0] and not np.isnan(x) and not np.isnan(y)]
+    
+    # 6. Pair them up into a list of (x, y) tuples
+    line_dict['x'] = x_indices
+    line_dict['y'] = y_indices
+
+
+    ############################
+    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity,  hscalers = [1,1], sscalers = [1,1], vscalers = [1,1])
+    mask_img = cv2.bitwise_and(cv2_img,cv2_img,mask = c_mask)
+    gray_output = cv2.cvtColor(mask_img, cv2.COLOR_BGR2GRAY)
+
+    # 3. Get all pixel coordinates where value > 0
+    # This returns an array of coordinates in [[y1, x1], [y2, x2], ...] format
+    pixel_points = np.argwhere(gray_output > 0)
+    
+    filtered_points = [(y, x) for y, x in pixel_points if x != 0 and y != mask_img.shape[0] and y != 0 and y != mask_img.shape[1] and not np.isnan(x) and not np.isnan(y)]
+    #logger.log_warn("Color Filter got points len " + str(len(filtered_points)))
+    #logger.log_warn("Color Filter got points " + str(filtered_points))
+    if len(filtered_points) > 0:
+        y_points, x_points  = zip(*filtered_points)
+        line_dict['x'] = line_dict['x'] + list(x_points)
+        line_dict['y'] = line_dict['y'] + list (y_points)
+    #logger.log_warn("Color Filter got line data size " + str([len(line_dict['x']),len(line_dict['y'])]))
+
+
+
+    return mask_img, line_dict
+
+def filter_isolated_points(line_dict, max_distance = 5):
+    """
+    Removes points that do not have at least one other point within max_distance.
+    """
+    # Pair the coordinates into a list of tuples
+    filtered_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data) or max_distance < 1:
+        return line_dict
+    points = list(zip(x_data, y_data))
+    n = len(points)
+    
+    keep_x = []
+    keep_y = []
+    
+    # Check each point against all other points
+    for i, (x1, y1) in enumerate(points):
+        has_neighbor = False
+        for j, (x2, y2) in enumerate(points):
+            if i == j:
+                continue  # Skip comparing the point to itself
+                
+            # Calculate Euclidean distance
+            if math.hypot(x1 - x2, y1 - y2) <= max_distance:
+                has_neighbor = True
+                break  # Stop searching early if a neighbor is found
+                
+        if has_neighbor:
+            filtered_line_dict['x'].append(x1)
+            filtered_line_dict['y'].append(y1)
+    #logger.log_warn("Isolated Filter got line data size " + str([len(filtered_line_dict['x']),len(filtered_line_dict['y'])]))
+    return filtered_line_dict
+
+
+
+
+def filter_line_brightest(cv2_img, line_dict):
+    filtered_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
+        return line_dict
+
+    line_dict_x = find_brightest_pixels_per_row(cv2_img,line_dict)
+    filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_x['x']
+    filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_x['y']
+    line_dict_y = find_brightest_pixels_per_column(cv2_img,line_dict)
+    filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_y['x']
+    filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_y['y']
+    #logger.log_warn("Brightness Filter got line data size " + str([len(filtered_line_dict['x']),len(filtered_line_dict['y'])]))
+    return filtered_line_dict
+
+
 def filter_line_avg(line_dict, max_distance = 5):
     filtered_line_dict = get_blank_line_dict()
     [x_data, y_data] = [line_dict['x'],line_dict['y']]
@@ -502,6 +633,46 @@ def filter_line_avg(line_dict, max_distance = 5):
     filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_y['y']
     #logger.log_warn("Avg Filter got line data size " + str([len(filtered_line_dict['x']),len(filtered_line_dict['y'])]))
     return filtered_line_dict
+
+def get_line_quality(line_dict):
+    quality = 1
+    if 'x' not in line_dict.keys():
+        quality = 0
+    elif len(line_dict['x']) < 10:
+        quality = 0
+    return quality
+
+
+
+
+
+def remove_points_in_window(line_dict, bounds):
+    """
+    Removes points (x, y) that fall inside the specified window boundaries (inclusive).
+    """
+    # Filter out points where both x is in [x_min, x_max] AND y is in [y_min, y_max]
+    filtered_line_dict = get_blank_line_dict()
+    [x_data, y_data] = [line_dict['x'],line_dict['y']]
+    if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
+        return line_dict
+
+    [x_min, x_max, y_min, y_max] = bounds
+    filtered_points = [
+        (x, y) for x, y in zip(x_data, y_data)
+        if not (x_min <= x <= x_max and y_min <= y <= y_max)
+    ]
+    
+    # If all points were removed, return two empty lists
+    if not filtered_points:
+        return [], []
+        
+    # Unzip the filtered pairs back into two separate lists
+    new_x, new_y = map(list, zip(*filtered_points))
+    filtered_line_dict['x'] = new_x
+    filtered_line_dict['y'] = new_y
+    #logger.log_warn("Line remove points data size " + str([len(filtered_line_dict['x']),len(filtered_line_dict['y'])]))
+    return filtered_line_dict
+
 
 def merge_results(cv2_img, results_dict_list):
     line_dict = get_blank_line_dict
@@ -554,7 +725,7 @@ def merge_results(cv2_img, results_dict_list):
     #logger.log_warn("Merge Line has n lines " + str(len(lines_overlap_list)))
     for overlap_list in lines_overlap_list:   
         overlap_list = filter_line_avg(overlap_list) 
-
+        #overlap_list = filter_line_brightest(cv2_img, overlap_list)
         line_dict['x'] = line_dict['x'] + overlap_list['x']
         line_dict['y'] = line_dict['y'] + overlap_list['y']
 
@@ -562,51 +733,6 @@ def merge_results(cv2_img, results_dict_list):
     all_results['line_dict'] = line_dict
     return [all_results]
 
-
-#########################
-# Line Filter Functions
-
-def filter_line_IQR(line_dict, color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 ):
-
-    lower_q_value = 0.4 - (0.4 * (1 - sensitivity))
-    upper_q_value = 0.6 + (0.4 * (1 - sensitivity))
-    filtered_line_dict = {
-        'x': [],
-        'y': []
-    }
-    # Apply to y column
-    df = pd.DataFrame(line_dict)
-    column = 'y'
-    Q1 = df[column].quantile(lower_q_value)
-    Q3 = df[column].quantile(upper_q_value)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-    dfx = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
-    #logger.log_warn("IQR FILTER X got line data size " + str(dfx.shape))
-    # Apply to y column
-    column = 'y'
-    Q1 = dfx[column].quantile(lower_q_value)
-    Q3 = dfx[column].quantile(upper_q_value)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-    dfy = dfx[(dfx[column] >= lower_bound) & (dfx[column] <= upper_bound)]
-    #logger.log_warn("IQR FILTER Y got line data size " + str(dfy.shape))
-  
-    line_dict = dfy.to_dict('list')
-
-    line_quality = 1.0
-
-    return filtered_line_dict
-
-def get_line_quality(line_dict):
-    quality = 1
-    if 'x' not in line_dict.keys():
-        quality = 0
-    elif len(line_dict['x']) < 10:
-        quality = 0
-    return quality
 
 ########################
 ## Process Functions   
@@ -644,38 +770,59 @@ def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
     controls_values_dict = nepi_controls.get_values_dict(controls_dict)
     #logger.log_warn("Got  Data: " + str(data_dict), throttle_s = 10)
     #logger.log_warn("Got  Data,Controls: " + str([data_dict,controls_values_dict]), throttle_s = 10)
-    line_dict = get_blank_line_dict()
+
     cv2_img = data_dict['cv2_img']
     color_bgr = data_dict['color_bgr']
-
+    dist_filter = controls_values_dict['dist_filter']
     results_dict = get_blank_results_dict()
     results_dict['color_bgr'] = color_bgr
 
     if cv2_img is not None:
 
-
+        line_dict = get_blank_line_dict()
 
         x_offset = data_dict['x_offset']
         y_offset = data_dict['y_offset']
         
         
+
+
+        color_sensitivity = controls_values_dict['color_sensitivity']
+        [cv2_img, line_dict] = filter_line_color(cv2_img, color_bgr , color_sensitivity)
+
         denoise_level = controls_values_dict['denoise_level']
         cv2_img = filter_image_denoise(cv2_img, denoise_level )
 
-        color_sensitivity = controls_values_dict['color_sensitivity']
-        line_dict = points_dict = process_line_brightest(cv2_img, color_bgr , color_sensitivity , x_offset, y_offset)
-
-  
+        line_dict = filter_line_brightest(cv2_img, line_dict)
 
 
+        max_dist = 1 + dist_filter * 9
+        line_dict = filter_isolated_points(line_dict, max_distance = max_dist)
+
+        max_dist = 1 + (1 - dist_filter) * 9
+        line_dict = filter_line_avg(line_dict, max_distance = max_dist)
+
+
+
+
+
+
+
+
+        process_line_dict = get_blank_line_dict()
+        process_line_dict['x'] = [item + x_offset for item in line_dict['x']]
+        process_line_dict['y'] = [item + y_offset for item in line_dict['y']]
 
         quality = get_line_quality(line_dict)
         quality_threshold = controls_values_dict['quality_threshold']
 
+        line_color = get_line_avg_color(cv2_img, line_dict, color_bgr)
+        if line_color is None:
+            line_color = color_bgr
         if quality > quality_threshold:
-            results_dict['line_dict'] = line_dict
+            results_dict['line_dict'] = process_line_dict
             results_dict['quality'] = quality
-            results_dict['color_bgr'] = get_line_avg_color(cv2_img, line_dict, color_bgr, x_offset, y_offset)
+            results_dict['color_bgr'] = line_color
             data_dict['cv2_img'] = cv2_img
 
     return data_dict, controls_dict, states_dict, results_dict

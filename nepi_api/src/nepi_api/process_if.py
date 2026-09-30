@@ -123,10 +123,6 @@ BLANK_SHOW_DICT = dict(
         show_results_restricted = True,
         show_stats = True,
         show_stats_restricted = True,
-        show_save_data = True,
-        show_save_data_restricted = True,
-        show_config = True,
-        show_config_restricted = True,
     )
 
 
@@ -500,7 +496,6 @@ class ProcessIF:
         if has_config == True:
             self.status_msg.has_config = has_config 
             self.status_msg.config_topic = self.node_if.get_namespace()
-            self.status_msg.show_config = self.show_dict['show_config'] == True
 
         ####################
         # Save Data
@@ -552,7 +547,6 @@ class ProcessIF:
             self.status_msg.has_save_data = has_save_data 
             self.status_msg.save_data_topic = self.save_data_topic
             self.status_msg.data_products = self.data_products
-            self.status_msg.show_save_data = has_save_data == True and self.show_dict['show_save_data'] == True
 
 
 
