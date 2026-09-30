@@ -303,10 +303,12 @@ def process_line_brightest(cv2_img, color_bgr = DEFAULT_COLOR_BGR, sensitivity =
         
     return line_dict
 
-def get_line_avg_color(cv2_img, line_dict, color_bgr = DEFAULT_COLOR_BGR, x_offset = 0, y_offset = 0):
 
-    x_points = [item - x_offset for item in list(line_dict['x'])]
-    y_points = [item - y_offset for item in list(line_dict['y'])]
+
+def get_line_avg_color(cv2_img, line_dict, color_bgr = DEFAULT_COLOR_BGR):
+
+    x_points = [item for item in list(line_dict['x'])]
+    y_points = [item for item in list(line_dict['y'])]
     color_b_list = []
     color_g_list = []
     color_r_list = []
@@ -320,13 +322,14 @@ def get_line_avg_color(cv2_img, line_dict, color_bgr = DEFAULT_COLOR_BGR, x_offs
         except:
             pass
 
-    try:
-        color_b = int(sum(color_b_list)/len(color_b_list))
-        color_g = int(sum(color_g_list)/len(color_g_list))
-        color_r = int(sum(color_r_list)/len(color_r_list))
-        color_bgr = (color_b,color_g,color_r)
-    except:
-        pass
+    if len(color_b_list) > 0:
+        try:
+            color_b = int(sum(color_b_list)/len(color_b_list))
+            color_g = int(sum(color_g_list)/len(color_g_list))
+            color_r = int(sum(color_r_list)/len(color_r_list))
+            color_bgr = (color_b,color_g,color_r)
+        except:
+            pass
         
     return color_bgr
 
@@ -337,13 +340,15 @@ def get_color_from_colors(colors_bgr_list):
     color_r_list = []
     if len(colors_bgr_list) > 0:
         for color_bgr in colors_bgr_list:
-            color_b_list.append(color_bgr[0])
-            color_g_list.append(color_bgr[1])
-            color_r_list.append(color_bgr[2])
-        color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
-        color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
-        color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
-        color_bgr = (color_b,color_g,color_r)
+            if color_bgr is not None:
+                color_b_list.append(color_bgr[0])
+                color_g_list.append(color_bgr[1])
+                color_r_list.append(color_bgr[2])
+        if len(color_b_list) > 0:
+            color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
+            color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
+            color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
+            color_bgr = (color_b,color_g,color_r)
     return color_bgr
 
 def get_color_from_results(results_dict_list):
@@ -354,14 +359,18 @@ def get_color_from_results(results_dict_list):
     if len(results_dict_list) > 0:
         for results_dict in results_dict_list:
             color_bgr = results_dict['color_bgr']
-            color_b_list.append(color_bgr[0])
-            color_g_list.append(color_bgr[1])
-            color_r_list.append(color_bgr[2])
-        color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
-        color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
-        color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
-        color_bgr = (color_b,color_g,color_r)
+            if color_bgr is not None:
+                color_b_list.append(color_bgr[0])
+                color_g_list.append(color_bgr[1])
+                color_r_list.append(color_bgr[2])
+        if len(color_b_list) > 0:
+            color_b = min(255,int(sum(color_b_list) / len(color_b_list)))
+            color_g = min(255,int(sum(color_g_list) / len(color_g_list)))
+            color_r = min(255,int(sum(color_r_list) / len(color_r_list)))
+            color_bgr = (color_b,color_g,color_r)
     return color_bgr
+
+
 
 
 def get_line_bounds(line_dict):
