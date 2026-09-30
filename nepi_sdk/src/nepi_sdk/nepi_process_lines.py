@@ -305,10 +305,10 @@ def process_line_brightest(cv2_img, color_bgr = DEFAULT_COLOR_BGR, sensitivity =
 
 
 
-def get_line_avg_color(cv2_img, line_dict, color_bgr = DEFAULT_COLOR_BGR):
+def get_line_avg_color(cv2_img, line_dict, color_bgr = DEFAULT_COLOR_BGR, x_offset = 0, y_offset = 0):
 
-    x_points = [item for item in list(line_dict['x'])]
-    y_points = [item for item in list(line_dict['y'])]
+    x_points = [item - x_offset for item in list(line_dict['x'])]
+    y_points = [item - y_offset for item in list(line_dict['y'])]
     color_b_list = []
     color_g_list = []
     color_r_list = []
