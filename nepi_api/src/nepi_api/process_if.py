@@ -330,8 +330,8 @@ class ProcessIF:
             except:
                 pass
         
-        self.min_max_process_rates = config_dict['min_max_process_rates']
-        self.min_max_image_rates = config_dict['min_max_image_rates']
+        self.min_max_process_rates = self.config_dict['min_max_process_rates']
+        self.min_max_image_rates = self.config_dict['min_max_image_rates']
 
 
  
