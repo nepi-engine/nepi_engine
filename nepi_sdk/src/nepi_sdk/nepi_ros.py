@@ -777,16 +777,28 @@ def call_service(service, request, verbose = True, log_name_list = []):
 ### Topic Utility Functions
 
 
-def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args = (), log_name_list = []):
+def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args = (), log_name_list = [], buff_size = None):
+  # buff_size is rospy's RECEIVE buffer, not the queue. It defaults to 65536,
+  # which is smaller than a single color image frame, and a queue_size of 1
+  # cannot drop a stale frame that has not been read out of the socket yet --
+  # so frames back up and are read late, by a different amount per topic. Any
+  # subscriber whose message exceeds 64 KB should pass one; see the stereo cam
+  # app, where leaving it unset put the two cameras hundreds of ms apart while
+  # rostopic delay showed both stamps ~11 ms old.
+  #
+  # Passed to rospy only when set, so the default path stays exactly as it was.
   if queue_size is None:
     queue_size = 1
   sub = None
   #sub_namespace = get_full_namespace(sub_namespace)
+  kwargs = dict(queue_size = queue_size)
+  if buff_size is not None:
+    kwargs['buff_size'] = buff_size
   try:
     if len(callback_args) == 0:
-        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size)
+        sub = rospy.Subscriber(sub_namespace, msg, callback, **kwargs)
     else:
-        sub = rospy.Subscriber(sub_namespace, msg, callback, queue_size = queue_size, callback_args = callback_args)
+        sub = rospy.Subscriber(sub_namespace, msg, callback, callback_args = callback_args, **kwargs)
   except Exception as e:
     log_msg_debug("nepi_sdk: Failed to create subscriber: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
   return sub

@@ -514,7 +514,7 @@ def process_results_image(cv2_img, data_dict, controls_dict, results_dict):
             return cv2_img
 
         last_image_time = copy.deepcopy(data_dict.get('last_image_time', 0))
-        data_dict.get('last_image_time') = nepi_utils.get_time()
+        data_dict['last_image_time'] = nepi_utils.get_time()
         width_deg = data_dict['image_status'].get('width_deg', 100)
         height_deg = data_dict['image_status'].get('height_deg', 70)
 
