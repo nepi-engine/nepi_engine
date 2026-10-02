@@ -107,10 +107,15 @@ BLANK_CONFIG_DICT = dict(
         selected_sources = [],
         
         has_enable = True,
+
         has_process_rate = False,
         min_max_process_rates = [1,20],
+        default_process_rate = 10,
+
         has_image_rate = False,
         min_max_image_rates = [1,20],
+        default_image_rate = 10,
+
         has_use_last_image = False,
 
 
@@ -252,10 +257,10 @@ class ProcessIF:
     image_pub_enabled = True
 
 
-    min_max_process_rates = [0.1,100]
-    set_process_rate = 10.0
+    min_max_process_rates = [1,20]
+    max_process_rate = 10.0
     min_max_image_rates = [1,20]
-    set_image_rate = 10.0
+    max_image_rate = 10.0
 
     callback_dict = copy.deepcopy(BLANK_CALLBACK_DICT)
     config_dict = copy.deepcopy(BLANK_CONFIG_DICT)
@@ -329,9 +334,14 @@ class ProcessIF:
                         self.config_dict[key] = config_dict[key]
             except:
                 pass
-        
+
+
+        self.multi_source_enabled = self.config_dict['multi_source_enabled']
+        self.auto_select_enabled = self.config_dict['auto_select_enabled']
         self.min_max_process_rates = self.config_dict['min_max_process_rates']
+        self.max_process_rate = self.config_dict['default_process_rate']
         self.min_max_image_rates = self.config_dict['min_max_image_rates']
+        self.max_image_rate = self.config_dict['default_image_rate']
 
 
  
@@ -352,30 +362,31 @@ class ProcessIF:
             except:
                 pass
         self.settings_controls_dict = nepi_controls.create_controls_dict(self.settings_init_dict)
+
         self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'enabled',self.config_dict['has_enable'] == False)
 
         has_sources = self.config_dict['has_sources']
         self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'auto_select_enabled',self.config_dict['auto_select_enabled'])
         self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'auto_select_enabled',self.config_dict['has_auto_select'] == False)
-        multi_source_enabled = self.config_dict['has_sources']
+
         if has_sources == True:
-            self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'select_source',multi_source_enabled == False)
-            self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'select_sources',multi_source_enabled == True)
+            self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'select_source',self.multi_source_enabled == False)
+            self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'select_sources',self.multi_source_enabled == True)
 
         self.settings_controls_dict = nepi_controls.set_bounds(self.settings_controls_dict,'process_rate',self.min_max_process_rates)
+        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'process_rate',self.max_process_rate)
         self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'process_rate',self.config_dict['has_process_rate'] == False)
         
         self.settings_controls_dict = nepi_controls.set_bounds(self.settings_controls_dict,'image_rate',self.min_max_image_rates)
+        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'image_rate',self.max_image_rate)
         self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'image_rate',self.config_dict['has_image_rate'] == False)
 
         self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'use_last_image',self.config_dict['has_use_last_image'] == False)
 
-        self.updateSettingsValues()
-
         self.status_msg.has_sources = has_sources
-        self.status_msg.multi_source_enabled = has_sources
+        self.status_msg.multi_source_enabled = self.multi_source_enabled
         
-
+        self.updateSettingsValues()
           
 
         if process_module is None:
@@ -633,9 +644,9 @@ class ProcessIF:
             self.enabled = nepi_controls.get_value(self.settings_controls_dict,'enabled') 
             self.auto_select_enabled = nepi_controls.get_value(self.settings_controls_dict,'auto_select_enabled')
             self.selected_sources = self.get_selected_sources()      
-            self.set_process_rate = nepi_controls.get_value(self.settings_controls_dict,'process_rate')            
+            self.max_process_rate = nepi_controls.get_value(self.settings_controls_dict,'process_rate')            
             self.min_max_process_rates = nepi_controls.get_bounds(self.settings_controls_dict,'process_rate')
-            self.set_image_rate = nepi_controls.get_value(self.settings_controls_dict,'image_rate')            
+            self.max_image_rate = nepi_controls.get_value(self.settings_controls_dict,'image_rate')            
             self.min_max_image_rates = nepi_controls.get_bounds(self.settings_controls_dict,'image_rate')
             self.use_last_image = nepi_controls.get_value(self.settings_controls_dict,'use_last_image') 
 
@@ -736,8 +747,7 @@ class ProcessIF:
 
     def set_selected_source(self, value):
         if value is not None:
-            multi_source_enabled = self.config_dict['has_sources']
-            if multi_source_enabled == False:
+            if self.multi_source_enabled == False:
                 if isinstance(value, list) == True:
                     if len(value) > 0:
                         value = str(value[0])
@@ -749,8 +759,7 @@ class ProcessIF:
         if value is not None:
             if isinstance(value, list) == False:
                 value = [str(value)]
-            multi_source_enabled = self.config_dict['has_sources']
-            if multi_source_enabled == False and len(value) > 0:
+            if self.multi_source_enabled == False and len(value) > 0:
                 try:
                     nepi_controls.set_value(self.settings_controls_dict,'select_source', value[0])
                 except:
@@ -762,23 +771,22 @@ class ProcessIF:
 
     def get_selected_sources(self):
         selected_sources = []
-        multi_source_enabled = self.config_dict['has_sources']
-        if multi_source_enabled == False:
+        if self.multi_source_enabled == False:
             selected_sources = [nepi_controls.get_value(self.settings_controls_dict,'select_source')]
         else:
             selected_sources = nepi_controls.get_value(self.settings_controls_dict,'select_sources')   
         return selected_sources
 
-    def set_max_process_rate(self, value):
+    def set_process_rate(self, value):
         self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'process_rate',value)
 
-    def get_max_process_rate(self):
+    def get_process_rate(self):
         return nepi_controls.get_value(self.settings_controls_dict,'process_rate')
 
-    def set_max_image_rate(self, value):
+    def set_image_rate(self, value):
         self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'image_rate',value)
 
-    def get_max_image_rate(self):
+    def get_image_rate(self):
         return nepi_controls.get_value(self.settings_controls_dict,'image_rate')
 
     def set_use_last_image(self, value):
@@ -1211,7 +1219,7 @@ class ProcessIF:
         self.status_msg.sources_pub_namespaces = self.sources_pub_namespaces
 
         self.status_msg.min_max_process_rates = self.min_max_process_rates
-        self.status_msg.set_process_rate = self.set_process_rate
+        self.status_msg.set_process_rate = self.max_process_rate
 
         self.status_msg.has_process_reload = True
         self.status_msg.available_processes = self.available_processes
@@ -1241,7 +1249,7 @@ class ProcessIF:
 
         self.status_msg.image_pub_name = self.image_pub_name
         self.status_msg.min_max_image_rates = self.min_max_image_rates
-        self.status_msg.set_image_rate = self.set_image_rate
+        self.status_msg.set_image_rate = self.max_image_rate
         self.status_msg.image_pub_topics = self.image_pub_topics
 
 

@@ -500,7 +500,6 @@ class AiDetectorImgPub:
         img_info_dict['active'] = True
         img_info_dict['img_connected'] = False
         img_info_dict['img_published'] = False
-        img_info_dict['targets_img_published'] = False
         img_info_dict['status_dict'] = None
         img_info_dict['pub_namespace'] = pub_namespace
 
@@ -512,7 +511,6 @@ class AiDetectorImgPub:
         img_info_dict['last_img_time'] = 0
         img_info_dict['last_targets_time'] = 0
         img_info_dict['target_dict_list'] = []
-        img_info_dict['targets_img_published'] = False
         img_info_dict['last_img'] = None
 
         self.imgs_info_lock.acquire()
@@ -557,7 +555,6 @@ class AiDetectorImgPub:
                     self.imgs_info_dict[source_topic]['publishing'] = False
                     self.imgs_info_dict[source_topic]['img_connected'] = False
                     self.imgs_info_dict[source_topic]['img_published'] = False
-                    self.imgs_info_dict[source_topic]['targets_img_published'] = False
                     self.imgs_info_dict[source_topic]['last_img'] = None
 
                     self.imgs_info_lock.release()
@@ -735,12 +732,6 @@ class AiDetectorImgPub:
                                 timestamp = timestamp,
                                 add_overlay_text_list = add_overlay_text_list,
                                 )
-
-            if self.imgs_info_dict[source_topic]['targets_img_published'] == False:
-                namespace = self.imgs_info_dict[source_topic]['pub_namespace']
-                topic = os.path.join(namespace,'targets_image')
-                self.msg_if.pub_warn('Published image topic: ' + topic)
-            self.imgs_info_dict[source_topic]['targets_img_published'] = True
 
             # Save Image Data if needed
             data_product = 'targets_image'
@@ -937,12 +928,12 @@ class AiDetectorImgPub:
             self.imgs_info_dict[source_topic]['target_dict_list'] = targets_dict_list
             self.imgs_info_dict[source_topic]['timestamp'] = timestamp
             self.imgs_info_dict[source_topic]['last_targets_time'] = current_time
-        else:
-            if os.path.exists(source_topic):
-                self.imgs_info_dict['img_file'] = dict()
-                self.imgs_info_dict['img_file']['timestamp'] = timestamp
-                self.imgs_info_dict['img_file']['last_targets_time'] = current_time
-                self.processFileImg(source_topic,targets_dict_list)
+        # else:
+        #     if os.path.exists(source_topic):
+        #         self.imgs_info_dict['img_file'] = dict()
+        #         self.imgs_info_dict['img_file']['timestamp'] = timestamp
+        #         self.imgs_info_dict['img_file']['last_targets_time'] = current_time
+        #         self.processFileImg(source_topic,targets_dict_list)
 
 
 
