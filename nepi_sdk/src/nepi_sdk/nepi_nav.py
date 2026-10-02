@@ -247,6 +247,11 @@ BLANK_NAVPOSE_DICT = {
     'x_m_per_sec': 0.0,
     'y_m_per_sec': 0.0,
     'z_m_per_sec': 0.0,
+    # Linear velocity validity, independent of has_position. A producer with a
+    # real velocity sets it True; left False, x/y/z_m_per_sec go out as -999
+    # whatever the position is doing.
+    'has_velocity': False,
+    'time_velocity': 0.0,
 
     'has_orientation': False,
     'time_orientation': 0.0,
@@ -366,6 +371,8 @@ def clear_navpose_dict_comp(comp_name,npdata_dict):
           npdata_dict['x_m_per_sec']  = 0.0
           npdata_dict['y_m_per_sec']  = 0.0
           npdata_dict['z_m_per_sec']  = 0.0
+          npdata_dict['has_velocity'] = False
+          npdata_dict['time_velocity'] = 0.0
       if  comp_name == 'altitude':
           npdata_dict['has_altitude'] = False
           npdata_dict['time_altitude']  = 0.0
@@ -424,6 +431,12 @@ def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
             npdata_dict_org['x_m'] = npdata_dict_new['x_m']
             npdata_dict_org['y_m'] = npdata_dict_new['y_m']
             npdata_dict_org['z_m'] = npdata_dict_new['z_m']
+        # .get, not [] -- navpose_mgr's fixed navposes are reloaded from saved
+        # config written before this key existed, and a KeyError here is
+        # swallowed by the bare except below, silently dropping the whole merge.
+        if npdata_dict_new.get('has_velocity', False) == True:
+            npdata_dict_org['has_velocity'] = True
+            npdata_dict_org['time_velocity'] = npdata_dict_new.get('time_velocity', 0.0)
             npdata_dict_org['x_m_per_sec'] = npdata_dict_new['x_m_per_sec']
             npdata_dict_org['y_m_per_sec'] = npdata_dict_new['y_m_per_sec']
             npdata_dict_org['z_m_per_sec'] = npdata_dict_new['z_m_per_sec']
@@ -690,6 +703,12 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           navpose_dict['x_m_per_sec'] = msg.x_m_per_sec
           navpose_dict['y_m_per_sec'] = msg.y_m_per_sec
           navpose_dict['z_m_per_sec'] = msg.z_m_per_sec
+          # The component msg carries no velocity flag. Its publisher writes
+          # -999 when it has none (data_if.py position_pub), so that is the
+          # flag -- otherwise a position-only source's 0.0 would come back
+          # through navpose_mgr as a real reading.
+          navpose_dict['has_velocity'] = (msg.x_m_per_sec != -999)
+          navpose_dict['time_velocity'] = navpose_dict['time_position']
         except:
           pass
       elif msg_type == 'nav_msgs/Odometry':
@@ -1173,9 +1192,11 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg.x_m = npdata_dict['x_m'] if np_msg.has_position else -999
       np_msg.y_m = npdata_dict['y_m'] if np_msg.has_position else -999
       np_msg.z_m = npdata_dict['z_m'] if np_msg.has_position else -999
-      np_msg.x_m_per_sec = npdata_dict['x_m_per_sec'] if np_msg.has_position else -999
-      np_msg.y_m_per_sec = npdata_dict['y_m_per_sec'] if np_msg.has_position else -999
-      np_msg.z_m_per_sec = npdata_dict['z_m_per_sec'] if np_msg.has_position else -999
+      np_msg.has_velocity = (npdata_dict['has_velocity'] == True)
+      np_msg.time_velocity = npdata_dict['time_velocity'] if np_msg.has_velocity else 0.0
+      np_msg.x_m_per_sec = npdata_dict['x_m_per_sec'] if np_msg.has_velocity else -999
+      np_msg.y_m_per_sec = npdata_dict['y_m_per_sec'] if np_msg.has_velocity else -999
+      np_msg.z_m_per_sec = npdata_dict['z_m_per_sec'] if np_msg.has_velocity else -999
 
       np_msg.has_location = npdata_dict['has_location']
       np_msg.time_location = npdata_dict['time_location'] if np_msg.has_location else 0.0
@@ -1242,6 +1263,8 @@ def convert_navpose_msg2dict(np_msg, log_name_list = []):
     npdata_dict['x_m_per_sec'] = np_msg.x_m_per_sec
     npdata_dict['y_m_per_sec'] = np_msg.y_m_per_sec
     npdata_dict['z_m_per_sec'] = np_msg.z_m_per_sec
+    npdata_dict['has_velocity'] = np_msg.has_velocity
+    npdata_dict['time_velocity'] = np_msg.time_velocity
     npdata_dict['has_altitude'] = np_msg.has_altitude
     npdata_dict['altitude_m'] = np_msg.altitude_m
     npdata_dict['altitude_m_per_sec'] = np_msg.altitude_m_per_sec
