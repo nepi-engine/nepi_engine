@@ -928,12 +928,12 @@ class AiDetectorImgPub:
             self.imgs_info_dict[source_topic]['target_dict_list'] = targets_dict_list
             self.imgs_info_dict[source_topic]['timestamp'] = timestamp
             self.imgs_info_dict[source_topic]['last_targets_time'] = current_time
-        else:
-            if os.path.exists(source_topic):
-                self.imgs_info_dict['img_file'] = dict()
-                self.imgs_info_dict['img_file']['timestamp'] = timestamp
-                self.imgs_info_dict['img_file']['last_targets_time'] = current_time
-                self.processFileImg(source_topic,targets_dict_list)
+        # else:
+        #     if os.path.exists(source_topic):
+        #         self.imgs_info_dict['img_file'] = dict()
+        #         self.imgs_info_dict['img_file']['timestamp'] = timestamp
+        #         self.imgs_info_dict['img_file']['last_targets_time'] = current_time
+        #         self.processFileImg(source_topic,targets_dict_list)
 
 
 
