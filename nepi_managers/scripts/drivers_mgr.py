@@ -973,7 +973,9 @@ class NepiDriversMgr(object):
         option_dict = options_dict[option_name]
         options = option_dict['options']
         setting_options_dict = copy.deepcopy(self.setting_options_dict)
-        if len(options) == 1:
+        if options == 'SERIAL_DEVICES':
+           options = ['None'] + self.setting_options_dict['SERIAL_DEVICES']
+        elif len(options) == 1:
           options_key = options[0]
           if options_key in setting_options_dict.keys():
             options = setting_options_dict[options_key]
