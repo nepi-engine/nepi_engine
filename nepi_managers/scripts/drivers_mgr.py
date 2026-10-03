@@ -1017,7 +1017,7 @@ class NepiDriversMgr(object):
       #   self.msg_if.pub_warn("Got setting keys : " + str(settings_dict.keys()))
       #   self.msg_if.pub_warn("Updated option driver setting : " + str(settings_dict))
       # self.msg_if.pub_warn("Returning driver discovery settings dict : " + str(settings_dict))
-      self.msg_if.pub_warn("Got Drivers Dict : " + str(self.drvs_dict))
+      #self.msg_if.pub_warn("Got Drivers Dict : " + str(self.drvs_dict))
       return settings_dict
 
    
