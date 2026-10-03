@@ -559,7 +559,6 @@ def merge_results(cv2_img, results_dict_list, filter_x = True, filter_y = False)
                     lines_overlap = check_lines_overlap(new_bounds,overlap_bounds)
                     if lines_overlap == True:
                         #logger.log_warn("Merge Line Found Overlap " + str([new_bounds,overlap_bounds]))
-                        #lines_overlap_list[i2] = remove_points_in_window(lines_overlap_list[i2], overlap_bounds)
                         lines_overlap_list[i2]['x'] = lines_overlap_list[i2]['x'] + new_line['x']
                         lines_overlap_list[i2]['y'] = lines_overlap_list[i2]['y'] + new_line['y']
                         break
@@ -585,39 +584,6 @@ def merge_results(cv2_img, results_dict_list, filter_x = True, filter_y = False)
 #########################
 # Line Filter Functions
 
-def filter_line_IQR(line_dict, color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 ):
-
-    lower_q_value = 0.4 - (0.4 * (1 - sensitivity))
-    upper_q_value = 0.6 + (0.4 * (1 - sensitivity))
-    filtered_line_dict = {
-        'x': [],
-        'y': []
-    }
-    # Apply to y column
-    df = pd.DataFrame(line_dict)
-    column = 'y'
-    Q1 = df[column].quantile(lower_q_value)
-    Q3 = df[column].quantile(upper_q_value)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-    dfx = df[(df[column] >= lower_bound) & (df[column] <= upper_bound)]
-    #logger.log_warn("IQR FILTER X got line data size " + str(dfx.shape))
-    # Apply to y column
-    column = 'y'
-    Q1 = dfx[column].quantile(lower_q_value)
-    Q3 = dfx[column].quantile(upper_q_value)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-    dfy = dfx[(dfx[column] >= lower_bound) & (dfx[column] <= upper_bound)]
-    #logger.log_warn("IQR FILTER Y got line data size " + str(dfy.shape))
-  
-    line_dict = dfy.to_dict('list')
-
-    line_quality = 1.0
-
-    return filtered_line_dict
 
 def get_line_quality(line_dict):
     quality = 1
