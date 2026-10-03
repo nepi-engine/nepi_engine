@@ -829,6 +829,11 @@ class NepiDriversMgr(object):
         settings_dict = self.initDiscoverySettingsDict(driver_name)
         discovery_settings_dict['settings_dict'] = settings_dict
 
+        # if driver_name == 'NPX_MICROSTRAIN_AHAR':
+        #   self.msg_if.pub_warn("Init setting keys : " + str(settings_dict.keys()))
+
+    
+
         self.discovery_settings_dict[driver_name] = discovery_settings_dict
 
 
@@ -904,15 +909,18 @@ class NepiDriversMgr(object):
                         'default': setting['default'],
                         'options': options,
                         'bounds': bounds}
-          #self.msg_if.pub_info("Adding driver discovery setting : " + str(setting_dict))
+          self.msg_if.pub_info("Adding driver discovery setting : " + str(setting_dict))
           init_settings_dict[setting_name] = setting_dict
-        #self.msg_if.pub_info("Calling create driver discovery settings with : " + str(init_settings_dict))
+        self.msg_if.pub_info("Calling create driver discovery settings with : " + str(init_settings_dict))
         settings_dict = nepi_controls.create_controls_dict(init_settings_dict)
         
         if 'value' in options_dict.keys():
           value = options_dict['value']
-          settings_dict[driver_name]['set_value'] = value
-      #self.msg_if.pub_info("Initialized driver discovery settings dict : " + str(settings_dict))
+          # self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = options
+          # self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['value'] = value
+          settings_dict = nepi_controls.set_value(settings_dict, setting_name, value)
+      self.msg_if.pub_info("Initialized driver discovery settings dict : " + str(settings_dict))
+      self.msg_if.pub_warn("Initialized Drivers Dict : " + str(self.drvs_dict))
       return settings_dict
 
   
@@ -938,9 +946,11 @@ class NepiDriversMgr(object):
                 msg = 'Success'
                 self.needs_config_save = True
                 settings_dict = nepi_controls.set_value(settings_dict, setting_name, setting_value, check_valid = False)
+                self.msg_if.pub_info("Set driver discovery settings with : " + str([setting_name,setting_value]))
+              else:
+                 self.msg_if.pub_warn("Set Option not in settings dict keys : " + str(setting_name) + " : " + str(options_dict.keys()))
 
-
-
+      #self.msg_if.pub_warn("Set Drivers Dict : " + str(self.drvs_dict))
       return success, msg, settings_dict
 
   def getSettingsFunction(self,driver_name):
@@ -966,16 +976,15 @@ class NepiDriversMgr(object):
          return settings_dict
       
       #self.msg_if.pub_info("Starting Return driver discovery settings dict : " + str(settings_dict))
-      options = []
-      value = None
+
 
       for option_name in options_dict.keys():
+        options = []
+        value = None
         option_dict = options_dict[option_name]
         options = option_dict['options']
         setting_options_dict = copy.deepcopy(self.setting_options_dict)
-        if options == 'SERIAL_DEVICES':
-           options = ['None'] + self.setting_options_dict['SERIAL_DEVICES']
-        elif len(options) == 1:
+        if len(options) == 1:
           options_key = options[0]
           if options_key in setting_options_dict.keys():
             options = setting_options_dict[options_key]
@@ -986,12 +995,13 @@ class NepiDriversMgr(object):
         if value is None:
           value = option_dict['default']
 
+        
         self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][option_name]['options'] = options
         self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = value
-
+        
 
         if option_name in settings_dict.keys():
-          #self.msg_if.pub_info("Updating driver discovery settings with : " + str([option_name,value,options]))
+          #self.msg_if.pub_info("Got driver discovery settings with : " + str([option_name,value,options]))
           setting_type = settings_dict[option_name]['type']
           if (setting_type == 'Int' or setting_type == 'Float') and len(options) > 1:
               settings_dict = nepi_controls.set_bounds(settings_dict, option_name, [options[0], options[1]])
@@ -999,7 +1009,15 @@ class NepiDriversMgr(object):
               settings_dict = nepi_controls.set_options(settings_dict, option_name, options)
           
           settings_dict = nepi_controls.set_value(settings_dict, option_name, value, check_valid = False)
-      #self.msg_if.pub_warn("Returning driver discovery settings dict : " + str(settings_dict))
+        # else:
+        #    self.msg_if.pub_warn("Got Option not in settings dict keys : " + str(option_name) + " : " + str(settings_dict.keys()))
+
+      # if driver_name == 'NPX_MICROSTRAIN_AHAR':
+      #   self.msg_if.pub_warn("Got driver discovery : " + str([option_name,options,value]))
+      #   self.msg_if.pub_warn("Got setting keys : " + str(settings_dict.keys()))
+      #   self.msg_if.pub_warn("Updated option driver setting : " + str(settings_dict))
+      # self.msg_if.pub_warn("Returning driver discovery settings dict : " + str(settings_dict))
+      self.msg_if.pub_warn("Got Drivers Dict : " + str(self.drvs_dict))
       return settings_dict
 
    
