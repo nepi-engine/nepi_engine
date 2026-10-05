@@ -502,12 +502,12 @@ def filter_line_avg(line_dict, max_distance = 5, filter_x = True, filter_y = Fal
     if filter_x == False and filter_y == False:
         return line_dict
     if filter_x == True:
-        logger.log_warn("Avg Filtering X")
+        #logger.log_warn("Avg Filtering X")
         line_dict_x = find_avg_pixels_per_row(line_dict, max_distance)
         filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_x['x']
         filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_x['y']
     if filter_y == True:
-        logger.log_warn("Avg Filtering Y")
+        #logger.log_warn("Avg Filtering Y")
         line_dict_y = find_avg_pixels_per_column(line_dict, max_distance)
         filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_y['x']
         filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_y['y']
