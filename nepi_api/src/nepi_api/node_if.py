@@ -447,6 +447,8 @@ class NodeParamsIF:
 
         #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
         #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict), log_name_list = self.log_name_list)
+        #get_params = nepi_sdk.get_params(self.node_namespace)
+        #self.msg_if.pub_warn("Got Init params for node namespace: " + str(self.node_namespace) + " : " + str(get_params), log_name_list = self.log_name_list)
         params_dict = copy.deepcopy(self.params_dict)
         init_val = None
         got_params_dict = dict()
@@ -454,22 +456,26 @@ class NodeParamsIF:
             namespace = params_dict[param_key]['namespace']
             if namespace not in got_params_dict.keys():
                 get_params_dict = nepi_sdk.get_params(namespace)
+                #self.msg_if.pub_warn("Got Init params dict for namespace: " + str(namespace) + " : " + str(get_params_dict), log_name_list = self.log_name_list)
                 if get_params_dict is not None:
                     if isinstance(get_params_dict, dict):
-                        param_name = get_params_dict.get('name',param_key)
-                        param_name = nepi_utils.get_clean_name(param_name)
-                        if param_name is None:
-                            param_name = param_key
-                        if param_name == '':
-                            param_name = param_key
-                        get_params_dict['name'] = param_name
+
                         got_params_dict[namespace] = get_params_dict
             if 'init_val' not in params_dict[param_key].keys():
                 param_dict = params_dict[param_key]
+                param_name = param_dict.get('name',param_key)
+                param_name = nepi_utils.get_clean_name(param_name)
+                if param_name is None:
+                    param_name = param_key
+                if param_name == '':
+                    param_name = param_key
+                params_dict[param_key]['name'] = param_name
+                # get_params_dict['name'] = param_name
                 factory_val = param_dict['factory_val']
 
                 ns_param_dict = got_params_dict[namespace]
-                init_val = self.getNestedInitVal(ns_param_dict, param_key)
+                init_val = self.getNestedInitVal(ns_param_dict, param_name)
+                #self.msg_if.pub_warn("Got Init value for param name: " + str(param_name) + " : " + str(init_val), log_name_list = self.log_name_list)
                 if init_val is None:
                     init_val = factory_val
                     params_dict[param_key]['init_val'] = init_val
@@ -567,7 +573,7 @@ class NodeParamsIF:
         return namespace
 
 
-    def add_param(self, param_key, name, namespace, value):
+    def add_param(self, param_key, name, namespace, value, do_init = True):
         if not nepi_sdk.is_shutdown():
             if param_key is not None and namespace is not None and value is not None:
                 if param_key not in self.params_dict.keys():
@@ -576,11 +582,19 @@ class NodeParamsIF:
                 'name': name,
                 'factory_val': value
             }
-        self.initialize_params()
+        if do_init == True:
+            self.initialize_params()
 
     def add_params(self,params_dict):
-        self.params_dict.update(params_dict)
-        self.initialize_params()
+        if params_dict is not None:
+            for param_key in params_dict:
+                param_dict = params_dict[param_key]
+                try:
+                    self.add_param(param_key, param_dict['name'], param_dict['namespace'], param_dict['factory_val'], do_init = False)
+                except Exception as e:
+                    self.msg_if.pub_warn("Failed to add param: " + str(params_dict[param_key]) + " " + str(e))  
+            # self.params_dict.update(params_dict)
+            self.initialize_params()
 
 
 
