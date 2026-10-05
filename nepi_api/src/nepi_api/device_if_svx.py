@@ -58,6 +58,7 @@ class SVXActuatorIF:
     FACTORY_CONTROLS_DICT = {
                 'reverse_enabled' : False,
                 'continuous_enabled' : False,
+                'servo_connected' : False,
                 'speed_ratio' : 0.5,
                 'spin_direction' : 1
     }
@@ -105,6 +106,17 @@ class SVXActuatorIF:
     # control topic), independent of whether any driver wired a spin callback. When
     # enabled, has_spin is reported True and the UI switches to direction+speed.
     continuous_enabled = False
+
+    # Whether a servo is physically attached to this output. Every channel of a
+    # multi-channel board runs as its own SVX device whether or not anything is
+    # plugged into it, and an open-loop board cannot sense a servo (no feedback
+    # wire, and nothing in the command set probes a channel). So, like
+    # continuous_enabled, the IF owns this as operator-declared configuration:
+    # a param plus a set_servo_connected control topic, saved immediately so the
+    # declaration survives a reboot. Device selectors (the RUI servo page, the
+    # servos pan/tilt driver) list only connected servos. Defaults False so an
+    # unwired channel never shows up until someone says a servo is on it.
+    servo_connected = False
 
     spin_direction = 1
     # is_spinning reports True whenever the servo is in continuous mode and has not been
@@ -364,6 +376,10 @@ class SVXActuatorIF:
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict['continuous_enabled']
             },
+            'servo_connected': {
+                'namespace': self.namespace,
+                'factory_val': self.factory_controls_dict['servo_connected']
+            },
             'spin_direction': {
                 'namespace': self.namespace,
                 'factory_val': self.factory_controls_dict['spin_direction']
@@ -522,6 +538,14 @@ class SVXActuatorIF:
                 'qsize': 1,
                 'callback': self._setContinuousModeCb,
                 'callback_args': ()
+            },
+            'set_servo_connected': {
+                'namespace': self.namespace,
+                'topic': 'set_servo_connected',
+                'msg': Bool,
+                'qsize': 1,
+                'callback': self._setServoConnectedCb,
+                'callback_args': ()
             }
         }
 
@@ -635,6 +659,10 @@ class SVXActuatorIF:
             if continuous_enabled is not None:
                 self.continuous_enabled = continuous_enabled
             self._applyContinuousMode()
+
+            servo_connected = self.node_if.get_param('servo_connected')
+            if servo_connected is not None:
+                self.servo_connected = servo_connected
 
             self.spin_direction = self.node_if.get_param('spin_direction')
             if self.spin_direction is not None and self.setSpinDirection is not None:
@@ -985,6 +1013,18 @@ class SVXActuatorIF:
         self.publish_status()
 
 
+    def _setServoConnectedCb(self, msg):
+        # Purely a declaration -- nothing is commanded to the hardware. Saved right
+        # away rather than waiting for a manual config save, because the whole point
+        # is that the operator says it once and the selectors remember it.
+        self.servo_connected = msg.data
+        if self.node_if is not None:
+            self.node_if.set_param('servo_connected', self.servo_connected)
+            self.node_if.save_config()
+        self.msg_if.pub_info("Set servo connected to " + str(self.servo_connected))
+        self.publish_status()
+
+
     def _clampToHardstops(self, deg):
         if deg < self.min_hardstop_deg:
             return self.min_hardstop_deg
@@ -1153,6 +1193,7 @@ class SVXActuatorIF:
             self.status_msg.position_goal_ratio = 0.5
 
         self.status_msg.reverse_enabled = self.reverse_enabled
+        self.status_msg.servo_connected = self.servo_connected
         self.status_msg.has_spin = self.has_spin
 
         if self.getSpinDirection is not None:
