@@ -451,7 +451,7 @@ def create_controls_dict(init_dict):
             else:
               for i, entry in enumerate(value):
                 if len(display_labels) <= i:
-                  display_labels.append('control_' + str(i))
+                  display_labels.append(control_dict['display_name'] + '_' + str(i))
 
             display_labels = [str(item) for item in display_labels]
             options = []

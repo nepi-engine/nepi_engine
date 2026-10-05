@@ -87,7 +87,18 @@ BASE_DATA_DICT = dict(
 
 
 BASE_CONTROLS_DICT = dict(
+    filter_x = {
+        'type': 'Toggle', 'value': True,
+        'display_name': 'Filter X', 'description': 'Filter along x axis.', 'display_hidden': False},
 
+    filter_y = {
+        'type': 'Toggle', 'value': False,
+        'display_name': 'Filter Y', 'description': 'Filter along y axis.', 'display_hidden': False},
+
+    quality_threshold = {
+        'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
+        'display_name': 'Quality Threshold',
+        'description': 'Quality Threshold', 'display_hidden': True},
 )
 
 BASE_DISPLAY_RESULTS_DICT = dict(
@@ -483,17 +494,20 @@ def find_avg_pixels_per_column(line_dict, max_distance = 10):
 
 
 def filter_line_avg(line_dict, max_distance = 5, filter_x = True, filter_y = False):
+
     filtered_line_dict = get_blank_line_dict()
     [x_data, y_data] = [line_dict['x'],line_dict['y']]
     if len(x_data) == 0 or len(y_data) == 0 or len(x_data) != len(y_data):
         return line_dict
-    if filter_x == False and filter_x == False:
+    if filter_x == False and filter_y == False:
         return line_dict
     if filter_x == True:
+        logger.log_warn("Avg Filtering X")
         line_dict_x = find_avg_pixels_per_row(line_dict, max_distance)
         filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_x['x']
         filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_x['y']
     if filter_y == True:
+        logger.log_warn("Avg Filtering Y")
         line_dict_y = find_avg_pixels_per_column(line_dict, max_distance)
         filtered_line_dict['x'] = filtered_line_dict['x'] + line_dict_y['x']
         filtered_line_dict['y'] = filtered_line_dict['y'] + line_dict_y['y']
@@ -501,6 +515,7 @@ def filter_line_avg(line_dict, max_distance = 5, filter_x = True, filter_y = Fal
     return filtered_line_dict
 
 def merge_results(cv2_img, results_dict_list, filter_x = True, filter_y = False):
+    max_distance = 5
     line_dict = get_blank_line_dict
     all_results = get_blank_results_dict()
     #logger.log_warn("Merge Line got results list len " + str(len(results_dict_list)))
@@ -549,7 +564,7 @@ def merge_results(cv2_img, results_dict_list, filter_x = True, filter_y = False)
     # Merge Lines
     #logger.log_warn("Merge Line has n lines " + str(len(lines_overlap_list)))
     for overlap_list in lines_overlap_list:   
-        overlap_list = filter_line_avg(overlap_list, filter_x, filter_y)
+        overlap_list = filter_line_avg(overlap_list,max_distance,  filter_x, filter_y)
 
         line_dict['x'] = line_dict['x'] + overlap_list['x']
         line_dict['y'] = line_dict['y'] + overlap_list['y']
@@ -590,7 +605,7 @@ lines_1_dict = {
     'data_dict':  copy.deepcopy(BASE_DATA_DICT),
 
 
-    'controls_dict': dict(
+    'controls_dict': { **dict(
     denoise_level = {
         'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
         'display_name': 'Denoise Level',
@@ -616,20 +631,8 @@ lines_1_dict = {
         'display_name': 'V Sensitivity',
         'description': 'Line Point Picking V Sensitivity', 'display_hidden': False},
 
-    filter_x = {
-        'type': 'Toggle', 'value': True,
-        'display_name': 'Filter X', 'description': 'Filter along x axis.', 'display_hidden': True},
 
-    filter_y = {
-        'type': 'Toggle', 'value': True,
-        'display_name': 'Filter Y', 'description': 'Filter along y axis.', 'display_hidden': True},
-
-    quality_threshold = {
-        'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
-        'display_name': 'Quality Threshold',
-        'description': 'Quality Threshold', 'display_hidden': True},
-
-),
+    ), ** copy.deepcopy(BASE_CONTROLS_DICT)},
 
 
     'results_display_dict': copy.deepcopy(BASE_DISPLAY_RESULTS_DICT),
