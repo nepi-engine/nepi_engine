@@ -351,6 +351,8 @@ EXAMPLE_PARAMS_DICT = {
 
 class NodeParamsIF:
 
+    DEBUG_PARAM = 'NONE'
+
     msg_if = None
     ready = False
     params_dict = dict()
@@ -469,7 +471,7 @@ class NodeParamsIF:
                     param_name = param_key
                 if param_name == '':
                     param_name = param_key
-                params_dict[param_key]['name'] = param_name
+                param_dict['name'] = param_name
                 # get_params_dict['name'] = param_name
                 factory_val = param_dict['factory_val']
 
@@ -478,39 +480,52 @@ class NodeParamsIF:
                 #self.msg_if.pub_warn("Got Init value for param name: " + str(param_name) + " : " + str(init_val), log_name_list = self.log_name_list)
                 if init_val is None:
                     init_val = factory_val
-                    params_dict[param_key]['init_val'] = init_val
-
+                param_dict['init_val'] = init_val
+                params_dict[param_key] = param_dict
                 self.set_param(param_key, init_val)
                 cur_val = self.get_param(param_key)
-                #self.msg_if.pub_warn("Initialized param factory,init,value " + str([param_key,factory_val,init_val,cur_val]), log_name_list = self.log_name_list)
 
+                if param_key == self.DEBUG_PARAM:
+                    self.msg_if.pub_warn("Initialized param factory,init,value " + str([param_key,factory_val,init_val,cur_val]), log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("Initialized params dict " + str([param_key,params_dict[param_key]]), log_name_list = self.log_name_list)
         self.params_dict = params_dict
         return True
             
-    def reset_params(self):
+    def reset_params(self, param_keys = None):
         self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
         success = self.initialize_params()
-        for param_key in self.params_dict.keys():
-
-            cur_val = self.get_param(param_key)
-
-            init_val = None
-            if 'init_val' in self.params_dict[param_key].keys():
-                init_val = self.params_dict[param_key]['init_val']
-            if init_val is None:
-                init_val = self.params_dict[param_key]['factory_val']
-            #self.msg_if.pub_warn("Resetting param from:to " + str([param_key,cur_val,init_val]), log_name_list = self.log_name_list)
-            self.set_param(param_key, init_val)
-
-    def factory_reset_params(self):
-        self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
-        for param_key in self.params_dict.keys():
-
-            cur_val = self.get_param(param_key)
+        if param_keys is None:
+            param_keys = list(self.params_dict.keys())
+        for param_key in param_keys:
+            if param_key in self.params_dict.keys():
             
-            factory_val = self.params_dict[param_key]['factory_val']
-            #self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_key,cur_val,factory_val]), log_name_list = self.log_name_list)
-            self.set_param(param_key, factory_val)
+                cur_val = self.get_param(param_key)
+
+                init_val = None
+                if param_key == self.DEBUG_PARAM:
+                    self.msg_if.pub_warn("Looking for init value " + str([param_key,self.params_dict[param_key]]))
+                if 'init_val' in self.params_dict[param_key].keys():
+                    init_val = self.params_dict[param_key]['init_val']
+                if init_val is None:
+                    init_val = self.params_dict[param_key]['factory_val']
+                if param_key == self.DEBUG_PARAM:
+                    self.msg_if.pub_warn("Resetting param from:to " + str([param_key,cur_val,init_val]), log_name_list = self.log_name_list)
+                self.set_param(param_key, init_val)
+
+    def factory_reset_params(self, param_keys = None):
+        self.msg_if.pub_warn("Factory Resetting params", log_name_list = self.log_name_list)
+        success = self.initialize_params()
+        if param_keys is None:
+            param_keys = list(self.params_dict.keys())
+        for param_key in param_keys:
+            if param_key in self.params_dict.keys():
+
+                cur_val = self.get_param(param_key)
+                
+                factory_val = self.params_dict[param_key]['factory_val']
+                if param_key == self.DEBUG_PARAM:
+                    self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_key,cur_val,factory_val]), log_name_list = self.log_name_list)
+                self.set_param(param_key, factory_val)
 
     def save_params(self, file_path):
         if not nepi_sdk.is_shutdown():
@@ -539,20 +554,29 @@ class NodeParamsIF:
                     fallback = param_dict['factory_val']
 
                 if value is None:
+                    self.msg_if.pub_warn("Got param using fallback_value " + str([param_key,fallback]), log_name_list = self.log_name_list)
                     value = fallback
+        if param_key == self.DEBUG_PARAM:
+            self.msg_if.pub_warn("Got param val " + str([param_key,value]), log_name_list = self.log_name_list)
+
         return value
 
     def set_param(self, param_key, value):
         if not nepi_sdk.is_shutdown():
             namespace = self.get_param_namespace(param_key)
-            if namespace is not None:
+            if namespace is not None and value is not None:
                 self.params_ns_dict[namespace] = value
                 nepi_sdk.set_param(namespace,value)
+                if param_key == self.DEBUG_PARAM:
+                    self.msg_if.pub_warn("Set param val " + str([param_key,self.params_ns_dict[namespace]]), log_name_list = self.log_name_list)
                 
 
     def reset_param(self, param_key):
         if param_key in self.params_dict.keys():
-            init_val = self.params_dict[param_key]['init_val']
+            if 'init_val' in self.params_dict[param_key].keys():
+                init_val = self.params_dict[param_key]['init_val']
+            else:
+                init_val = self.params_dict[param_key]['factory_val']
             self.set_param(param_key, init_val)
 
     def factory_reset_param(self, param_key):
@@ -1404,18 +1428,18 @@ class NodeClassIF:
             self.params_if.initialize_params()
 
 
-    def reset_params(self):
+    def reset_params(self, param_keys = None):
         if self.params_if is not None:
-            self.params_if.reset_params()
+            self.params_if.reset_params(param_keys)
 
     def factory_reset_params(self):
         if self.params_if is not None:
             self.params_if.factory_reset_params()
 
 
-    def save_params(self):
+    def save_params(self,  param_keys = None):
         if self.params_if is not None:
-            self.params_if.save_params()
+            self.params_if.save_params(param_keys)
 
 
 

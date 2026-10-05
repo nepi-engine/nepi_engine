@@ -1331,13 +1331,7 @@ class ProcessIF:
         Args:
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
-
-
-        if do_updates == True:
-
-            if self.node_if is not None:
-                params = self.node_if.get_param(self.namespace)
-                self.msg_if.pub_warn("Init Params: " + str(params))
+        if self.node_if is not None:
                 processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
                 if processes_controls_dict is not None:
                     self.processes_controls_dict = processes_controls_dict
@@ -1356,6 +1350,10 @@ class ProcessIF:
                             self.settings_dict = nepi_controls.set_value(self.settings_dict,setting_name, setting_value)
                 self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
 
+        if do_updates == True:
+
+    
+
                
             success = self._reloadProcesses()
             if success == False:
@@ -1369,7 +1367,7 @@ class ProcessIF:
     def reset(self):
         """Reset the interface to its initialized state."""   
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Resetting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
         nepi_sdk.sleep(1)     
         self.init(do_updates = True)
