@@ -88,30 +88,6 @@ BASE_DATA_DICT = dict(
 
 BASE_CONTROLS_DICT = dict(
 
-
-    denoise_level = {
-        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
-        'display_name': 'Denoise Level',
-        'description': 'Denoise Image Filter Level', 'display_hidden': False},
-
-    color_sensitivity = {
-        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
-        'display_name': 'Color Sensitivity',
-        'description': 'Line Point Picking Color Sensitivity', 'display_hidden': False},
-
-    filter_x = {
-        'type': 'Toggle', 'value': True,
-        'display_name': 'Filter X', 'description': 'Filter along x axis.', 'display_hidden': True},
-
-    filter_y = {
-        'type': 'Toggle', 'value': True,
-        'display_name': 'Filter Y', 'description': 'Filter along y axis.', 'display_hidden': True},
-
-    quality_threshold = {
-        'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
-        'display_name': 'Quality Threshold',
-        'description': 'Quality Threshold', 'display_hidden': True},
-
 )
 
 BASE_DISPLAY_RESULTS_DICT = dict(
@@ -248,46 +224,48 @@ def find_brightest_pixels_per_column(cv2_img):
 
 
 
-def process_line_brightest(cv2_img, color_bgr = DEFAULT_COLOR_BGR, sensitivity = 0.5 , x_offset = 0, y_offset = 0):
+def process_line_brightest(cv2_img, color_bgr = DEFAULT_COLOR_BGR, color_sensitivity = 0.5 , h_ratio = 0.5 , s_ratio = 0.5 , v_ratio = 0.5 , x_offset = 0, y_offset = 0):
 
     line_dict = get_blank_line_dict()
     #logger.log_warn("Color Filter got image shape " + str(cv2_img.shape))
 
-    # 1. Convert sensitivity fraction to a channel variation range (0 to 255)
-    tolerance = int(sensitivity * 255)
+    # 1. Convert color_sensitivity fraction to a channel variation range (0 to 255)
+    tolerance = int(color_sensitivity * 255)
     
     # 2. Extract BGR components from the target color
     target_b, target_g, target_r = color_bgr
     
     # 3. Calculate lower and upper bounds, safely clamping them between 0 and 255
     lower_bound = np.array([
-        max(0, target_b - int(sensitivity * color_bgr[0])),
-        max(0, target_g - int(sensitivity * color_bgr[1])),
-        max(0, target_r - int(sensitivity * color_bgr[2]))
+        max(0, target_b - int(color_sensitivity * color_bgr[0])),
+        max(0, target_g - int(color_sensitivity * color_bgr[1])),
+        max(0, target_r - int(color_sensitivity * color_bgr[2]))
     ], dtype=np.uint8)
     
     upper_bound = np.array([
-        min(255, target_b + int(sensitivity * color_bgr[0])),
-        min(255, target_g + int(sensitivity * color_bgr[1])),
-        min(255, target_r + int(sensitivity * color_bgr[2]))
+        min(255, target_b + int(color_sensitivity * color_bgr[0])),
+        min(255, target_g + int(color_sensitivity * color_bgr[1])),
+        min(255, target_r + int(color_sensitivity * color_bgr[2]))
     ], dtype=np.uint8)
     
     # 4. Create a binary mask where matching pixels are 255 (white) and others are 0 (black)
     mask = cv2.inRange(cv2_img, lower_bound, upper_bound)
-    # c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity, hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
 
     
     # 5. Extract indices where the mask is active. 
     # np.where returns (row_indices, col_indices), which correspond to (y, x)
     y_indices, x_indices = np.where(mask > 0)
-    #y_indices = [(x, y) for x, y in mask_img if x != 0 and y != cv2_img.shape[1] and y != 0 and y != cv2_img.shape[0] and not np.isnan(x) and not np.isnan(y)]
+   
     
     # 6. Pair them up into a list of (x, y) tuples
     line_dict['x'] = x_indices
     line_dict['y'] = y_indices
 
+    hscalers = [x + y * h_ratio  for x, y in zip([0.5,0.5], [1.5,1.5])]
+    sscalers = [x + y * s_ratio  for x, y in zip([0.5,0.5], [1.5,1.5])]
+    vscalers = [x + y * v_ratio  for x, y in zip([0.5,0.5], [1.5,1.5])]
         
-    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr = color_bgr, sensitivity = sensitivity,  hscalers = [2,2], sscalers = [1,1], vscalers = [2,1])
+    c_mask = nepi_img.create_color_mask(cv2_img, color_bgr, color_sensitivity,  hscalers, sscalers, vscalers)
 
     mask_img = cv2.bitwise_and(cv2_img,cv2_img,mask = c_mask)
 
@@ -609,13 +587,54 @@ functions_dict = dict()
 lines_1_dict = {
 
    
-    'data_dict': copy.deepcopy(BASE_DATA_DICT),
+    'data_dict':  copy.deepcopy(BASE_DATA_DICT),
 
 
-    'controls_dict': copy.deepcopy(BASE_CONTROLS_DICT),
+    'controls_dict': dict(
+    denoise_level = {
+        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
+        'display_name': 'Denoise Level',
+        'description': 'Denoise Image Filter Level', 'display_hidden': False},
+
+    color_sensitivity = {
+        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
+        'display_name': 'Color Sensitivity',
+        'description': 'Line Point Picking Color Sensitivity', 'display_hidden': False},
+
+    h_ratio = {
+        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
+        'display_name': 'H Sensitivity',
+        'description': 'Line Point Picking H Sensitivity', 'display_hidden': False},
+
+    s_ratio = {
+        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
+        'display_name': 'S Sensitivity',
+        'description': 'Line Point Picking S Sensitivity', 'display_hidden': False},
+
+    v_ratio = {
+        'type': 'FloatSlider', 'value': 0.2, 'bounds': [0.0, 1.0], 'round_value': 3,
+        'display_name': 'V Sensitivity',
+        'description': 'Line Point Picking V Sensitivity', 'display_hidden': False},
+
+    filter_x = {
+        'type': 'Toggle', 'value': True,
+        'display_name': 'Filter X', 'description': 'Filter along x axis.', 'display_hidden': True},
+
+    filter_y = {
+        'type': 'Toggle', 'value': True,
+        'display_name': 'Filter Y', 'description': 'Filter along y axis.', 'display_hidden': True},
+
+    quality_threshold = {
+        'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 3,
+        'display_name': 'Quality Threshold',
+        'description': 'Quality Threshold', 'display_hidden': True},
+
+),
 
 
     'results_display_dict': copy.deepcopy(BASE_DISPLAY_RESULTS_DICT),
+
+
 
     'states_dict': dict(
     )
@@ -648,7 +667,10 @@ def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
         cv2_img = filter_image_denoise(cv2_img, denoise_level )
 
         color_sensitivity = controls_values_dict['color_sensitivity']
-        line_dict = points_dict = process_line_brightest(cv2_img, color_bgr , color_sensitivity , x_offset, y_offset)
+        h_ratio = controls_values_dict['h_ratio']
+        s_ratio = controls_values_dict['s_ratio']
+        v_ratio = controls_values_dict['v_ratio']
+        line_dict = points_dict = process_line_brightest(cv2_img, color_bgr , color_sensitivity , h_ratio , s_ratio , v_ratio , x_offset, y_offset)
 
   
 
