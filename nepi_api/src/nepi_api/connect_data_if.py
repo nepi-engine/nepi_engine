@@ -177,7 +177,7 @@ class ConnectDataIF(ConnectNodeIF):
         self.has_navpose = has_navpose
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         super().__init__(
                 connect_id = connect_id,
@@ -663,7 +663,7 @@ class ConnectNavPoseIF(ConnectDataIF):
         # instance dead. msg_if and node_if never arrived at all.
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         # Controls Config Dict ####################
         # Mirrors data_if.NavPoseIF.SUBS_DICT, which advertises exactly one
@@ -869,7 +869,7 @@ class ConnectBaseImageIF(ConnectDataIF):
 
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         # Controls Config Dict ####################
         # Mirrors the data_if.BaseImageIF subscriber set. Only the subscribers
@@ -2867,7 +2867,7 @@ class ConnectImageIF(ConnectBaseImageIF):
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         super().__init__(
                 connect_name = connect_name,
@@ -2936,7 +2936,7 @@ class ConnectColorImageIF(ConnectBaseImageIF):
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         super().__init__(
                 connect_name = connect_name,
@@ -3014,7 +3014,7 @@ class ConnectDepthMapIF(ConnectDataIF):
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         super().__init__(
                 connect_id = DEPTH_MAP_CONNECT_ID,
@@ -3179,7 +3179,7 @@ class ConnectDepthMapImageIF(ConnectBaseImageIF):
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         super().__init__(
                 connect_name = connect_name,
@@ -3257,7 +3257,7 @@ class ConnectPointcloudIF(ConnectDataIF):
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         connect_topic_controls_dict = {
             self.node_if_prefix + 'pointcloud_reset_controls': {
@@ -3657,7 +3657,7 @@ class ConnectPointcloudImageIF(ConnectBaseImageIF):
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,

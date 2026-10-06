@@ -414,7 +414,7 @@ class ProcessIF:
         # Registry keys on a shared node_if must be domain-unique, so every key
         # this IF adds carries the process name. Param wire names ARE
         # namespace + key, so the prefix is part of the external param surface.
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
        
         ##############################    
@@ -441,7 +441,7 @@ class ProcessIF:
 
         # Configs Config Dict ####################
         # Configs Config Dict ####################
-        CFGS_DICT = {
+        self.process_node_configs_dict = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -456,7 +456,7 @@ class ProcessIF:
         self.sprocess_param_name = self.node_if_prefix + 'selected_process'
         self.processes_param_name = self.node_if_prefix + 'processes_dict'
         self.settings_param_name = self.node_if_prefix + 'settings_dict'
-        PARAMS_DICT = {
+        self.process_node_params_dict = {
             self.sprocess_param_name: {
                 'name': 'selected_process',
                 'namespace': self.namespace,
@@ -535,6 +535,13 @@ class ProcessIF:
                 'qsize': 5,
                 'callback': self._updateControlCb
             },
+            self.node_if_prefix + 'reset_controls': {
+                'msg': Empty,
+                'namespace': self.namespace,
+                'topic': 'reset_controls',
+                'qsize': 5,
+                'callback': self._resetControlsCb
+            },
             self.node_if_prefix + 'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
@@ -547,8 +554,8 @@ class ProcessIF:
 
         if node_if is None:
             self.node_if = NodeClassIF(
-                            configs_dict = CFGS_DICT,
-                            params_dict = PARAMS_DICT,
+                            configs_dict = self.process_node_configs_dict,
+                            params_dict = self.process_node_params_dict,
                             services_dict = None,
                             pubs_dict = self.process_node_pubs_dict,
                             subs_dict = self.process_node_subs_dict,
@@ -561,12 +568,14 @@ class ProcessIF:
             self.node_if_shared = True
             try:
                 self.node_if = node_if
+                self.node_if.add_configs(self.process_node_configs_dict)
+                self.node_if.add_params(self.process_node_params_dict)
                 self.node_if.register_pubs(self.process_node_pubs_dict)
                 self.node_if.register_subs(self.process_node_subs_dict)
                 # Register this IF's params on the shared node_if too, or
                 # get_param/set_param below resolve to no namespace and the
                 # controls dict and enable state never persist.
-                self.node_if.add_params(PARAMS_DICT)
+                
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -1331,6 +1340,7 @@ class ProcessIF:
         Args:
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
+        self.msg_if.pub_warn("Initializing params", log_name_list = self.log_name_list)
         if self.node_if is not None:
                 processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
                 if processes_controls_dict is not None:
@@ -1352,9 +1362,6 @@ class ProcessIF:
 
         if do_updates == True:
 
-    
-
-               
             success = self._reloadProcesses()
             if success == False:
                 self.msg_if.pub_warn("PROCESS LOAD FAILED: " + str(self.processes_functions_dict))
@@ -1366,18 +1373,51 @@ class ProcessIF:
 
     def reset(self):
         """Reset the interface to its initialized state."""   
+        self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Resetting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-        nepi_sdk.sleep(1)     
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     def factory_reset(self):
         """Reset the interface to factory defaults."""
+        self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
+
+    def _resetControlsCb(self,msg):
+        self.msg_if.pub_info("Received reset controls msg", log_name_list = self.log_name_list)
+        if self.node_if is not None:
+
+            
+            self.node_if.reset_params([self.processes_param_name])
+            nepi_sdk.sleep(1)
+            processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
+            
+            self.msg_if.pub_warn("Got Reset Params Dict: " + str(processes_controls_dict))       
+
+            process_name = self.selected_process
+            processes_dict = copy.deepcopy(self.processes_dict)
+            if process_name in processes_controls_dict.keys():
+                
+                if 'controls_dict' in processes_dict[process_name].keys():
+                    for control_name in processes_controls_dict[process_name].keys():
+                       
+                        if control_name not in processes_dict[process_name]['controls_dict'].keys():
+                            self.msg_if.pub_warn("control name not in Processes dict keys: " + str([control_name,processes_dict[process_name]['controls_dict']]))
+                        else:
+                            control_value = processes_controls_dict[process_name][control_name]
+                            #self.msg_if.pub_warn("Updating Processes control_name,value: " + str([control_name,control_value]))
+                            processes_dict[process_name]['controls_dict'] = nepi_controls.set_value(processes_dict[process_name]['controls_dict'], control_name, control_value )
+                    processes_values_dict = nepi_controls.get_values_dict(processes_dict[process_name]['controls_dict'])
+                    self.msg_if.pub_warn("Updated Processes values dict: " + str(processes_values_dict))
+                    self.processes_controls_dict[process_name] = processes_values_dict
+                    self.processes_dict = processes_dict
+                    self.controls_dict = processes_dict[process_name]['controls_dict']
+
+        self.publish_status()
 
     ###############################
     # Class Private Methods
@@ -1407,11 +1447,13 @@ class ProcessIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.reset(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.factory_reset(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
 
     def _reloadProcessesCb(self,msg):

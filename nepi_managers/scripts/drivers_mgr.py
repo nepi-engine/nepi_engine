@@ -919,8 +919,8 @@ class NepiDriversMgr(object):
           # self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['options'] = options
           # self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][setting_name]['value'] = value
           settings_dict = nepi_controls.set_value(settings_dict, setting_name, value)
-      self.msg_if.pub_info("Initialized driver discovery settings dict : " + str(settings_dict))
-      self.msg_if.pub_warn("Initialized Drivers Dict : " + str(self.drvs_dict))
+      #self.msg_if.pub_info("Initialized driver discovery settings dict : " + str(settings_dict))
+      #self.msg_if.pub_warn("Initialized Drivers Dict : " + str(self.drvs_dict))
       return settings_dict
 
   
@@ -946,7 +946,7 @@ class NepiDriversMgr(object):
                 msg = 'Success'
                 self.needs_config_save = True
                 settings_dict = nepi_controls.set_value(settings_dict, setting_name, setting_value, check_valid = False)
-                self.msg_if.pub_info("Set driver discovery settings with : " + str([setting_name,setting_value]))
+                #self.msg_if.pub_info("Set driver discovery settings with : " + str([setting_name,setting_value]))
               else:
                  self.msg_if.pub_warn("Set Option not in settings dict keys : " + str(setting_name) + " : " + str(options_dict.keys()))
 
