@@ -201,7 +201,7 @@ class ConnectNodeIF:
                     self.exclude_namespaces_list.append(exclude_namespace)
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         ##############################   
         ## Node Setup
@@ -1574,7 +1574,6 @@ class ConnectNodeClassIF:
                 subs_dict = None,
                 node_name = None,
                 do_wait = False,
-                wait_cfg_mgr = True,
                 log_name_list = [],
                 msg_if = None
                 ):
@@ -1617,7 +1616,6 @@ class ConnectNodeClassIF:
                 'namespace': configs_dict['namespace']
             }
             self.configs_if = NodeConfigsIF(configs_dict = injected_configs_dict,
-                                            wait_cfg_mgr = wait_cfg_mgr,
                                             msg_if = self.msg_if,
                                             log_name_list = self.log_name_list)
             nepi_sdk.sleep(1)

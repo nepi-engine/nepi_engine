@@ -246,7 +246,7 @@ class NavPoseIF:
         if os.path.basename(namespace) != self.data_product:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         if data_source_description is None:
             data_source_description = self.data_source_description
@@ -419,8 +419,8 @@ class NavPoseIF:
         # Udpate or Create Node Class ####################
         if node_if is not None:
             self.node_if = node_if
-            if self.PARAMS_DICT is not None:
-               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.add_configs(self.CONFIGS_DICT)
+            self.node_if.add_params(self.PARAMS_DICT) 
             self.node_if.register_services(self.SRVS_DICT)
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
@@ -902,7 +902,7 @@ class NavPoseIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-        nepi_sdk.sleep(1)     
+            nepi_sdk.sleep(1)     
         self.init(do_updates = True)
 
     def factory_reset(self):
@@ -910,6 +910,7 @@ class NavPoseIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
 
@@ -920,11 +921,13 @@ class NavPoseIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
 
     def _needsDataCheckCb(self,timer):
@@ -1329,7 +1332,7 @@ class BaseImageIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
           
         if perspective is not None:
@@ -2951,8 +2954,8 @@ class BaseImageIF:
         # Udpate or Create Node Class ####################
         if node_if is not None:
             self.node_if = node_if
-            if self.PARAMS_DICT is not None:
-               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.add_configs(self.CONFIGS_DICT)
+            self.node_if.add_params(self.PARAMS_DICT) 
             self.node_if.register_services(self.SRVS_DICT)
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
@@ -5602,7 +5605,7 @@ class BaseImageIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-        nepi_sdk.sleep(1)     
+            nepi_sdk.sleep(1)     
         self.init(do_updates = True)
 
     def factory_reset(self):
@@ -5610,6 +5613,7 @@ class BaseImageIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
 
@@ -5619,11 +5623,13 @@ class BaseImageIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
     def _provideCapabilities(self, _):
         return self.caps_report
@@ -6997,7 +7003,7 @@ class DepthMapIF:
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         '''
                 default_min_meters = 0.0,
@@ -7094,8 +7100,8 @@ class DepthMapIF:
         # Udpate or Create Node Class ####################
         if node_if is not None:
             self.node_if = node_if
-            if self.PARAMS_DICT is not None:
-               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.add_configs(self.CONFIGS_DICT)
+            self.node_if.add_params(self.PARAMS_DICT) 
             self.node_if.register_services(self.SRVS_DICT)
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
@@ -7656,15 +7662,16 @@ class DepthMapIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-        nepi_sdk.sleep(1)     
+            nepi_sdk.sleep(1)     
         self.init(do_updates = True)
-        self.init()
+
 
     def factory_reset(self):
         """Reset the depth map interface to factory defaults."""
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
 
@@ -7674,11 +7681,13 @@ class DepthMapIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
     def _updaterCb(self, timer):
 
@@ -8218,7 +8227,7 @@ class PointcloudIF:
             namespace = nepi_sdk.create_namespace(namespace,self.data_product)
         self.namespace = nepi_sdk.get_full_namespace(namespace)
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         self.init_overlay_text_list = init_overlay_text_list
 
@@ -8479,8 +8488,8 @@ class PointcloudIF:
         # Udpate or Create Node Class ####################
         if node_if is not None:
             self.node_if = node_if
-            if self.PARAMS_DICT is not None:
-               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.add_configs(self.CONFIGS_DICT)
+            self.node_if.add_params(self.PARAMS_DICT) 
             self.node_if.register_services(self.SRVS_DICT)
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
@@ -9071,7 +9080,7 @@ class PointcloudIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-        nepi_sdk.sleep(1)     
+            nepi_sdk.sleep(1)     
         self.init(do_updates = True)
 
     def factory_reset(self):
@@ -9079,6 +9088,7 @@ class PointcloudIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
 
@@ -9088,11 +9098,13 @@ class PointcloudIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
     def _updaterCb(self, timer):
 

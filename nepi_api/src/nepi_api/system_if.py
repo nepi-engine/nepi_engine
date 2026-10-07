@@ -148,7 +148,7 @@ class ControlsIF:
         # Built from the sanitized self.controls_name, not the raw argument -- the
         # namespace must match the name reported in ControlsStatus.
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         ##############################    
         # Initialize Class Variables
@@ -228,6 +228,13 @@ class ControlsIF:
                 'topic': 'update_control',
                 'qsize': 5,
                 'callback': self._updateControlCb
+            },
+            self.node_if_prefix + 'reset_controls': {
+                'msg': Empty,
+                'namespace': self.namespace,
+                'topic': 'reset_controls',
+                'qsize': 5,
+                'callback': self._resetControlsCb
             },
         }
 
@@ -596,10 +603,10 @@ class ControlsIF:
         Calls node_if.reset_params() to reload the user configuration tier, then
         reinitializes from the param server.
         """
-        self.controls_dict = nepi_controls.reset_values(self.controls_dict)
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     def factory_reset(self):
@@ -612,6 +619,7 @@ class ControlsIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     ###############################
@@ -620,11 +628,13 @@ class ControlsIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
 
     def _updateControlCb(self,msg):
@@ -639,6 +649,22 @@ class ControlsIF:
         control_value = nepi_controls.get_value(controls_dict, control_name )
         self.set_control_value(control_name, control_value)
 
+    def _resetControlsCb(self,msg):
+        self.msg_if.pub_info("Received reset controls msg", log_name_list = self.log_name_list)
+        if self.node_if is not None:
+
+            param_name = self.node_if_prefix + 'controls_dict'
+
+            self.node_if.reset_params([param_name])
+            controls_params_dict = self.node_if.get_param(param_name)
+            if controls_params_dict is not None:
+                for control_name in controls_params_dict.keys():
+                    control_value = controls_params_dict[control_name]
+                    if control_value is not None:
+                        self.controls_dict = nepi_controls.set_value(self.controls_dict, control_name, control_value)
+        self.publish_status()
+           
+        
 
     def _setHiddenValueCb(self,msg):
             self.set_control_hidden(msg.name, msg.value)
@@ -782,7 +808,7 @@ class SettingsIF:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_' 
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/' 
        
         self.save_params = save_params
 
@@ -881,8 +907,8 @@ class SettingsIF:
         if node_if is not None:
             self.node_if_shared = True
             self.node_if = node_if
-            if self.PARAMS_DICT is not None:
-               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.add_configs(self.CONFIGS_DICT)
+            self.node_if.add_params(self.PARAMS_DICT) 
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
         else:
@@ -1141,6 +1167,7 @@ class SettingsIF:
         self.settings_dict = nepi_controls.reset_values(self.settings_dict)
         if self.node_if is not None and self.save_params == True and self.node_if_shared == False:
             self.node_if.reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     def factory_reset(self):
@@ -1153,6 +1180,7 @@ class SettingsIF:
         self.settings_dict = nepi_controls.reset_values(self.settings_dict)
         if self.node_if is not None and self.save_params == True and self.node_if_shared == False:
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
 
@@ -1173,10 +1201,12 @@ class SettingsIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
         self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
         self.factory_reset()
 
     def _resetSettingsCb(self, msg):
@@ -1272,7 +1302,7 @@ class DataIF:
         # Built from the sanitized self.data_name, not the raw argument -- the
         # namespace must match the name reported in DataStatus.
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.data_name)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         ##############################    
         # Initialize Class Variables
@@ -1291,9 +1321,6 @@ class DataIF:
         # The persisted value stays the string-valued settings dict it has
         # always been, under the param key it has always used. The data
         # dict is derived state, so no deployed config file needs migrating.
-
-        self.CONFIGS_DICT = None
-        self.PARAMS_DICT = None
 
         # Publishers Config Dict ####################
         if pub_status == False:
@@ -1319,9 +1346,6 @@ class DataIF:
         if node_if is None:
             self.config_topic = self.namespace
             self.node_if = NodeClassIF(
-                            configs_dict = self.CONFIGS_DICT,
-                            params_dict = self.PARAMS_DICT,
-                            services_dict = None,
                             pubs_dict = self.data_node_pubs_dict,
                             subs_dict = self.data_node_subs_dict,
                             log_name_list = [],
@@ -1331,7 +1355,6 @@ class DataIF:
         else:
             self.node_if_shared = True
             try:
-                self.node_if = node_if
                 self.node_if.register_pubs(self.data_node_pubs_dict)
                 self.node_if.register_subs(self.data_node_subs_dict)
                 nepi_sdk.sleep(1)
@@ -1602,11 +1625,9 @@ class DataIF:
     def reset(self):
         """Reset data
         """
-        pass
         self.init(do_updates = True)
 
     def factory_reset(self):
-        pass
         self.init(do_updates = True)
 
     ###############################
@@ -1615,11 +1636,13 @@ class DataIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
 
     def _updateDatumCb(self,msg):
@@ -2549,7 +2572,7 @@ class SaveDataIF:
         if namespace is None:
             namespace = self.node_namespace
         self.namespace = nepi_sdk.create_namespace(namespace,save_data_name)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
         
         self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
         
@@ -2858,8 +2881,8 @@ class SaveDataIF:
         # Udpate or Create Node Class ####################
         if node_if is not None:
             self.node_if = node_if
-            if self.PARAMS_DICT is not None:
-               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.add_configs(self.CONFIGS_DICT)
+            self.node_if.add_params(self.PARAMS_DICT) 
             self.node_if.register_services(self.SRVS_DICT)
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
@@ -3514,6 +3537,7 @@ class SaveDataIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     def factory_reset(self):
@@ -3525,6 +3549,7 @@ class SaveDataIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     ###############################
@@ -3535,11 +3560,13 @@ class SaveDataIF:
             pass
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
     def updaterCb(self,timer):
         tzd = nepi_system.get_timezone()
@@ -3714,7 +3741,7 @@ class Transform3DIF:
             return
         self.msg_if.pub_info("Using States Name: " + transform_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,transform_name)
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         self.source = source_ref_description
         self.end = end_ref_description
@@ -3811,8 +3838,8 @@ class Transform3DIF:
         # Udpate or Create Node Class ####################
         if node_if is not None:
             self.node_if = node_if
-            if self.PARAMS_DICT is not None:
-               self.node_if.add_params(self.PARAMS_DICT) 
+            self.node_if.add_configs(self.CONFIGS_DICT)
+            self.node_if.add_params(self.PARAMS_DICT) 
             self.node_if.register_pubs(self.PUBS_DICT)
             self.node_if.register_subs(self.SUBS_DICT)
         else:
@@ -4126,6 +4153,7 @@ class Transform3DIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     def factory_reset(self):
@@ -4137,6 +4165,7 @@ class Transform3DIF:
         if self.node_if is not None and self.node_if_shared == False:
             self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
 
@@ -4146,11 +4175,13 @@ class Transform3DIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.init(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
 
     def _setFrame3dTransformCb(self, msg):
@@ -4265,7 +4296,7 @@ class StatesIF:
         self.msg_if.pub_info("Using States Name: " + states_name)
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,states_name)
 
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         ##############################  
         # Create NodeClassIF Class  
@@ -4483,7 +4514,7 @@ class TriggersIF:
         if triggers_name is None or triggers_name == '':
             self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
             return
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
         ##############################  
         # Create NodeClassIF Class  
 

@@ -316,7 +316,7 @@ class AiDetectorIF:
         self.selected_classes_targets = self.classes
 
 
-        self.node_if_prefix =self.model_name + '_'
+        self.node_if_prefix =self.model_name + '/'
 
 
         ## Init Status Messages
@@ -996,20 +996,16 @@ class AiDetectorIF:
             pass
         self.publish_status()
 
-    def resetCb(self,do_updates = True):
+    def resetCb(self):
         if self.node_if is not None:
-            pass # self.node_if.reset_params()
-        if do_updates == True:
-            pass
-        self.initCb(do_updates = do_updates)
+            self.node_if.reset_params()
+        self.initCb(do_updates = True)
 
 
-    def factoryResetCb(self,do_updates = True):
+    def factoryResetCb(self):
         if self.node_if is not None:
-            pass # self.node_if.factory_reset_params()
-        if do_updates == True:
-            pass
-        self.initCb(do_updates = do_updates)
+            self.node_if.factory_reset_params()
+        self.initCb(do_updates = True)
 
 
     ##########################################

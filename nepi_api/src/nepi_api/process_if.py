@@ -79,6 +79,7 @@ DEFAULT_SETTINGS_INIT_DICT = dict(
         'type': 'Selections', 'default': 'None', 'options': ['None'],
         'display_name': 'Select Sources', 'description': 'Select Sources', 'display_hidden': True},
 
+
     process_rate = {
         'type': 'FloatSlider', 'value': 10, 'bounds': [1,20], 'round_value': 3,
         'display_name': 'Max Process Rate',
@@ -191,6 +192,7 @@ class ProcessIF:
     data_dict = dict()
 
     settings_init_dict = copy.deepcopy(DEFAULT_SETTINGS_INIT_DICT)
+    settings_dict = dict()
     settings_controls_dict = dict()
     settings_msg = ControlsStatus()
 
@@ -361,27 +363,27 @@ class ProcessIF:
                 self.settings_init_dict |= settings_init_dict
             except:
                 pass
-        self.settings_controls_dict = nepi_controls.create_controls_dict(self.settings_init_dict)
+        self.settings_dict = nepi_controls.create_controls_dict(self.settings_init_dict)
 
-        self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'enabled',self.config_dict['has_enable'] == False)
+        self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'enabled',self.config_dict['has_enable'] == False)
 
         has_sources = self.config_dict['has_sources']
-        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'auto_select_enabled',self.config_dict['auto_select_enabled'])
-        self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'auto_select_enabled',self.config_dict['has_auto_select'] == False)
+        self.settings_dict = nepi_controls.set_value(self.settings_dict,'auto_select_enabled',self.config_dict['auto_select_enabled'])
+        self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'auto_select_enabled',self.config_dict['has_auto_select'] == False)
 
         if has_sources == True:
-            self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'select_source',self.multi_source_enabled == False)
-            self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'select_sources',self.multi_source_enabled == True)
+            self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'select_source',self.multi_source_enabled == False)
+            self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'select_sources',self.multi_source_enabled == True)
 
-        self.settings_controls_dict = nepi_controls.set_bounds(self.settings_controls_dict,'process_rate',self.min_max_process_rates)
-        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'process_rate',self.max_process_rate)
-        self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'process_rate',self.config_dict['has_process_rate'] == False)
+        self.settings_dict = nepi_controls.set_bounds(self.settings_dict,'process_rate',self.min_max_process_rates)
+        self.settings_dict = nepi_controls.set_value(self.settings_dict,'process_rate',self.max_process_rate)
+        self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'process_rate',self.config_dict['has_process_rate'] == False)
         
-        self.settings_controls_dict = nepi_controls.set_bounds(self.settings_controls_dict,'image_rate',self.min_max_image_rates)
-        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'image_rate',self.max_image_rate)
-        self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'image_rate',self.config_dict['has_image_rate'] == False)
+        self.settings_dict = nepi_controls.set_bounds(self.settings_dict,'image_rate',self.min_max_image_rates)
+        self.settings_dict = nepi_controls.set_value(self.settings_dict,'image_rate',self.max_image_rate)
+        self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'image_rate',self.config_dict['has_image_rate'] == False)
 
-        self.settings_controls_dict = nepi_controls.set_hidden(self.settings_controls_dict,'use_last_image',self.config_dict['has_use_last_image'] == False)
+        self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'use_last_image',self.config_dict['has_use_last_image'] == False)
 
         self.status_msg.has_sources = has_sources
         self.status_msg.multi_source_enabled = self.multi_source_enabled
@@ -412,7 +414,7 @@ class ProcessIF:
         # Registry keys on a shared node_if must be domain-unique, so every key
         # this IF adds carries the process name. Param wire names ARE
         # namespace + key, so the prefix is part of the external param surface.
-        self.node_if_prefix = self.namespace.replace(self.base_namespace + '/','').replace('/','_') + '_'
+        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
        
         ##############################    
@@ -439,7 +441,7 @@ class ProcessIF:
 
         # Configs Config Dict ####################
         # Configs Config Dict ####################
-        CFGS_DICT = {
+        self.process_node_configs_dict = {
             'init_callback': self._initCb,
             'reset_callback': self._resetCb,
             'factory_reset_callback': self._factoryResetCb,
@@ -451,16 +453,22 @@ class ProcessIF:
         # Persist the selected topic under the connect namespace so the
         # selection survives node restarts (via the config manager). Passing a
         # params_dict is what enables config management on NodeClassIF.
+        self.sprocess_param_name = self.node_if_prefix + 'selected_process'
         self.processes_param_name = self.node_if_prefix + 'processes_dict'
-        self.settings_param_name = self.node_if_prefix + 'settings_controls_dict'
-        PARAMS_DICT = {
+        self.settings_param_name = self.node_if_prefix + 'settings_dict'
+        self.process_node_params_dict = {
+            self.sprocess_param_name: {
+                'name': 'selected_process',
+                'namespace': self.namespace,
+                'factory_val': self.selected_process
+            },
             self.processes_param_name: {
                 'name': 'processes_dict',
                 'namespace': self.namespace,
                 'factory_val': self.processes_controls_dict
             },
             self.settings_param_name: {
-                'name': 'settings_controls_dict',
+                'name': 'settings_dict',
                 'namespace': self.namespace,
                 'factory_val': self.settings_controls_dict
             }
@@ -527,6 +535,13 @@ class ProcessIF:
                 'qsize': 5,
                 'callback': self._updateControlCb
             },
+            self.node_if_prefix + 'reset_controls': {
+                'msg': Empty,
+                'namespace': self.namespace,
+                'topic': 'reset_controls',
+                'qsize': 5,
+                'callback': self._resetControlsCb
+            },
             self.node_if_prefix + 'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
@@ -539,8 +554,8 @@ class ProcessIF:
 
         if node_if is None:
             self.node_if = NodeClassIF(
-                            configs_dict = CFGS_DICT,
-                            params_dict = PARAMS_DICT,
+                            configs_dict = self.process_node_configs_dict,
+                            params_dict = self.process_node_params_dict,
                             services_dict = None,
                             pubs_dict = self.process_node_pubs_dict,
                             subs_dict = self.process_node_subs_dict,
@@ -553,12 +568,14 @@ class ProcessIF:
             self.node_if_shared = True
             try:
                 self.node_if = node_if
+                self.node_if.add_configs(self.process_node_configs_dict)
+                self.node_if.add_params(self.process_node_params_dict)
                 self.node_if.register_pubs(self.process_node_pubs_dict)
                 self.node_if.register_subs(self.process_node_subs_dict)
                 # Register this IF's params on the shared node_if too, or
                 # get_param/set_param below resolve to no namespace and the
                 # controls dict and enable state never persist.
-                self.node_if.add_params(PARAMS_DICT)
+                
                 nepi_sdk.sleep(1)
             except Exception as e:
                 self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
@@ -641,14 +658,14 @@ class ProcessIF:
 
 
     def updateSettingsValues(self):
-            self.enabled = nepi_controls.get_value(self.settings_controls_dict,'enabled') 
-            self.auto_select_enabled = nepi_controls.get_value(self.settings_controls_dict,'auto_select_enabled')
+            self.enabled = nepi_controls.get_value(self.settings_dict,'enabled') 
+            self.auto_select_enabled = nepi_controls.get_value(self.settings_dict,'auto_select_enabled')
             self.selected_sources = self.get_selected_sources()      
-            self.max_process_rate = nepi_controls.get_value(self.settings_controls_dict,'process_rate')            
-            self.min_max_process_rates = nepi_controls.get_bounds(self.settings_controls_dict,'process_rate')
-            self.max_image_rate = nepi_controls.get_value(self.settings_controls_dict,'image_rate')            
-            self.min_max_image_rates = nepi_controls.get_bounds(self.settings_controls_dict,'image_rate')
-            self.use_last_image = nepi_controls.get_value(self.settings_controls_dict,'use_last_image') 
+            self.max_process_rate = nepi_controls.get_value(self.settings_dict,'process_rate')            
+            self.min_max_process_rates = nepi_controls.get_bounds(self.settings_dict,'process_rate')
+            self.max_image_rate = nepi_controls.get_value(self.settings_dict,'image_rate')            
+            self.min_max_image_rates = nepi_controls.get_bounds(self.settings_dict,'image_rate')
+            self.use_last_image = nepi_controls.get_value(self.settings_dict,'use_last_image') 
 
 
     #######################
@@ -715,7 +732,20 @@ class ProcessIF:
                 self.publish_status()
                 nepi_sdk.sleep(1)
                 processes_dict = copy.deepcopy(self.processes_dict)
-                [self.data_dict,self.controls_dict,self.results_display_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_name)
+                [self.data_dict,controls_dict,self.results_display_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_name)
+                processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
+                if process_name in processes_controls_dict.keys():
+                        if 'controls_dict' in processes_dict[process_name].keys():
+                            for control_name in controls_dict.keys():
+                                #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]))
+                                if control_name in processes_controls_dict[process_name].keys():
+                                    control_value = processes_controls_dict[process_name][control_name]
+                                    nepi_controls.set_value(controls_dict, control_name, control_value )
+    
+                self.controls_dict = controls_dict
+                # self.processes_controls_dict[process_name] = nepi_controls.get_values_dict(self.controls_dict)
+                # self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
+                # self.node_if.set_param(self.sprocess_param_name, self.selected_process)
                 self.process_function = self.processes_functions_dict[process_name]
                 nepi_sdk.sleep(1)
                 success = True
@@ -726,17 +756,17 @@ class ProcessIF:
         return success
 
     def set_enable(self, value):
-        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'enabled',value)
+        self.settings_dict = nepi_controls.set_value(self.settings_dict,'enabled',value)
 
     def get_enable(self):
-        return nepi_controls.get_value(self.settings_controls_dict,'enabled')
+        return nepi_controls.get_value(self.settings_dict,'enabled')
 
 
     def set_auto_select_enable(self, value):
-        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'auto_select_enabled',value)
+        self.settings_dict = nepi_controls.set_value(self.settings_dict,'auto_select_enabled',value)
 
     def get_auto_select_enable(self):
-        return nepi_controls.get_value(self.settings_controls_dict,'auto_select_enabled')
+        return nepi_controls.get_value(self.settings_dict,'auto_select_enabled')
 
 
     def set_available_source_topics(self, value):
@@ -751,9 +781,9 @@ class ProcessIF:
                 if isinstance(value, list) == True:
                     if len(value) > 0:
                         value = str(value[0])
-                nepi_controls.set_value(self.settings_controls_dict,'select_source', value)
+                nepi_controls.set_value(self.settings_dict,'select_source', value)
             else:
-                nepi_controls.set_value(self.settings_controls_dict,'select_sources', value) 
+                nepi_controls.set_value(self.settings_dict,'select_sources', value) 
 
     def set_selected_sources(self, value):
         if value is not None:
@@ -761,39 +791,39 @@ class ProcessIF:
                 value = [str(value)]
             if self.multi_source_enabled == False and len(value) > 0:
                 try:
-                    nepi_controls.set_value(self.settings_controls_dict,'select_source', value[0])
+                    nepi_controls.set_value(self.settings_dict,'select_source', value[0])
                 except:
                     pass
             else:
-                nepi_controls.set_value(self.settings_controls_dict,'select_sources', value) 
+                nepi_controls.set_value(self.settings_dict,'select_sources', value) 
 
 
 
     def get_selected_sources(self):
         selected_sources = []
         if self.multi_source_enabled == False:
-            selected_sources = [nepi_controls.get_value(self.settings_controls_dict,'select_source')]
+            selected_sources = [nepi_controls.get_value(self.settings_dict,'select_source')]
         else:
-            selected_sources = nepi_controls.get_value(self.settings_controls_dict,'select_sources')   
+            selected_sources = nepi_controls.get_value(self.settings_dict,'select_sources')   
         return selected_sources
 
     def set_process_rate(self, value):
-        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'process_rate',value)
+        self.settings_dict = nepi_controls.set_value(self.settings_dict,'process_rate',value)
 
     def get_process_rate(self):
-        return nepi_controls.get_value(self.settings_controls_dict,'process_rate')
+        return nepi_controls.get_value(self.settings_dict,'process_rate')
 
     def set_image_rate(self, value):
-        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'image_rate',value)
+        self.settings_dict = nepi_controls.set_value(self.settings_dict,'image_rate',value)
 
     def get_image_rate(self):
-        return nepi_controls.get_value(self.settings_controls_dict,'image_rate')
+        return nepi_controls.get_value(self.settings_dict,'image_rate')
 
     def set_use_last_image(self, value):
-        self.settings_controls_dict = nepi_controls.set_value(self.settings_controls_dict,'use_last_image',value)
+        self.settings_dict = nepi_controls.set_value(self.settings_dict,'use_last_image',value)
 
     def get_use_last_image(self):
-        return nepi_controls.get_value(self.settings_controls_dict,'use_last_image')
+        return nepi_controls.get_value(self.settings_dict,'use_last_image')
 
 
 
@@ -934,76 +964,76 @@ class ProcessIF:
 
 
     def get_setting_value(self, setting_name):
-        settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
+        settings_dict = copy.deepcopy(self.settings_dict)
         value = None
-        if settings_controls_dict is not None:
-            value = nepi_controls.get_value(settings_controls_dict, setting_name)
+        if settings_dict is not None:
+            value = nepi_controls.get_value(settings_dict, setting_name)
         return value
 
     def get_settings_values(self):
-        settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
+        settings_dict = copy.deepcopy(self.settings_dict)
         settings_values_dict = None
-        if settings_controls_dict is not None:
-            settings_values_dict = nepi_controls.get_values_dict(settings_controls_dict)
+        if settings_dict is not None:
+            settings_values_dict = nepi_controls.get_values_dict(settings_dict)
         return settings_values_dict
 
     def set_setting_value(self, setting_name, update_value, index = None):
         if self.get_process_ready() == True:
-            settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
-            if settings_controls_dict is not None:
-                if setting_name in settings_controls_dict.keys():
-                    settings_controls_dict = nepi_controls.set_value(settings_controls_dict, setting_name, update_value, index = index)
-                    if settings_controls_dict != self.settings_controls_dict:
-                        self.settings_controls_dict = settings_controls_dict
-                        if self.node_if is not None and settings_controls_dict != self.settings_controls_dict:
-                            self.settings_controls_dict = settings_controls_dict
+            settings_dict = copy.deepcopy(self.settings_dict)
+            if settings_dict is not None:
+                if setting_name in settings_dict.keys():
+                    settings_dict = nepi_controls.set_value(settings_dict, setting_name, update_value, index = index)
+                    if settings_dict != self.settings_dict:
+                        self.settings_dict = settings_dict
+                        if self.node_if is not None:
+                            self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
                             self.node_if.set_param(self.settings_param_name, self.settings_controls_dict)
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,settings_controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5)
 
     def set_setting_options(self, setting_name, update_options):
         if self.get_process_ready() == True:
             process_name = copy.deepcopy(self.selected_process)
-            settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
-            if settings_controls_dict is not None:
-                if setting_name in settings_controls_dict.keys():
-                    settings_controls_dict = nepi_controls.set_options(settings_controls_dict, setting_name, update_options)
-                    if settings_controls_dict != self.settings_controls_dict:
-                        self.settings_controls_dict = settings_controls_dict
-                        if self.node_if is not None and settings_controls_dict != self.settings_controls_dict:
-                            self.settings_controls_dict = settings_controls_dict
+            settings_dict = copy.deepcopy(self.settings_dict)
+            if settings_dict is not None:
+                if setting_name in settings_dict.keys():
+                    settings_dict = nepi_controls.set_options(settings_dict, setting_name, update_options)
+                    if settings_dict != self.settings_dict:
+                        self.settings_dict = settings_dict
+                        if self.node_if is not None:
+                            self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
                             self.node_if.set_param(self.settings_param_name, self.settings_controls_dict)
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,settings_controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5)
 
     def get_setting_options(self, setting_name):
-        settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
+        settings_dict = copy.deepcopy(self.settings_dict)
         options = None
-        if settings_controls_dict is not None:
-            options = nepi_controls.get_options(settings_controls_dict, setting_name)
+        if settings_dict is not None:
+            options = nepi_controls.get_options(settings_dict, setting_name)
         return options
 
     def set_setting_bounds(self, setting_name, min_bound = None, max_bound = None):
         if self.get_process_ready() == True:
             process_name = copy.deepcopy(self.selected_process)
-            settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
-            if settings_controls_dict is not None:
-                if setting_name in settings_controls_dict.keys():
-                    settings_controls_dict = nepi_controls.set_bounds(settings_controls_dict, setting_name, min_bound = min_bound, max_bound = max_bound)
-                    if settings_controls_dict != self.settings_controls_dict:
-                        self.settings_controls_dict = settings_controls_dict
-                        if self.node_if is not None and settings_controls_dict != self.settings_controls_dict:
-                            self.settings_controls_dict = settings_controls_dict
+            settings_dict = copy.deepcopy(self.settings_dict)
+            if settings_dict is not None:
+                if setting_name in settings_dict.keys():
+                    settings_dict = nepi_controls.set_bounds(settings_dict, setting_name, min_bound = min_bound, max_bound = max_bound)
+                    if settings_dict != self.settings_dict:
+                        self.settings_dict = settings_dict
+                        if self.node_if is not None:
+                            self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
                             self.node_if.set_param(self.settings_param_name, self.settings_controls_dict)
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,settings_controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5)
 
 
     def get_setting_bounds(self, setting_name):
-        settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
+        settings_dict = copy.deepcopy(self.settings_dict)
         bounds = None
-        if settings_controls_dict is not None:
-            bounds = nepi_controls.get_bounds(settings_controls_dict, setting_name)
+        if settings_dict is not None:
+            bounds = nepi_controls.get_bounds(settings_dict, setting_name)
         return bounds
     
 
@@ -1104,7 +1134,7 @@ class ProcessIF:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
                         try:
-                            self.msg_if.pub_warn("Updated Control Bounds: " + str([ control_name, update_bounds, self.controls_dict[control_name] ]), throttle_s = 5)
+                            self.msg_if.pub_warn("Updated Control Bounds: " + str([ control_name, [min_bound,max_bound], self.controls_dict[control_name] ]), throttle_s = 5)
                         except Exception as e:
                             self.msg_if.pub_info("Failed pub Updated Control Bounds msg: " + str(e), throttle_s = 5)
                 else:
@@ -1205,8 +1235,8 @@ class ProcessIF:
         self.status_msg.state = self.state
         self.status_msg.msg_str = self.msg_str
 
-        settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
-        self.settings_msg = nepi_controls.update_status_msg(self.settings_msg, settings_controls_dict)
+        settings_dict = copy.deepcopy(self.settings_dict)
+        self.settings_msg = nepi_controls.update_status_msg(self.settings_msg, settings_dict)
         self.status_msg.settings = self.settings_msg
 
 
@@ -1310,21 +1340,28 @@ class ProcessIF:
         Args:
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
+        self.msg_if.pub_warn("Initializing params", log_name_list = self.log_name_list)
         if self.node_if is not None:
-            processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
-            if processes_controls_dict is not None:
-                self.processes_controls_dict = processes_controls_dict
-            settings_controls_dict =  self.node_if.get_param(self.settings_param_name)
-            if settings_controls_dict is not None:
-                try:
-                    settings_values_dict = nepi_controls.get_values_dict(settings_controls_dict)
-                    self.settings_controls_dict = nepi_controls.set_values(self.settings_controls_dict, settings_values_dict)
-                except:
-                    pass
+                processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
+                if processes_controls_dict is not None:
+                    self.processes_controls_dict = processes_controls_dict
+                self.msg_if.pub_warn("Init Processes Dict: " + str(self.processes_controls_dict))
 
+                selected_process =  self.node_if.get_param(self.sprocess_param_name)
+                if selected_process is not None:
+                    if selected_process in self.processes_controls_dict.keys():
+                        self.selected_process = selected_process
 
+                settings_controls_dict =  self.node_if.get_param(self.settings_param_name)
+                if settings_controls_dict is not None:
+                    for setting_name in settings_controls_dict.keys():
+                        if setting_name in self.settings_dict.keys():
+                            setting_value = settings_controls_dict[setting_name]
+                            self.settings_dict = nepi_controls.set_value(self.settings_dict,setting_name, setting_value)
+                self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
 
         if do_updates == True:
+
             success = self._reloadProcesses()
             if success == False:
                 self.msg_if.pub_warn("PROCESS LOAD FAILED: " + str(self.processes_functions_dict))
@@ -1336,18 +1373,51 @@ class ProcessIF:
 
     def reset(self):
         """Reset the interface to its initialized state."""   
+        self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
             self.node_if.reset_params()
-        nepi_sdk.sleep(1)     
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     def factory_reset(self):
         """Reset the interface to factory defaults."""
+        self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
             self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
         self.init(do_updates = True)
+
+    def _resetControlsCb(self,msg):
+        self.msg_if.pub_info("Received reset controls msg", log_name_list = self.log_name_list)
+        if self.node_if is not None:
+
+            
+            self.node_if.reset_params([self.processes_param_name])
+            nepi_sdk.sleep(1)
+            processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
+            
+            self.msg_if.pub_warn("Got Reset Params Dict: " + str(processes_controls_dict))       
+
+            process_name = self.selected_process
+            processes_dict = copy.deepcopy(self.processes_dict)
+            if process_name in processes_controls_dict.keys():
+                
+                if 'controls_dict' in processes_dict[process_name].keys():
+                    for control_name in processes_controls_dict[process_name].keys():
+                       
+                        if control_name not in processes_dict[process_name]['controls_dict'].keys():
+                            self.msg_if.pub_warn("control name not in Processes dict keys: " + str([control_name,processes_dict[process_name]['controls_dict']]))
+                        else:
+                            control_value = processes_controls_dict[process_name][control_name]
+                            #self.msg_if.pub_warn("Updating Processes control_name,value: " + str([control_name,control_value]))
+                            processes_dict[process_name]['controls_dict'] = nepi_controls.set_value(processes_dict[process_name]['controls_dict'], control_name, control_value )
+                    processes_values_dict = nepi_controls.get_values_dict(processes_dict[process_name]['controls_dict'])
+                    self.msg_if.pub_warn("Updated Processes values dict: " + str(processes_values_dict))
+                    self.processes_controls_dict[process_name] = processes_values_dict
+                    self.processes_dict = processes_dict
+                    self.controls_dict = processes_dict[process_name]['controls_dict']
+
+        self.publish_status()
 
     ###############################
     # Class Private Methods
@@ -1377,11 +1447,13 @@ class ProcessIF:
     def _initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
 
-    def _resetCb(self, do_updates = True):
-        self.reset(do_updates = do_updates)
+    def _resetCb(self):
+        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.reset()
 
-    def _factoryResetCb(self, do_updates = True):
-        self.factory_reset(do_updates = do_updates)
+    def _factoryResetCb(self):
+        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.factory_reset()
 
 
     def _reloadProcessesCb(self,msg):
@@ -1405,7 +1477,7 @@ class ProcessIF:
             if process_busy == True:
                 self.msg_if.pub_info("Failed to load process. Process Busy: " + str(process_busy))
             else:
-                processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
+                
                 try:
                     importlib.reload(self.process_module)
                     processes_dict = self.process_module.PROCESSES_DICT
@@ -1421,28 +1493,25 @@ class ProcessIF:
                         self.has_results_pub = False
 
                     available_processes = []
+                    processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
+                    self.msg_if.pub_warn("Got Process Params Dict: " + str(processes_controls_dict))                    
                     for process_name in processes_dict.keys():
                         available_processes.append(process_name)
+
                         if process_name in processes_controls_dict.keys():
 
-                                if 'controls_dict' in processes_dict[process_name].keys():
-                                    for control_name in processes_controls_dict[process_name].keys():
-                                        #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]))
-                                        if control_name in processes_dict[process_name]['controls_dict'].keys():
-                                            control_value = processes_controls_dict[process_name][control_name]
-                                            nepi_controls.set_value(processes_dict[process_name]['controls_dict'], control_name, control_value )
-
+                            if 'controls_dict' in processes_dict[process_name].keys():
+                                for control_name in processes_controls_dict[process_name].keys():
+                                    #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]))
+                                    if control_name in processes_dict[process_name]['controls_dict'].keys():
+                                        control_value = processes_controls_dict[process_name][control_name]
+                                        processes_dict[process_name]['controls_dict'] = nepi_controls.set_value(processes_dict[process_name]['controls_dict'], control_name, control_value )
+                        processes_controls_dict[process_name] = nepi_controls.get_values_dict(processes_dict[process_name]['controls_dict'])
+                    self.msg_if.pub_warn("Updated Process Params Dict: " + str(processes_controls_dict)) 
                     self.available_processes = available_processes
                     self.processes_dict = processes_dict
                     self.processes_functions_dict = self.process_module.FUNCTIONS_DICT
                     #self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict))
-
-                    processes_controls_dict = dict()
-                    for process_name in processes_dict.keys():
-                        try:
-                            processes_controls_dict[process_name] = processes_dict[process_name]['controls_dict']
-                        except:
-                            pass
 
 
 
