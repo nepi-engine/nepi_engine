@@ -5778,43 +5778,32 @@ class BaseImageIF:
 
     def _mouseEventCb(self,msg):
         #self.msg_if.pub_info("Received mouse event message: " + str(msg), log_name_list = self.log_name_list)
-        if self.callback_dict['mouse_event_callback'] is not None:
-            try:
-                self.callback_dict['mouse_event_callback'](msg)
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to call mouse mouse_event_callback: " + str(e), log_name_list = self.log_name_list)
 
-        if msg.click_event == True:
-            pixel = [int(msg.click.x   + self.x_offset), int(msg.click.y   + self.y_offset)]
-            color_bgr = (msg.click.b,msg.click.g,msg.click.r,msg.click.a)
-            click_count = msg.click_count
-            image_width = self.status_msg.width_px
-            image_height = self.status_msg.height_px
-            image_fov_horz = self.status_msg.width_deg
-            image_fov_vert = self.status_msg.height_deg
-            pixel_vert_angle_deg = 0
-            pixel_horz_angle_deg = 0
-            object_loc_x_ratio_from_center = 0
-            object_loc_y_ratio_from_center = 0
-            if image_width > 10 and image_height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
-                object_loc_x_ratio_from_center = float(pixel[0] - image_width/2) / float(image_width/2)
-                object_loc_y_ratio_from_center = float(pixel[0] - image_height/2) / float(image_height/2)
-                pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
-                pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
-            angles = [pixel_horz_angle_deg,pixel_vert_angle_deg]
-            #self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enabled), log_name_list = self.log_name_list)
-            
+        image_width = self.status_msg.width_px
+        image_height = self.status_msg.height_px
 
-            x_ratio = float(pixel[0] / max(1,self.width_org)) 
-            
-            y_ratio = float(pixel[1] / max(1,self.height_org))
 
-            x_ratio_adj = copy.deepcopy(x_ratio)
-            y_ratio_adj = copy.deepcopy(y_ratio)
-            if self.live_adjust_dict['live_adjust_enabled'] == True and self.live_adjustments_disabled == False:
-                r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
-                x_deg = self.live_adjust_dict['live_adjust_x_deg']
-                y_deg = self.live_adjust_dict['live_adjust_y_deg']
+        pixel = [int(msg.click.x   + self.x_offset), int(msg.click.y   + self.y_offset)]
+        color_bgr = (msg.click.b,msg.click.g,msg.click.r,msg.click.a)
+        click_count = msg.click_count
+
+
+        x_ratio = float(pixel[0] / max(1,self.width_org)) 
+        y_ratio = float(pixel[1] / max(1,self.height_org))
+
+        x_pixel_offset_adj = pixel[0]
+        y_pixel_offset_adj = pixel[1]
+
+        x_ratio_adj = copy.deepcopy(x_ratio)
+        y_ratio_adj = copy.deepcopy(y_ratio)
+
+        pixel_adj = copy.deepcopy(pixel)
+        
+        if self.live_adjust_dict['live_adjust_enabled'] == True and self.live_adjustments_disabled == False:
+            r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
+            x_deg = self.live_adjust_dict['live_adjust_x_deg']
+            y_deg = self.live_adjust_dict['live_adjust_y_deg']
+            if r_deg != 0 or x_deg != 0 or y_deg != 0:
                 x_ratio_adj = x_ratio_adj + (image_width / 2) * ( x_deg / (self.width_deg / 2)) / image_width
                 y_ratio_adj = y_ratio_adj + (image_height / 2) * (y_deg / (self.height_deg / 2)) / image_height
                 deg_adj =  -1 * r_deg
@@ -5825,18 +5814,43 @@ class BaseImageIF:
                 y_pixel_offset_adj = int(y_pixel_offset_adj)
                 x_ratio_adj = (x_pixel_offset_adj + (image_width / 2)) / image_width
                 y_ratio_adj= (y_pixel_offset_adj + (image_height / 2)) / image_height
-            
+                pixel_adj = [x_ratio_adj * image_width, y_ratio_adj * image_height]
+                
+
+        # self.msg_if.pub_warn("Got mouse click pixel", log_name_list = self.log_name_list)
+        # self.msg_if.pub_warn("Click Pixels: " + str([msg.click.x,msg.click.y]), log_name_list = self.log_name_list)
+        # self.msg_if.pub_warn("Pixel Offsets: " + str([self.x_offset,self.y_offset]), log_name_list = self.log_name_list)
+        
+        # self.msg_if.pub_warn("Orig H/W: " + str([self.width_org,self.height_org]), log_name_list = self.log_name_list)
+        # self.msg_if.pub_warn("Proc H/W: " + str([self.width_proc,self.height_proc]), log_name_list = self.log_name_list)
+        # self.msg_if.pub_warn("Pixel Ratios: " + str([x_ratio,y_ratio]), log_name_list = self.log_name_list)
+        # self.msg_if.pub_warn("Pixels Offset_Adj: " + str([x_pixel_offset_adj,y_pixel_offset_adj]), log_name_list = self.log_name_list)
+        # self.msg_if.pub_warn("Pixel Ratios Adj: " + str([x_ratio_adj,y_ratio_adj]), log_name_list
+
+        pixel = pixel_adj
+        image_fov_horz = self.status_msg.width_deg
+        image_fov_vert = self.status_msg.height_deg
+        pixel_vert_angle_deg = 0
+        pixel_horz_angle_deg = 0
+        object_loc_x_ratio_from_center = 0
+        object_loc_y_ratio_from_center = 0
+        if image_width > 10 and image_height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
+            object_loc_x_ratio_from_center = float(pixel[0] - image_width/2) / float(image_width/2)
+            object_loc_y_ratio_from_center = float(pixel[0] - image_height/2) / float(image_height/2)
+            pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
+            pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
+        angles = [pixel_horz_angle_deg,pixel_vert_angle_deg]
+        #self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enabled), log_name_list = self.log_name_list)
         
 
-            # self.msg_if.pub_warn("Got mouse click pixel", log_name_list = self.log_name_list)
-            # self.msg_if.pub_warn("Click Pixels: " + str([msg.click.x,msg.click.y]), log_name_list = self.log_name_list)
-            # self.msg_if.pub_warn("Pixel Offsets: " + str([self.x_offset,self.y_offset]), log_name_list = self.log_name_list)
-           
-            # self.msg_if.pub_warn("Orig H/W: " + str([self.width_org,self.height_org]), log_name_list = self.log_name_list)
-            # self.msg_if.pub_warn("Proc H/W: " + str([self.width_proc,self.height_proc]), log_name_list = self.log_name_list)
-            # self.msg_if.pub_warn("Pixel Ratios: " + str([x_ratio,y_ratio]), log_name_list = self.log_name_list)
-            # self.msg_if.pub_warn("Pixels Offset_Adj: " + str([x_pixel_offset_adj,y_pixel_offset_adj]), log_name_list = self.log_name_list)
-            # self.msg_if.pub_warn("Pixel Ratios Adj: " + str([x_ratio_adj,y_ratio_adj]), log_name_list = self.log_name_list)
+        if self.callback_dict['mouse_event_callback'] is not None:
+            try:
+                self.callback_dict['mouse_event_callback'](msg)
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to call mouse mouse_event_callback: " + str(e), log_name_list = self.log_name_list)
+
+        if msg.click_event == True:
+            
             if self.callback_dict['click_pixel_callback'] is not None:
                     try:
                         self.callback_dict['click_pixel_callback'](pixel,color_bgr,click_count,angles)
