@@ -1248,9 +1248,9 @@ class BaseImageIF:
     live_adjust_enabled = True
     live_adjust_dict = dict(
         live_adjust_enabled = True,
-        live_adjust_rotate_ratio = 0.5,
-        live_adjust_x_ratio = 0.5,
-        live_adjust_y_ratio = 0.5
+        live_adjust_rotate_deg = 0,
+        live_adjust_x_deg = 0,
+        live_adjust_y_deg = 0,
     )
 
     stream_compression_enabled = False
@@ -5043,7 +5043,10 @@ class BaseImageIF:
 
     def set_live_adjust_rotate_ratio(self,ratio):
         if self.live_adjust_dict['live_adjust_enabled'] == True:
-            self.live_adjust_dict['live_adjust_rotate_ratio'] = nepi_utils.check_ratio(ratio)
+            ratio = nepi_utils.check_ratio(ratio)
+            deg = 2 * (ratio - 0.5) * 180
+            self.live_adjust_dict['live_adjust_rotate_deg'] = deg
+            
 
     def set_live_adjust_rotate_deg(self,deg):
         #self.msg_if.pub_info("Received Live Adjust Rotate Deg: " + str(deg), log_name_list = self.log_name_list)
@@ -5053,51 +5056,42 @@ class BaseImageIF:
         ratio = nepi_utils.check_ratio(0.5 + (deg / 180)/2)
         #self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio), log_name_list = self.log_name_list)
         if self.live_adjust_dict['live_adjust_enabled'] == True:
-            self.live_adjust_dict['live_adjust_rotate_ratio'] = nepi_utils.check_ratio(ratio)
+            self.live_adjust_dict['live_adjust_rotate_deg'] = deg
 
     def set_live_adjust_x_ratio(self,ratio):
         if self.live_adjust_dict['live_adjust_enabled'] == True:
-            self.live_adjust_dict['live_adjust_x_ratio'] = nepi_utils.check_ratio(ratio)
+            ratio = nepi_utils.check_ratio(ratio)
+            self.live_adjust_dict['live_adjust_x_deg'] = ((ratio - 0.5) * -2) * self.width_deg
 
     def set_live_adjust_x_pixel(self,pixel):
         if abs(pixel) > self.width_org:
             pixel = np.sign(pixel) * self.width_org
         ratio = round(0.5 + (pixel / self.width_org)/2,4)
         ratio = nepi_utils.check_ratio(ratio)
-        if self.live_adjust_dict['live_adjust_enabled'] == True:
-            self.live_adjust_dict['live_adjust_x_ratio'] = nepi_utils.check_ratio(ratio)
+        self.set_live_adjust_x_ratio(ratio)
 
     def set_live_adjust_x_deg(self,deg):
-
         if abs(deg) > self.width_deg:
             deg = np.sign(deg) * self.width_deg
-        ratio = round(0.5 - (deg / self.width_deg)/2,4) 
-        ratio = nepi_utils.check_ratio(ratio)
-        if self.live_adjust_dict['live_adjust_enabled'] == True:
-            #self.msg_if.pub_info("Updating X Rotate Deg to Ratio: " + str(deg) + ":" + str(ratio), log_name_list = self.log_name_list, throttle_s = 5)   
-            self.live_adjust_dict['live_adjust_x_ratio'] = nepi_utils.check_ratio(ratio)
+        self.live_adjust_dict['live_adjust_x_deg'] = deg
+            
 
     def set_live_adjust_y_ratio(self,ratio):
         if self.live_adjust_dict['live_adjust_enabled'] == True:
             ratio = nepi_utils.check_ratio(ratio)
-            self.live_adjust_dict['live_adjust_y_ratio'] = nepi_utils.check_ratio(ratio)
+            self.live_adjust_dict['live_adjust_y_deg'] = ((ratio - 0.5) * 2) * self.height_deg
 
     def set_live_adjust_y_pixel(self,pixel):
         if abs(pixel) > self.height_org:
             pixel = np.sign(pixel) * self.height_org
         ratio = round(0.5 + (pixel / self.height_org)/2,4)
-        ratio = nepi_utils.check_ratio(ratio)
-        if self.live_adjust_dict['live_adjust_enabled'] == True:
-            self.live_adjust_dict['live_adjust_y_ratio'] = nepi_utils.check_ratio(ratio)
-
+        self.set_live_adjust_y_ratio(ratio)
+        
     def set_live_adjust_y_deg(self,deg):
         if abs(deg) > self.height_deg:
             deg = np.sign(deg) * self.height_deg
-        ratio = round(0.5 + (deg / self.height_deg)/2,4)    
-        ratio = nepi_utils.check_ratio(ratio)
-        if self.live_adjust_dict['live_adjust_enabled'] == True:
-            self.live_adjust_dict['live_adjust_y_ratio'] = nepi_utils.check_ratio(ratio)
-
+        self.live_adjust_dict['live_adjust_y_deg'] = deg
+       
 
     def reset_filters(self):
         """Reset all filter and adjustment controls to factory defaults."""
@@ -5190,9 +5184,9 @@ class BaseImageIF:
         # self.controls_dict['start_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'start_range_ratio')
         # self.controls_dict['stop_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'stop_range_ratio')
 
-        self.live_adjust_dict['live_adjust_rotate_ratio'] = 0.5
-        self.live_adjust_dict['live_adjust_x_ratio'] = 0.5
-        self.live_adjust_dict['live_adjust_y_ratio'] = 0.5
+        self.live_adjust_dict['live_adjust_rotate_deg'] = 0
+        self.live_adjust_dict['live_adjust_x_deg'] = 0
+        self.live_adjust_dict['live_adjust_y_deg'] = 0
 
 
         self.publish_status()  
@@ -5286,21 +5280,20 @@ class BaseImageIF:
 
                 live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
                 live_adjust_enabled = live_adjust_dict['live_adjust_enabled']
-                live_adjust_rotate_ratio = live_adjust_dict['live_adjust_rotate_ratio']
-                rotate_deg = ((live_adjust_rotate_ratio - 0.5) * 2) * 180
-                if abs(rotate_deg) > 180:
-                    rotate_deg = np.sign(rotate_deg) * 180
-                live_adjust_rotate_deg = rotate_deg
+                live_adjust_rotate_deg = live_adjust_dict['live_adjust_rotate_deg']
+                #  deg = 2 * (ratio - 0.5) * 180
+                live_adjust_rotate_ratio = ((live_adjust_rotate_deg / 2 / 180)  + 0.5)
+                
 
-                live_adjust_x_ratio = live_adjust_dict['live_adjust_x_ratio']
+                live_adjust_x_degs = round(live_adjust_dict['live_adjust_x_deg'],1)
+                live_adjust_x_ratio = 0.5 - (live_adjust_x_degs / self.width_deg) / 2
                 shift_x_scaler = (live_adjust_x_ratio - 0.5) * 2
                 live_adjust_x_pixels = math.floor((shift_x_scaler * self.width_org))
-                live_adjust_x_degs = round(shift_x_scaler * self.width_deg,1)
-
-                live_adjust_y_ratio = live_adjust_dict['live_adjust_y_ratio']
+               
+                live_adjust_y_degs = round(live_adjust_dict['live_adjust_y_deg'],1)
+                live_adjust_y_ratio = 0.5 + (live_adjust_y_degs / self.height_deg) / 2
                 shift_y_scaler = (live_adjust_y_ratio - 0.5) * 2
-                live_adjust_y_pixels = math.floor((shift_y_scaler * self.height_org))
-                live_adjust_y_degs = round(shift_y_scaler * self.height_deg,1)
+                live_adjust_y_pixels = math.floor((shift_y_scaler * self.height_deg))
 
                 self.status_msg.live_adjustments_disabled = self.live_adjustments_disabled
                 #self.msg_if.pub_warn(self.data_product + " Publishing Live Adjust Disabled: " + str(self.live_adjustments_disabled ) , throttle_s = 5)
@@ -5759,24 +5752,19 @@ class BaseImageIF:
         live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
         live_adjust_enabled = live_adjust_dict['live_adjust_enabled'] and self.live_adjustments_disabled == False
         if live_adjust_enabled:
-            live_adjust_rotate_ratio = live_adjust_dict['live_adjust_rotate_ratio']
-            live_adjust_x_ratio = live_adjust_dict['live_adjust_x_ratio']
-            live_adjust_y_ratio = live_adjust_dict['live_adjust_y_ratio']
+            live_adjust_rotate_deg = live_adjust_dict['live_adjust_rotate_deg']
+            live_adjust_x_deg = live_adjust_dict['live_adjust_x_deg']
+            live_adjust_y_deg = live_adjust_dict['live_adjust_y_deg']
 
-            rotate_deg = ((live_adjust_rotate_ratio - 0.5) * 2) * 180
-            if abs(rotate_deg) > 180:
-                rotate_deg = np.sign(rotate_deg) * 180
-            if abs(rotate_deg) > 0.01:
-                #self.msg_if.pub_warn("Live Adjusting Rotate with ratio and degrees: " + str([rotate_ratio,rotate_deg]), log_name_list = self.log_name_list, throttle_s = 5)
-                cv2_img = nepi_img.rotate_degrees(cv2_img,rotate_deg)
+            
+            if abs(live_adjust_rotate_deg) > 0.01:
+                #self.msg_if.pub_warn("Live Adjusting Rotate with degrees: " + str([live_adjust_rotate_deg]), log_name_list = self.log_name_list, throttle_s = 5)
+                cv2_img = nepi_img.rotate_degrees(cv2_img,live_adjust_rotate_deg)
         
             ###### Translation Update
-            shift_x_ratio = nepi_utils.check_ratio(live_adjust_x_ratio)
-            shift_x_scaler = (shift_x_ratio - 0.5) * 2
-            shift_x_pixels = math.floor((shift_x_scaler * width))
-            shift_y_ratio = nepi_utils.check_ratio(live_adjust_y_ratio)
-            shift_y_scaler = (shift_y_ratio - 0.5) * 2
-            shift_y_pixels = math.floor((shift_y_scaler * height))
+            
+            shift_x_pixels = -1 * math.floor((width * live_adjust_x_deg/self.width_deg))
+            shift_y_pixels = -1 * math.floor((height * live_adjust_y_deg/self.height_deg))
 
 
 
@@ -5818,13 +5806,37 @@ class BaseImageIF:
             
 
             x_ratio = float(pixel[0] / max(1,self.width_org)) 
+            
             y_ratio = float(pixel[1] / max(1,self.height_org))
-            self.msg_if.pub_warn("Got mouse click pixel", log_name_list = self.log_name_list)
-            self.msg_if.pub_warn("Click Pixels: " + str([msg.click.x,msg.click.y]), log_name_list = self.log_name_list)
-            self.msg_if.pub_warn("Pixel Offsets: " + str([self.x_offset,self.y_offset]), log_name_list = self.log_name_list)
-            self.msg_if.pub_warn("Orig H/W: " + str([self.width_org,self.height_org]), log_name_list = self.log_name_list)
-            self.msg_if.pub_warn("Proc H/W: " + str([self.width_proc,self.height_proc]), log_name_list = self.log_name_list)
-            self.msg_if.pub_warn("Pixel Ratios: " + str([x_ratio,y_ratio]), log_name_list = self.log_name_list)
+
+            x_ratio_adj = copy.deepcopy(x_ratio)
+            y_ratio_adj = copy.deepcopy(y_ratio)
+            if self.live_adjust_dict['live_adjust_enabled'] == True and self.live_adjustments_disabled == False:
+                r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
+                x_deg = self.live_adjust_dict['live_adjust_x_deg']
+                y_deg = self.live_adjust_dict['live_adjust_y_deg']
+                x_ratio_adj = x_ratio_adj + (image_width / 2) * ( x_deg / (self.width_deg / 2)) / image_width
+                y_ratio_adj = y_ratio_adj + (image_height / 2) * (y_deg / (self.height_deg / 2)) / image_height
+                deg_adj =  -1 * r_deg
+                x_pixel_offset_adj =  (x_ratio_adj * image_width) - (image_width / 2) 
+                y_pixel_offset_adj =  (y_ratio_adj * image_height) - (image_height / 2)
+                [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
+                x_pixel_offset_adj = int(x_pixel_offset_adj)
+                y_pixel_offset_adj = int(y_pixel_offset_adj)
+                x_ratio_adj = (x_pixel_offset_adj + (image_width / 2)) / image_width
+                y_ratio_adj= (y_pixel_offset_adj + (image_height / 2)) / image_height
+            
+        
+
+            # self.msg_if.pub_warn("Got mouse click pixel", log_name_list = self.log_name_list)
+            # self.msg_if.pub_warn("Click Pixels: " + str([msg.click.x,msg.click.y]), log_name_list = self.log_name_list)
+            # self.msg_if.pub_warn("Pixel Offsets: " + str([self.x_offset,self.y_offset]), log_name_list = self.log_name_list)
+           
+            # self.msg_if.pub_warn("Orig H/W: " + str([self.width_org,self.height_org]), log_name_list = self.log_name_list)
+            # self.msg_if.pub_warn("Proc H/W: " + str([self.width_proc,self.height_proc]), log_name_list = self.log_name_list)
+            # self.msg_if.pub_warn("Pixel Ratios: " + str([x_ratio,y_ratio]), log_name_list = self.log_name_list)
+            # self.msg_if.pub_warn("Pixels Offset_Adj: " + str([x_pixel_offset_adj,y_pixel_offset_adj]), log_name_list = self.log_name_list)
+            # self.msg_if.pub_warn("Pixel Ratios Adj: " + str([x_ratio_adj,y_ratio_adj]), log_name_list = self.log_name_list)
             if self.callback_dict['click_pixel_callback'] is not None:
                     try:
                         self.callback_dict['click_pixel_callback'](pixel,color_bgr,click_count,angles)
@@ -5837,12 +5849,12 @@ class BaseImageIF:
                             if self.zoom_ratio < 0.01:
                                 click_color_rgb = self.overlays_dict['crosshairs_color_rgb']
                                 click_name = 'click'
-                                self.add_crosshair_ratios(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
+                                self.add_crosshair_ratios(x_ratio_adj,y_ratio_adj, color_rgb = click_color_rgb, name = click_name)
             elif self.click_target_enabled == True and click_count == 1:
                             if self.zoom_ratio < 0.01:
                                 click_color_rgb = self.overlays_dict['targets_color_rgb']
                                 click_name = 'click'
-                                self.add_target_ratios(x_ratio,y_ratio, color_rgb = click_color_rgb, name = click_name)
+                                self.add_target_ratios(x_ratio_adj,y_ratio_adj, color_rgb = click_color_rgb, name = click_name)
             else:
                     if click_count == 1:
                         #self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel), log_name_list = self.log_name_list)
@@ -6130,11 +6142,14 @@ class BaseImageIF:
 
     def resetRender3dControlsCb(self, msg):
         self.msg_if.pub_info("Got reset 3D render orientation msg", log_name_list = self.log_name_list)
+        self.live_adjust_dict['live_adjust_rotate_deg'] = 0
         if hasattr(self, 'reset_render_3d_orientation'):
             self.reset_render_3d_orientation()
 
     def resetRender3dPositionCb(self, msg):
         self.msg_if.pub_info("Got reset 3D render position msg", log_name_list = self.log_name_list)
+        self.live_adjust_dict['live_adjust_x_deg'] = 0
+        self.live_adjust_dict['live_adjust_y_deg'] = 0
         if hasattr(self, 'reset_render_3d_position'):
             self.reset_render_3d_position()
 
@@ -8925,7 +8940,7 @@ class PointcloudIF:
 
             # Don't let an over-aggressive control setting blank the data product silently
             if o3d_pc is None or len(o3d_pc.points) == 0:
-                self.msg_if.pub_warn("Process controls returned an empty pointcloud, publishing unprocessed data. Controls: " + str([voxel_size_m,uniform_k_points,outlier_num_neighbors]), log_name_list = self.log_name_list, throttle_s = 5.0)
+                #self.msg_if.pub_warn("Process controls returned an empty pointcloud, publishing unprocessed data. Controls: " + str([voxel_size_m,uniform_k_points,outlier_num_neighbors]), log_name_list = self.log_name_list, throttle_s = 5.0)
                 o3d_pc = pre_process_pc
 
             self.status_msg.point_count = len(o3d_pc.points)
@@ -9813,6 +9828,7 @@ class PointcloudImageIF(BaseImageIF):
     def reset_render_3d_orientation(self):
         """Reset the interactive 3D orientation offsets (rotate, tilt, zoom) to start."""
         defaults = copy.deepcopy(self.DEFAULT_CONTROLS_DICT)
+        
         self.controls_dict['rotate_3d_ratio'] = defaults['rotate_3d_ratio']
         self.controls_dict['tilt_3d_ratio'] = defaults['tilt_3d_ratio']
         self.controls_dict['zoom_3d_ratio'] = defaults['zoom_3d_ratio']
@@ -9824,6 +9840,7 @@ class PointcloudImageIF(BaseImageIF):
     def reset_render_3d_position(self):
         """Reset the interactive 3D position offsets (pan / camera translation) to start."""
         defaults = copy.deepcopy(self.DEFAULT_CONTROLS_DICT)
+
         self.controls_dict['cam_view'] = defaults['cam_view']
         self.controls_dict['cam_pos'] = defaults['cam_pos']
         self.publish_status()

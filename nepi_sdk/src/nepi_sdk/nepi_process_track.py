@@ -29,10 +29,12 @@ from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data
 from nepi_sdk import nepi_img
 
+from sensor_msgs.msg import Image
+
 from nepi_interfaces.msg import Track, TrackStatus
 from nepi_interfaces.msg import Targets, TargetsStatus
 from nepi_interfaces.msg import NavPose
-from nepi_interfaces.msg import Image, ImageStatus
+from nepi_interfaces.msg import ImageStatus
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
