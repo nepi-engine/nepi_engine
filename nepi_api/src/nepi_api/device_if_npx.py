@@ -144,6 +144,10 @@ class NPXDeviceIF:
   # at the moment this becomes True, so its publisher set and the reported flags are
   # always decided together, from the same data.
   navpose_caps_known = False
+  # Set once the "Waiting on NavPose source" warning has been logged. A source can
+  # be absent indefinitely (an app whose NavPose selection is None), so the wait
+  # is announced once at warn and only repeats at debug.
+  navpose_wait_warned = False
 
   #######################
   ### IF Initialization
@@ -709,7 +713,11 @@ class NPXDeviceIF:
         # capability flags were never derived and the NavPose IF was not created.
         # Do both now, off the first read that returns something.
         if navpose_dict is None:
-            self.msg_if.pub_warn("Waiting on NavPose source before creating NavPose IF", throttle_s = 10.0, log_name_list = self.log_name_list)
+            if self.navpose_wait_warned == False:
+                self.navpose_wait_warned = True
+                self.msg_if.pub_warn("Waiting on NavPose source before creating NavPose IF", log_name_list = self.log_name_list)
+            else:
+                self.msg_if.pub_debug("Waiting on NavPose source before creating NavPose IF", throttle_s = 10.0, log_name_list = self.log_name_list)
             nepi_sdk.start_timer_process(1.0, self._updateNavPoseDictCb, oneshot = True)
             return
         try:

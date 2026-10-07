@@ -18,8 +18,9 @@
 #
 
 import os
-import time 
+import time
 import copy
+import threading
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
@@ -87,6 +88,7 @@ class ConnectNodeIF:
     connect_name = None
 
     filter_topics_list = []
+    exclude_namespaces_list = []
     available_topics = []
     available_names = []
     auto_select_enabled = True
@@ -119,6 +121,7 @@ class ConnectNodeIF:
                 connect_status_msg = None,
                 connect_name = None,
                 filter_topics_list = [],
+                exclude_namespaces_list = None,
                 selected_topic = "None",
                 auto_select_enabled = True,
                 show_selector = True,
@@ -184,7 +187,18 @@ class ConnectNodeIF:
         self.show_controls = show_controls
         self.show_data = show_data
 
-        self.filter_topics_list = filter_topics_list          
+        self.filter_topics_list = filter_topics_list
+
+        # Namespaces discovery never offers. A node that HOSTS a device of the
+        # same type it connects to (an app that builds an RBX, which publishes
+        # its own NPX, beside an NPX connect) passes its own node namespace here
+        # so its selector cannot pick the node's own device.
+        self.exclude_namespaces_list = []
+        if exclude_namespaces_list is not None:
+            for exclude_namespace in exclude_namespaces_list:
+                exclude_namespace = str(exclude_namespace).rstrip('/')
+                if exclude_namespace != '':
+                    self.exclude_namespaces_list.append(exclude_namespace)
 
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','').replace('/','_') + '_'
@@ -642,11 +656,29 @@ class ConnectNodeIF:
             self.active_services = msg.active_services
 
 
+    # True when topic is an exclude_namespaces_list namespace or sits below one.
+    # Matches whole namespace levels, so excluding /nepi/dev/app_robot does not
+    # also hide /nepi/dev/app_robot2.
+    def _isExcludedTopic(self, topic):
+        for exclude_namespace in self.exclude_namespaces_list:
+            if topic == exclude_namespace or topic.startswith(exclude_namespace + '/'):
+                return True
+        return False
+
+
     # Discovery/connection timer. Finds available topics of the connect status
     # msg type among the active topics, auto-selects, and subscribes.
     def _updaterCb(self,timer):
         needs_publish = False
         ##############
+
+        # An excluded selection is never discovered, so it would stay selected
+        # and unconnectable forever, and block auto-select, which only fills an
+        # empty selection. Clear it, persisted param included, so a config saved
+        # before the exclusion existed recovers on its own.
+        if self.selected_topic != 'None' and self._isExcludedTopic(self.selected_topic):
+            self.msg_if.pub_warn("Clearing excluded selected_topic: " + str(self.selected_topic))
+            self.set_selected_topic('None')
 
         selected_topic = copy.deepcopy(self.selected_topic)
         last_available = copy.deepcopy(self.available_topics)
@@ -661,6 +693,8 @@ class ConnectNodeIF:
                     if filter in topic:
                         valid = True
                         break
+            if valid == True and self._isExcludedTopic(topic):
+                valid = False
             if valid == True:
                 available_topics.append(topic.replace('/status',''))
         if available_topics != last_available:
@@ -976,6 +1010,9 @@ class ConnectNodeServicesIF:
 
         ##############################  
         # Initialize Services System
+        # Guards srvs_dict: a connect's discovery timer registers from its own
+        # thread while the owning node can unregister from another.
+        self.srvs_lock = threading.RLock()
         self.srvs_dict = services_dict
         if self.srvs_dict is None:
             self.srvs_dict = dict()
@@ -1040,49 +1077,57 @@ class ConnectNodeServicesIF:
 
 
     def register_service(self,service_name, service_dict):
-        self.srvs_dict[service_name] = service_dict
-        self._initializeServices()
+        with self.srvs_lock:
+            self.srvs_dict[service_name] = service_dict
+            self._initializeServices()
 
     def unregister_service(self,service_name):
-        self._unregisterService(service_name)
-
-    def unregister_services(self):
-        for service_name in self.srvs_dict.keys():
+        with self.srvs_lock:
             self._unregisterService(service_name)
 
+    def unregister_services(self):
+        with self.srvs_lock:
+            service_names = list(self.srvs_dict.keys())
+            for service_name in service_names:
+                self._unregisterService(service_name)
+
     def add_services(self,services_dict):
-        self.srvs_dict.update(services_dict)
-        self._initializeServices()
+        with self.srvs_lock:
+            self.srvs_dict.update(services_dict)
+            self._initializeServices()
 
     ###############################
     # Class Private Methods
     ###############################
 
     def _initializeServices(self):
-        for service_name in self.srvs_dict.keys():
-            srv_dict = self.srvs_dict[service_name]
-            if 'service' not in srv_dict.keys():
-                srv_namespace = os.path.join(srv_dict['namespace'],srv_dict['topic'])
-                srv_msg = srv_dict['srv']
-                self.msg_if.pub_debug("Creating service for: " + service_name, log_name_list = self.log_name_list)
-                service = None
-                try:
-                    service = nepi_sdk.connect_service(srv_namespace, srv_msg)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e), log_name_list = self.log_name_list) 
-                self.srvs_dict[service_name]['service'] = service
+        with self.srvs_lock:
+            for service_name in self.srvs_dict.keys():
+                srv_dict = self.srvs_dict[service_name]
+                if 'service' not in srv_dict.keys():
+                    srv_namespace = os.path.join(srv_dict['namespace'],srv_dict['topic'])
+                    srv_msg = srv_dict['srv']
+                    self.msg_if.pub_debug("Creating service for: " + service_name, log_name_list = self.log_name_list)
+                    service = None
+                    try:
+                        service = nepi_sdk.connect_service(srv_namespace, srv_msg)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e), log_name_list = self.log_name_list)
+                    self.srvs_dict[service_name]['service'] = service
 
     def _unregisterService(self, service_name):
-        purge = False
-        if service_name in self.srvs_dict.keys():
-            purge = True
-            if 'service' in srv_dict.keys():
-                try:
-                    self.srvs_dict[service_name]['service'].shutdown()
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e), log_name_list = self.log_name_list) 
-        if purge == True:
-            del self.srvs_dict[service_name]
+        with self.srvs_lock:
+            purge = False
+            if service_name in self.srvs_dict.keys():
+                srv_dict = self.srvs_dict[service_name]
+                purge = True
+                if 'service' in srv_dict.keys() and srv_dict['service'] is not None:
+                    try:
+                        srv_dict['service'].shutdown()
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e), log_name_list = self.log_name_list)
+            if purge == True:
+                del self.srvs_dict[service_name]
 
 
 
@@ -1138,6 +1183,9 @@ class ConnectNodePublishersIF:
         ##############################   
         ##############################  
         # Initialize Publishers System
+        # Guards pubs_dict: a connect's discovery timer registers from its own
+        # thread while the owning node can unregister from another.
+        self.pubs_lock = threading.RLock()
         self.pubs_dict = pubs_dict
         if self.pubs_dict is None:
             self.pubs_dict = dict()
@@ -1201,63 +1249,70 @@ class ConnectNodePublishersIF:
         return success
                     
     def register_pub(self,pub_name, pub_dict):
-        self.pubs_dict[pub_name] = pub_dict
-        self._initializePubs()
+        with self.pubs_lock:
+            self.pubs_dict[pub_name] = pub_dict
+            self._initializePubs()
 
     def register_pubs(self,pubs_dict = None):
-        if pubs_dict is not None:
-            self.pubs_dict.update(pubs_dict)
-        self._initializePubs()
+        with self.pubs_lock:
+            if pubs_dict is not None:
+                self.pubs_dict.update(pubs_dict)
+            self._initializePubs()
 
     def unregister_pub(self,pub_name):
-        self._unregisterPub(pub_name)
-
-    def unregister_pubs(self):
-        pub_names = list(self.pubs_dict.keys())
-        for pub_name in pub_names:
+        with self.pubs_lock:
             self._unregisterPub(pub_name)
 
+    def unregister_pubs(self):
+        with self.pubs_lock:
+            pub_names = list(self.pubs_dict.keys())
+            for pub_name in pub_names:
+                self._unregisterPub(pub_name)
+
     def add_pubs(self,pubs_dict):
-        self.pubs_dict.update(pubs_dict)
-        self.initialize_pubs()
+        with self.pubs_lock:
+            self.pubs_dict.update(pubs_dict)
+            self._initializePubs()
 
     ###############################
     # Class Private Methods
     ###############################
     def _initializePubs(self):
-        for pub_name in self.pubs_dict.keys():
-            pub_dict = self.pubs_dict[pub_name]
-            if 'pub' not in pub_dict.keys():
-                if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_sdk.is_shutdown():
-                    pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
-                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace , log_name_list = self.log_name_list) 
-                    pub = None
-                    if 'qsize' not in pub_dict.keys():
-                        self.pubs_dict[pub_name]['qsize'] = 1
-                        pub_dict['qsize'] = 1
-                    if 'latch' not in pub_dict.keys():
-                        self.pubs_dict[pub_name]['latch'] = False
-                        pub_dict['latch'] = False
-                    try:
-                        pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
-                    self.pubs_dict[pub_name]['pub'] = pub
+        with self.pubs_lock:
+            for pub_name in self.pubs_dict.keys():
+                pub_dict = self.pubs_dict[pub_name]
+                if 'pub' not in pub_dict.keys():
+                    if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_sdk.is_shutdown():
+                        pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
+                        self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace , log_name_list = self.log_name_list)
+                        pub = None
+                        if 'qsize' not in pub_dict.keys():
+                            self.pubs_dict[pub_name]['qsize'] = 1
+                            pub_dict['qsize'] = 1
+                        if 'latch' not in pub_dict.keys():
+                            self.pubs_dict[pub_name]['latch'] = False
+                            pub_dict['latch'] = False
+                        try:
+                            pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
+                        except Exception as e:
+                            self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e), log_name_list = self.log_name_list)
+                        self.pubs_dict[pub_name]['pub'] = pub
 
 
     def _unregisterPub(self, pub_name):
-        purge = False
-        if pub_name in self.pubs_dict.keys():
-            pub_dict = self.pubs_dict[pub_name]
-            purge = True
-            if 'pub' in pub_dict.keys() and not nepi_sdk.is_shutdown():
-                if self.pubs_dict[pub_name]['pub'] is not None:
-                    try:
-                        self.pubs_dict[pub_name]['pub'].unregister()
-                    except Exception as e:
-                        self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
-        if purge == True:
-            del self.pubs_dict[pub_name]
+        with self.pubs_lock:
+            purge = False
+            if pub_name in self.pubs_dict.keys():
+                pub_dict = self.pubs_dict[pub_name]
+                purge = True
+                if 'pub' in pub_dict.keys() and not nepi_sdk.is_shutdown():
+                    if self.pubs_dict[pub_name]['pub'] is not None:
+                        try:
+                            self.pubs_dict[pub_name]['pub'].unregister()
+                        except Exception as e:
+                            self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list)
+            if purge == True:
+                del self.pubs_dict[pub_name]
 
 
 ##################################################
@@ -1310,6 +1365,9 @@ class ConnectNodeSubscribersIF:
 
         ##############################   
 
+        # Guards subs_dict: a connect's discovery timer registers from its own
+        # thread while the owning node can unregister from another.
+        self.subs_lock = threading.RLock()
         self.subs_dict = subs_dict
         if self.subs_dict is None:
             self.subs_dict = dict()
@@ -1350,64 +1408,71 @@ class ConnectNodeSubscribersIF:
 
 
     def register_sub(self,sub_name, sub_dict):
-        self.subs_dict[sub_name] = sub_dict
-        self._initializeSubs()
+        with self.subs_lock:
+            self.subs_dict[sub_name] = sub_dict
+            self._initializeSubs()
 
     def register_subs(self,subs_dict = None):
-        if subs_dict is not None:
-            self.subs_dict.update(subs_dict)
-        self._initializeSubs()
+        with self.subs_lock:
+            if subs_dict is not None:
+                self.subs_dict.update(subs_dict)
+            self._initializeSubs()
 
     def unregister_sub(self,sub_name):
-        self._unregisterSub(sub_name)
-
-    def unregister_subs(self):
-        sub_names = list(self.subs_dict.keys())
-        for sub_name in sub_names:
+        with self.subs_lock:
             self._unregisterSub(sub_name)
 
+    def unregister_subs(self):
+        with self.subs_lock:
+            sub_names = list(self.subs_dict.keys())
+            for sub_name in sub_names:
+                self._unregisterSub(sub_name)
+
     def add_subs(self,subs_dict):
-        self.subs_dict.update(subs_dict)
-        self._initializeSubs()
+        with self.subs_lock:
+            self.subs_dict.update(subs_dict)
+            self._initializeSubs()
     ###############################
     # Class Private Methods
     ###############################
     def _initializeSubs(self):
-        for sub_name in self.subs_dict.keys():
-            sub_dict = self.subs_dict[sub_name]
-            #self.msg_if.pub_warn("Will try to create sub for: " + sub_name, log_name_list = self.log_name_list)
-            if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_sdk.is_shutdown():
-                sub_namespace = nepi_sdk.create_namespace(sub_dict['namespace'],sub_dict['topic'])
-                self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list)
-                if 'callback_args' not in sub_dict.keys():
-                    sub_dict['callback_args'] = ()
-                if sub_dict['callback_args'] is None:
-                    sub_dict['callback_args'] = ()
-                try:
-                    if len(sub_dict['callback_args']) == 0:
-                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'])
-                    else:
-                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
-                    self.subs_dict[sub_name]['sub'] = sub
-                    success = True
-                    #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list)
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e), log_name_list = self.log_name_list)  
-                    self.subs_dict[sub_name]['sub'] = None
-            
+        with self.subs_lock:
+            for sub_name in self.subs_dict.keys():
+                sub_dict = self.subs_dict[sub_name]
+                #self.msg_if.pub_warn("Will try to create sub for: " + sub_name, log_name_list = self.log_name_list)
+                if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_sdk.is_shutdown():
+                    sub_namespace = nepi_sdk.create_namespace(sub_dict['namespace'],sub_dict['topic'])
+                    self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list)
+                    if 'callback_args' not in sub_dict.keys():
+                        sub_dict['callback_args'] = ()
+                    if sub_dict['callback_args'] is None:
+                        sub_dict['callback_args'] = ()
+                    try:
+                        if len(sub_dict['callback_args']) == 0:
+                            sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'])
+                        else:
+                            sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
+                        self.subs_dict[sub_name]['sub'] = sub
+                        success = True
+                        #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list)
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e), log_name_list = self.log_name_list)
+                        self.subs_dict[sub_name]['sub'] = None
+
 
     def _unregisterSub(self, sub_name):
-        purge = False
-        if sub_name in self.subs_dict.keys():
-            sub_dict = self.subs_dict[sub_name]
-            purge = True
-            if 'sub' in sub_dict.keys() and not nepi_sdk.is_shutdown():
-                try:
-                    self.subs_dict[sub_name]['sub'].unregister()
-                except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister sub: " + sub_name + " " + str(e), log_name_list = self.log_name_list)
-        if purge == True:
-            del self.subs_dict[sub_name]
+        with self.subs_lock:
+            purge = False
+            if sub_name in self.subs_dict.keys():
+                sub_dict = self.subs_dict[sub_name]
+                purge = True
+                if 'sub' in sub_dict.keys() and not nepi_sdk.is_shutdown():
+                    try:
+                        self.subs_dict[sub_name]['sub'].unregister()
+                    except Exception as e:
+                        self.msg_if.pub_warn("Failed to get unregister sub: " + sub_name + " " + str(e), log_name_list = self.log_name_list)
+            if purge == True:
+                del self.subs_dict[sub_name]
 
 
 
