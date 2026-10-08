@@ -220,13 +220,21 @@ def update_results(results_dict, navpose_dict = None):
 
         if navpose_dict is None:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-        heading_deg = navpose_dict.get('heading_deg',-999) 
+        if navpose_dict['has_pan_tilt'] == True:
+            heading_deg = navpose_dict.get('pan_tilt_heading_deg',-999)
+            pitch_deg = navpose_dict.get('pan_tilt_pitch_deg',-999) 
+            roll_deg = navpose_dict.get('pan_tilt_roll_deg',-999)
+        else:
+            heading_deg = navpose_dict.get('heading_deg',-999) 
+            pitch_deg = navpose_dict.get('pitch_deg',-999) 
+            roll_deg = navpose_dict.get('roll_deg',-999)
+
         if int(heading_deg) == -999:
             heading_deg = 0
-        pitch_deg = navpose_dict.get('pitch_deg',-999) 
+        
         if int(pitch_deg) == -999:
             pitch_deg = 0
-        roll_deg = navpose_dict.get('roll_deg',-999) 
+         
         if int(roll_deg) == -999:
             roll_deg = 0
 
