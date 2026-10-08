@@ -2582,31 +2582,7 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._clearTargetsCb
             },
-            ####################################
-            self.node_if_prefix + 'all_set_aspect_adjust_enable': {
-                'namespace': self.all_namespace,
-                'topic': 'set_aspect_adjust_enable',
-                'msg': Bool,
-                'qsize': 5,
-                'callback': self._setAspectAdjustEnableCb,
-                'callback_args': ()
-            },
-              self.node_if_prefix + 'all_set_aspect_adjust_ratio': {
-                'namespace': self.all_namespace,
-                'topic': 'set_aspect_adjust_ratio',
-                'msg': Float32,
-                'qsize': 5,
-                'callback': self._setAspectAdjustRatioCb,
-                'callback_args': ()
-            },
-              self.node_if_prefix + 'all_set_aspect_adjust_by_ratio': {
-                'namespace': self.all_namespace,
-                'topic': 'set_aspect_adjust_by_ratio',
-                'msg': Float32,
-                'qsize': 5,
-                'callback': self._setAspectAdjustByRatioCb,
-                'callback_args': ()
-            },
+
             ####################################
             self.node_if_prefix + 'all_set_stream_compression_enable': {
                 'namespace': self.all_namespace,
@@ -2624,80 +2600,8 @@ class BaseImageIF:
                 'callback': self._setStreamCompressionRatioCb,
                 'callback_args': ()
             },
-            ####################################
-            self.node_if_prefix + 'all_set_live_adjust_enable': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_enable',
-                'msg': Bool,
-                'qsize': 5,
-                'callback': self._setLiveAdjustEnableCb,
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'all_set_live_adjust_rotate_ratio': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_rotate_ratio',
-                'msg': Float32,
-                'qsize': 5,
-                'callback': self._setLiveAdjustRotateRatioCb,
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'all_set_live_adjust_rotate_deg': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_rotate_deg',
-                'msg': Float32,
-                'qsize': 5,
-                'callback': self._setLiveAdjustRotateDegCb,
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'all_set_live_adjust_x_ratio': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_x_ratio',
-                'msg': Float32,
-                'qsize': 5,
-                'callback': self._setLiveAdjustTranXRatioCb,
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'all_set_live_adjust_x_pixel': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_x_pixel',
-                'msg': Int32,
-                'qsize': 5,
-                'callback': self._setLiveAdjustTranXPixelCb,
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'all_set_live_adjust_x_deg': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_x_deg',
-                'msg': Float32,
-                'qsize': 5,
-                'callback': self._setLiveAdjustTranXDegCb,
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'all_set_live_adjust_y_ratio': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_y_ratio',
-                'msg': Float32,
-                'qsize': 5,
-                'callback': self._setLiveAdjustTranYRatioCb,
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'all_set_live_adjust_y_pixel': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_y_pixel',
-                'msg': Int32,
-                'qsize': 5,
-                'callback': self._setLiveAdjustTranYPixelCb,
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'all_set_live_adjust_y_deg': {
-                'namespace': self.all_namespace,
-                'topic': 'set_live_adjust_y_deg',
-                'msg': Float32,
-                'qsize': 5,
-                'callback': self._setLiveAdjustTranYDegCb,
-                'callback_args': ()
-            },
 
+            ####################################
             self.node_if_prefix + 'system_status': {
                 'msg': MgrSystemStatus,
                 'namespace': self.base_namespace,
@@ -2708,6 +2612,113 @@ class BaseImageIF:
         }
 
 
+
+        if self.live_adjustments_disabled == False:
+            self.SUBS_DICT.update( {
+                self.node_if_prefix + 'all_set_live_adjust_enable': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_enable',
+                    'msg': Bool,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustEnableCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_live_adjust_rotate_ratio': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_rotate_ratio',
+                    'msg': Float32,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustRotateRatioCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_live_adjust_rotate_deg': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_rotate_deg',
+                    'msg': Float32,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustRotateDegCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_live_adjust_x_ratio': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_x_ratio',
+                    'msg': Float32,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustTranXRatioCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_live_adjust_x_pixel': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_x_pixel',
+                    'msg': Int32,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustTranXPixelCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_live_adjust_x_deg': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_x_deg',
+                    'msg': Float32,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustTranXDegCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_live_adjust_y_ratio': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_y_ratio',
+                    'msg': Float32,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustTranYRatioCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_live_adjust_y_pixel': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_y_pixel',
+                    'msg': Int32,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustTranYPixelCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_live_adjust_y_deg': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_live_adjust_y_deg',
+                    'msg': Float32,
+                    'qsize': 5,
+                    'callback': self._setLiveAdjustTranYDegCb,
+                    'callback_args': ()
+                }
+
+            })
+
+
+        if self.aspect_adjustment_disabled == False:
+            self.SUBS_DICT.update( {
+                self.node_if_prefix + 'all_set_aspect_adjust_enable': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_aspect_adjust_enable',
+                    'msg': Bool,
+                    'qsize': 5,
+                    'callback': self._setAspectAdjustEnableCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_aspect_adjust_ratio': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_aspect_adjust_ratio',
+                    'msg': Float32,
+                    'qsize': 5,
+                    'callback': self._setAspectAdjustRatioCb,
+                    'callback_args': ()
+                },
+                self.node_if_prefix + 'all_set_aspect_adjust_by_ratio': {
+                    'namespace': self.all_namespace,
+                    'topic': 'set_aspect_adjust_by_ratio',
+                    'msg': Float32,
+                    'qsize': 5,
+                    'callback': self._setAspectAdjustByRatioCb,
+                    'callback_args': ()
+                },
+
+            })
 
         # Create subs if required
         if caps_dict['has_resolution'] == True:
@@ -3375,7 +3386,7 @@ class BaseImageIF:
         """
         return cv2_img
 
-    def publish_cv2_img(self, cv2_img,
+    def publish_cv2_img(self, cv2_img_org,
                         encoding = "bgr8",
                         timestamp = None,
                         width_deg = 100,
@@ -3422,7 +3433,7 @@ class BaseImageIF:
             was skipped or an error occurred.
         """
         
-
+        cv2_img = copy.deepcopy(cv2_img_org)
         if self.navpose_if is not None:
             navpose_dict = self.navpose_if.get_navpose_dict()
         else:
@@ -3436,7 +3447,6 @@ class BaseImageIF:
 
         if self.publishing == False:
             self.publishing = True
-
 
 
             #self.msg_if.pub_debug("Got Image to Publish", log_name_list = self.log_name_list, throttle_s = 5.0)
@@ -3500,7 +3510,7 @@ class BaseImageIF:
                     cv2_img = self.process_cv2_img(cv2_img)
                 if cv2_img is not None:
                     
-                    
+                    cv2_img = self._liveAdjust(cv2_img)                      
 
                     [height,width] = cv2_img.shape[0:2]
                     [self.height_proc,self.width_proc] = [height,width]
@@ -3514,7 +3524,7 @@ class BaseImageIF:
                     self.status_msg.resolution_current = res_str
 
                     if height > 5 and width > 5:
- 
+
                         ######################             
                         crosshairs_dict = self.overlays_dict['crosshairs_dict']
                         crosshair_len = len(list(crosshairs_dict.keys()))
@@ -3524,7 +3534,7 @@ class BaseImageIF:
                         overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
                         overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
                         if crosshair_len > 0 and crosshairs_enabled == True:
-                            
+                            #self.msg_if.pub_warn("Rendering image overlays: " + str(self.overlays_dict) , log_name_list = self.log_name_list, throttle_s = 5)
                             for crosshair_name in crosshairs_dict.keys():
                                 crosshair_dict = crosshairs_dict[crosshair_name]
                                 #self.msg_if.pub_warn("Rendering image with crosshair_dict: " + str(crosshair_dict) , log_name_list = self.log_name_list)
@@ -3554,7 +3564,34 @@ class BaseImageIF:
                                     y_pixel = 0
                                 if y_pixel > self.height_proc:
                                     y_pixel = self.height_proc
-                                #self.msg_if.pub_warn("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
+                               
+                                pixel = [x_pixel,y_pixel]
+                                pixel_adj = copy.deepcopy(pixel)
+                                x_pixel_offset_adj = pixel[0]
+                                y_pixel_offset_adj = pixel[1]
+                                x_ratio_adj = copy.deepcopy(x_ratio)
+                                y_ratio_adj = copy.deepcopy(y_ratio)
+
+                                if self.live_adjust_dict['live_adjust_enabled'] == True:
+                                    r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
+                                    x_deg = self.live_adjust_dict['live_adjust_x_deg']
+                                    y_deg = self.live_adjust_dict['live_adjust_y_deg']
+                                    if r_deg != 0 or x_deg != 0 or y_deg != 0:
+                                        x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
+                                        y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
+                                        deg_adj =  r_deg
+                                        x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
+                                        y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
+                                        [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
+                                        x_pixel_offset_adj = int(x_pixel_offset_adj)
+                                        y_pixel_offset_adj = int(y_pixel_offset_adj)
+                                        x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
+                                        y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
+                                        pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
+                                [x_pixel,y_pixel] = pixel_adj   
+
+                                #self.msg_if.pub_warn("Rendering crosshair y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
+                                self.msg_if.pub_warn("Rendering crosshair pixel,pixel_adj: " + str([pixel,pixel_adj]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
                                 crosshair_rbg = crosshair_dict['color_rgb']
@@ -3573,7 +3610,7 @@ class BaseImageIF:
                                 crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
                                 crosshairs_thickness_ratio = self.overlays_dict['crosshairs_thickness_ratio']
                                 crosshairs_text_ratio = self.overlays_dict['crosshairs_text_ratio']
-                                #self.msg_if.pub_warn("Rendering image crosshair: " + str([x_pixel,y_pixel]) , log_name_list = self.log_name_list)
+                                #self.msg_if.pub_warn("Rendering image crosshair: " + str([x_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
                                                         x_px = x_pixel , y_px = y_pixel, 
                                                         color_rgb = crosshair_rbg, 
@@ -3614,6 +3651,32 @@ class BaseImageIF:
                                 y_offset_pixel = int((y_offset_ratio * self.height_org))
                                 y_pixel = int((self.height_proc/2) + y_offset_pixel)
 
+
+                                pixel = [x_pixel,y_pixel]
+                                pixel_adj = copy.deepcopy(pixel)
+                                x_pixel_offset_adj = pixel[0]
+                                y_pixel_offset_adj = pixel[1]
+                                x_ratio_adj = copy.deepcopy(x_ratio)
+                                y_ratio_adj = copy.deepcopy(y_ratio)
+                                
+                                if self.live_adjust_dict['live_adjust_enabled'] == True:
+                                    r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
+                                    x_deg = self.live_adjust_dict['live_adjust_x_deg']
+                                    y_deg = self.live_adjust_dict['live_adjust_y_deg']
+                                    if r_deg != 0 or x_deg != 0 or y_deg != 0:
+                                        x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
+                                        y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
+                                        deg_adj =  r_deg
+                                        x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
+                                        y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
+                                        [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
+                                        x_pixel_offset_adj = int(x_pixel_offset_adj)
+                                        y_pixel_offset_adj = int(y_pixel_offset_adj)
+                                        x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
+                                        y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
+                                        pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
+                                [x_pixel,y_pixel] = pixel_adj   
+
                                 #self.msg_if.pub_warn("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
@@ -3647,8 +3710,7 @@ class BaseImageIF:
                         if process_data == True and  cv2_img is not None:
                              cv2_img = self._zoomAdjust(cv2_img)
 
-                        if process_data == True and  cv2_img is not None:
-                            cv2_img = self._liveAdjust(cv2_img)       
+     
 
                         if cv2_img is not None:
                             [height,width] = cv2_img.shape[0:2]
@@ -3759,7 +3821,7 @@ class BaseImageIF:
 
    
             except Exception as e:
-                self.msg_if.pub_warn("Failed to publish image: " + str(e), log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Failed to publish image: " + str(e), log_name_list = self.log_name_list, throttle_s = 5)
         self.publishing = False
         return cv2_img
         
@@ -4745,7 +4807,7 @@ class BaseImageIF:
         y_ratio = nepi_utils.check_ratio(y_ratio)
         x_deg = -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
         y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
-        # self.msg_if.pub_info("Adding Crosshair ratio to degs: " + str([x_ratio,x_deg,y_ratio,y_deg]), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Adding Crosshair ratio to degs: " + str([x_ratio,y_ratio,x_deg,y_deg]), log_name_list = self.log_name_list, throttle_s = 5)
         self.add_crosshair_degs(x_deg, y_deg, name, color_rgb, msg_str)
 
 
@@ -5036,7 +5098,7 @@ class BaseImageIF:
     #############################
 
     def set_live_adjust_enable(self,enabled):
-        self.live_adjust_dict['live_adjust_enabled'] = enabled and self.live_adjustments_disabled == False
+        self.live_adjust_dict['live_adjust_enabled'] = enabled
         self.live_adjust_enabled = self.live_adjust_dict['live_adjust_enabled']
         if self.node_if is not None:
             self.node_if.set_param(self.node_if_prefix +  'live_adjust_enabled', self.live_adjust_enabled)
@@ -5527,7 +5589,7 @@ class BaseImageIF:
 
 
 
-            self.live_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'live_adjust_enabled') and self.live_adjustments_disabled == False
+            self.live_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'live_adjust_enabled')
             self.live_adjust_dict['live_adjust_enabled'] = self.live_adjust_enabled
 
             aspect_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'aspect_adjust_enabled')
@@ -5750,7 +5812,7 @@ class BaseImageIF:
         ########### Live Adjust
         ###### Rotation Update
         live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
-        live_adjust_enabled = live_adjust_dict['live_adjust_enabled'] and self.live_adjustments_disabled == False
+        live_adjust_enabled = live_adjust_dict['live_adjust_enabled']
         if live_adjust_enabled:
             live_adjust_rotate_deg = live_adjust_dict['live_adjust_rotate_deg']
             live_adjust_x_deg = live_adjust_dict['live_adjust_x_deg']
@@ -5779,8 +5841,8 @@ class BaseImageIF:
     def _mouseEventCb(self,msg):
         #self.msg_if.pub_info("Received mouse event message: " + str(msg), log_name_list = self.log_name_list)
 
-        image_width = self.status_msg.width_px
-        image_height = self.status_msg.height_px
+        width = self.status_msg.width_px
+        height = self.status_msg.height_px
 
 
         pixel = [int(msg.click.x   + self.x_offset), int(msg.click.y   + self.y_offset)]
@@ -5798,25 +5860,40 @@ class BaseImageIF:
         y_ratio_adj = copy.deepcopy(y_ratio)
 
         pixel_adj = copy.deepcopy(pixel)
-        
-        if self.live_adjust_dict['live_adjust_enabled'] == True and self.live_adjustments_disabled == False:
+
+        if self.live_adjust_dict['live_adjust_enabled'] == True:
             r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
             x_deg = self.live_adjust_dict['live_adjust_x_deg']
             y_deg = self.live_adjust_dict['live_adjust_y_deg']
             if r_deg != 0 or x_deg != 0 or y_deg != 0:
-                x_ratio_adj = x_ratio_adj + (image_width / 2) * ( x_deg / (self.width_deg / 2)) / image_width
-                y_ratio_adj = y_ratio_adj + (image_height / 2) * (y_deg / (self.height_deg / 2)) / image_height
+                x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
+                y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
                 deg_adj =  -1 * r_deg
-                x_pixel_offset_adj =  (x_ratio_adj * image_width) - (image_width / 2) 
-                y_pixel_offset_adj =  (y_ratio_adj * image_height) - (image_height / 2)
+                x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
+                y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
                 [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
                 x_pixel_offset_adj = int(x_pixel_offset_adj)
                 y_pixel_offset_adj = int(y_pixel_offset_adj)
-                x_ratio_adj = (x_pixel_offset_adj + (image_width / 2)) / image_width
-                y_ratio_adj= (y_pixel_offset_adj + (image_height / 2)) / image_height
-                pixel_adj = [x_ratio_adj * image_width, y_ratio_adj * image_height]
-                
+                x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
+                y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
+                pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
+        pixel = pixel_adj        
 
+        
+        image_fov_horz = self.status_msg.width_deg
+        image_fov_vert = self.status_msg.height_deg
+        pixel_vert_angle_deg = 0
+        pixel_horz_angle_deg = 0
+        object_loc_x_ratio_from_center = 0
+        object_loc_y_ratio_from_center = 0
+        if width > 10 and height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
+            object_loc_x_ratio_from_center = float(pixel[0] - width/2) / float(width/2)
+            object_loc_y_ratio_from_center = float(pixel[0] - height/2) / float(height/2)
+            pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
+            pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
+        angles = [pixel_horz_angle_deg,pixel_vert_angle_deg]
+
+        
         # self.msg_if.pub_warn("Got mouse click pixel", log_name_list = self.log_name_list)
         # self.msg_if.pub_warn("Click Pixels: " + str([msg.click.x,msg.click.y]), log_name_list = self.log_name_list)
         # self.msg_if.pub_warn("Pixel Offsets: " + str([self.x_offset,self.y_offset]), log_name_list = self.log_name_list)
@@ -5827,21 +5904,8 @@ class BaseImageIF:
         # self.msg_if.pub_warn("Pixels Offset_Adj: " + str([x_pixel_offset_adj,y_pixel_offset_adj]), log_name_list = self.log_name_list)
         # self.msg_if.pub_warn("Pixel Ratios Adj: " + str([x_ratio_adj,y_ratio_adj]), log_name_list
 
-        pixel = pixel_adj
-        image_fov_horz = self.status_msg.width_deg
-        image_fov_vert = self.status_msg.height_deg
-        pixel_vert_angle_deg = 0
-        pixel_horz_angle_deg = 0
-        object_loc_x_ratio_from_center = 0
-        object_loc_y_ratio_from_center = 0
-        if image_width > 10 and image_height > 10 and image_fov_horz > 10 and image_fov_vert > 10:
-            object_loc_x_ratio_from_center = float(pixel[0] - image_width/2) / float(image_width/2)
-            object_loc_y_ratio_from_center = float(pixel[0] - image_height/2) / float(image_height/2)
-            pixel_vert_angle_deg = (object_loc_y_ratio_from_center * float(image_fov_vert/2))
-            pixel_horz_angle_deg = - (object_loc_x_ratio_from_center * float(image_fov_horz/2))
-        angles = [pixel_horz_angle_deg,pixel_vert_angle_deg]
-        #self.msg_if.pub_warn("Received Click event message: " + str(msg) + " with click crosshair set to: " + str(self.click_crosshair_enabled), log_name_list = self.log_name_list)
-        
+
+
 
         if self.callback_dict['mouse_event_callback'] is not None:
             try:
