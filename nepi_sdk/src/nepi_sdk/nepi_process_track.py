@@ -282,6 +282,10 @@ track_1_dict = {
                     # OPTIONAL
                     'display_name':'Age (Sec)', 'description':'Age in seconds', 'display_hidden':False, 'round_display': 3,},
 
+        range_m = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'display_hidden':False, 'round_display': 1,},
+                    
         azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
                     'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to tracked target', 'display_hidden':False, 'round_display': 1,},
@@ -290,9 +294,7 @@ track_1_dict = {
                     # OPTIONAL
                     'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'display_hidden':False, 'round_display': 1,},
 
-        range_m = {"type":"Float", "value":-999, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'display_hidden':False, 'round_display': 1,},
+
     ),
 
     'states_dict': dict(

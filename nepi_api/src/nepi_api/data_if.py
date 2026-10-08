@@ -3591,7 +3591,7 @@ class BaseImageIF:
                                 [x_pixel,y_pixel] = pixel_adj   
 
                                 #self.msg_if.pub_warn("Rendering crosshair y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel]) , log_name_list = self.log_name_list, throttle_s = 5)
-                                self.msg_if.pub_warn("Rendering crosshair pixel,pixel_adj: " + str([pixel,pixel_adj]) , log_name_list = self.log_name_list, throttle_s = 5)
+                                #self.msg_if.pub_warn("Rendering crosshair pixel,pixel_adj: " + str([pixel,pixel_adj]) , log_name_list = self.log_name_list, throttle_s = 5)
 
 
                                 crosshair_rbg = crosshair_dict['color_rgb']
@@ -3658,7 +3658,7 @@ class BaseImageIF:
                                 y_pixel_offset_adj = pixel[1]
                                 x_ratio_adj = copy.deepcopy(x_ratio)
                                 y_ratio_adj = copy.deepcopy(y_ratio)
-                                
+
                                 if self.live_adjust_dict['live_adjust_enabled'] == True:
                                     r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
                                     x_deg = self.live_adjust_dict['live_adjust_x_deg']
