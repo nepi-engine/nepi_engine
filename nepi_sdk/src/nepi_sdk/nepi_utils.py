@@ -25,6 +25,7 @@
 import os
 import re
 import sys
+import math
 import shutil
 import time
 import subprocess
@@ -1033,6 +1034,18 @@ def get_closest_odd_integer(f_num):
         else:
             return int(upper_odd)
         
+def rotate_point(x, y, degrees):
+    # Convert angle from degrees to radians
+    radians = math.radians(degrees)
+    
+    # Apply the standard 2D rotation matrix formulas
+    cos_val = math.cos(radians)
+    sin_val = math.sin(radians)
+    
+    new_x = x * cos_val - y * sin_val
+    new_y = x * sin_val + y * cos_val
+    
+    return new_x, new_y
 
 ##################
 ## Misc Check Functions

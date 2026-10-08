@@ -48,14 +48,8 @@ logger = Logger(log_name = log_name)
 DEFAULT_PROCESS_NAME = 'targets'
 DEFAULT_PROCESS = 'targets_1'
 
-
-SOURCE_MSG = Targets
-SOURCE_STATUS_MSG = TargetsStatus
-SOURCE_STATUS_TYPE = 'nepi_interfaces/TargetsStatus'
-SOURCE_NAME_FILTERS = None
-
-RESULTS_PUB_MSG = TargetsStatus
-RESULTS_PUB_TYPE = 'nepi_interfaces/TargetsStatus'
+RESULTS_PUB_MSG = Targets
+RESULTS_PUB_TYPE = 'nepi_interfaces/Targets'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
 RESULTS_PUB_TOPIC = 'targets'
 

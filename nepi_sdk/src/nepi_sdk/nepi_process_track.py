@@ -26,13 +26,14 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_process
 from nepi_sdk import nepi_controls
-from nepi_sdk import nepi_data
+from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_img
 
-from nepi_interfaces.msg import Track, TrackStatus
-from nepi_interfaces.msg import Targets, TargetsStatus
+from sensor_msgs.msg import Image
+
+from nepi_interfaces.msg import Track
 from nepi_interfaces.msg import NavPose
-from nepi_interfaces.msg import Image, ImageStatus
+from nepi_interfaces.msg import ImageStatus
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
@@ -46,15 +47,11 @@ DEFAULT_PROCESS_NAME = 'track'
 DEFAULT_PROCESS = 'track_1'
 
 
-SOURCE_MSG = Targets
-SOURCE_STATUS_MSG = TargetsStatus
-SOURCE_STATUS_TYPE = 'nepi_interfaces/TargetsStatus'
-SOURCE_NAME_FILTERS = None
-
-RESULTS_PUB_MSG = TrackStatus
-RESULTS_PUB_TYPE = 'nepi_interfaces/TrackStatus'
+RESULTS_PUB_MSG = Track
+RESULTS_PUB_TYPE = 'nepi_interfaces/Track'
 RESULTS_PUB_DICT = nepi_sdk.convert_msg2dict(RESULTS_PUB_MSG())
 RESULTS_PUB_TOPIC = 'track'
+
 
 IMAGE_PUB_TOPIC = 'track_image'
 
@@ -70,14 +67,19 @@ def filter_by_classes(targets_dict_list, class_filter_list):
 
 
     filtered_targets = []
-    for name in class_filter_list:
-        for target_dict in targets_dict_list:
-            if target_dict['name'] == name:
-                filtered_targets.append(target_dict)
-                #logger.log_info("Added target with name: " + str(name))
+    if class_filter_list is None:
+        class_filter_list = []
+    if len(class_filter_list) == 0:
+        filtered_targets = copy.deepcopy(targets_dict_list)
+    else:
+        for name in class_filter_list:
+            for target_dict in targets_dict_list:
+                if target_dict['name'] == name:
+                    filtered_targets.append(target_dict)
+                    #logger.log_info("Added target with name: " + str(name))
 
-    # for target_dict in filtered_targets:   
-    #     logger.log_info("Returning target with name: " + str(name))
+        # for target_dict in filtered_targets:   
+        #     logger.log_info("Returning target with name: " + str(name))
     return filtered_targets
     
 
@@ -203,16 +205,58 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
     #logger.log_info("Got filtered_dict " + str(filtered_track))
     return best_target
 
-def update_results(results_dict):
+def update_results(results_dict, navpose_dict = None):
     if results_dict is not None:
-        #logger.log_warn("Got Targets Dict: " + str([results_dict]), throttle_s = 5)
+        azimuth_deg = results_dict.get('azimuth_deg',-999) 
+        if int(azimuth_deg) == -999:
+            azimuth_deg = 0
+        elevation_deg = results_dict.get('elevation_deg',-999) 
+        if int(elevation_deg) == -999:
+            elevation_deg = 0
+        rotation_deg = results_dict.get('rotation_deg',-999) 
+        if int(rotation_deg) == -999:
+            rotation_deg = 0
+
+
+        if navpose_dict is None:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        if navpose_dict['has_pan_tilt'] == True:
+            if navpose_dict['has_heading'] == True:
+                heading_deg = navpose_dict.get('pan_tilt_heading_deg',-999)
+            else:
+                heading_deg = navpose_dict.get('pan_tilt_yaw_deg',-999)
+            pitch_deg = navpose_dict.get('pan_tilt_pitch_deg',-999) 
+            roll_deg = navpose_dict.get('pan_tilt_roll_deg',-999)
+        else:
+            if navpose_dict['has_heading'] == True:
+                heading_deg = navpose_dict.get('heading_deg',-999)
+            else:
+                heading_deg = navpose_dict.get('yaw_deg',-999)
+            pitch_deg = navpose_dict.get('pitch_deg',-999) 
+            roll_deg = navpose_dict.get('roll_deg',-999)
+
+        if int(heading_deg) == -999:
+            heading_deg = 0
+        
+        if int(pitch_deg) == -999:
+            pitch_deg = 0
+         
+        if int(roll_deg) == -999:
+            roll_deg = 0
+
+        results_dict['heading_deg'] = heading_deg + azimuth_deg
+        results_dict['pitch_deg'] = pitch_deg + elevation_deg
+        results_dict['roll_deg'] = roll_deg + rotation_deg
+
+        
+        
         timestamp = results_dict.get('timestamp',-999)
         if timestamp == -999:
-            age_sec = -999
-        else:
-            age_sec =  nepi_utils.get_time() - timestamp
+            timestamp == nepi_utils.get_time()
+        age_sec =  nepi_utils.get_time() - timestamp
         results_dict['timestamp'] = timestamp
         results_dict['age_sec'] = age_sec
+        logger.log_warn("Updated Results Dict: " + str([results_dict]), throttle_s = 5)
     return results_dict
 
 
@@ -250,22 +294,27 @@ track_1_dict = {
 
         size_min_filter = {
             'type': 'FloatSlider', 'value': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
-            'display_name': 'Max Range (m)',
+            'display_name': 'Min Size',
             'description': 'Ignore targets with pixel areas less than min.', 'display_hidden': False},
 
         size_max_filter = {
             'type': 'FloatSlider', 'value': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
-            'display_name': 'Max Range (m)',
+            'display_name': 'Max Size',
             'description': 'Ignore targets with pixel areas larger than max.', 'display_hidden': False},
 
         threshold_filter = {
             'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
-            'display_name': 'Max Range (m)',
+            'display_name': 'Threshold',
             'description': 'Ignore targets with confidance lower than threshold.', 'display_hidden': False},
 
         best_filter = {"type":"Selection", "value":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
                    # OPTIONAL
                    'display_name':'Best Filter', 'description':'Set Best Filte', 'display_hidden':False}, 
+
+        timeout = {
+            'type': 'Float', 'value': 2, 'bounds': [0.0, 10], 'round_value': 1,
+            'display_name': 'Timeout',
+            'description': 'Drop Track if older than Timeout', 'display_hidden': False},
 
     ),
 
@@ -280,6 +329,10 @@ track_1_dict = {
                     # OPTIONAL
                     'display_name':'Age (Sec)', 'description':'Age in seconds', 'display_hidden':False, 'round_display': 3,},
 
+        range_m = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'display_hidden':False, 'round_display': 1,},
+
         azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
                     'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to tracked target', 'display_hidden':False, 'round_display': 1,},
@@ -288,9 +341,20 @@ track_1_dict = {
                     # OPTIONAL
                     'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'display_hidden':False, 'round_display': 1,},
 
-        range_m = {"type":"Float", "value":-999, 'round_value': 2,
+        heading_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
-                    'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'display_hidden':False, 'round_display': 1,},
+                    'display_name':'Heading (Deg)', 'description':'Heading Degrees in navpose frame to tracked target', 'display_hidden':False, 'round_display': 1,},
+
+        roll_deg = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Roll (Deg)', 'description':'Roll Degrees in navpose frameto tracked target', 'display_hidden':False, 'round_display': 1,},
+
+        pitch_deg = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Pitch (Deg)', 'description':'Pitch Degrees in navpose frame  to tracked target', 'display_hidden':False, 'round_display': 1,},
+
+
+
     ),
 
     'states_dict': dict(
@@ -313,9 +377,11 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict):
 
     #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
     track_dict = None
-    filtered_targets = data_dict.get('targets_dict_list', [])
-    if filtered_targets is None:
-        filtered_targets = []
+    targets_dict_list = data_dict.get('targets_dict_list', [])
+    navpose_dict = data_dict.get('navpose_dict', nepi_nav.BLANK_NAVPOSE_DICT)
+    if targets_dict_list is None:
+        targets_dict_list = []
+    filtered_targets = copy.deepcopy(targets_dict_list)
 
     class_filters = controls_values_dict['class_filters']
     filtered_targets = filter_by_classes(filtered_targets, class_filters)
@@ -334,9 +400,20 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict):
         data_dict['last_track_time'] = nepi_utils.get_time()
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
-    results_dict = track_dict
-    results_dict = update_results(results_dict)
-    #logger.log_warn("Process Completed: " + str(results_dict), throttle_s = 5)
+
+    # Update Results Dict
+    if track_dict is not None:
+        results_dict = track_dict
+        results_dict = update_results(results_dict, navpose_dict)
+    elif results_dict is not None:
+        timeout = controls_values_dict['timeout']
+        timestamp = results_dict.get('timestamp',-999)
+        if timestamp != -999:
+            last_track =  nepi_utils.get_time() - timestamp
+            if last_track > timeout:
+                results_dict = None
+        
+    logger.log_warn("Process Completed: " + str([track_dict,results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
     return data_dict, controls_dict, states_dict, results_dict
 
 
@@ -353,119 +430,119 @@ functions_dict['track_1'] = track_1_process
 
 
 
-track_2_dict = {
+# track_2_dict = {
 
    
-    'data_dict': dict(
-        targets_dict_list = [], 
-        navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
-        last_track_time = 0,
-        last_track_dict = None
-    ),
+#     'data_dict': dict(
+#         targets_dict_list = [], 
+#         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
+#         last_track_time = 0,
+#         last_track_dict = None
+#     ),
 
 
-    'controls_dict': dict(
+#     'controls_dict': dict(
 
-        class_filters = {"type":"Selections", "value":[], "options":[], 
-                   # OPTIONAL
-                   'display_name':'Select Classes', 'description':'Set Class Filters', 'display_hidden':False}, 
+#         class_filters = {"type":"Selections", "value":[], "options":[], 
+#                    # OPTIONAL
+#                    'display_name':'Select Classes', 'description':'Set Class Filters', 'display_hidden':False}, 
 
-        size_min_filter = {
-            'type': 'FloatSlider', 'value': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with pixel areas less than min.', 'display_hidden': False},
+#         size_min_filter = {
+#             'type': 'FloatSlider', 'value': 0.001, 'bounds': [0.0, 1.0], 'round_value': 3,
+#             'display_name': 'Max Range (m)',
+#             'description': 'Ignore targets with pixel areas less than min.', 'display_hidden': False},
 
-        size_max_filter = {
-            'type': 'FloatSlider', 'value': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with pixel areas larger than max.', 'display_hidden': False},
+#         size_max_filter = {
+#             'type': 'FloatSlider', 'value': 0.99, 'bounds': [0.0, 1.0], 'round_value': 3,
+#             'display_name': 'Max Range (m)',
+#             'description': 'Ignore targets with pixel areas larger than max.', 'display_hidden': False},
 
-        threshold_filter = {
-            'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
-            'display_name': 'Max Range (m)',
-            'description': 'Ignore targets with confidance lower than threshold.', 'display_hidden': False},
+#         threshold_filter = {
+#             'type': 'FloatSlider', 'value': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
+#             'display_name': 'Max Range (m)',
+#             'description': 'Ignore targets with confidance lower than threshold.', 'display_hidden': False},
 
-        best_filter = {"type":"Selection", "value":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
-                   # OPTIONAL
-                   'display_name':'Best Filter', 'description':'Set Best Filte', 'display_hidden':False}, 
+#         best_filter = {"type":"Selection", "value":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
+#                    # OPTIONAL
+#                    'display_name':'Best Filter', 'description':'Set Best Filte', 'display_hidden':False}, 
 
-    ),
-
-
-    'results_display_dict': dict(
-
-        timestamp = {"type":"Float", "value":-999,
-                    # OPTIONAL
-                    'display_name':'Timestamp', 'description':'Timestamp', 'display_hidden':True},
-
-        age_sec = {"type":"Float", "value":-999, 'round_value': 3,
-                    # OPTIONAL
-                    'display_name':'Age (Sec)', 'description':'Age in seconds', 'display_hidden':False, 'round_display': 3,},
-
-        azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to tracked target', 'display_hidden':False, 'round_display': 1,},
-
-        elevation_deg = {"type":"Float", "value":-999, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'display_hidden':False, 'round_display': 1,},
-
-        range_m = {"type":"Float", "value":2.0, 'round_value': 2,
-                    # OPTIONAL
-                    'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'display_hidden':False, 'round_display': 1,},
-    ),
-
-    'states_dict': dict(
-
-        tracking = {"type":"Bool", "value": False,
-                    # OPTIONAL
-                    'display_name':'Tracking'},
-    ),
-}
+#     ),
 
 
-def track_2_process(data_dict, controls_dict, states_dict, results_dict):
-    start_time = nepi_utils.get_time()
-    last_data_dict = copy.deepcopy(data_dict)
-    last_results_dict = copy.deepcopy(results_dict)
-    controls_values_dict = nepi_controls.get_values_dict(controls_dict)
-    #logger.log_warn("Got  Data: " + str(data_dict), throttle_s = 10)
-    #logger.log_warn("Got  Data,Controls: " + str([data_dict,controls_values_dict]), throttle_s = 10)
+#     'results_display_dict': dict(
+
+#         timestamp = {"type":"Float", "value":-999,
+#                     # OPTIONAL
+#                     'display_name':'Timestamp', 'description':'Timestamp', 'display_hidden':True},
+
+#         age_sec = {"type":"Float", "value":-999, 'round_value': 3,
+#                     # OPTIONAL
+#                     'display_name':'Age (Sec)', 'description':'Age in seconds', 'display_hidden':False, 'round_display': 3,},
+
+#         azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
+#                     # OPTIONAL
+#                     'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to tracked target', 'display_hidden':False, 'round_display': 1,},
+
+#         elevation_deg = {"type":"Float", "value":-999, 'round_value': 2,
+#                     # OPTIONAL
+#                     'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'display_hidden':False, 'round_display': 1,},
+
+#         range_m = {"type":"Float", "value":2.0, 'round_value': 2,
+#                     # OPTIONAL
+#                     'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'display_hidden':False, 'round_display': 1,},
+#     ),
+
+#     'states_dict': dict(
+
+#         tracking = {"type":"Bool", "value": False,
+#                     # OPTIONAL
+#                     'display_name':'Tracking'},
+#     ),
+# }
 
 
-    #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
-    track_dict = None
-    filtered_targets = data_dict.get('targets_dict_list', [])
-    if filtered_targets is None:
-        filtered_targets = []
+# def track_2_process(data_dict, controls_dict, states_dict, results_dict):
+#     start_time = nepi_utils.get_time()
+#     last_data_dict = copy.deepcopy(data_dict)
+#     last_results_dict = copy.deepcopy(results_dict)
+#     controls_values_dict = nepi_controls.get_values_dict(controls_dict)
+#     #logger.log_warn("Got  Data: " + str(data_dict), throttle_s = 10)
+#     #logger.log_warn("Got  Data,Controls: " + str([data_dict,controls_values_dict]), throttle_s = 10)
 
-    class_filters = controls_values_dict['class_filters']
-    filtered_targets = filter_by_classes(filtered_targets, class_filters)
 
-    size_max_filter = controls_values_dict['size_max_filter']
-    size_min_filter = controls_values_dict['size_min_filter']
-    filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
+#     #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
+#     track_dict = None
+#     filtered_targets = data_dict.get('targets_dict_list', [])
+#     if filtered_targets is None:
+#         filtered_targets = []
 
-    threshold_filter = controls_values_dict['threshold_filter']
-    filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
+#     class_filters = controls_values_dict['class_filters']
+#     filtered_targets = filter_by_classes(filtered_targets, class_filters)
+
+#     size_max_filter = controls_values_dict['size_max_filter']
+#     size_min_filter = controls_values_dict['size_min_filter']
+#     filtered_targets = filter_by_area(filtered_targets, size_min_filter = size_min_filter, size_max_filter = size_max_filter)
+
+#     threshold_filter = controls_values_dict['threshold_filter']
+#     filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
 
     
-    if len(filtered_targets) > 0:
-        best_filter = controls_values_dict['best_filter']
-        track_dict = find_best(filtered_targets, best_filter = best_filter)
-        data_dict['last_track_time'] = nepi_utils.get_time()
-        data_dict['last_track_dict'] = track_dict
-    #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
-    results_dict = track_dict
-    results_dict = update_results(results_dict)
-    #logger.log_warn("Process Completed: " + str(results_dict), throttle_s = 5)
-    return data_dict, controls_dict, states_dict, results_dict
+#     if len(filtered_targets) > 0:
+#         best_filter = controls_values_dict['best_filter']
+#         track_dict = find_best(filtered_targets, best_filter = best_filter)
+#         data_dict['last_track_time'] = nepi_utils.get_time()
+#         data_dict['last_track_dict'] = track_dict
+#     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
+#     results_dict = track_dict
+#     results_dict = update_results(results_dict)
+#     #logger.log_warn("Process Completed: " + str(results_dict), throttle_s = 5)
+#     return data_dict, controls_dict, states_dict, results_dict
 
 
 
-processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_2', process_dict = track_2_dict)
-#logger.log_warn("Updated processes dict: " + str(processes_dict))
-functions_dict['track_2'] = track_2_process
+# processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'track_2', process_dict = track_2_dict)
+# #logger.log_warn("Updated processes dict: " + str(processes_dict))
+# functions_dict['track_2'] = track_2_process
 
 
 

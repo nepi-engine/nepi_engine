@@ -68,6 +68,8 @@ class ConnectProcessIFTargets(ConnectNodeIF):
     node_if = None
 
     status_msg = None
+    status_dict = None
+
     connected = False
     last_status_time = 0
 
@@ -135,7 +137,7 @@ class ConnectProcessIFTargets(ConnectNodeIF):
 
 
     #######################
-    # Class Public Methods
+    # Process Public Methods
     #######################
 
 
@@ -247,10 +249,7 @@ class ConnectProcessIFTargets(ConnectNodeIF):
             dict: A dictionary representation of the most recent TargetsStatus message,
                 or None if no status has been received yet.
         """
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
+        return self.status_dict
 
     def get_status_msg(self):
         """Return the latest targets source status as a msg.
@@ -303,7 +302,15 @@ class ConnectProcessIFTargets(ConnectNodeIF):
         self.node_if.publish_pub('factory_reset_config',Empty())
 
     ###############################
-    # Class Private Methods
+    # Class Public Methods
+    ###############################
+
+    
+
+
+
+    ###############################
+    # Process Private Methods
     ###############################
 
     def updaterCb(self,timer):
@@ -404,6 +411,7 @@ class ConnectProcessIFTargets(ConnectNodeIF):
             self.connected = False
             self.connected_topic = 'None'
             self.status_msg = None
+            self.status_dict = None
             self.results_dict = None
             success = True
         return success
@@ -417,11 +425,10 @@ class ConnectProcessIFTargets(ConnectNodeIF):
             self.connected_topic = self.selected_topic
         self.connected = True
         self.status_msg = status_msg
-
+        self.status_dict = nepi_sdk.convert_msg2dict(status_msg)
         if self.statusCb is not None:
-            status_dict = self.get_status_dict()
             try:
-                self.statusCb(status_dict)
+                self.statusCb(self.status_dict)
             except Exception as e:
                 self.msg_if.pub_warn("Failed to call status_callback function: " + str(e), throttle_s = 10)
 

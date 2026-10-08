@@ -1165,6 +1165,7 @@ class ProcessIF:
             self.connected_source_topics.append(source_topic)
         results_pub_msg = None
         #self.msg_if.pub_warn("Processing results: " + str( [self.data_dict, self.controls_dict, self.results_display_dict, self.process_function]), throttle_s = 5)
+        #self.msg_if.pub_warn("Processing results with source topic: " + str( [source_topic]), throttle_s = 5)
         last_results_dict = copy.deepcopy(self.results_dict)
         results_dict = None
         if self.enabled == True:
@@ -1601,7 +1602,7 @@ class ProcessIF:
                 data_header['process_name'] = self.node_name
                 data_header['process_namespace'] = self.node_namespace
                 data_header['process_timestamp'] = process_timestamp
-                data_header['sour= nepi_utils.get_time() ce_topic'] = source_topic
+                data_header['source_topic'] = source_topic
                 if 'timestamp' in results_dict.keys():
                     source_timestamp = results_dict['timestamp']
                 else:
