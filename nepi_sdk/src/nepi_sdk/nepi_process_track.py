@@ -221,11 +221,17 @@ def update_results(results_dict, navpose_dict = None):
         if navpose_dict is None:
             navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
         if navpose_dict['has_pan_tilt'] == True:
-            heading_deg = navpose_dict.get('pan_tilt_heading_deg',-999)
+            if navpose_dict['has_heading'] == True:
+                heading_deg = navpose_dict.get('pan_tilt_heading_deg',-999)
+            else:
+                heading_deg = navpose_dict.get('pan_tilt_yaw_deg',-999)
             pitch_deg = navpose_dict.get('pan_tilt_pitch_deg',-999) 
             roll_deg = navpose_dict.get('pan_tilt_roll_deg',-999)
         else:
-            heading_deg = navpose_dict.get('heading_deg',-999) 
+            if navpose_dict['has_heading'] == True:
+                heading_deg = navpose_dict.get('heading_deg',-999)
+            else:
+                heading_deg = navpose_dict.get('yaw_deg',-999)
             pitch_deg = navpose_dict.get('pitch_deg',-999) 
             roll_deg = navpose_dict.get('roll_deg',-999)
 
@@ -243,14 +249,14 @@ def update_results(results_dict, navpose_dict = None):
         results_dict['roll_deg'] = roll_deg + rotation_deg
 
         
-        #logger.log_warn("Got Targets Dict: " + str([results_dict]), throttle_s = 5)
+        
         timestamp = results_dict.get('timestamp',-999)
         if timestamp == -999:
-            age_sec = -999
-        else:
-            age_sec =  nepi_utils.get_time() - timestamp
+            timestamp == nepi_utils.get_time()
+        age_sec =  nepi_utils.get_time() - timestamp
         results_dict['timestamp'] = timestamp
         results_dict['age_sec'] = age_sec
+        logger.log_warn("Updated Results Dict: " + str([results_dict]), throttle_s = 5)
     return results_dict
 
 
@@ -304,6 +310,11 @@ track_1_dict = {
         best_filter = {"type":"Selection", "value":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
                    # OPTIONAL
                    'display_name':'Best Filter', 'description':'Set Best Filte', 'display_hidden':False}, 
+
+        timeout = {
+            'type': 'Float', 'value': 2, 'bounds': [0.0, 10], 'round_value': 1,
+            'display_name': 'Timeout',
+            'description': 'Drop Track if older than Timeout', 'display_hidden': False},
 
     ),
 
@@ -389,9 +400,20 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict):
         data_dict['last_track_time'] = nepi_utils.get_time()
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
-    results_dict = track_dict
-    results_dict = update_results(results_dict, navpose_dict)
-    #logger.log_warn("Process Completed: " + str([results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
+
+    # Update Results Dict
+    if track_dict is not None:
+        results_dict = track_dict
+        results_dict = update_results(results_dict, navpose_dict)
+    elif results_dict is not None:
+        timeout = controls_values_dict['timeout']
+        timestamp = results_dict.get('timestamp',-999)
+        if timestamp != -999:
+            last_track =  nepi_utils.get_time() - timestamp
+            if last_track > timeout:
+                results_dict = None
+        
+    logger.log_warn("Process Completed: " + str([track_dict,results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
     return data_dict, controls_dict, states_dict, results_dict
 
 
