@@ -1243,6 +1243,8 @@ class BaseImageIF:
     aspect_adjust_enabled = False
     aspect_ratio_set = 1.78 # 16:9
     aspect_ratio = -1 # Not Known Yet
+    aspect_x_offset = 0
+    aspect_y_offset = 0
 
     live_adjustments_disabled = False
     live_adjust_enabled = True
@@ -3603,7 +3605,7 @@ class BaseImageIF:
                                 if overlay_crosshair_pixels == True:
                                     overlay_text.append(str(x_pixel) + ',' + str(y_pixel))
                                 if overlay_crosshair_degrees == True:
-                                    overlay_text.append(str(x_deg_offset) + ',' + str(y_deg_offset))
+                                    overlay_text.append(str(round(x_deg_offset,0)) + ',' + str(round(y_deg_offset,0)))
                                 if overlay_crosshair_messages == True and len(crosshair_msg) > 0:
                                     overlay_text.append(str(crosshair_msg))
 
@@ -3689,7 +3691,7 @@ class BaseImageIF:
                                 if overlay_target_pixels == True:
                                     overlay_text.append(str(x_pixel) + ',' + str(y_pixel))
                                 if overlay_target_degrees == True:
-                                    overlay_text.append(str(x_deg_offset) + ',' + str(y_deg_offset))
+                                    overlay_text.append(str(round(x_deg_offset,0)) + ',' + str(round(y_deg_offset,0)))
                                 if overlay_target_messages == True and len(target_msg) > 0:
                                     overlay_text.append(str(target_msg))
 
@@ -3706,8 +3708,10 @@ class BaseImageIF:
                                                         text_ratio = targets_text_ratio)
                                 
 
+                        if cv2_img is not None:
+                             cv2_img = self._aspectAdjust(cv2_img)
 
-                        if process_data == True and  cv2_img is not None:
+                        if cv2_img is not None:
                              cv2_img = self._zoomAdjust(cv2_img)
 
      
@@ -5749,6 +5753,30 @@ class BaseImageIF:
 
 
 
+    def _aspectAdjust(self, cv2_img):
+       
+        ##########
+        # Apply Aspect Controls
+        cv2_shape = cv2_img.shape
+        img_width = cv2_shape[1]
+        img_height = cv2_shape[0]
+
+        aspect_ratio_set = self.aspect_ratio_set
+        if self.aspect_adjust_enabled == True and self.aspect_adjustment_disabled == False:
+            try:
+                cv2_img = nepi_img.adjust_aspect_ratio(cv2_img, aspect_ratio_set)
+            except:
+                pass
+        cv2_shape_ar = cv2_img.shape
+        img_width_ar = cv2_shape_ar[1]
+        img_height_ar = cv2_shape_ar[0]
+        self.aspect_ratio = (img_width_ar / img_height_ar)
+        self.aspect_x_offset = int((img_width - img_width_ar)/2)
+        self.aspect_y_offset = int((img_height - img_height_ar)/2)
+        
+        return cv2_img
+        
+
     def _zoomAdjust(self,cv2_img):
         #####################
         cv2_shape = cv2_img.shape
@@ -5845,7 +5873,7 @@ class BaseImageIF:
         height = self.status_msg.height_px
 
 
-        pixel = [int(msg.click.x   + self.x_offset), int(msg.click.y   + self.y_offset)]
+        pixel = [int(msg.click.x   + self.x_offset + self.aspect_x_offset), int(msg.click.y   + self.y_offset + self.aspect_y_offset)]
         color_bgr = (msg.click.b,msg.click.g,msg.click.r,msg.click.a)
         click_count = msg.click_count
 
@@ -5865,6 +5893,7 @@ class BaseImageIF:
             r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
             x_deg = self.live_adjust_dict['live_adjust_x_deg']
             y_deg = self.live_adjust_dict['live_adjust_y_deg']
+
             if r_deg != 0 or x_deg != 0 or y_deg != 0:
                 x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
                 y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
@@ -6728,6 +6757,7 @@ class ImageIF(BaseImageIF):
         return cv2_img
 
 
+
     ###############################
     # Class Private Methods
     ###############################
@@ -6874,19 +6904,6 @@ class ColorImageIF(BaseImageIF):
         Returns:
             numpy.ndarray: The fully-processed BGR image.
         """
-        ##########
-        # Apply Aspect Controls
-        aspect_ratio_set = self.aspect_ratio_set
-        if self.aspect_adjust_enabled == True and self.aspect_adjustment_disabled == False:
-            try:
-                cv2_img = nepi_img.adjust_aspect_ratio(cv2_img, aspect_ratio_set)
-            except:
-                pass
-        cv2_shape_ar = cv2_img.shape
-        img_width_ar = cv2_shape_ar[1]
-        img_height_ar = cv2_shape_ar[0]
-        self.aspect_ratio = (img_width_ar / img_height_ar)
-        
 
 
         # if res_ratio < 0.9:

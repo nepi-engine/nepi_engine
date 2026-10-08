@@ -26,7 +26,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_process
 from nepi_sdk import nepi_controls
-from nepi_sdk import nepi_data
+from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_img
 
 from sensor_msgs.msg import Image
@@ -205,8 +205,36 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
     #logger.log_info("Got filtered_dict " + str(filtered_track))
     return best_target
 
-def update_results(results_dict):
+def update_results(results_dict, navpose_dict = None):
     if results_dict is not None:
+        azimuth_deg = results_dict.get('azimuth_deg',-999) 
+        if int(azimuth_deg) == -999:
+            azimuth_deg = 0
+        elevation_deg = results_dict.get('elevation_deg',-999) 
+        if int(elevation_deg) == -999:
+            elevation_deg = 0
+        rotation_deg = results_dict.get('rotation_deg',-999) 
+        if int(rotation_deg) == -999:
+            rotation_deg = 0
+
+
+        if navpose_dict is None:
+            navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        heading_deg = navpose_dict.get('heading_deg',-999) 
+        if int(heading_deg) == -999:
+            heading_deg = 0
+        pitch_deg = navpose_dict.get('pitch_deg',-999) 
+        if int(pitch_deg) == -999:
+            pitch_deg = 0
+        roll_deg = navpose_dict.get('roll_deg',-999) 
+        if int(roll_deg) == -999:
+            roll_deg = 0
+
+        results_dict['heading_deg'] = heading_deg + azimuth_deg
+        results_dict['pitch_deg'] = pitch_deg + elevation_deg
+        results_dict['roll_deg'] = roll_deg + rotation_deg
+
+        
         #logger.log_warn("Got Targets Dict: " + str([results_dict]), throttle_s = 5)
         timestamp = results_dict.get('timestamp',-999)
         if timestamp == -999:
@@ -285,7 +313,7 @@ track_1_dict = {
         range_m = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
                     'display_name':'Range (M)', 'description':'Range in meters to tracked target', 'display_hidden':False, 'round_display': 1,},
-                    
+
         azimuth_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
                     'display_name':'Azimuth (Deg)', 'description':'Degrees in horizontal axis to tracked target', 'display_hidden':False, 'round_display': 1,},
@@ -293,6 +321,19 @@ track_1_dict = {
         elevation_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
                     'display_name':'Elevation (Deg)', 'description':'Degrees in vertical axis to tracked target', 'display_hidden':False, 'round_display': 1,},
+
+        heading_deg = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Heading (Deg)', 'description':'Heading Degrees in navpose frame to tracked target', 'display_hidden':False, 'round_display': 1,},
+
+        roll_deg = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Roll (Deg)', 'description':'Roll Degrees in navpose frameto tracked target', 'display_hidden':False, 'round_display': 1,},
+
+        pitch_deg = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Pitch (Deg)', 'description':'Pitch Degrees in navpose frame  to tracked target', 'display_hidden':False, 'round_display': 1,},
+
 
 
     ),
@@ -318,6 +359,7 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict):
     #logger.log_warn("Got Data and Controls: " + str([data_dict, controls_dict]), throttle_s = 5)
     track_dict = None
     targets_dict_list = data_dict.get('targets_dict_list', [])
+    navpose_dict = data_dict.get('navpose_dict', nepi_nav.BLANK_NAVPOSE_DICT)
     if targets_dict_list is None:
         targets_dict_list = []
     filtered_targets = copy.deepcopy(targets_dict_list)
@@ -340,7 +382,7 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict):
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
     results_dict = track_dict
-    results_dict = update_results(results_dict)
+    results_dict = update_results(results_dict, navpose_dict)
     #logger.log_warn("Process Completed: " + str([results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
     return data_dict, controls_dict, states_dict, results_dict
 
