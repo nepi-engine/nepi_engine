@@ -151,27 +151,27 @@ EXAMPLE_INIT_DICT = {
 
             'int': {
                 'type': 'Int', 'default': 5, 'bounds': [0, 10],
-                'display_name': 'Demo Int', 'description': 'Integer value within [0, 10].', 'display_hidden': False},
+                'display_name': 'Demo Int', 'description': 'Integer value within [0, 10].', 'display_bounds': True, 'display_hidden': False},
 
             'ints_column': {
                 'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
-                'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_hidden': False},
+                'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_bounds': True, 'display_hidden': False},
 
             'ints_row': {
                 'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
-                'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_hidden': False, 'display_row': True},
+                'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_bounds': True, 'display_hidden': False, 'display_row': True},
 
             'float': {
                 'type': 'Float', 'default': 2.5, 'bounds': [0.0, 10.0], 'round_value': 2,
-                'display_name': 'Demo Float', 'description': 'Float value within [0.0, 10.0].', 'display_hidden': False},
+                'display_name': 'Demo Float', 'description': 'Float value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False},
 
             'floats_column': {
                 'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
-                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False},
+                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False},
 
             'floats_row': {
                 'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
-                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_hidden': False, 'display_row': True},
+                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False, 'display_row': True},
 
             'float_slider': {
                 'type': 'FloatSlider', 'default': 50.0, 'bounds': [0.0, 100.0], 'round_value': 1,
@@ -224,6 +224,7 @@ def create_controls_dict(init_dict):
         control_dict['display_name'] = name
         control_dict['display_round'] = 2
         control_dict['display_row'] = False
+        control_dict['display_bounds'] = True
         for key in control_dict.keys():
           if key in init_control_dict.keys():
             control_dict[key] = init_control_dict[key]
