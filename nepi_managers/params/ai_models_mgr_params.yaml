@@ -1,0 +1,9 @@
+manager:
+  pkg_name: nepi_managers
+  display_name: MANAGER-AI-MODELS
+  description: Manager for NEPI AI frameworks and models
+  type: MANAGER
+  node_file: ai_models_mgr.py
+  etc_file: ai_models_mgr.yaml
+  node_name: ai_models_mgr
+

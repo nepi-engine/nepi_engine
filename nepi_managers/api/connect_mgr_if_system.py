@@ -1,0 +1,359 @@
+#!/usr/bin/env python
+#
+# Copyright (c) 2024 Numurus <https://www.numurus.com>.
+#
+# This file is part of nepi engine (nepi_engine) repo
+# (see https://github.com/nepi-engine/nepi_engine)
+#
+# License: NEPI Engine repo source-code and NEPI Images that use this source-code
+# are licensed under the "Numurus Software License", 
+# which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
+#
+# Redistributions in source code must retain this top-level comment block.
+# Plagiarizing this software to sidestep the license obligations is illegal.
+#
+# Contact Information:
+# ====================
+# - mailto:nepi@numurus.com
+#
+
+import os
+import time
+import copy
+
+
+from nepi_sdk import nepi_sdk
+from nepi_sdk import nepi_utils
+
+from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
+from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
+
+from nepi_api.connect_node_if import ConnectNodeServicesIF, ConnectNodeClassIF
+from nepi_api.messages_if import MsgIF
+
+
+MGR_NODE_NAME = 'system_mgr'
+
+
+class ConnectMgrSystemServicesIF:
+
+    ready = False
+    services_connected = False
+    #######################
+    ### IF Initialization
+    def __init__(self, timeout = float('inf'),
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+
+
+        ##############################    
+        # Initialize Class Variables
+                
+        self.mgr_namespace = os.path.join(self.base_namespace,MGR_NODE_NAME)
+        
+        ##############################
+        ### Wait for status to publish
+        status_topic = nepi_sdk.create_namespace(self.base_namespace,'system_status')
+        self.msg_if.pub_debug("Waiting for status topic: " + status_topic, log_name_list = self.log_name_list)
+        nepi_sdk.wait_for_topic(status_topic)
+        #############################
+        # Connect Node IF Setup
+
+
+        # Services Config Dict ####################
+        self.SRVS_DICT = {
+
+            'status_query': {
+                'namespace': self.base_namespace,
+                'topic': 'system_status_query',
+                'srv': SystemStatusQuery,
+                'req': SystemStatusQueryRequest(),
+                'resp': SystemStatusQueryResponse(),
+            }
+        }
+
+
+        # Create Services Class ####################
+
+        self.services_if = ConnectNodeServicesIF(
+                        services_dict = self.SRVS_DICT,
+                        log_name_list = self.log_name_list,
+                        msg_if = None
+        )
+
+        #ready = self.services_if.wait_for_ready()
+        nepi_sdk.wait()
+
+        ################################
+        # Complete Initialization
+
+        #################################
+        self.ready = True
+        self.msg_if.pub_debug("IF Initialization Complete", log_name_list = self.log_name_list)
+        
+
+    #######################
+    # Class Public Methods
+    #######################
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timeout = float('inf') ):
+        self.msg_if.pub_debug("Waiting for connection", log_name_list = self.log_name_list)
+        timer = 0
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
+        if self.ready == False:
+            self.msg_if.pub_debug("Failed to Connect", log_name_list = self.log_name_list)
+        else:
+            self.msg_if.pub_debug("ready", log_name_list = self.log_name_list)
+        return self.ready
+
+    def wait_for_services(self, timeout = float('inf') ):
+        self.msg_if.pub_debug("Waiting for service connection", log_name_list = self.log_name_list)
+        timer = 0
+        time_start = nepi_sdk.get_time()
+        connected = False
+        while connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+            exists = nepi_sdk.check_for_service('system_status_query')
+            nepi_sdk.wait()
+            if exists == True:
+                ret = self.get_system_status_dict(verbose = False)
+                connected = (ret is not None)
+            timer = nepi_sdk.get_time() - time_start
+        if connected == False:
+            self.msg_if.pub_debug("Failed to connect to status msg", log_name_list = self.log_name_list)
+        else:
+            self.msg_if.pub_debug("Services Connected", log_name_list = self.log_name_list)
+        return connected     
+
+
+
+    def get_system_status_dict(self, verbose = True):
+        service_name = 'status_query'
+        status_dict = None
+        response = None
+        try:
+            request = self.services_if.create_request_msg(service_name)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to create service request: " + service_name + " " + str(e))
+        try:
+            response = self.services_if.call_service(service_name, request, verbose = verbose)
+        except Exception as e:
+            self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
+        # Process Response
+        if response is None:
+            if verbose == True:
+                self.msg_if.pub_warn("Failed to get response for service: " + service_name)
+            else:
+                pass
+        else:
+            status_dict = nepi_sdk.convert_msg2dict(response)['system_status']
+            #self.msg_if.pub_info("Got status response " + str(response) + " for service: " + service_name)
+            #self.msg_if.pub_info("Got system status dict " + str(status_dict) + " for service: " + service_name)
+
+        return status_dict
+
+
+    #######################
+    # Class Private Methods
+    #######################
+
+
+
+
+
+class ConnectMgrSystemIF:
+ 
+    ready = False
+
+    status_msg = None
+    status_connected = False
+
+    #######################
+    ### IF Initialization
+    def __init__(self, timeout = float('inf'),
+                log_name = None,
+                log_name_list = [],
+                msg_if = None
+                ):
+        ####  IF INIT SETUP ####
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################  
+        # Create Msg Class
+        if msg_if is not None:
+            self.msg_if = msg_if
+        else:
+            self.msg_if = MsgIF()
+        self.log_name_list = copy.deepcopy(log_name_list)
+        self.log_name_list.append(self.class_name)
+        if log_name is not None:
+            self.log_name_list.append(log_name)
+        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+
+
+        ##############################    
+        # Initialize Class Variables
+                
+        self.mgr_namespace = os.path.join(self.base_namespace,MGR_NODE_NAME)
+        
+
+        #############################
+        # Connect Node IF Setup
+
+
+        # Configs Config Dict ####################
+
+        # Publishers Config Dict ####################
+        self.PUBS_DICT = None
+        '''  #  Need to add publishers
+        self.save_data_pub = nepi_sdk.create_publisher(self._get_ns('save_data'), SaveData, queue_size=10)
+        self.clear_data_folder_pub = nepi_sdk.create_publisher(self._get_ns('clear_data_folder'), Empty, queue_size=10)
+        self.set_op_environment_pub = nepi_sdk.create_publisher(self._get_ns('set_op_environment'), String, queue_size=10)
+        self.set_device_id_pub = nepi_sdk.create_publisher(self._get_ns('set_device_id'), String, queue_size=10)
+        self.submit_system_error_msg_pub = nepi_sdk.create_publisher(self._get_ns('submit_system_error_msg'), String, queue_size=10)
+        self.install_new_image_pub = nepi_sdk.create_publisher(self._get_ns('install_new_image'), String, queue_size=10)
+        self.switch_active_inactive_rootfs_pub = nepi_sdk.create_publisher(self._get_ns('switch_active_inactive_rootfs'), Empty, queue_size=10)
+        self.archive_inactive_rootfs_pub = nepi_sdk.create_publisher(self._get_ns('archive_inactive_rootfs'), Empty, queue_size=10)
+        self.save_data_prefix_pub = nepi_sdk.create_publisher(self._get_ns('save_data_prefix'), String, queue_size=10)
+
+        # Publishers Config Dict ####################
+        self.PUBS_DICT = {
+            'pub_name': {
+                'namespace': self.base_namespace,
+                'topic': 'set_empty',
+                'msg': EmptyMsg,
+                'qsize': 1,
+                'latch': False
+            }
+        }
+        '''
+
+
+        # Subscribers Config Dict ####################
+        self.SUBS_DICT = {
+            'status_sub': {
+                'namespace': self.base_namespace,
+                'topic': 'system_status',
+                'msg': MgrSystemStatus,
+                'qsize': 10,
+                'callback': self._statusCb, 
+                'callback_args': ()
+            }
+        }
+
+
+
+        # Create Node Class ####################
+
+        self.node_if = ConnectNodeClassIF(
+                        pubs_dict = self.PUBS_DICT,
+                        subs_dict = self.SUBS_DICT,
+                        log_name_list = self.log_name_list,
+                        msg_if = self.msg_if
+                                            )
+
+
+        self.services_if = ConnectMgrSystemServicesIF(log_name_list = self.log_name_list,
+                                                        msg_if = self.msg_if)
+
+        ################################
+        # Complete Initialization
+
+        #################################
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        
+
+    #######################
+    # Class Public Methods
+    #######################
+    def get_ready_state(self):
+        return self.ready
+
+    def wait_for_ready(self, timeout = float('inf') ):
+        self.msg_if.pub_debug("Waiting for connection", log_name_list = self.log_name_list)
+        timer = 0
+        time_start = nepi_sdk.get_time()
+        while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
+        if self.ready == False:
+            self.msg_if.pub_debug("Failed to Connect", log_name_list = self.log_name_list)
+        else:
+            self.msg_if.pub_debug("ready", log_name_list = self.log_name_list)
+        return self.ready
+
+    def wait_for_services(self, timeout = float('inf') ):
+        self.msg_if.pub_debug("Waiting for status connection", log_name_list = self.log_name_list)
+        services_connected = self.services_if.wait_for_services_path(timeout = timeout)
+        return services_connected
+
+ 
+    def get_system_status_dict(self):
+        return self.services_if.get_system_status_dict()
+
+
+    def wait_for_status(self, timeout = float('inf') ):
+        self.msg_if.pub_debug("Waiting for status connection", log_name_list = self.log_name_list)
+        timer = 0
+        time_start = nepi_sdk.get_time()
+        while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
+            nepi_sdk.sleep(.1)
+            timer = nepi_sdk.get_time() - time_start
+        if self.status_connected == False:
+            self.msg_if.pub_debug("Failed to connect to status msg", log_name_list = self.log_name_list)
+        else:
+            self.msg_if.pub_debug("Status Connected", log_name_list = self.log_name_list)
+        return self.status_connected
+
+    def get_status_dict(self):
+        status_dict = None
+
+        if self.status_msg is not None:
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+        else:
+            self.msg_if.pub_debug("Status Listener Not connected", log_name_list = self.log_name_list)
+        return status_dict
+
+
+    #######################
+    # Class Private Methods
+    #######################
+
+    def _get_ns(self,topic_str):
+        return os.path.join(self.base_namespace,topic_str)
+
+    # Update System Status
+    def _statusCb(self,msg):
+        #self.msg_if.pub_warn("Got System Status Msg", log_name_list = self.log_name_list)
+        self.status_msg = msg
+        self.status_connected = True
+
+
