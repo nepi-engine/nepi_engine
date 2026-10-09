@@ -56,11 +56,19 @@ RESULTS_PUB_TOPIC = 'track'
 IMAGE_PUB_TOPIC = 'track_image'
 
 
-
 ########################
 ## Process Utility Functions
 
+
 BEST_FILTER_OPTIONS = ['SMALLEST','LARGEST']
+
+BASE_RESULTS_DICT = nepi_sdk.convert_msg2dict(Track())
+
+def get_blank_results_dict():
+  results_dict = copy.deepcopy(BASE_RESULTS_DICT)
+  results_dict['timestamp'] = 0
+  results_dict['age_sec'] = 0
+  return results_dict
 
 def filter_by_classes(targets_dict_list, class_filter_list):
     #print(targets_dict_list)
@@ -268,25 +276,17 @@ def update_results(results_dict, navpose_dict = None):
 processes_dict = dict()
 functions_dict = dict()
 
-
-
-########################
-## Process 1   
-
-
-
-track_1_dict = {
-
    
-    'data_dict': dict(
+BASE_DATA_DICT = dict(
         targets_dict_list = [], 
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
         last_track_time = 0,
         last_track_dict = None
-    ),
+    )
 
 
-    'controls_dict': dict(
+BASE_CONTROLS_DICT = dict(
+
 
         class_filters = {"type":"Selections", "value":[], "options":[], 
                    # OPTIONAL
@@ -316,10 +316,10 @@ track_1_dict = {
             'display_name': 'Timeout',
             'description': 'Drop Track if older than Timeout', 'display_hidden': False},
 
-    ),
+    )
 
 
-    'results_display_dict': dict(
+BASE_RESULTS_DISPLAY_DICT = dict(
 
         timestamp = {"type":"Float", "value":-999,
                     # OPTIONAL
@@ -353,20 +353,35 @@ track_1_dict = {
                     # OPTIONAL
                     'display_name':'Pitch (Deg)', 'description':'Pitch Degrees in navpose frame  to tracked target', 'display_hidden':False, 'round_display': 1,},
 
+    )
 
-
-    ),
-
-    'states_dict': dict(
-
+BASE_STATES_DICT = dict(
         tracking = {"type":"Bool", "value": False,
                     # OPTIONAL
                     'display_name':'Tracking'},
-    ),
+    )
+
+########################
+## Process 1   
+
+
+
+track_1_dict = {
+
+      
+    'data_dict': copy.deepcopy(BASE_DATA_DICT),
+
+
+    'controls_dict': copy.deepcopy(BASE_CONTROLS_DICT),
+
+
+    'results_display_dict':  copy.deepcopy(BASE_RESULTS_DISPLAY_DICT),
+
+    'states_dict':  copy.deepcopy(BASE_STATES_DICT),
 }
 
 
-def track_1_process(data_dict, controls_dict, states_dict, results_dict):
+def track_1_process(data_dict, controls_dict, states_dict, results_dict, if_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)

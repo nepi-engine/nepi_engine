@@ -55,11 +55,17 @@ RESULTS_PUB_TOPIC = 'targets'
 
 IMAGE_PUB_TOPIC = 'targets_image'
 
-
-
 ########################
 ## Process Utility Functions
 
+BASE_RESULTS_DICT = nepi_sdk.convert_msg2dict(Targets())
+
+
+def get_blank_results_dict():
+  results_dict = copy.deepcopy(BASE_RESULTS_DICT)
+  results_dict['timestamp'] = 0
+  results_dict['age_sec'] = 0
+  return results_dict
 
 def update_results(results_dict):
     if results_dict is not None:
@@ -83,25 +89,16 @@ processes_dict = dict()
 functions_dict = dict()
 
 
-
-########################
-## Process 1   
-
-
-
-targets_1_dict = {
-
-    'if_dict': dict(),
-    
-    'data_dict': dict(
+   
+BASE_DATA_DICT = dict(
         targets_dict_list = [], 
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
         last_targets_time = 0,
         last_targets_dict = None
-    ),
+    )
 
 
-    'controls_dict': dict(
+BASE_CONTROLS_DICT = dict(
 
         class_filters = {"type":"Selections", "default":[], "options":[], 
                    # OPTIONAL
@@ -112,11 +109,11 @@ targets_1_dict = {
             'type': 'FloatSlider', 'default': 0.3, 'bounds': [0.0, 1.0], 'round_value': 1,
             'display_name': 'Max Range (m)',
             'description': 'Ignore targets with confidance lower than threshold.', 'hidden': False},
+    )
 
-    ),
 
+BASE_RESULTS_DISPLAY_DICT = dict(
 
-    'results_display_dict': dict(
 
         timestamp = {"type":"Float", "value":-999,
                     # OPTIONAL
@@ -126,19 +123,39 @@ targets_1_dict = {
                     # OPTIONAL
                     'display_name':'Age (Sec)', 'description':'Age in seconds', 'hidden':False, 'round_display': 3,},
 
-    ),
 
-    'states_dict': dict(
 
+    )
+
+BASE_STATES_DICT = dict(
         targeting = {"type":"Bool", "value": False,
                     # OPTIONAL
                     'display_name':'Targeting'},
-    ),    
+    )
+
+
+########################
+## Process 1   
+
+
+
+targets_1_dict = {
+
+
+    'data_dict': copy.deepcopy(BASE_DATA_DICT),
+
+
+    'controls_dict': copy.deepcopy(BASE_CONTROLS_DICT),
+
+
+    'results_display_dict':  copy.deepcopy(BASE_RESULTS_DISPLAY_DICT),
+
+    'states_dict':  copy.deepcopy(BASE_STATES_DICT),
 
 }
 
 
-def targets_1_process(data_dict, controls_dict, states_dict, results_dict):
+def targets_1_process(data_dict, controls_dict, states_dict, results_dict, if_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)

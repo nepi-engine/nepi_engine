@@ -101,8 +101,6 @@ BASE_DISPLAY_RESULTS_DICT = dict(
 )
 
 
-
-
 def get_blank_line_dict():
   return copy.deepcopy(BLANK_LINE_DICT)
 
@@ -639,7 +637,7 @@ lines_1_dict = {
 }
 
 
-def lines_1_process(data_dict, controls_dict, states_dict, results_dict):
+def lines_1_process(data_dict, controls_dict, states_dict, results_dict, if_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
