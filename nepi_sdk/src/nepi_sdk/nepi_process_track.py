@@ -256,7 +256,7 @@ def update_results(results_dict, navpose_dict = None):
         age_sec =  nepi_utils.get_time() - timestamp
         results_dict['timestamp'] = timestamp
         results_dict['age_sec'] = age_sec
-        logger.log_warn("Updated Results Dict: " + str([results_dict]), throttle_s = 5)
+        #logger.log_warn("Updated Results Dict: " + str([results_dict]), throttle_s = 5)
     return results_dict
 
 
@@ -413,7 +413,7 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict):
             if last_track > timeout:
                 results_dict = None
         
-    logger.log_warn("Process Completed: " + str([track_dict,results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
+    #logger.log_warn("Process Completed: " + str([track_dict,results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
     return data_dict, controls_dict, states_dict, results_dict
 
 

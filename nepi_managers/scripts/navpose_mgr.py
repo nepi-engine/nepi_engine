@@ -1125,7 +1125,7 @@ class NavPoseMgr(object):
                         except:
                             pass
                         topic_sub = nepi_sdk.create_subscriber(topic, msg, self._compSubCb, queue_size = 1, callback_args= (topic), log_name_list = [])
-                        self.msg_if.pub_warn("Subscribed to Comp Topic: " + str(topic) + ' with message ' + str(msg))
+                        #self.msg_if.pub_warn("Subscribed to Comp Topic: " + str(topic) + ' with message ' + str(msg))
                         self.navpose_subs_dict_lock.acquire()
                         self.navpose_subs_dict[topic]['msg'] = msg
                         self.navpose_subs_dict[topic]['sub'] = topic_sub
@@ -1148,7 +1148,7 @@ class NavPoseMgr(object):
 
             if len(self.navpose_subs_dict[topic]['subs_dict'].keys()) == 0:
                 if topic in self.navpose_subs_registered:
-                    self.msg_if.pub_warn("Unregistering Comp Topic: " + str(topic))
+                    #self.msg_if.pub_warn("Unregistering Comp Topic: " + str(topic))
                     self.navpose_subs_registered.remove(topic)
 
 
