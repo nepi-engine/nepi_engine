@@ -914,8 +914,7 @@ class NodePublishersIF:
             if 'pub' in pub_dict.keys():
                 if pub_dict['pub'] is not None:
                     has_subs = pub_dict['pub'].get_num_connections() > 0
-                    self.msg_if.pub_debug("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs), \
-                                        throttle_s = 5.0 ) 
+                    #self.msg_if.pub_debug("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs), throttle_s = 5.0 ) 
         return has_subs
 
     def publish_pub(self,pub_name,pub_msg):
@@ -989,7 +988,7 @@ class NodePublishersIF:
             if add_pub == True:  
                 if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_sdk.is_shutdown():
                     pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
-                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace  ) 
+                    #self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace  ) 
                     pub = None
                     if 'qsize' not in pub_dict.keys():
                         self.pubs_dict[pub_name]['qsize'] = 1
@@ -1170,7 +1169,7 @@ class NodeSubscribersIF:
                     self.subs_dict[sub_name]['sub'] = sub
                     self.subs_dict[sub_name]['sub_namespace'] = sub_namespace
                     success = True
-                    self.msg_if.pub_debug("Created sub for: " + sub_name + " with namespace: " + sub_namespace ) 
+                    #self.msg_if.pub_debug("Created sub for: " + sub_name + " with namespace: " + sub_namespace ) 
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e) )   
                     self.subs_dict[sub_name]['sub'] = None

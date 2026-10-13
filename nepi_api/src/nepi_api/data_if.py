@@ -584,7 +584,7 @@ class NavPoseIF:
                 if key in navpose_dict.keys():
                     np_dict[key] = navpose_dict[key]
             
-            self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = 30)
+            #self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = 30)
 
             if timestamp == None:
                 timestamp = nepi_utils.get_time()
