@@ -85,8 +85,8 @@ class NavPoseMgr(object):
 
 
 
-    NAVPOSE_COMPONENT_NAMES = ['navpose_update','navpose_init','navpose_offset','navpose_reset']
-    NAVPOSE_COMPONENT_TOPICS = ['update_topic','init_topic','offset_topic','reset_topic']
+    NAVPOSE_COMPONENT_NAMES = ['navpose_init','navpose_update','navpose_offset','navpose_reset']
+    NAVPOSE_COMPONENT_TOPICS = ['init_topic','update_topic','offset_topic','reset_topic']
     
     ZERO_TRANSFORM_DICT = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
 

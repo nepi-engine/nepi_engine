@@ -584,7 +584,7 @@ class NavPoseIF:
                 if key in navpose_dict.keys():
                     np_dict[key] = navpose_dict[key]
             
-            self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = 5.0)
+            self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = -1)
 
             if timestamp == None:
                 timestamp = nepi_utils.get_time()
@@ -593,7 +593,7 @@ class NavPoseIF:
 
             current_time = nepi_utils.get_time()
             get_latency = (current_time - timestamp)
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency) , throttle_s = 5.0)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency) , throttle_s = -1)
 
             # Start Img Pub Process
             start_time = nepi_utils.get_time()   
@@ -738,7 +738,7 @@ class NavPoseIF:
             current_time = nepi_utils.get_time()
             pub_latency = (current_time - timestamp)
             process_time = (current_time - start_time)
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency) , throttle_s = 5.0)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency) , throttle_s = -1)
 
             # Update Pub Stats
             if self.last_pub_time is None:
@@ -7524,7 +7524,7 @@ class DepthMapIF:
             current_time = nepi_utils.get_time()
             latency = (current_time - timestamp)
             self.status_msg.get_latency_time = latency
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency) , throttle_s = 5.0)
+            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency) , throttle_s = -1)
 
             # Start Img Pub Process
             start_time = nepi_utils.get_time()   

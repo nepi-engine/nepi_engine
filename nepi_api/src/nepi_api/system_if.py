@@ -3351,22 +3351,22 @@ class SaveDataIF:
                 should_save = self.data_product_should_save(data_product)
                 snapshot_enabled = self.data_product_snapshot_enabled(data_product)
                 # Save data if enabled
-                self.msg_if.pub_debug("******" , throttle_s = 5)
+                self.msg_if.pub_debug("******" , throttle_s = -1)
                 save_check = [should_save, snapshot_enabled, save_check]
-                self.msg_if.pub_debug("Checking save checks: " + data_product + " " + str(save_check)  , throttle_s = 5)
+                self.msg_if.pub_debug("Checking save checks: " + data_product + " " + str(save_check)  , throttle_s = -1)
                 if (should_save or snapshot_enabled or save_check == False):
                     if self.filename_dict['use_utc_tz'] == False:
                         timezone = self.timezone
                     else:
                         timezone = 'UTC'
-                    self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone)  , throttle_s = 5)
+                    self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone)  , throttle_s = -1)
                     if should_save == False:
                         filename = None
                     filename = self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp, filename = filename, key_name = key_name)
                     self.data_product_snapshot_reset(data_product)
                     self.save_rate_dict[data_product][1] = nepi_utils.get_time()
-                self.msg_if.pub_debug("Finished Checking save data: " + data_product  , throttle_s = 5)
-                self.msg_if.pub_debug("******" , throttle_s = 5)
+                self.msg_if.pub_debug("Finished Checking save data: " + data_product  , throttle_s = -1)
+                self.msg_if.pub_debug("******" , throttle_s = -1)
                 return filename
 
 
