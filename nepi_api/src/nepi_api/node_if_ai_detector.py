@@ -264,6 +264,8 @@ class AiDetectorIF:
         ##############################
         # Get for System Folders
         self.msg_if.pub_warn("Waiting for system folders")
+
+        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
         while system_folders is None and nepi_sdk.is_shutdown() == False:
             nepi_sdk.sleep(1)
 
