@@ -284,8 +284,6 @@ class ProcessIF:
                 settings_init_dict = None,
                 show_dict = None,
                 if_dict = None,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None,
                 save_data_if = None,
@@ -304,19 +302,14 @@ class ProcessIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.log_name_list.append(self.class_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IF Initialization Processes" )
 
         # Create Process Name
         self.process_name = nepi_utils.get_clean_name(process_name)
         if self.process_name is None or self.process_name == '':
-            self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name)) 
+            self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name) )
             return
-        self.msg_if.pub_info("Using Process Name: " + self.process_name)
+        self.msg_if.pub_info("Using Process Name: " + self.process_name )
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
         self.data_products = [self.process_name]
 
@@ -395,7 +388,7 @@ class ProcessIF:
           
 
         if process_module is None:
-            self.msg_if.pub_warn("No Process Module Provided")
+            self.msg_if.pub_warn("No Process Module Provided" )
             return
 
         self.process_module = process_module
@@ -433,9 +426,9 @@ class ProcessIF:
 
         success = self._reloadProcesses()
         if success == False:
-            self.msg_if.pub_warn("INITIAL PROCESS LOAD FAILED: " + str(self.processes_functions_dict))
+            self.msg_if.pub_warn("INITIAL PROCESS LOAD FAILED: " + str(self.processes_functions_dict) )
         else:
-            self.msg_if.pub_warn("INITIAL PROCESS LOAD SUCCEEDED: " + str(self.processes_functions_dict))
+            self.msg_if.pub_warn("INITIAL PROCESS LOAD SUCCEEDED: " + str(self.processes_functions_dict) )
 
 
 
@@ -564,7 +557,6 @@ class ProcessIF:
                             services_dict = None,
                             pubs_dict = self.process_node_pubs_dict,
                             subs_dict = self.process_node_subs_dict,
-                            log_name_list = [],
                             msg_if = self.msg_if
             )
             self.node_if.wait_for_ready()
@@ -583,7 +575,7 @@ class ProcessIF:
                 
                 nepi_sdk.sleep(1)
             except Exception as e:
-                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
+                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e) )
                 return
 
         ####################
@@ -601,8 +593,8 @@ class ProcessIF:
             self.data_products = []
         else:
             if self.save_data_if is not None:
-                self.msg_if.pub_info("####################", log_name_list = self.log_name_list)
-                self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
+                self.msg_if.pub_info("####################" )
+                self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None) )
                 if save_data_if is not None and save_data_if != 'None':
                     self.save_data_if = save_data_if
                     data_products = self.save_data_if.get_data_products()
@@ -612,7 +604,7 @@ class ProcessIF:
                 elif save_data_if != 'None':
                     
                     # Setup Save Data IF Class 
-                    self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
+                    self.msg_if.pub_info("Starting Save Data IF Initialization" )
                     factory_data_rates= dict()
 
                     factory_filename_dict = {
@@ -629,14 +621,14 @@ class ProcessIF:
                                             data_products = [self.data_products],
                                             factory_rate_dict = factory_data_rates,
                                             factory_filename_dict = factory_filename_dict,
-                                            log_name_list = self.log_name_list,
+                                            
                                             msg_if = self.msg_if,
                                             node_if = self.node_if)
                     nepi_sdk.sleep(1)
 
                 if self.save_data_if is not None:
                     self.save_data_topic = self.save_data_if.get_namespace()
-                    self.msg_if.pub_info("Using save_data namespace: " + str(self.save_data_topic), log_name_list = self.log_name_list)
+                    self.msg_if.pub_info("Using save_data namespace: " + str(self.save_data_topic) )
                 else:
                     has_save_data = False
 
@@ -657,7 +649,7 @@ class ProcessIF:
         # RUI process panel stays blank forever.
         nepi_sdk.start_timer_process(1, self._publishStatusCb)
         self.publish_status()
-        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete" )
         ###############################
     
 
@@ -666,7 +658,7 @@ class ProcessIF:
             self.enabled = nepi_controls.get_value(self.settings_dict,'enabled') 
             self.auto_select_enabled = nepi_controls.get_value(self.settings_dict,'auto_select_enabled')
             self.selected_sources = self.get_selected_sources()      
-            self.max_process_rate = nepi_controls.get_value(self.settings_dict,'process_rate')            
+            self.max_process_rate = nepi_controls.get_value(self.settings_dict,'process_rate')   
             self.min_max_process_rates = nepi_controls.get_bounds(self.settings_dict,'process_rate')
             self.max_image_rate = nepi_controls.get_value(self.settings_dict,'image_rate')            
             self.min_max_image_rates = nepi_controls.get_bounds(self.settings_dict,'image_rate')
@@ -697,16 +689,16 @@ class ProcessIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected" )
         return self.ready  
 
     def get_namespace(self):
@@ -731,7 +723,7 @@ class ProcessIF:
         if process_name in self.available_processes:
             cur_process = copy.deepcopy(self.selected_process)
             if process_name != cur_process or check_updates == False:
-                self.msg_if.pub_warn("Process Selected: " + str(process_name))
+                self.msg_if.pub_warn("Process Selected: " + str(process_name) )
                 self.process_ready = False
                 self.selected_process = process_name
                 self.publish_status()
@@ -742,7 +734,7 @@ class ProcessIF:
                 if process_name in processes_controls_dict.keys():
                         if 'controls_dict' in processes_dict[process_name].keys():
                             for control_name in controls_dict.keys():
-                                #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]))
+                                #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]) )
                                 if control_name in processes_controls_dict[process_name].keys():
                                     control_value = processes_controls_dict[process_name][control_name]
                                     nepi_controls.set_value(controls_dict, control_name, control_value )
@@ -754,8 +746,8 @@ class ProcessIF:
                 self.process_function = self.processes_functions_dict[process_name]
                 nepi_sdk.sleep(1)
                 success = True
-                self.msg_if.pub_warn("Process Ready: " + str(process_name))
-                self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict.keys(),self.controls_dict.keys(),self.results_display_dict.keys(),self.states_dict.keys(),self.process_function]))
+                self.msg_if.pub_warn("Process Ready: " + str(process_name) )
+                self.msg_if.pub_warn("Process Dictionaries: " + str([self.data_dict.keys(),self.controls_dict.keys(),self.results_display_dict.keys(),self.states_dict.keys(),self.process_function]) )
 
         self.process_ready = self.selected_process in self.available_processes
         return success
@@ -851,7 +843,7 @@ class ProcessIF:
             bool: True if the interface became ready, False if the timeout was reached.
         """
         success = False
-        #self.msg_if.pub_info("Waiting for process ready")
+        #self.msg_if.pub_info("Waiting for process ready" )
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.get_process_ready() == False and timer < timeout and not nepi_sdk.is_shutdown():
@@ -878,7 +870,7 @@ class ProcessIF:
         """
         success = False
 
-        #self.msg_if.pub_info("Waiting for process not busy")
+        #self.msg_if.pub_info("Waiting for process not busy" )
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.get_process_busy() == True and timer < timeout and not nepi_sdk.is_shutdown():
@@ -890,10 +882,14 @@ class ProcessIF:
 
     
     def set_connected_source_topics(self, connected_source_topics):
-        if self.connected_source_topics != connected_source_topics:
-            self.connected_source_topics = connected_source_topics
-            self.publish_status()
-        
+        if connected_source_topics is not None:
+            topics = []
+            for topic in connected_source_topics:
+                topics.append(str(topic))
+            if self.connected_source_topics != topics:
+                self.connected_source_topics = topics
+                self.publish_status()
+            
     def set_image_pub_topics(self, image_pub_topics):
         if self.image_pub_topics != image_pub_topics:
             self.image_pub_topics = image_pub_topics
@@ -994,7 +990,7 @@ class ProcessIF:
                             self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
                             self.node_if.set_param(self.settings_param_name, self.settings_controls_dict)
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5 )
 
     def set_setting_options(self, setting_name, update_options):
         if self.get_process_ready() == True:
@@ -1009,7 +1005,7 @@ class ProcessIF:
                             self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
                             self.node_if.set_param(self.settings_param_name, self.settings_controls_dict)
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5 )
 
     def get_setting_options(self, setting_name):
         settings_dict = copy.deepcopy(self.settings_dict)
@@ -1031,7 +1027,7 @@ class ProcessIF:
                             self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
                             self.node_if.set_param(self.settings_param_name, self.settings_controls_dict)
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Setting Options msg. Setting Name not In Settings.keys: " + str([setting_name,self.settings_controls_dict.keys()]), throttle_s = 5 )
 
 
     def get_setting_bounds(self, setting_name):
@@ -1080,13 +1076,13 @@ class ProcessIF:
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
-                        try:
-                            #self.msg_if.pub_warn("Updated Control Value: " + str([ control_name, update_value, self.controls_dict[control_name] ]), throttle_s = 5)
-                            pass
-                        except Exception as e:
-                            self.msg_if.pub_info("Failed pub Updated Control Value msg: " + str(e), throttle_s = 5)
+                        # try:
+                        #     #self.msg_if.pub_warn("Updated Control Value: " + str([ control_name, update_value, self.controls_dict[control_name] ]), throttle_s = 5 )
+                        #     pass
+                        # except Exception as e:
+                        #     self.msg_if.pub_info("Failed pub Updated Control Value msg: " + str(e), throttle_s = 5 )
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Control Options msg. Control Name not In Controls.keys: " + str([control_name,controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Control Options msg. Control Name not In Controls.keys: " + str([control_name,controls_dict.keys()]), throttle_s = 5 )
 
     def set_control_options(self, control_name, update_options):
         if self.get_process_ready() == True:
@@ -1106,12 +1102,12 @@ class ProcessIF:
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
-                        try:
-                            self.msg_if.pub_warn("Updated Control Options: " + str([ control_name, update_options, self.controls_dict[control_name] ]), throttle_s = 5)
-                        except Exception as e:
-                            self.msg_if.pub_info("Failed pub Updated Control Options msg: " + str(e), throttle_s = 5)
+                        # try:
+                        #     self.msg_if.pub_warn("Updated Control Options: " + str([ control_name, update_options, self.controls_dict[control_name] ]), throttle_s = 5 )
+                        # except Exception as e:
+                        #     self.msg_if.pub_info("Failed pub Updated Control Options msg: " + str(e), throttle_s = 5 )
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Control Options msg. Control Name not In Controls.keys: " + str([control_name,controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Control Options msg. Control Name not In Controls.keys: " + str([control_name,controls_dict.keys()]), throttle_s = 5 )
 
     def get_control_options(self, control_name):
         controls_dict = copy.deepcopy(self.controls_dict)
@@ -1129,7 +1125,7 @@ class ProcessIF:
                     controls_dict = nepi_controls.set_bounds(controls_dict, control_name, min_bound = min_bound, max_bound = max_bound)
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
-                        self.self.publish_status()
+                        self.publish_status()
 
                         if process_name in self.processes_dict.keys():
                             self.processes_dict[process_name]['controls_dict'] = self.controls_dict
@@ -1138,12 +1134,12 @@ class ProcessIF:
                             if self.node_if is not None and processes_controls_dict != self.processes_controls_dict:
                                 self.processes_controls_dict = processes_controls_dict
                                 self.node_if.set_param(self.processes_param_name, self.processes_controls_dict)
-                        try:
-                            self.msg_if.pub_warn("Updated Control Bounds: " + str([ control_name, [min_bound,max_bound], self.controls_dict[control_name] ]), throttle_s = 5)
-                        except Exception as e:
-                            self.msg_if.pub_info("Failed pub Updated Control Bounds msg: " + str(e), throttle_s = 5)
+                        # try:
+                        #     self.msg_if.pub_warn("Updated Control Bounds: " + str([ control_name, [min_bound,max_bound], self.controls_dict[control_name] ]), throttle_s = 5 )
+                        # except Exception as e:
+                        #     self.msg_if.pub_info("Failed pub Updated Control Bounds msg: " + str(e), throttle_s = 5 )
                 else:
-                    self.msg_if.pub_info("Failed pub Updated Control Options msg. Control Name not In Controls.keys: " + str([control_name,controls_dict.keys()]), throttle_s = 5)
+                    self.msg_if.pub_info("Failed pub Updated Control Options msg. Control Name not In Controls.keys: " + str([control_name,controls_dict.keys()]), throttle_s = 5 )
 
 
     def get_control_bounds(self, control_name):
@@ -1169,8 +1165,8 @@ class ProcessIF:
         if source_topic != '' and source_topic not in self.connected_source_topics:
             self.connected_source_topics.append(source_topic)
         results_pub_msg = None
-        #self.msg_if.pub_warn("Processing results: " + str( [self.data_dict, self.controls_dict, self.results_display_dict, self.process_function]), throttle_s = 5)
-        #self.msg_if.pub_warn("Processing results with source topic: " + str( [source_topic]), throttle_s = 5)
+        #self.msg_if.pub_warn("Processing results: " + str( [self.data_dict, self.controls_dict, self.results_display_dict, self.process_function]), throttle_s = 5 )
+        #self.msg_if.pub_warn("Processing results with source topic: " + str( [source_topic]), throttle_s = 5 )
         last_results_dict = copy.deepcopy(self.results_dict)
         results_dict = None
         if self.enabled == True:
@@ -1180,15 +1176,15 @@ class ProcessIF:
                     [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict, self.if_dict)
                     self.results_dict = results_dict
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5) 
+                    self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5 )
 
                 self.results_dict = results_dict
                 if self.results_dict is not None:
                     self.results_display_dict = nepi_data.set_values(self.results_display_dict,self.results_dict)
-                    #self.msg_if.pub_warn("Updated results display results: " + str( [self.results_display_dict, results_dict]), throttle_s = 5)
+                    #self.msg_if.pub_warn("Updated results display results: " + str( [self.results_display_dict, results_dict]), throttle_s = 5 )
                 else:
                     self.results_display_dict = nepi_data.reset_values(self.results_display_dict)
-                #self.msg_if.pub_warn("Processed results: " + str( [self.results_display_dict, results_pub_msg]), throttle_s = 5)
+                #self.msg_if.pub_warn("Processed results: " + str( [self.results_display_dict, results_pub_msg]), throttle_s = 5 )
 
                 if self.has_results_pub == True and self.results_dict is not None:
                     self._publishResults(self.results_dict, source_topic)
@@ -1197,7 +1193,7 @@ class ProcessIF:
             
             
         else:
-            #self.msg_if.pub_warn("Process Not Ready. Can't Pub Results", throttle_s = 5)
+            #self.msg_if.pub_warn("Process Not Ready. Can't Pub Results", throttle_s = 5 )
             pass
         if last_results_dict != self.results_dict:
             self.publish_status()
@@ -1236,6 +1232,8 @@ class ProcessIF:
         self.status_msg.msg_str = self.msg_str
 
         settings_dict = copy.deepcopy(self.settings_dict)
+        self.settings_msg.name = self.process_name
+        self.settings_msg.description = self.process_description
         self.settings_msg = nepi_controls.update_status_msg(self.settings_msg, settings_dict)
         self.status_msg.settings = self.settings_msg
 
@@ -1257,14 +1255,23 @@ class ProcessIF:
         self.status_msg.process_ready = self.get_process_ready()
 
         controls_dict = copy.deepcopy(self.controls_dict)
+        self.controls_msg.name = self.process_name
+        self.controls_msg.description = self.process_description
         if controls_dict is not None:
             has_controls = len(list(controls_dict.keys())) > 0
             self.status_msg.has_controls = has_controls
             if has_controls == True:
                 self.controls_msg = nepi_controls.update_status_msg(self.controls_msg, controls_dict)
                 self.status_msg.controls = self.controls_msg
-
+        #self.msg_if.pub_info("Publishing status for process controls: " + str([ControlsStatus(),Control(),self.controls_msg]) , throttle_s = 10)
+ 
+ 
+ 
+ 
+ 
         results_display_dict = copy.deepcopy(self.results_display_dict)
+        self.results_display_msg.name = self.process_name
+        self.results_display_msg.description = self.process_description
         if results_display_dict is not None:
             has_results = len(list(results_display_dict.keys())) > 0
             self.status_msg.has_results = has_results
@@ -1291,12 +1298,13 @@ class ProcessIF:
                     setattr(self.status_msg, key, show)
                 except:
                     pass
+
         return self.status_msg
 
     def publish_status(self):
 
         status_msg = self.get_status_msg()
-
+        #self.msg_if.pub_info("Publishing status for process: " + str(status_msg) , throttle_s = 10)
         ###########
 
         if self.node_if is not None:
@@ -1306,7 +1314,7 @@ class ProcessIF:
                 self.last_status_time = nepi_utils.get_time()
 
                 if self.status_has_published == False:
-                    self.msg_if.pub_info("Publishing first status for process: " + str(self.process_name))
+                    self.msg_if.pub_info("Publishing first status for process: " + str(self.process_name) )
                     self.status_has_published = True
                 self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
         return status_msg
@@ -1340,7 +1348,7 @@ class ProcessIF:
         Args:
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
-        self.msg_if.pub_warn("Initializing params", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Initializing params" )
         if self.node_if is not None:
                 processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
                 if processes_controls_dict is not None:
@@ -1364,16 +1372,16 @@ class ProcessIF:
 
             success = self._reloadProcesses()
             if success == False:
-                self.msg_if.pub_warn("PROCESS LOAD FAILED: " + str(self.processes_functions_dict))
+                self.msg_if.pub_warn("PROCESS LOAD FAILED: " + str(self.processes_functions_dict) )
             else:
-                self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict.keys()))
-                # self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict))
-                # self.msg_if.pub_warn("Process Selected: " + str(self.selected_process))
+                self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict.keys()) )
+                # self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict) )
+                # self.msg_if.pub_warn("Process Selected: " + str(self.selected_process) )
         self.publish_status()
 
     def reset(self):
         """Reset the interface to its initialized state."""   
-        self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Resetting params" )
         if self.node_if is not None and self.node_if_shared == False:
             self.node_if.reset_params()
             nepi_sdk.sleep(1) 
@@ -1381,14 +1389,14 @@ class ProcessIF:
 
     def factory_reset(self):
         """Reset the interface to factory defaults."""
-        self.msg_if.pub_warn("Factory resetting params", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Factory resetting params" )
         if self.node_if is not None and self.node_if_shared == False:
             self.node_if.factory_reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
 
     def _resetControlsCb(self,msg):
-        self.msg_if.pub_info("Received reset controls msg", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Received reset controls msg" )
         if self.node_if is not None:
 
             
@@ -1396,7 +1404,7 @@ class ProcessIF:
             nepi_sdk.sleep(1)
             processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
             
-            self.msg_if.pub_warn("Got Reset Params Dict: " + str(processes_controls_dict))       
+            self.msg_if.pub_warn("Got Reset Params Dict: " + str(processes_controls_dict) )   
 
             process_name = self.selected_process
             processes_dict = copy.deepcopy(self.processes_dict)
@@ -1406,13 +1414,13 @@ class ProcessIF:
                     for control_name in processes_controls_dict[process_name].keys():
                        
                         if control_name not in processes_dict[process_name]['controls_dict'].keys():
-                            self.msg_if.pub_warn("control name not in Processes dict keys: " + str([control_name,processes_dict[process_name]['controls_dict']]))
+                            self.msg_if.pub_warn("control name not in Processes dict keys: " + str([control_name,processes_dict[process_name]['controls_dict']]) )
                         else:
                             control_value = processes_controls_dict[process_name][control_name]
-                            #self.msg_if.pub_warn("Updating Processes control_name,value: " + str([control_name,control_value]))
+                            #self.msg_if.pub_warn("Updating Processes control_name,value: " + str([control_name,control_value] )
                             processes_dict[process_name]['controls_dict'] = nepi_controls.set_value(processes_dict[process_name]['controls_dict'], control_name, control_value )
                     processes_values_dict = nepi_controls.get_values_dict(processes_dict[process_name]['controls_dict'])
-                    self.msg_if.pub_warn("Updated Processes values dict: " + str(processes_values_dict))
+                    self.msg_if.pub_warn("Updated Processes values dict: " + str(processes_values_dict) )
                     self.processes_controls_dict[process_name] = processes_values_dict
                     self.processes_dict = processes_dict
                     self.controls_dict = processes_dict[process_name]['controls_dict']
@@ -1448,16 +1456,16 @@ class ProcessIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Factory Reset params callback" )
         self.factory_reset()
 
 
     def _reloadProcessesCb(self,msg):
-        self.msg_if.pub_warn("Got Process Reload Msg")
+        self.msg_if.pub_warn("Got Process Reload Msg" )
         self._reloadProcesses()
     
     def _setProcessCb(self,msg):
@@ -1475,15 +1483,15 @@ class ProcessIF:
             nepi_sdk.sleep(1)
             process_busy = self.wait_on_process_busy()
             if process_busy == True:
-                self.msg_if.pub_info("Failed to load process. Process Busy: " + str(process_busy))
+                self.msg_if.pub_info("Failed to load process. Process Busy: " + str(process_busy) )
             else:
                 
                 try:
                     importlib.reload(self.process_module)
                     processes_dict = self.process_module.PROCESSES_DICT
-                    self.msg_if.pub_warn("################################")
-                    self.msg_if.pub_warn("Process Reloaded")
-                    self.msg_if.pub_warn("Updating Process Dictionaries")
+                    self.msg_if.pub_warn("################################" )
+                    self.msg_if.pub_warn("Process Reloaded" )
+                    self.msg_if.pub_warn("Updating Process Dictionaries" )
 
 
                     try:
@@ -1494,7 +1502,7 @@ class ProcessIF:
 
                     available_processes = []
                     processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
-                    self.msg_if.pub_warn("Got Process Params Dict: " + str(processes_controls_dict))                    
+                    self.msg_if.pub_warn("Got Process Params Dict: " + str(processes_controls_dict) )                  
                     for process_name in processes_dict.keys():
                         available_processes.append(process_name)
 
@@ -1502,23 +1510,23 @@ class ProcessIF:
 
                             if 'controls_dict' in processes_dict[process_name].keys():
                                 for control_name in processes_controls_dict[process_name].keys():
-                                    #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]))
+                                    #self.msg_if.pub_warn("Updating Processes control_name: " + str([control_name]) )
                                     if control_name in processes_dict[process_name]['controls_dict'].keys():
                                         control_value = processes_controls_dict[process_name][control_name]
                                         processes_dict[process_name]['controls_dict'] = nepi_controls.set_value(processes_dict[process_name]['controls_dict'], control_name, control_value )
                         processes_controls_dict[process_name] = nepi_controls.get_values_dict(processes_dict[process_name]['controls_dict'])
-                    self.msg_if.pub_warn("Updated Process Params Dict: " + str(processes_controls_dict)) 
+                    self.msg_if.pub_warn("Updated Process Params Dict: " + str(processes_controls_dict) ) 
                     self.available_processes = available_processes
                     self.processes_dict = processes_dict
                     self.processes_functions_dict = self.process_module.FUNCTIONS_DICT
-                    #self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict))
+                    #self.msg_if.pub_warn("Processes Functions Updated: " + str(self.processes_functions_dict) )
 
 
 
 
-                    #self.msg_if.pub_warn("")
-                    #self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict))
-                    #self.msg_if.pub_warn("################################")
+                    #self.msg_if.pub_warn("" )
+                    #self.msg_if.pub_warn("Processes Dict Updated: " + str(self.processes_dict) )
+                    #self.msg_if.pub_warn("################################" )
                     if self.selected_process is None:
                         self.selected_process = 'None'
                     selected_process = self.selected_process    
@@ -1529,17 +1537,17 @@ class ProcessIF:
                         except:
                             pass
                     self.selected_process = selected_process
-                    #self.msg_if.pub_warn("Process Selected: " + str(self.selected_process))
+                    #self.msg_if.pub_warn("Process Selected: " + str(self.selected_process) )
                     success = self.set_selected_process(self.selected_process, check_updates = False)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to reload process class: " + str(e)) 
+                    self.msg_if.pub_warn("Failed to reload process class: " + str(e) )
         if success == False:
             self.process_ready = False
         return success
 
 
     def _updateSettingCb(self,msg):
-        #self.msg_if.pub_info("Received setting update msg: " + str(msg), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Received setting update msg: " + str(msg) )
         setting_name = msg.name
         # Same fix as SettingsIF._updateSettingCb: apply_update_msg writes
         # through the dict it is handed.
@@ -1557,12 +1565,12 @@ class ProcessIF:
                     try:
                         self.callback_dict['settings_updated_callback'](setting_name, update_value)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to call settings_updated_callback: " + str(e), throttle_s = 1) 
+                        self.msg_if.pub_warn("Failed to call settings_updated_callback: " + str(e), throttle_s = 1 )
                         pass
 
 
     def _updateControlCb(self,msg):
-        #self.msg_if.pub_info("Received control update msg: " + str(msg), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Received control update msg: " + str(msg)  )
         control_name = msg.name
         # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
         # through the dict it is handed.
@@ -1572,6 +1580,7 @@ class ProcessIF:
         if cur_value is not None:
             controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
             update_value = nepi_controls.get_value(controls_dict, control_name )
+            self.msg_if.pub_info("Checking for update: " + str([controls_dict,update_value])  )
             if cur_value != update_value:
                 self.set_control_value(control_name, update_value)
                 self.publish_status()
@@ -1584,7 +1593,7 @@ class ProcessIF:
                         pass
 
     def _publishResults(self, results_dict, source_topic = ''):
-        #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10) 
+        #self.msg_if.pub_warn("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10 )
         try:
             results_pub_dict = copy.deepcopy(self.process_module.RESULTS_PUB_DICT)
         except:
@@ -1621,7 +1630,7 @@ class ProcessIF:
             if self.node_if is not None and self.results_pub_msg is not None:
                 self.node_if.publish_pub(self.node_if_prefix + 'results_pub', results_pub_msg) 
             else:
-                #self.msg_if.pub_warn("Failed to Pub. Results Msg is None: " + str([results_pub_dict, self.results_pub_msg]), throttle_s = 10) 
+                self.msg_if.pub_warn("Failed to Pub. Results Msg is None: " + str([results_pub_dict, self.results_pub_msg]), throttle_s = 10 )
                 pass
 
 

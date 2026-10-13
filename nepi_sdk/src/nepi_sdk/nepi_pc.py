@@ -54,7 +54,7 @@ from sensor_msgs.msg import PointCloud2
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_pc"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 VERBOSITY_LEVELS = ["Debug","Error","Info","Warning"]
 
@@ -610,7 +610,7 @@ def write_pointcloud_image_file(filename,open3d_image):
     return ret
     
 
-def read_pointcloud_file(file_path, log_name_list = []):
+def read_pointcloud_file(file_path):
     data_from_file = dict()
     if os.path.exists(file_path):
         try:
@@ -618,21 +618,21 @@ def read_pointcloud_file(file_path, log_name_list = []):
             if data_from_file is not None:
                 success = True
         except:
-            logger.log_warn("Failed to get dict from file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+            logger.log_warn("Failed to get dict from file: " + file_path + " " + str(e), throttle_s = 5.0)
     else:
-        logger.log_warn("Failed to find dict file: " + file_path, log_name_list = log_name_list, throttle_s = 5.0)
+        logger.log_warn("Failed to find dict file: " + file_path, throttle_s = 5.0)
     return data_from_file
 
-def write_o3dpc_2_pcd(data_2_save,file_path, log_name_list = []):
+def write_o3dpc_2_pcd(data_2_save,file_path):
     success = False
     path = os.path.dirname(file_path)
     if os.path.exists(path):
         try:
             success = nepi_pc.save_pointcloud(data_2_save,file_path)
         except:
-            logger.log_warn("Failed to write dict: " + str(data_2_save) + " to file: " + file_path + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+            logger.log_warn("Failed to write dict: " + str(data_2_save) + " to file: " + file_path + " " + str(e), throttle_s = 5.0)
     else:
-        logger.log_warn("Failed to find file path: " + path, log_name_list = log_name_list, throttle_s = 5.0)
+        logger.log_warn("Failed to find file path: " + path, throttle_s = 5.0)
     return success
 
 

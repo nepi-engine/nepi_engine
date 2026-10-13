@@ -32,7 +32,7 @@ from nepi_interfaces.msg import Datum, DataStatus
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_data"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 
 #########################
@@ -201,8 +201,10 @@ def create_data_dict(init_dict):
         datum_dict['min_bound'] = -999
         datum_dict['max_bound'] = -999
         datum_dict['display_name'] = name
+        datum_dict['display_labels'] = []
         datum_dict['display_round'] = 2
         datum_dict['display_row'] = False
+
         for key in datum_dict.keys():
           if key in init_datum_dict.keys():
             datum_dict[key] = init_datum_dict[key]
@@ -318,7 +320,7 @@ def create_data_dict(init_dict):
 
         #############
         # Clean Labels
-
+        display_labels = datum_dict['display_labels']
         if input_type == 'ColorRGB':
               display_labels = ['R','G','B']
 
@@ -327,7 +329,7 @@ def create_data_dict(init_dict):
         else:
           for i, entry in enumerate(value):
             if len(display_labels) <= i:
-              display_labels.append('datum_' + str(i))
+              display_labels.append(datum_dict['display_name'] +'_' + str(i))
 
         display_labels = [str(item) for item in display_labels]
 
@@ -945,6 +947,10 @@ def update_status_msg( status_msg, data_dict):
   if status_msg is None:
     status_msg = DataStatus()
 
+  data_name = status_msg.name
+  if data_name == '':
+     data_name = 'data_name'
+
 
   names_list = [] 
   types_list = [] 
@@ -984,25 +990,20 @@ def update_status_msg( status_msg, data_dict):
           else:
             msg_value = [str(nepi_utils.get_time() - fired_at)]
 
-        msg_dict = nepi_sdk.convert_msg2dict(Datum())
-        for key in msg_dict.keys():
-          if key in datum_dict.keys():
-            msg_dict[key] = datum_dict[key]
-        msg_dict['value'] = msg_value
+
         # Carried by the key loop above like every other display field. The
         # coercion is repeated here because a data dict assembled by hand
         # never passed through create_data_dict's normalization, and a
         # string in this bool field makes convert_dict2msg return None -- which
         # takes the whole datum out of the status message, not just its
         # layout.
-        msg_dict['display_row'] = cleanDisplayRow(datum_dict.get('display_row',False))
+        datum_dict['display_row'] = cleanDisplayRow(datum_dict.get('display_row',False))
 
 
         msg_type = 'nepi_interfaces/Datum'
-        datum_msg = nepi_sdk.convert_dict2msg(msg_type,msg_dict)
+        datum_msg = nepi_sdk.convert_dict2msg(msg_type,datum_dict,Datum(),data_name)
         if datum_msg is not None:
           names_list.append(name)
-          types_list.append(datum_type)
           msgs_list.append(datum_msg)
       else:
         # Same silent fall-through as create_data_dict: a datum that made
@@ -1019,6 +1020,6 @@ def update_status_msg( status_msg, data_dict):
       logger.log_warn("update_status_msg: left datum '" + str(name) +
                       "' out of the status message: " +
                       type(e).__name__ + ": " + str(e), throttle_s = 5)
-    status_msg.data_name_list = names_list
-    status_msg.data_msg_list = msgs_list
+  status_msg.data_name_list = names_list
+  status_msg.data_msg_list = msgs_list
   return status_msg

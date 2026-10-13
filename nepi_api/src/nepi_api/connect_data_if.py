@@ -164,7 +164,7 @@ class ConnectDataIF(ConnectNodeIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
@@ -651,7 +651,7 @@ class ConnectNavPoseIF(ConnectDataIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
@@ -847,7 +847,7 @@ class ConnectBaseImageIF(ConnectDataIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
@@ -2846,7 +2846,7 @@ class ConnectImageIF(ConnectBaseImageIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
@@ -2915,7 +2915,7 @@ class ConnectColorImageIF(ConnectBaseImageIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
@@ -2993,7 +2993,7 @@ class ConnectDepthMapIF(ConnectDataIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
@@ -3158,7 +3158,7 @@ class ConnectDepthMapImageIF(ConnectBaseImageIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
@@ -3236,7 +3236,7 @@ class ConnectPointcloudIF(ConnectDataIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
@@ -3636,7 +3636,7 @@ class ConnectPointcloudImageIF(ConnectBaseImageIF):
 
         
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")

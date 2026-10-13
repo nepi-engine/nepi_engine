@@ -111,7 +111,7 @@ class SoftwareMgrNode():
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = None)
+        self.msg_if = MsgIF()
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
@@ -122,7 +122,7 @@ class SoftwareMgrNode():
         ##############################
         # Get for System Folders
         self.msg_if.pub_info("Waiting for system folders")
-        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        system_folders = nepi_system.get_system_folders()
         #self.msg_if.pub_warn("Got system folders: " + str(system_folders))
         self.nepi_config = nepi_system.get_nepi_config()
 
@@ -393,8 +393,8 @@ class SoftwareMgrNode():
                                 data_products = self.data_products_list,
                                 factory_rate_dict = factory_data_rates,
                                 factory_filename_dict = factory_filename_dict,
-                                log_name_list = [self.node_name],
-                                msg_if = self.msg_if
+                                msg_if = self.msg_if,
+                                node_if = self.node_if
                         )
 
 

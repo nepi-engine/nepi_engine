@@ -205,8 +205,6 @@ class IDXDeviceIF:
                  getNavPoseCb = None,
                  navpose_update_rate = 10,
                  data_products =  [],
-                log_name = None,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -223,12 +221,8 @@ class IDXDeviceIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IDX IF Initialization Processes", log_name_list = self.log_name_list)
-        self.msg_if.pub_info("Using Namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IDX IF Initialization Processes" )
+        self.msg_if.pub_info("Using Namespace: " + str(self.namespace) )
 
         ############################# 
         # Initialize Class Variables
@@ -365,7 +359,7 @@ class IDXDeviceIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node IF Initialization" )
         alt_namespace = None
         if self.device_name != self.node_name:
             alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
@@ -569,7 +563,7 @@ class IDXDeviceIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
+                        
                         msg_if = self.msg_if
                         )
 
@@ -577,11 +571,11 @@ class IDXDeviceIF:
 
 
         start_delay = nepi_utils.get_time() - self.start_time
-        self.msg_if.pub_warn("", log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("##########################", log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("Settings IF Initialization Complete: : " + str(start_delay), log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("##########################", log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("" )
+        self.msg_if.pub_warn("##########################" )
+        self.msg_if.pub_warn("Settings IF Initialization Complete: : " + str(start_delay) )
+        self.msg_if.pub_warn("##########################" )
+        self.msg_if.pub_warn("" )
 
         ##############################
         # Update vals from param server
@@ -601,7 +595,7 @@ class IDXDeviceIF:
             data_status_msg = ImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread" )
             self.image_thread = threading.Thread(target=self.runImageThread)
             self.image_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -623,7 +617,7 @@ class IDXDeviceIF:
             data_status_msg = ImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread" )
             self.depth_map_thread = threading.Thread(target=self.runDepthMapThread)
             self.depth_map_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -642,7 +636,7 @@ class IDXDeviceIF:
             data_status_msg = PointcloudStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread" )
             self.pointcloud_thread = threading.Thread(target=self.runPointcloudThread)
             self.pointcloud_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -657,13 +651,13 @@ class IDXDeviceIF:
         self.getSettingsFunction = getSettingsFunction
         self.setSettingFunction = setSettingFunction
         if self.getSettingsFunction is not None and self.setSettingFunction is not None:
-            self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Starting Settings IF Initialization" )
             settings_ns = self.namespace
 
             self.settings_if = SettingsIF(namespace = settings_ns,
                             getSettingsFunction=self.getSettingsFunction, 
                             setSettingFunction=self.setSettingFunction, 
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -671,7 +665,7 @@ class IDXDeviceIF:
 
         ##################################
         # Setup Save Data IF Class ####################
-        self.msg_if.pub_debug("Starting Save Data IF Initialization", log_name_list = self.log_name_list)     
+        self.msg_if.pub_debug("Starting Save Data IF Initialization" )     
 
         factory_filename_dict = {
             'prefix': "", 
@@ -686,7 +680,7 @@ class IDXDeviceIF:
         self.save_data_if = SaveDataIF(
                                 factory_filename_dict = factory_filename_dict,
                                 namespace = sd_namespace,
-                                log_name_list = self.log_name_list,
+                                
                                 msg_if = self.msg_if,
                                 node_if = self.node_if
                                 )
@@ -699,7 +693,7 @@ class IDXDeviceIF:
         # np_namespace = self.node_namespace
         # self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
         #                             save_data_if = self.save_data_if,
-        #                         log_name_list = self.log_name_list,
+        #                         
         #                         msg_if = self.msg_if,
         #                        node_if = self.node_if)
         
@@ -735,7 +729,7 @@ class IDXDeviceIF:
                                 source_ref_description = 'base_frame',
                                 end_ref_description = self.node_name,
                                 get_3d_transform_function = None,
-                                log_name_list = self.log_name_list,
+                                
                                 msg_if = self.msg_if,
                                 node_if = self.node_if
                                 )
@@ -762,10 +756,9 @@ class IDXDeviceIF:
                                 pub_pan_tilt = False,
                                 save_data_if = None,
                                 save_data_enabled = False,
-                                transform_namespace = self.transform_topic,
-                                log_name = 'navpose',
-                                log_name_list = self.log_name_list,
-                            msg_if = self.msg_if)
+                                transform_namespace = self.transform_topic,                                
+                                msg_if = self.msg_if,
+                                node_if = self.node_if)
                             # msg_if = self.msg_if,
                             # node_if = self.node_if
                             # )
@@ -823,11 +816,11 @@ class IDXDeviceIF:
         ####################################
         self.ready = True
         start_delay = nepi_utils.get_time() - self.start_time
-        self.msg_if.pub_warn("", log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("##########################", log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("IF Initialization Complete: " + str(start_delay), log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("##########################", log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("" )
+        self.msg_if.pub_warn("##########################" )
+        self.msg_if.pub_warn("IF Initialization Complete: " + str(start_delay) )
+        self.msg_if.pub_warn("##########################" )
+        self.msg_if.pub_warn("" )
         ####################################
 
         
@@ -862,16 +855,16 @@ class IDXDeviceIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready   
 
 
@@ -1034,7 +1027,7 @@ class IDXDeviceIF:
         return success
 
     def _disableCb(self, msg):
-        #self.msg_if.pub_info("Recieved Disable Update: " + str(msg), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Recieved Disable Update: " + str(msg) )
         enabled = msg.data
         self.disable(enabled)
 
@@ -1085,9 +1078,9 @@ class IDXDeviceIF:
             status, err_str = self.setAutoAdjustRatio(enabled)
 
         if enabled:
-            self.msg_if.pub_info("Enabling Auto Adjust", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Enabling Auto Adjust" )
         else:
-            self.msg_if.pub_info("Disabling IDX Auto Adjust", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Disabling IDX Auto Adjust" )
 
         self.auto_adjust_ebabled = enabled       
         self.publish_status(do_updates=False) # Updated inline here
@@ -1209,7 +1202,7 @@ class IDXDeviceIF:
         new_start_range_ratio = msg.start_range
         new_stop_range_ratio = msg.stop_range
         if (new_start_range_ratio < 0 or new_stop_range_ratio > 1 or new_stop_range_ratio < new_start_range_ratio):
-            self.msg_if.pub_error("Range values out of bounds", log_name_list = self.log_name_list)
+            self.msg_if.pub_error("Range values out of bounds" )
             self.publish_status(do_updates=False) # No change
             return
         else:
@@ -1264,7 +1257,7 @@ class IDXDeviceIF:
             #self.msg_if.pub_warn("Got " + data_product + " time and fps: " + str(round(f_time,3)) + " : " + str(round(current_fps,2)), throttle_s = 2)
             self.fps_queue[data_product].pop(0)
             self.fps_queue[data_product].append(current_fps)
-            self.msg_if.pub_debug("fps queue " + str(self.fps_queue[data_product]), throttle_s = 2)
+            #self.msg_if.pub_debug("fps queue " + str(self.fps_queue[data_product]), throttle_s = 2)
             fps_queue = [x for x in self.fps_queue[data_product] if x != 0]
             if len(fps_queue) > 1:
                 self.current_fps[data_product] = round(sum(fps_queue)/len(fps_queue),0)
@@ -1292,9 +1285,9 @@ class IDXDeviceIF:
         cv2_img = None
 
         if data_product not in self.data_products_dict.keys():
-            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict" )
         else:
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition" )
             acquiring = False
 
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
@@ -1321,8 +1314,8 @@ class IDXDeviceIF:
                             navpose_namespace = self.npx_navpose_topic,
                             transform_namespace = self.transform_topic,
                             save_data_if = self.save_data_if,
-                            log_name = data_product,
-                            log_name_list = self.log_name_list,
+                            
+                            
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -1378,13 +1371,13 @@ class IDXDeviceIF:
 
                         self.update_fps(data_product)
 
-                        #self.msg_if.pub_debug("Got cv2_img size: " + str(self.width_px) + ":" + str(self.height_px), log_name_list = self.log_name_list, throttle_s = 5.0)
+                        #self.msg_if.pub_debug("Got cv2_img size: " + str(self.width_px) + ":" + str(self.height_px) , throttle_s = 5.0)
                         if cur_width != self.width_px or cur_height != self.height_px:
                             self.publish_status()
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
-                        self.msg_if.pub_info("Stopping " + data_product + " acquisition", log_name_list = self.log_name_list)
+                        self.msg_if.pub_info("Stopping " + data_product + " acquisition" )
                         dp_stop_data()
                     acquiring = False
                     self.current_fps[data_product] = 0.0
@@ -1392,7 +1385,7 @@ class IDXDeviceIF:
                 else: # No subscribers and already stopped
                     acquiring = False
                     nepi_sdk.sleep(0.25)
-                #self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]), log_name_list = self.log_name_list, throttle_s = 5.0)  
+                #self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]) , throttle_s = 5.0)  
                 nepi_sdk.sleep(0.01) # Yield
 
 
@@ -1414,9 +1407,9 @@ class IDXDeviceIF:
         np_depth_map = None
 
         if data_product not in self.data_products_dict.keys():
-            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict" )
         else:
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition" )
             acquiring = False
 
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
@@ -1438,8 +1431,8 @@ class IDXDeviceIF:
                         # overlays with this camera's pose; self.navpose_if is None here.
                         navpose_if = self.idx_navpose_if,
                         save_data_if = self.save_data_if,
-                        log_name = data_product,
-                        log_name_list = self.log_name_list,
+                        
+                        
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -1457,7 +1450,7 @@ class IDXDeviceIF:
                 # Get data if requried
                 get_data = self.depthmap_if.needs_data_check()
                 if get_data == True and self.device_disabled == False:
-                    #self.msg_if.pub_warn("Got Depth Map Needs Data", log_name_list = self.log_name_list)
+                    #self.msg_if.pub_warn("Got Depth Map Needs Data" )
 
                     acquiring = True
 
@@ -1505,7 +1498,7 @@ class IDXDeviceIF:
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
-                        self.msg_if.pub_info("Stopping " + data_product + " acquisition", log_name_list = self.log_name_list)
+                        self.msg_if.pub_info("Stopping " + data_product + " acquisition" )
                         dp_stop_data()
                     acquiring = False
                     self.current_fps[data_product] = 0.0
@@ -1513,7 +1506,7 @@ class IDXDeviceIF:
                 else: # No subscribers and already stopped
                     acquiring = False
                     nepi_sdk.sleep(0.25)
-                #self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]), log_name_list = self.log_name_list, throttle_s = 5.0)    
+                #self.msg_if.pub_debug("Ending with avg fps: " + str(self.current_fps[data_product]) , throttle_s = 5.0)    
                 nepi_sdk.sleep(0.01) # Yield
 
 
@@ -1539,9 +1532,9 @@ class IDXDeviceIF:
         o3d_pc = None
 
         if data_product not in self.data_products_dict.keys():
-            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict" )
         else:
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Starting " + data_product + " acquisition" )
             acquiring = False
 
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
@@ -1564,8 +1557,8 @@ class IDXDeviceIF:
                         # overlays with this camera's pose; self.navpose_if is None here.
                         navpose_if = self.idx_navpose_if,
                         save_data_if = self.save_data_if,
-                        log_name = data_product,
-                        log_name_list = self.log_name_list,
+                        
+                        
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -1604,7 +1597,7 @@ class IDXDeviceIF:
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
-                        self.msg_if.pub_info("Stopping " + data_product + " acquisition", log_name_list = self.log_name_list)
+                        self.msg_if.pub_info("Stopping " + data_product + " acquisition" )
                         dp_stop_data()
                     acquiring = False
                 else: # No subscribers and already stopped
@@ -1684,7 +1677,7 @@ class IDXDeviceIF:
                     nepi_sdk.create_namespace(
                         nepi_sdk.create_namespace(self.base_namespace, 'navposes'), frame), 'navpose')
                 self.ref_navpose_sub = nepi_sdk.create_subscriber(ref_topic, NavPose, self._refNavPoseCb)
-                self.msg_if.pub_info("Transformed navpose using reference frame topic: " + str(ref_topic), log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Transformed navpose using reference frame topic: " + str(ref_topic) )
         nepi_sdk.start_timer_process(1.0, self._updateTransformedNavPoseCb, oneshot = True)
 
 
@@ -1716,7 +1709,7 @@ class IDXDeviceIF:
                 np_dict['altitude_m'] = base_altitude_m
             self.idx_navpose_if.publish_navpose(np_dict, transform = None)
         except Exception as e:
-            self.msg_if.pub_warn("Failed to publish transformed navpose: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.msg_if.pub_warn("Failed to publish transformed navpose: " + str(e) , throttle_s = 5.0)
 
 
     def publish_status(self, do_updates=True):
@@ -1802,7 +1795,7 @@ class IDXDeviceIF:
             self.status_msg.rtsp_username = rtsp_username
             self.status_msg.rtsp_password = rtsp_password
 
-        self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
+        self.msg_if.pub_debug("Created status msg: " + str(self.status_msg))
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
     

@@ -113,8 +113,6 @@ class ControlsIF:
                 controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
                 pub_status = True,
                 save_params = True,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None,
                 ):
@@ -132,19 +130,14 @@ class ControlsIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Controls " + str(controls_name), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IF Initialization Controls " + str(controls_name) )
 
         # Create Namespace
         self.controls_name = nepi_utils.get_clean_name(controls_name)
         if controls_name is None or controls_name == '':
             self.msg_if.pub_warn("Name Not Valid: " + str(controls_name)) 
             return
-        self.msg_if.pub_info("Using Name: " + self.controls_name)
+        self.msg_if.pub_info("Using Name: " + self.controls_name )
         # Built from the sanitized self.controls_name, not the raw argument -- the
         # namespace must match the name reported in ControlsStatus.
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
@@ -248,7 +241,6 @@ class ControlsIF:
                             services_dict = None,
                             pubs_dict = self.controls_node_pubs_dict,
                             subs_dict = self.controls_node_subs_dict,
-                            log_name_list = [],
                             msg_if = self.msg_if
             )
             self.node_if.wait_for_ready()
@@ -261,7 +253,7 @@ class ControlsIF:
                 self.node_if.add_params(self.PARAMS_DICT)
                 nepi_sdk.sleep(1)
             except Exception as e:
-                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
+                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e) )
                 return
 
 
@@ -274,7 +266,7 @@ class ControlsIF:
         ##############################
         # Complete Initialization
         self.controls_ready = True
-        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete" )
         ###############################
     
 
@@ -302,16 +294,16 @@ class ControlsIF:
         """
         success = False
         if self.controls_ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.controls_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.controls_ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected" )
         return self.controls_ready  
 
     def get_namespace(self):
@@ -357,7 +349,7 @@ class ControlsIF:
             self.controls_ready = False
             success = True
         except Exception as e:
-            self.msg_if.pub_warn("Failed to unregister:  " + str(e))
+            self.msg_if.pub_warn("Failed to unregister:  " + str(e) )
         return success
 
 
@@ -564,7 +556,7 @@ class ControlsIF:
             self.controls_status_msg.config_topic = self.config_topic
             if self.node_if is not None:
                 if self.status_has_published == False:
-                    #self.msg_if.pub_warn("Publishing Status: " + str(self.controls_status_msg))
+                    #self.msg_if.pub_warn("Publishing Status: " + str(self.controls_status_msg) )
                     self.status_has_published = True
                 self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.controls_status_msg) 
             return
@@ -604,7 +596,7 @@ class ControlsIF:
         reinitializes from the param server.
         """
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Reseting params" )
             self.node_if.reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -617,7 +609,7 @@ class ControlsIF:
         """
         self.controls_dict = nepi_controls.reset_values(self.controls_dict)
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Factory resetting params" )
             self.node_if.factory_reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -629,16 +621,16 @@ class ControlsIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Factory Reset params callback" )
         self.factory_reset()
 
 
     def _updateControlCb(self,msg):
-        self.msg_if.pub_info("Received control update msg: " + str(msg), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Received control update msg: " + str(msg) )
         control_name = msg.name
         # apply_update_msg writes through the dict it is handed, so passing
         # self.controls_dict applied the update before set_control_value ever
@@ -650,7 +642,7 @@ class ControlsIF:
         self.set_control_value(control_name, control_value)
 
     def _resetControlsCb(self,msg):
-        self.msg_if.pub_info("Received reset controls msg", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Received reset controls msg" )
         if self.node_if is not None:
 
             param_name = self.node_if_prefix + 'controls_dict'
@@ -762,8 +754,6 @@ class SettingsIF:
                 setSettingFunction=None, 
                 callback_arg = None,
                 save_params = True,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
@@ -780,11 +770,7 @@ class SettingsIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting Settings IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting Settings IF Initialization Processes" )
         
 
         #############################
@@ -795,10 +781,10 @@ class SettingsIF:
         # Create Namespace
         settings_name = nepi_utils.get_clean_name(settings_name)
         if settings_name is None or settings_name == '':
-            self.msg_if.pub_warn("Name Not Valid: " + str(settings_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(settings_name) )
             return
         self.settings_name = settings_name
-        self.msg_if.pub_info("Using Settings Name: " + settings_name)
+        self.msg_if.pub_info("Using Settings Name: " + settings_name )
         # An explicit namespace lets a caller place this interface somewhere other than
         # its own node namespace. system_mgr passes the base namespace so the system
         # config settings own the global '<base>/settings' namespace the RUI subscribes
@@ -835,9 +821,9 @@ class SettingsIF:
 
         if settings_dict is not None:
             self.settings_dict = settings_dict
-            #self.msg_if.pub_warn("Get Settings function returned Settings Dict: " + str(settings_dict), log_name_list = self.log_name_list)
+            #self.msg_if.pub_warn("Get Settings function returned Settings Dict: " + str(settings_dict) )
         else:
-            self.msg_if.pub_warn("Setting update function returned None Settings Dict", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Setting update function returned None Settings Dict" )
 
         self.settings_status_msg = nepi_settings.create_status_msg(
                                     self.settings_name, 'Settings', 'Device Settings')
@@ -920,7 +906,7 @@ class SettingsIF:
                             services_dict = self.SRVS_DICT,
                             pubs_dict = self.PUBS_DICT,
                             subs_dict = self.SUBS_DICT,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if
                                                 )
 
@@ -939,7 +925,7 @@ class SettingsIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ###############################
 
     ###############################
@@ -966,16 +952,16 @@ class SettingsIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready
 
     def get_namespace(self):
@@ -1027,7 +1013,7 @@ class SettingsIF:
         settings_dict = self.getSettingsDict()
 
         self.settings_status_msg = nepi_settings.update_status_msg(self.settings_status_msg, settings_dict)
-        #self.msg_if.pub_warn("Publishing Status Msg: " + str([settings_dict,self.settings_status_msg]), log_name_list = self.log_name_list, throttle_s = 10)
+        #self.msg_if.pub_warn("Publishing Status Msg: " + str([settings_dict,self.settings_status_msg]) , throttle_s = 10)
         self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.settings_status_msg)
 
 
@@ -1053,44 +1039,44 @@ class SettingsIF:
         success = False
         
         if self.setSettingFunction is None:
-            self.msg_if.pub_debug("Settings updates ignored. No settings update function defined ", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Settings updates ignored. No settings update function defined " )
             return success
 
         settings_dict = self.getSettingsDict()
         if setting_name not in settings_dict.keys():
-            self.msg_if.pub_warn("Ignoring update for unknown setting: " + str(setting_name), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Ignoring update for unknown setting: " + str(setting_name) )
             return
 
         if nepi_controls.get_clean_value(settings_dict, setting_name, setting_value) is None:
-            self.msg_if.pub_warn("Setting update rejected as invalid: " + str([setting_name, setting_value, index]), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Setting update rejected as invalid: " + str([setting_name, setting_value, index]) )
 
         current_value = nepi_controls.get_value(self.settings_dict, setting_name)
         if current_value == setting_value:
-            #self.msg_if.pub_warn("Setting allready set: " + str([current_value, setting_value]), log_name_list = self.log_name_list)
+            #self.msg_if.pub_warn("Setting allready set: " + str([current_value, setting_value]) )
             return True
 
-        self.msg_if.pub_info("Updating setting : " + str([setting_name,setting_value]), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Updating setting : " + str([setting_name,setting_value]) )
         try:
             if self.callback_arg is None:
                 [success, msg, settings_dict] = self.setSettingFunction(setting_name, setting_value)
             else:
                 [success, msg, settings_dict] = self.setSettingFunction(setting_name, setting_value, self.callback_arg)
         except Exception as e:
-            self.msg_if.pub_warn("setSettingFunction callback failed: " + str(e), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("setSettingFunction callback failed: " + str(e) )
             success = False
             msg = str(e)
         if settings_dict is not None:
             self.settings_dict = settings_dict
         else:
-            self.msg_if.pub_warn("Setting update function returned None Settings Dict", log_name_list = self.log_name_list)
-        #self.msg_if.pub_warn("setSettingFunction returned: " + str(self.settings_dict), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Setting update function returned None Settings Dict" )
+        #self.msg_if.pub_warn("setSettingFunction returned: " + str(self.settings_dict) )
  
         self.publish_status()
         if success == True:
-            self.msg_if.pub_info("Setting Updated: " + str([setting_name, setting_value]), log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Setting Updated: " + str([setting_name, setting_value]) )
             self.save_params_dict()
         else:
-            self.msg_if.pub_warn("Setting update failed: " + str([setting_name, setting_value]) + " : " + str(msg), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Setting update failed: " + str([setting_name, setting_value]) + " : " + str(msg) )
         return success
 
 
@@ -1109,14 +1095,14 @@ class SettingsIF:
         settings_params_dict = nepi_controls.get_params_dict(self.settings_dict)
         if self.node_if is not None and self.save_params == True:
             settings_params_dict = self.node_if.get_param(self.node_if_prefix + 'settings')            
-        #self.msg_if.pub_warn("Init start settings params: " + str(settings_params_dict), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Init start settings params: " + str(settings_params_dict) )
 
         if self.callback_arg is None:
             init_settings_dict = self.getSettingsFunction()
         else:
             init_settings_dict = self.getSettingsFunction(self.callback_arg)
 
-        #self.msg_if.pub_warn("Init start settings dict: " + str(init_settings_dict), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Init start settings dict: " + str(init_settings_dict) )
         if type(init_settings_dict) == dict:
             if type(settings_params_dict) == dict:
                 for setting_name in settings_params_dict.keys():
@@ -1132,7 +1118,7 @@ class SettingsIF:
         self.settings_dict = init_settings_dict
 
 
-        #self.msg_if.pub_warn("Init update settings dict: " + str(init_settings_dict), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Init update settings dict: " + str(init_settings_dict) )
 
         if do_updates == True:
             settings_dict = self.getSettingsDict()
@@ -1145,17 +1131,17 @@ class SettingsIF:
                         [success, msg, settings_dict] = self.setSettingFunction(setting_name, setting_value, self.callback_arg)
                     if settings_dict is not None:
                         self.settings_dict = settings_dict
-                        #self.msg_if.pub_warn("Init Got Settings update: " + str(settings_dict[setting_name]), log_name_list = self.log_name_list)
+                        #self.msg_if.pub_warn("Init Got Settings update: " + str(settings_dict[setting_name]) )
                     else:
-                        self.msg_if.pub_warn("Init Settings update function returned None Settings Dict", log_name_list = self.log_name_list)
+                        self.msg_if.pub_warn("Init Settings update function returned None Settings Dict" )
 
                 except Exception as e:
-                    self.msg_if.pub_warn("Init setSettingFunction callback failed: " + str(e), log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("Init setSettingFunction callback failed: " + str(e) )
                     success = False
                     msg = str(e)
             self.save_params_dict()
             init_settings_values_dict = nepi_controls.get_values_dict(self.settings_dict)
-            self.msg_if.pub_warn("Init Settings Complete: " + str(init_settings_values_dict), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Init Settings Complete: " + str(init_settings_values_dict) )
         self.publish_status()
 
     def reset(self):
@@ -1202,11 +1188,11 @@ class SettingsIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Factory Reset params callback" )
         self.factory_reset()
 
     def _resetSettingsCb(self, msg):
@@ -1217,13 +1203,13 @@ class SettingsIF:
 
 
     def _updateSettingCb(self,msg):
-            #self.msg_if.pub_info("Received setting update msg: " + str(msg), log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Received setting update msg: " + str(msg) )
             setting_name = msg.name
             settings_dict = copy.deepcopy(self.settings_dict)
             cur_value = nepi_controls.get_value(settings_dict, setting_name )
             settings_dict = nepi_controls.apply_update_msg(settings_dict, msg)
             setting_value = nepi_controls.get_value(settings_dict, setting_name )
-            #self.msg_if.pub_info("Sending Updated Val from/to: " + str([cur_value, setting_value]), log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Sending Updated Val from/to: " + str([cur_value, setting_value]) )
             self.update_setting_value(setting_name, setting_value)
 
 
@@ -1267,8 +1253,6 @@ class DataIF:
                 data_description = 'Data',
                 data_init_dict = dict(),
                 pub_status = True,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None,
                 ):
@@ -1286,19 +1270,14 @@ class DataIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Data " + str(data_name), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IF Initialization Data " + str(data_name) )
 
         # Create Namespace
         self.data_name = nepi_utils.get_clean_name(data_name)
         if data_name is None or data_name == '':
-            self.msg_if.pub_warn("Name Not Valid: " + str(data_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(data_name) )
             return
-        self.msg_if.pub_info("Using Name: " + self.data_name)
+        self.msg_if.pub_info("Using Name: " + self.data_name )
         # Built from the sanitized self.data_name, not the raw argument -- the
         # namespace must match the name reported in DataStatus.
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.data_name)
@@ -1348,7 +1327,6 @@ class DataIF:
             self.node_if = NodeClassIF(
                             pubs_dict = self.data_node_pubs_dict,
                             subs_dict = self.data_node_subs_dict,
-                            log_name_list = [],
                             msg_if = self.msg_if
             )
             self.node_if.wait_for_ready()
@@ -1359,7 +1337,7 @@ class DataIF:
                 self.node_if.register_subs(self.data_node_subs_dict)
                 nepi_sdk.sleep(1)
             except Exception as e:
-                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
+                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e) )
                 return
 
 
@@ -1372,7 +1350,7 @@ class DataIF:
         ##############################
         # Complete Initialization
         self.data_ready = True
-        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete" )
         ###############################
     
 
@@ -1400,16 +1378,16 @@ class DataIF:
         """
         success = False
         if self.data_ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.data_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.data_ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_info("Connected" )
         return self.data_ready  
 
     def get_namespace(self):
@@ -1454,7 +1432,7 @@ class DataIF:
             self.data_ready = False
             success = True
         except Exception as e:
-            self.msg_if.pub_warn("Failed to unregister:  " + str(e))
+            self.msg_if.pub_warn("Failed to unregister:  " + str(e) )
         return success
 
 
@@ -1605,7 +1583,7 @@ class DataIF:
             self.data_status_msg = nepi_data.update_status_msg(self.data_status_msg, data_dict)
             if self.node_if is not None:
                 if self.status_has_published == False:
-                    #self.msg_if.pub_warn("Publishing Status: " + str(self.data_status_msg))
+                    #self.msg_if.pub_warn("Publishing Status: " + str(self.data_status_msg) )
                     self.status_has_published = True
                 self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.data_status_msg) 
             return
@@ -1637,16 +1615,16 @@ class DataIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Factory Reset params callback" )
         self.factory_reset()
 
 
     def _updateDatumCb(self,msg):
-        self.msg_if.pub_info("Received datum update msg: " + str(msg), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Received datum update msg: " + str(msg) )
         datum_name = msg.name
         # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
         # through the dict it is handed.
@@ -1715,8 +1693,6 @@ class ReadWriteIF:
     def __init__(self,
                 filename_dict = None,
                 node_name = None,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
@@ -1737,11 +1713,7 @@ class ReadWriteIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IF Initialization Processes" )
         
 
 
@@ -1751,7 +1723,7 @@ class ReadWriteIF:
 
         if node_name is not None:
             self.node_name = node_name.replace(' ','-')
-        self.msg_if.pub_info("Using node_name: " + self.node_name, log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Using node_name: " + self.node_name )
 
         if filename_dict is not None:
             for key in self.filename_dict.keys():
@@ -1788,7 +1760,7 @@ class ReadWriteIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ###############################
 
 
@@ -1815,16 +1787,16 @@ class ReadWriteIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready
 
 
@@ -2089,11 +2061,11 @@ class ReadWriteIF:
         found_type = False
         if data_type in self.data_dict.keys():
                 save_function = self.data_dict[data_type]['write_function']
-                #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone), log_name_list = self.log_name_list, throttle_s = 5.0)
+                #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , throttle_s = 5.0)
                 filename = save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone, filename = filename, key_name = key_name)
                 found_type = True
         if found_type == False:
-            self.msg_if.pub_warn("Data type not supported: " + str(data_type) + ' for data name: ' + str(data_name) + ' with data: ' + str(data), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type) + ' for data name: ' + str(data_name) + ' with data: ' + str(data) , throttle_s = 5.0)
         return filename
 
 
@@ -2114,13 +2086,13 @@ class ReadWriteIF:
         ext_str = os.path.splitext(filename)[1]
         file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
-            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types) )
         else:
             file_path = os.path.join(filepath,filename)
             try:
                 data = nepi_utils.read_yaml_2_dict(file_path)
             except:
-                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Failed to read file: " + file_path )
         return data
 
     def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml', filename = None, key_name = None):
@@ -2143,11 +2115,11 @@ class ReadWriteIF:
         success = False
         data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
-            self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type) )
         else:
             file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
-                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types) )
             else:
                 if filename is None:
                     filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
@@ -2156,13 +2128,13 @@ class ReadWriteIF:
                     try:
                         success = nepi_utils.add_dict_2_yaml(file_path, data, key_name = key_name)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
                 else:
                     try:
                         data_to_write = {key_name: data} if key_name is not None else data
                         success = nepi_utils.write_dict_2_yaml(file_path, data_to_write)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
         return filename
 
 
@@ -2183,7 +2155,7 @@ class ReadWriteIF:
         ext_str = os.path.splitext(filename)[1]
         file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
-            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types) )
         else:
             file_path = os.path.join(filepath,filename)
             try:
@@ -2192,7 +2164,7 @@ class ReadWriteIF:
                 else:
                     data = np.genfromtxt(file_path, delimiter=',', dtype=float, filling_values=-999)
             except:
-                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Failed to read file: " + file_path )
                 
         return data
 
@@ -2217,16 +2189,16 @@ class ReadWriteIF:
         success = False
         data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
-            self.msg_if.pub_warn("Data type not supported: " + str(type(data)), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Data type not supported: " + str(type(data)) )
         else:
             file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
-                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types) )
             else:
                 filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
-                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("File already exists: " + file_path )
                 else:
                     try:
                         if ext_str == 'npy':
@@ -2235,7 +2207,7 @@ class ReadWriteIF:
                         else:
                             success = np.savetxt(file_path, data)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
 
         return success
 
@@ -2257,13 +2229,13 @@ class ReadWriteIF:
         ext_str = os.path.splitext(filename)[1]
         file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
-            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types) )
         else:
             file_path = os.path.join(filepath,filename)
             try:
                 data = nepi_img.read_image_file(file_path)
             except:
-                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Failed to read file: " + file_path )
                 
         return data
 
@@ -2288,21 +2260,21 @@ class ReadWriteIF:
         success = False
         data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
-            self.msg_if.pub_warn("Data type not supported: " + str(type(data)), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Data type not supported: " + str(type(data)) )
         else:
             file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
-                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types) )
             else:
                 filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
-                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("File already exists: " + file_path )
                 else:
                     try:
                         success = nepi_img.write_image_file(file_path, data)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
         return success
 
 
@@ -2323,13 +2295,13 @@ class ReadWriteIF:
         ext_str = os.path.splitext(filename)[1]
         file_types = self.data_dict[data_key]['file_types']
         if ext_str not in file_types:
-            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types) )
         else:
             file_path = os.path.join(filepath,filename)
             try:
                 data = nepi_pc.read_pointcloud_file(file_path)
             except:
-                self.msg_if.pub_warn("Failed to read file: " + file_path, log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Failed to read file: " + file_path )
                 
         return data
 
@@ -2353,21 +2325,21 @@ class ReadWriteIF:
         success = False
         data_type = self.data_dict[data_key]['data_type']
         if isinstance(data,data_type) == False:
-            self.msg_if.pub_warn("Data type not supported: " + str(data_type), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Data type not supported: " + str(data_type) )
         else:
             file_types = self.data_dict[data_key]['file_types']
             if ext_str not in file_types:
-                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types), log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("File type not supported: " + ext_str + " : " + str(file_types) )
             else:
                 filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
                 file_path = os.path.join(filepath,filename)
                 if os.path.exists(file_path) == True:
-                    self.msg_if.pub_warn("File already exists: " + file_path, log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("File already exists: " + file_path )
                 else:
                     try:
                         success = nepi_pc.write_pointcloud_file(file_path,data)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5)
+                        self.msg_if.pub_warn("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
                     
         return success
 
@@ -2533,8 +2505,6 @@ class SaveDataIF:
                 factory_rate_dict = None, 
                 factory_filename_dict = None, 
                 ignore_global_rate_updates = False,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
@@ -2551,20 +2521,16 @@ class SaveDataIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
 
-        self.msg_if.pub_info("Starting SaveData IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting SaveData IF Initialization Processes" )
         ############################## 
         # Initialize Class Variables
         # Create Namespace
         save_data_name = nepi_utils.get_clean_name(save_data_name)
         if save_data_name is None or save_data_name == '':
-            self.msg_if.pub_warn("Name Not Valid: " + str(save_data_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(save_data_name) )
             return
-        self.msg_if.pub_info("Using States Name: " + save_data_name)
+        self.msg_if.pub_info("Using States Name: " + save_data_name )
         # An explicit namespace lets a caller place this interface somewhere other than
         # its own node namespace. system_mgr passes the base namespace to own the global
         # '<base>/save_data' namespace, which is where the RUI's All selection subscribes
@@ -2574,7 +2540,7 @@ class SaveDataIF:
         self.namespace = nepi_sdk.create_namespace(namespace,save_data_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
         
-        self.msg_if.pub_warn("Using save data namespace: " + self.namespace, log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Using save data namespace: " + self.namespace )
         
         self.pub_status = pub_status
 
@@ -2591,16 +2557,15 @@ class SaveDataIF:
         
         ##############################
         # Get for System Folders
-        self.msg_if.pub_info("Waiting for user folders")
-        user_folders = nepi_system.get_user_folders(log_name_list = [self.node_name])
-        #self.msg_if.pub_warn("Got user folders: " + str(user_folders))
+        self.msg_if.pub_info("Waiting for user folders" )
+        user_folders = nepi_system.get_user_folders()
         if user_folders is not None and 'data' in user_folders.keys():
             self.save_data_root_directory = user_folders['data']
-        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.save_data_root_directory))
+        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.save_data_root_directory) )
 
         # Ensure the data folder exists with proper ownership
         if not os.path.exists(self.save_data_root_directory):
-            self.msg_if.pub_warn("Reported data folder does not exist... data saving is disabled", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Reported data folder does not exist... data saving is disabled" )
             self.save_data_root_directory = None # Flag it as non-existent
             return # Don't enable any of the ROS interface stuff
         self.save_path = self.save_data_root_directory
@@ -2621,16 +2586,16 @@ class SaveDataIF:
                             node_name = self.node_name
                             )
         nepi_sdk.sleep(1)
-        self.msg_if.pub_debug("Got starting filename dict: " + str(self.filename_dict), log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Got starting filename dict: " + str(self.filename_dict) )
         if factory_filename_dict is not None:
             self.update_filename_dict(factory_filename_dict)
-        self.msg_if.pub_debug("Got Updated filename dict: " + str(self.filename_dict), log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Got Updated filename dict: " + str(self.filename_dict) )
 
         
         # Config initial data products dict
-        self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^", log_name_list = self.log_name_list)
-        self.msg_if.pub_debug("Starting Save_Data_IF with data products: " + str(data_products), log_name_list = self.log_name_list)
-        self.msg_if.pub_debug("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict), log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^" )
+        self.msg_if.pub_debug("Starting Save_Data_IF with data products: " + str(data_products) )
+        self.msg_if.pub_debug("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict) )
         save_rate_dict = dict()
         save_rate = 0.0
         last_time = 0.0
@@ -2647,7 +2612,7 @@ class SaveDataIF:
             save_rate_dict[data_product] = save_rate_entry
             self.snapshot_dict[data_product] = False
         self.save_rate_dict = save_rate_dict
-        self.msg_if.pub_debug("Got defualt data rate dict: " + str(self.save_rate_dict), log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Got defualt data rate dict: " + str(self.save_rate_dict) )
             
 
 
@@ -2895,7 +2860,7 @@ class SaveDataIF:
                             services_dict = self.SRVS_DICT,
                             pubs_dict = self.PUBS_DICT,
                             subs_dict = self.SUBS_DICT,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if
                                                 )
 
@@ -2911,7 +2876,7 @@ class SaveDataIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ###############################
 
 
@@ -2939,16 +2904,16 @@ class SaveDataIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready
 
 
@@ -3080,16 +3045,16 @@ class SaveDataIF:
                     full_path = ""
 
                 if not os.path.exists(full_path):
-                    self.msg_if.pub_debug("Creating new data subdirectory " + full_path)
+                    self.msg_if.pub_debug("Creating new data subdirectory " + full_path )
                     try:
                         os.makedirs(full_path)
                     except Exception as e:
-                        self.msg_if.pub_warn("Could not create save folder " + new_subfolder + str(e) )
+                        self.msg_if.pub_warn("Could not create save folder " + new_subfolder + str(e)  )
                 if os.path.exists(full_path):
                     try:
                         os.chown(full_path, self.DATA_UID, self.DATA_GID)
                     except Exception as e:
-                        self.msg_if.pub_warn("Could not chmod on save folder " + full_path + str(e) )
+                        self.msg_if.pub_warn("Could not chmod on save folder " + full_path + str(e)  )
                     self.save_path = full_path
                     filename_dict['subfolder'] = new_subfolder
 
@@ -3138,9 +3103,9 @@ class SaveDataIF:
         elif (data_product in save_rate_dict.keys()):
             save_rate_dict[data_product][0] = save_rate_hz if save_rate_hz <= save_rate_dict[data_product][2] else save_rate_dict[data_product][2]
         else:
-            self.msg_if.pub_warn("Requested unknown data product: " + data_product)    
+            self.msg_if.pub_warn("Requested unknown data product: " + data_product ) 
         self.save_rate_dict = save_rate_dict     
-        #self.msg_if.pub_warn("Updated save rate dict: " + str(self.save_rate_dict))   
+        #self.msg_if.pub_warn("Updated save rate dict: " + str(self.save_rate_dict) )  
         self.publish_status()
         if self.node_if is not None:
             self.node_if.set_param(self.node_if_prefix + 'save_rate_dict',save_rate_dict)
@@ -3155,7 +3120,7 @@ class SaveDataIF:
         Args:
             enabled (bool): True to enable saving, False to disable.
         """
-        #self.msg_if.pub_warn("Setting Saving Disabled to: " + str(enabled))  
+        #self.msg_if.pub_warn("Setting Saving Disabled to: " + str(enabled) )
         self.disabled = enabled
         self.publish_status()    
 
@@ -3174,7 +3139,7 @@ class SaveDataIF:
             self.was_saving = True
         else:
             self.was_saving = False
-        self.msg_if.pub_warn("Setting Save Enable to: " + str(enabled))  
+        self.msg_if.pub_warn("Setting Save Enable to: " + str(enabled) ) 
         self.save_data = enabled
         self.publish_status()    
 
@@ -3207,7 +3172,7 @@ class SaveDataIF:
                 return False
 
             if data_product not in save_rate_dict:
-                self.msg_if.pub_warn("Unknown data product " + data_product)
+                self.msg_if.pub_warn("Unknown data product " + data_product )
                 return False
 
             save_rate = save_rate_dict[data_product][0]
@@ -3234,7 +3199,7 @@ class SaveDataIF:
                 return False
 
             if data_product not in save_rate_dict:
-                self.msg_if.pub_warn("Unknown data product " + data_product)
+                self.msg_if.pub_warn("Unknown data product " + data_product )
                 return False
 
             save_rate = save_rate_dict[data_product][0]
@@ -3260,13 +3225,13 @@ class SaveDataIF:
         """
         # If saving is disabled for this node, then it is not time to save this data product!
         save_rate_dict = self.save_rate_dict
-        #self.msg_if.pub_debug("Checking should save for save rate dict: " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
+        #self.msg_if.pub_debug("Checking should save for save rate dict: " + str(save_rate_dict) , throttle_s = 5)
         
         if self.save_data == False or  self.disabled == True:
             return False
 
         if data_product not in save_rate_dict.keys():
-            self.msg_if.pub_warn("Unknown data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
+            self.msg_if.pub_warn("Unknown data product " + data_product , throttle_s = 5)
             return False
 
         save_rate = save_rate_dict[data_product][0]
@@ -3276,10 +3241,10 @@ class SaveDataIF:
         save_period = float(1) / float(save_rate)
         now = nepi_utils.get_time()
         elapsed = now - save_rate_dict[data_product][1]
-        #self.msg_if.pub_debug("Checking should save: " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
+        #self.msg_if.pub_debug("Checking should save: " + str([save_period,elapsed]) , throttle_s = 5)
         snapshot = self.snapshot_dict[data_product]
         if (elapsed >= save_period or snapshot):
-            #self.msg_if.pub_debug("Should save: " + data_product + " : " + str([save_period,elapsed]), log_name_list = self.log_name_list, throttle_s = 5)
+            #self.msg_if.pub_debug("Should save: " + data_product + " : " + str([save_period,elapsed]) , throttle_s = 5)
             self.save_rate_dict = save_rate_dict
             return True 
         return False
@@ -3300,7 +3265,7 @@ class SaveDataIF:
             enabled = self.snapshot_dict[data_product]  and self.disabled == False
             return enabled
         except:
-            self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
+            self.msg_if.pub_warn("Unknown snapshot data product " + data_product , throttle_s = 5)
             return False
         return False
 
@@ -3317,7 +3282,7 @@ class SaveDataIF:
             self.snapshot_dict[data_product] = False
             return True
         except:
-            self.msg_if.pub_warn("Unknown snapshot data product " + data_product, log_name_list = self.log_name_list, throttle_s = 5)
+            self.msg_if.pub_warn("Unknown snapshot data product " + data_product , throttle_s = 5)
             return False
         return False
 
@@ -3386,22 +3351,22 @@ class SaveDataIF:
                 should_save = self.data_product_should_save(data_product)
                 snapshot_enabled = self.data_product_snapshot_enabled(data_product)
                 # Save data if enabled
-                self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
+                self.msg_if.pub_debug("******" , throttle_s = 5)
                 save_check = [should_save, snapshot_enabled, save_check]
-                self.msg_if.pub_debug("Checking save checks: " + data_product + " " + str(save_check) , log_name_list = self.log_name_list, throttle_s = 5)
+                self.msg_if.pub_debug("Checking save checks: " + data_product + " " + str(save_check)  , throttle_s = 5)
                 if (should_save or snapshot_enabled or save_check == False):
                     if self.filename_dict['use_utc_tz'] == False:
                         timezone = self.timezone
                     else:
                         timezone = 'UTC'
-                    self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
+                    self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone)  , throttle_s = 5)
                     if should_save == False:
                         filename = None
                     filename = self.read_write_if.write_data_file(self.save_path, data, data_product, timezone = timezone, timestamp = timestamp, filename = filename, key_name = key_name)
                     self.data_product_snapshot_reset(data_product)
                     self.save_rate_dict[data_product][1] = nepi_utils.get_time()
-                self.msg_if.pub_debug("Finished Checking save data: " + data_product , log_name_list = self.log_name_list, throttle_s = 5)
-                self.msg_if.pub_debug("******", log_name_list = self.log_name_list, throttle_s = 5)
+                self.msg_if.pub_debug("Finished Checking save data: " + data_product  , throttle_s = 5)
+                self.msg_if.pub_debug("******" , throttle_s = 5)
                 return filename
 
 
@@ -3438,7 +3403,7 @@ class SaveDataIF:
             save_rates_msg = []
             save_rate_dict = self.save_rate_dict
 
-            #self.msg_if.pub_debug("Status pub save_rate_dict " + str(save_rate_dict), log_name_list = self.log_name_list, throttle_s = 5)
+            #self.msg_if.pub_debug("Status pub save_rate_dict " + str(save_rate_dict) , throttle_s = 5)
             for name in save_rate_dict.keys():
                 save_rate_msg = SaveDataRate()
                 save_rate_msg.data_product = name
@@ -3446,7 +3411,7 @@ class SaveDataIF:
                 if self.disabled == False:
                     save_rate_msg.save_rate_hz = save_rate_dict[name][0]
                 save_rates_msg.append(save_rate_msg)
-                #self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg), log_name_list = self.log_name_list, throttle_s = 5)
+                #self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg) , throttle_s = 5)
             status_msg = SaveDataStatus()
             status_msg.node_name = self.node_name
             status_msg.save_data_topic = self.namespace
@@ -3460,8 +3425,8 @@ class SaveDataIF:
                     status_msg.save_subfolder = filename_dict['subfolder']
                     status_msg.save_data_utc = filename_dict['use_utc_tz']
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to Publish filename dict: " + str(e), log_name_list = self.log_name_list, throttle_s = 5)
-                #self.msg_if.pub_warn("Publishing filename dict: " + str(filename_dict), log_name_list = self.log_name_list, throttle_s = 5)
+                    self.msg_if.pub_warn("Failed to Publish filename dict: " + str(e) , throttle_s = 5)
+                #self.msg_if.pub_warn("Publishing filename dict: " + str(filename_dict) , throttle_s = 5)
 
             status_msg.timezone = self.timezone
             status_msg.data_products = list(save_rate_dict.keys())
@@ -3487,7 +3452,7 @@ class SaveDataIF:
                 if self.filename_dict['use_utc_tz'] == False:
                     timezone = self.timezone
 
-            #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , log_name_list = self.log_name_list, throttle_s = 5)
+            #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone)  , throttle_s = 5)
             exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
             status_msg.example_filename = exp_filename
             if self.node_if is not None:
@@ -3504,7 +3469,7 @@ class SaveDataIF:
             do_updates (bool, optional): Reserved for future use; has no effect currently.
                 Defaults to False.
         """
-        #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict))
+        #self.msg_if.pub_warn("Param updated save rate dict: " + str(self.save_rate_dict) )
         if self.node_if is not None:
             # Prefixed keys, matching how the params are registered in PARAMS_DICT
             # and how set_save_rate()/update_filename_dict()/register_data_product()
@@ -3535,7 +3500,7 @@ class SaveDataIF:
         reinitializes from the param server.
         """
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Reseting params" )
             self.node_if.reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -3547,7 +3512,7 @@ class SaveDataIF:
         reinitializes from the param server.
         """
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Factory resetting params" )
             self.node_if.factory_reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -3561,11 +3526,11 @@ class SaveDataIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Factory Reset params callback" )
         self.factory_reset()
 
     def updaterCb(self,timer):
@@ -3589,13 +3554,13 @@ class SaveDataIF:
 
 
     def _logNavPoseEnableCb(self, msg):
-        self.msg_if.pub_info("Recieved Log NavPose Enable Update: " + str(msg), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Recieved Log NavPose Enable Update: " + str(msg) )
         enabled = msg.data
 
 
 
     def _saveAllStatusCb(self,msg):
-        #self.msg_if.pub_warn("Recieved save All status msg: " + str(msg), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Recieved save All status msg: " + str(msg) )
         data_product_list = msg.data_products
         if 'All' in data_product_list:
             self.save_all_enabled = msg.save_data_enabled
@@ -3603,18 +3568,18 @@ class SaveDataIF:
             self.save_all_rate = msg.save_data_rates[index].save_rate_hz
 
     def _disableCb(self, msg):
-        #self.msg_if.pub_info("Recieved Disable Update: " + str(msg), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Recieved Disable Update: " + str(msg) )
         enabled = msg.data
         self.disable(enabled)
 
     def _saveEnableCb(self, msg):
-        self.msg_if.pub_info("Recieved Enable Update: " + str(msg), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Recieved Enable Update: " + str(msg) )
         enabled = msg.data
         self.save_data_enable(enabled)
         
 
     def _saveRateCb(self, msg):
-        self.msg_if.pub_info("Recieved Rate Update: " + str(msg), log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Recieved Rate Update: " + str(msg) )
         data_product = msg.data_product
         save_rate_hz = msg.save_rate_hz
         self.set_save_rate(data_product,save_rate_hz)
@@ -3652,7 +3617,7 @@ class SaveDataIF:
 
 
     def _snapshotCb(self,msg):
-        self.msg_if.pub_info("Recieved Snapshot Trigger", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Recieved Snapshot Trigger" )
         save_rate_dict = self.save_rate_dict
         if self.disabled == False:
             for data_product in save_rate_dict.keys():
@@ -3708,8 +3673,6 @@ class Transform3DIF:
                 source_ref_description = '',
                 end_ref_description = '',
                 get_3d_transform_function = None,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
@@ -3726,20 +3689,16 @@ class Transform3DIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting Settings IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting Settings IF Initialization Processes" )
         
 
         #############################
         # Initialize Class Variables
         transform_name = nepi_utils.get_clean_name(transform_name)
         if transform_name is None or transform_name == '':
-            self.msg_if.pub_warn("Name Not Valid: " + str(transform_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(transform_name) )
             return
-        self.msg_if.pub_info("Using States Name: " + transform_name)
+        self.msg_if.pub_info("Using States Name: " + transform_name )
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,transform_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
@@ -3851,7 +3810,7 @@ class Transform3DIF:
                             services_dict = self.SRVS_DICT,
                             pubs_dict = self.PUBS_DICT,
                             subs_dict = self.SUBS_DICT,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if
                                                 )
    
@@ -3870,7 +3829,7 @@ class Transform3DIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ###############################
 
     ###############################
@@ -3897,16 +3856,16 @@ class Transform3DIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready
 
     def get_namespace(self):
@@ -4138,7 +4097,7 @@ class Transform3DIF:
             end = self.node_if.get_param(self.node_if_prefix + 'end')
             if end is not None:
                 self.end = end
-            #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings_dict), log_name_list = self.log_name_list)
+            #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings_dict) )
             if do_updates:
                 pass
             self.publish_status()
@@ -4151,7 +4110,7 @@ class Transform3DIF:
         reinitializes from the param server.
         """
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Reseting params" )
             self.node_if.reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -4163,7 +4122,7 @@ class Transform3DIF:
         reinitializes from the param server.
         """
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Factory resetting params" )
             self.node_if.factory_reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -4176,16 +4135,16 @@ class Transform3DIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback ", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Factory Reset params callback" )
         self.factory_reset()
 
 
     def _setFrame3dTransformCb(self, msg):
-        self.msg_if.pub_info("Received Frame Transform update message: " + str(msg))
+        self.msg_if.pub_info("Received Frame Transform update message: " + str(msg) )
         transform_msg = msg
         # The stored transform is a 7-element signed list; fold the per-axis
         # invert flags into the sign so the stored/republished value is unambiguous.
@@ -4201,7 +4160,7 @@ class Transform3DIF:
 
 
     def _clearFrame3dTransformCb(self, msg):
-        self.msg_if.pub_info("Recived Clear 3D Transform update message: ")
+        self.msg_if.pub_info("Recived Clear 3D Transform update message: " )
         self.clear_3d_transform()
 
     def _setSourceRefCb(self, msg):
@@ -4256,8 +4215,6 @@ class StatesIF:
     def __init__(self,
                 states_name = 'states',
                 get_states_dict_function = None,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
@@ -4274,26 +4231,22 @@ class StatesIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting States IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting States IF Initialization Processes" )
         
         #############################
         # Initialize Class Variables
 
         if get_states_dict_function is None:
-            self.msg_if.pub_warn("get_states_dict_function can not be None") 
+            self.msg_if.pub_warn("get_states_dict_function can not be None" )
             return
         self.get_states_dict_function = get_states_dict_function
 
         # Create Namespace
         states_name = nepi_utils.get_clean_name(states_name)
         if states_name is None or states_name == '':
-            self.msg_if.pub_warn("Name Not Valid: " + str(states_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(states_name) )
             return
-        self.msg_if.pub_info("Using States Name: " + states_name)
+        self.msg_if.pub_info("Using States Name: " + states_name )
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,states_name)
 
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
@@ -4334,7 +4287,7 @@ class StatesIF:
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             services_dict = self.SRVS_DICT,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if
                                                 )
 
@@ -4348,7 +4301,7 @@ class StatesIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ###############################
 
     ###############################
@@ -4375,16 +4328,16 @@ class StatesIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready
 
 
@@ -4430,7 +4383,7 @@ class StatesIF:
             states_dict = self.get_states_dict_function()
             resp = nepi_states.create_states_msg(states_dict)
         except Exception as e:
-            self.msg_if.pub_warn("Failed to create resp msg: " + str(e), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Failed to create resp msg: " + str(e) )
         return resp
 
 
@@ -4477,8 +4430,6 @@ class TriggersIF:
     def __init__(self, 
                 triggers_dict = None,
                 triggers_name = 'triggers',
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
@@ -4495,11 +4446,7 @@ class TriggersIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting Triggers IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting Triggers IF Initialization Processes" )
         
         #############################
         # Initialize Class Variables
@@ -4512,7 +4459,7 @@ class TriggersIF:
         # Create Namespace
         triggers_name = nepi_utils.get_clean_name(triggers_name)
         if triggers_name is None or triggers_name == '':
-            self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name)) 
+            self.msg_if.pub_warn("Name Not Valid: " + str(triggers_name) ) 
             return
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
         ##############################  
@@ -4540,7 +4487,7 @@ class TriggersIF:
             self.node_if_shared = False
             self.node_if = NodeClassIF(
                             pubs_dict = self.PUBS_DICT,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if
                                                 )
 
@@ -4550,7 +4497,7 @@ class TriggersIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ###############################
 
 
@@ -4579,16 +4526,16 @@ class TriggersIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready
 
     def get_namespace(self):

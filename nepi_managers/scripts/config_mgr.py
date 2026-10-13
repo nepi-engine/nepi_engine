@@ -79,7 +79,7 @@ class config_mgr(object):
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = None)
+        self.msg_if = MsgIF()
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################
@@ -87,7 +87,7 @@ class config_mgr(object):
         #self.msg_if.pub_info("Waiting for 10 secs")
         #time.sleep(10)
         self.msg_if.pub_info("Waiting for system folders")
-        folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
+        folders = nepi_system.get_system_folders()
         #self.msg_if.pub_warn("Got system folders: " + str(folders))
         for folder in self.config_folders.keys():
             if folder in folders.keys():
@@ -329,8 +329,8 @@ class config_mgr(object):
             self.msg_if.pub_warn("Loading Params for namespace: " + namespace  + " from file " + file_pathname )
             params_dict = None
             try:
-                params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace, log_name_list = [self.class_name])
-                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()), log_name_list = [self.class_name])
+                params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace = [self.class_name])
+                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()))
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
                 return False

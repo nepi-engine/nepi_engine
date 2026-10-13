@@ -285,7 +285,7 @@ class NavPoseMgr(object):
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
+        self.msg_if = MsgIF()
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
 
@@ -1124,7 +1124,7 @@ class NavPoseMgr(object):
                             self.navpose_subs_connected.remove(topic)
                         except:
                             pass
-                        topic_sub = nepi_sdk.create_subscriber(topic, msg, self._compSubCb, queue_size = 1, callback_args= (topic), log_name_list = [])
+                        topic_sub = nepi_sdk.create_subscriber(topic, msg, self._compSubCb, queue_size = 1, callback_args= (topic))
                         #self.msg_if.pub_warn("Subscribed to Comp Topic: " + str(topic) + ' with message ' + str(msg))
                         self.navpose_subs_dict_lock.acquire()
                         self.navpose_subs_dict[topic]['msg'] = msg
@@ -1319,7 +1319,6 @@ class NavPoseMgr(object):
                         'qsize': 1,
                     }
                 pubs_if = NodePublishersIF(PUBS_DICT,
-                                           log_name = frame_name,
                                             msg_if = self.msg_if)
 
                 ready = pubs_if.wait_for_ready()

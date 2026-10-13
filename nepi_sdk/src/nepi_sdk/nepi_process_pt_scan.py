@@ -33,7 +33,7 @@ from nepi_interfaces.msg import NavPose
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_process_scan"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 
 ########################
@@ -52,13 +52,14 @@ IMAGE_PUB_TOPIC = None
 
 ########################
 ## Process Utility Functions
-
+SCAN_SWITCH_DEG = 5
 
 BASE_RESULTS_DICT = dict()
 
 def get_blank_results_dict():
   results_dict = copy.deepcopy(BASE_RESULTS_DICT)
   results_dict['timestamp'] = -999
+  results_dict['scanning'] = [False,False]
   results_dict['pan_deg'] = -999
   results_dict['pan_dps'] = -999
   results_dict['tilt_deg'] = -999
@@ -89,9 +90,7 @@ functions_dict = dict()
 
    
 BASE_DATA_DICT = dict(
-
-        pan_deg = 0,
-        tilt_deg = 0,
+        scanning_enabled = False,
         pantilt_dict = nepi_sdk.convert_msg2dict(DevicePTXStatus()),
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
 
@@ -106,27 +105,30 @@ BASE_CONTROLS_DICT = dict(
                    'display_name':'Pan Enable', 'description':'Scan in Pan Axis', 'display_hidden':False}, 
 
         pan_speed = {
-            'type': 'FloatSlider', 'default': 0.5, 'bounds': [0.0, 1.0], 'round_value': 1,
+            'type': 'FloatSlider', 'default': 0.5, 'bounds': [0.1, 1.0], 'round_value': 1,
             'display_name': 'Pan Speed',
             'description': 'Pan Speed', 'hidden': False}, 
 
-        pan_deg = {"type":"Float", "value":350, 'bounds': [60, 350], 'round_value': 1,
-                    # OPTIONAL
-                    'display_name':'Pan Scan (Deg)', 'description':'Pan Scan Deg', 'display_hidden':False, 'round_display': 0,},
 
+        pan_limits = {
+            'type': 'Floats', 'default': [-175, 175], 'bounds': [-175, 175, 20,1], 'round_value': 0,
+            # OPTIONAL
+            'display_name':'Pan Limits (Deg)', 'display_labels':['Min','Max'], 'description':' Scan Limits in Degs', 'display_bounds': False, 'display_hidden':False, 'round_display': 0, 'display_row': True},
 
         tilt_scan = {"type":"Toggle", "value":False,
                    # OPTIONAL
                    'display_name':'Tilt Enable', 'description':'Scan in Tilt Axis', 'display_hidden':False}, 
 
         tilt_speed = {
-            'type': 'FloatSlider', 'default': 0.5, 'bounds': [0.0, 1.0], 'round_value': 1,
+            'type': 'FloatSlider', 'default': 0.5, 'bounds': [0.1, 1.0], 'round_value': 1,
             'display_name': 'Tilt Speed',
             'description': 'Tilt Speed', 'hidden': False}, 
 
-        tilt_deg = {"type":"Float", "value":120, 'bounds': [30, 120], 'round_value': 1,
-                    # OPTIONAL
-                    'display_name':'Tilt Scan (Deg)', 'description':'Tilt Scan Deg', 'display_hidden':False, 'round_display': 0,},
+
+        tilt_limits = {
+            'type': 'Floats', 'default': [-60, 60], 'bounds': [-60, 60, 20, 1], 'round_value': 0,
+            # OPTIONAL
+            'display_name':'Tilt Limits (Deg)', 'display_labels':['Min','Max'], 'description':'Tilt Scan Limits in Degs', 'display_bounds': False, 'display_hidden':False, 'round_display': 0, 'display_row': True},
 
 
     )
@@ -134,15 +136,17 @@ BASE_CONTROLS_DICT = dict(
 
 BASE_RESULTS_DISPLAY_DICT = dict(
 
+        scanning = {
+                    'type': 'Bools', 'value': [False, False],
+                    'display_name': 'Scanning', 'display_labels':['Pan','Tilt'], 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
 
-        pan_goal = {"type":"Float", "value":-999, 'round_value': 2,
+        pan_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
-                    'display_name':'Pan (Deg)', 'description':'Pan Goal Degrees', 'display_hidden':False, 'round_display': 1,},
+                    'display_name':'Pan (Deg)', 'description':'Pan Goal Degrees', 'display_hidden':False,'round_display': 1,},
 
-        tilt_goal = {"type":"Float", "value":-999, 'round_value': 2,
+        tilt_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
-                    'display_name':'Tilt (Deg)', 'description':'Tilt Goal Degrees', 'display_hidden':False, 'round_display': 1,},
-
+                    'display_name':'Tilt (Deg)', 'description':'Tilt Goal Degrees','display_hidden': False, 'round_display': 1,},
 
     )
 
@@ -186,166 +190,108 @@ def scan_1_process(data_dict, controls_dict, states_dict, results_dict, if_dict)
 
     ##############
     # Get Controls
+    scanning_enabled = controls_values_dict.get('scanning_enabled', False)
+
     pan_scan = controls_values_dict.get('pan_scan', True)
-    controls_dict = nepi_controls.set_disabled('pan_speed',pan_scan)
-    controls_dict = nepi_controls.set_disabled('pan_deg',pan_scan)
-    if pan_scan == True:
-        pan_speed = controls_values_dict.get('pan_speed', 0.5)
-    else:
-        pan_speed = -999
+    controls_dict = nepi_controls.set_hidden(controls_dict,'pan_speed',pan_scan == False)
+    controls_dict = nepi_controls.set_hidden(controls_dict,'pan_limits',pan_scan == False)
+    pan_enabled = nepi_controls.get_value(controls_dict,'pan_scan', False)
+    pan_speed_ratio = nepi_controls.get_value(controls_dict,'pan_speed')
 
 
     tilt_scan = controls_values_dict.get('tilt_scan', True)
-    controls_dict = nepi_controls.set_disabled('tilt_speed',tilt_scan)
-    controls_dict = nepi_controls.set_disabled('tilt_deg',tilt_scan)
-    if tilt_scan == True:
-        tilt_speed = controls_values_dict.get('tilt_speed', 0.5)
-    else:
-        tilt_speed = -999
+    controls_dict = nepi_controls.set_hidden(controls_dict,'tilt_speed',tilt_scan == False)
+    controls_dict = nepi_controls.set_hidden(controls_dict,'tilt_limits',tilt_scan == False)
+    tilt_enabled = nepi_controls.get_value(controls_dict,'tilt_scan', False)
+    tilt_speed_ratio = nepi_controls.get_value(controls_dict,'tilt_speed')
 
+    #logger.log_warn("Got Pan Tilt Speed Ratios: " + str([pan_speed_ratio,tilt_speed_ratio]), throttle_s = 5)
     ##############
     # Get Data
     blank_data_dict = copy.deepcopy(BASE_DATA_DICT)
-
-    pantilt_dict = data_dict.get('pantilt_dict',blank_data_dict['pantilt_dict'])
-    if pantilt_dict is None:
-        pantilt_dict = nepi_sdk.convert_msg2dict(DevicePTXStatus())
-        
     navpose_dict = data_dict.get('navpose_dict',blank_data_dict['navpose_dict'])
     if navpose_dict is None:
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose())
 
-    pan_now = pantilt_dict['pan_now_deg']
-    tilt_now = pantilt_dict['tilt_now_deg']
+    pantilt_dict = data_dict.get('pantilt_dict',None)
 
-    pan_goal = pantilt_dict['pan_goal_deg']
-    tilt_goal = pantilt_dict['tilt_goal_deg']
+    if pantilt_dict is not None:
+        if pantilt_dict == nepi_sdk.convert_msg2dict(DevicePTXStatus()):
+            pantilt_dict = None
 
- 
-    # has_limit_controls = pantilt_dict['has_limit_controls']
-    # pan_min_hardstop_deg = pantilt_dict['pan_min_hardstop_deg']
-    # pan_max_hardstop_deg = pantilt_dict['pan_max_hardstop_deg']
-    # tilt_min_hardstop_deg = pantilt_dict['tilt_min_hardstop_deg']
-    # tilt_max_hardstop_deg = pantilt_dict['tilt_max_hardstop_deg']
+    if pantilt_dict is not None:
+        pan_bounds = [pantilt_dict['pan_min_softstop_deg'],pantilt_dict['pan_max_softstop_deg']]
+        controls_dict = nepi_controls.set_bounds(controls_dict,'pan_limits',pan_bounds)
+        pan_limits = nepi_controls.get_value(controls_dict,'pan_limits')
+        tilt_bounds = [pantilt_dict['tilt_min_softstop_deg'],pantilt_dict['tilt_max_softstop_deg']]
+        controls_dict = nepi_controls.set_bounds(controls_dict,'tilt_limits',tilt_bounds)
+        tilt_limits = nepi_controls.get_value(controls_dict,'tilt_limits')
 
-    # pan_min_softstop_deg = pantilt_dict['pan_min_softstop_deg']
-    # pan_max_softstop_deg = pantilt_dict['pan_max_softstop_deg']
-    # tilt_min_softstop_deg = pantilt_dict['tilt_min_softstop_deg']
-    # tilt_max_softstop_deg = pantilt_dict['tilt_max_softstop_deg']
+        
+        is_moving = pantilt_dict['is_moving']
+
+        pan_now_deg = pantilt_dict['pan_now_deg']
+        pan_goal_deg = pantilt_dict['pan_goal_deg']
+        pan_speed_dps = pantilt_dict['speed_max_dps'] * pan_speed_ratio
+
+        tilt_now_deg = pantilt_dict['tilt_now_deg']
+        tilt_goal_deg = pantilt_dict['tilt_goal_deg']
+        tilt_speed_dps = pantilt_dict['speed_max_dps'] * tilt_speed_ratio
+  
+
+
 
     ##############
     # Run Process
     #############
+    if pantilt_dict is not None:
+        scanning = [False,False]
 
-    if pan_scan == True:
-      
-      pan_pos_disabled  = True
-      pan_jog_disabled = True
-      pan_speed_disabled = True
+        pan_deg = -999
+        pan_dps = -999
+        if pan_enabled == True and scanning_enabled == True:
+            scanning[0] = True
+            pan_dps = pan_speed_dps
+            if (pan_now_deg < (pan_limits[0] + SCAN_SWITCH_DEG)):
+                pan_deg = pan_limits[1]
 
-      tilt_pos_disabled  = True
-      tilt_jog_disabled = True
-      tilt_speed_disabled = True
+            elif (pan_now_deg > (pan_limits[1] - SCAN_SWITCH_DEG)):
+                pan_deg = pan_limits[0]
+              
+            elif pan_goal_deg != pan_limits[0] or pan_goal_deg != pan_limits[1]:
+                pan_deg = pan_limits[0]
 
-      track_heading_deg = track_results_dict['heading_deg']
-      track_pitch_deg = track_results_dict['pitch_deg']
-      track_roll_deg = track_results_dict['roll_deg']
+        tilt_deg = -999
+        tilt_dps = -999
+        if tilt_enabled == True and scanning_enabled == True:
+            scanning[1] = True
+            tilt_dps = tilt_speed_dps
+            if (tilt_now_deg < (tilt_limits[0] + SCAN_SWITCH_DEG)):
+                tilt_deg = tilt_limits[1]
 
-      scan_pan_error = -1 * (heading_deg - track_heading_deg)
-      scan_tilt_error = -1 * (pitch_deg - track_pitch_deg)
+            elif (tilt_now_deg > (tilt_limits[1] - SCAN_SWITCH_DEG)):
+                tilt_deg = tilt_limits[0]
+              
+            elif tilt_goal_deg != tilt_limits[0] or tilt_goal_deg != tilt_limits[1]:
+                tilt_deg = tilt_limits[0]               
 
-    else:
-      pan_pos_disabled = False
-      pan_jog_disabled = False
-      pan_speed_disabled = False
-
-      tilt_pos_disabled  = False
-      tilt_jog_disabled = False
-      tilt_speed_disabled = False
-      
-      scan_pan_error = -1 * (pan_now - pan_goal)
-      scan_tilt_error = -1 * (tilt_now - tilt_goal)
-
-    #######
-    # Process Data
-    scan_pan_goal = round(pan_now + scan_pan_error,1)
-    scan_pan_error = round(scan_pan_error,1)
-
-    scan_tilt_goal = round(tilt_now + scan_tilt_error,1)
-    scan_tilt_error = round(scan_tilt_error,1)
-
-    # scan_heading_goal = round(heading_deg + scan_pan_error, 1) 
-    # scan_heading_error = round(scan_pan_error,1)
-
+        
     ##############
     # Process Results
-    #############
-    results_dict = get_blank_results_dict()
+    #############    
+    if pantilt_dict is not None:
+        results_dict = get_blank_results_dict()
+        results_dict['scanning'] = scanning
 
-    results_dict['pan_goal'] = scan_pan_goal
-    results_dict['pan_error'] = scan_pan_error
-    results_dict['pan_dps'] = -999
+        results_dict['pan_deg'] = pan_deg
+        results_dict['pan_dps'] = pan_dps
 
-    results_dict['tilt_goal'] = scan_tilt_goal
-    results_dict['tilt_error'] = scan_tilt_error
-    results_dict['tilt_dps'] = -999
+        results_dict['tilt_deg'] = tilt_deg
+        results_dict['tilt_dps'] = tilt_dps
 
-    results_dict['heading_goal'] = -999
-    results_dict['heading_error'] = -999
-    results_dict['roll_goal'] = -999
-    results_dict['roll_error'] = -999
-    results_dict['pitch_goal'] = -999
-    results_dict['pitch_error'] = -999
-
-    results_dict = update_results(results_dict, navpose_dict)
-
-    ###########################
-    # Update PanTilt Axis Data
-
-    ###############
-    # Pan
-    pan_axis_dict['pos_disabled'] = pan_pos_disabled
-    pan_axis_dict['jog_disabled'] = pan_jog_disabled
-    pan_axis_dict['speed_disabled'] = pan_speed_disabled
-
-    pan_axis_dict['now_deg'] = pan_now
-    # pan_axis_dict['lock_deg'] = pan_lock_deg
-
-    # pan_axis_dict['goal_ratio'] = pan_goal_ratio
-    pan_axis_dict['goal_deg'] = scan_pan_goal
-    pan_axis_dict['error_deg'] = scan_pan_error
-
-    # pan_axis_dict['speed_lock'] = pan_speed_lock
-    # pan_axis_dict['speed_ratio'] = pan_speed_ratio
-    # pan_axis_dict['speed_dps'] = pan_speed_dps
-
-    # ###############
-    # # Tilt
-
-    tilt_axis_dict['pos_disabled'] = tilt_pos_disabled
-    tilt_axis_dict['jog_disabled'] = tilt_jog_disabled
-    tilt_axis_dict['speed_disabled'] = tilt_speed_disabled
-
-    tilt_axis_dict['now_deg'] = tilt_now
-    # tilt_axis_dict['lock_deg'] = tilt_lock_deg
-
-    # tilt_axis_dict['goal_ratio'] = tilt_goal_ratio
-    tilt_axis_dict['goal_deg'] = scan_tilt_goal
-    tilt_axis_dict['error_deg'] = scan_tilt_error
-
-    # tilt_axis_dict['speed_lock'] = tilt_speed_lock
-    # tilt_axis_dict['speed_ratio'] = tilt_speed_ratio
-    # tilt_axis_dict['speed_dps'] = tilt_speed_dps
-
-
-    # ###########################
-    # # Apply PanTilt Control Updates
-    # pantilt_connect_if = if_dict.get('pantilt_connect_if', None)
-    # if pantilt_connect_if is not None:
-    #     if pantilt_connect_if.get_ready() == True:
-    #         pass
-    
-    #logger.log_warn("Process Completed: " + str([scan_dict,results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
+        results_dict = update_results(results_dict, navpose_dict)
+        
+        #logger.log_warn("Process Completed: " + str([scan_dict,results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
     return data_dict, controls_dict, states_dict, results_dict
 
 

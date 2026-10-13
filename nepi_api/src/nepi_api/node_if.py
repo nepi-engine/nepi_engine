@@ -87,7 +87,6 @@ class NodeConfigsIF:
     ### IF Initialization
     def __init__(self, 
                 configs_dict,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -104,9 +103,7 @@ class NodeConfigsIF:
         else:
             self.msg_if = msg_if
         
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        self.msg_if.pub_debug("Starting Node Configs IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node Configs IF Initialization Processes" )
 
         ##############################    
 
@@ -125,14 +122,14 @@ class NodeConfigsIF:
 
         if 'alt_namespace' in configs_dict.keys():
             self.alt_namespace = configs_dict['alt_namespace']
-        #self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace), log_name_list = self.log_name_list)
-        #self.msg_if.pub_warn("Using Base namespace: " + str(self.base_namespace), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Using Config namespace: " + str(self.namespace) )
+        #self.msg_if.pub_warn("Using Base namespace: " + str(self.base_namespace) )
 
         clear_params = True
         if 'clear_params' in configs_dict.keys():
             clear_params = configs_dict['clear_params']
         if clear_params == True:
-            self.msg_if.pub_debug("Clearing params for namespace: " + str(self.namespace), log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Clearing params for namespace: " + str(self.namespace) )
             nepi_sdk.delete_params(self.namespace)
         
 
@@ -176,24 +173,24 @@ class NodeConfigsIF:
 
 
             ################
-            self.msg_if.pub_warn("Resetting Params", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Resetting Params" )
             self.reset_params()
             nepi_sdk.sleep(1)
 
         # params_dict = nepi_sdk.get_param(self.namespace, dict())
-        # self.msg_if.pub_warn("Got Reset Params: " + str(params_dict), log_name_list = self.log_name_list)
+        # self.msg_if.pub_warn("Got Reset Params: " + str(params_dict) )
 
         if 'init_configs' in configs_dict.keys():
             
             init_configs = configs_dict['init_configs']
             if init_configs == True:
-                self.msg_if.pub_warn("Calling parent reset function", log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Calling parent reset function" )
                 self.reset_config()
         nepi_sdk.start_timer_process(self.MAX_SAVE_RATE, self._updaterCb, oneshot = True)
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_debug("Node Configs IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Node Configs IF Initialization Complete" )
         ##############################  
 
 
@@ -206,16 +203,16 @@ class NodeConfigsIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_debug("Waiting for Ready", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Waiting for Ready" )
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_debug("Wait for Ready Timed Out", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Wait for Ready Timed Out" )
         else:
-            self.msg_if.pub_debug("Ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Ready" )
         return self.ready
 
     def reset_params(self):
@@ -237,7 +234,7 @@ class NodeConfigsIF:
             for key in BLANK_CONFIG_DICT.keys():
                 if key not in configs_dict.keys():
                     configs_dict[key] = BLANK_CONFIG_DICT[key]
-        self.msg_if.pub_warn("Adding Config Dict: " + str(configs_dict), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Adding Config Dict: " + str(configs_dict) )
 
         if 'init_callback' in configs_dict.keys():  
             self.initCb.append(configs_dict['init_callback'])
@@ -253,7 +250,7 @@ class NodeConfigsIF:
 
     def init_config(self, do_updates = False):
         for i, callback in enumerate(self.initCb):
-            self.msg_if.pub_warn("Calling init callback: " + str(callback), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Calling init callback: " + str(callback) )
             if (callback is not None):
                 try:
                     if not nepi_sdk.is_shutdown():
@@ -267,7 +264,7 @@ class NodeConfigsIF:
     def reset_config(self):
         self.msg_if.pub_warn("Resetting Configs: " + str(self.namespace))
         for i, callback in enumerate(self.resetCb):
-            self.msg_if.pub_warn("Calling reset callback: " + str(callback), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Calling reset callback: " + str(callback) )
             if (callback is not None):
                 try:
                     if not nepi_sdk.is_shutdown():
@@ -283,7 +280,7 @@ class NodeConfigsIF:
     def factory_reset_config(self):
         self.msg_if.pub_warn("Factory Resetting Configs: " + str(self.namespace))
         for i, callback in enumerate(self.factoryResetCb):
-            self.msg_if.pub_warn("Calling factory reset callback: " + str(callback), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Calling factory reset callback: " + str(callback) )
             if (callback is not None):
                 try:
                     if not nepi_sdk.is_shutdown():
@@ -335,25 +332,25 @@ class NodeConfigsIF:
         self.save_config()
 
     def _saveAllCb(self,msg):
-        self.msg_if.pub_warn("Got Save Config All Msg", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Save Config All Msg" )
         self.save_config_all()
 
     def _deleteConfigsCb(self,msg):
-        self.msg_if.pub_warn("Got Delete Config All Msg", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Delete Config All Msg" )
         self.delete_config_all()
 
     def _initCb(self,msg):
         self.init_config(do_updates = True)
 
     def _resetCb(self,msg):
-        self.msg_if.pub_warn("Got Reset Config Request", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Reset Config Request" )
         self.reset_config() 
 
     def _factorySaveCb(self,msg):
         self.factory_save_config()
 
     def _factoryResetCb(self,msg):
-        self.msg_if.pub_warn("Got Factory Reset Config Request", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Got Factory Reset Config Request" )
         self.factory_reset_config()
 
 
@@ -399,9 +396,6 @@ class NodeParamsIF:
     ### IF Initialization
     def __init__(self, 
                 params_dict = None,
-                log_name = None,
-                log_class_name = True,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -416,9 +410,7 @@ class NodeParamsIF:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        self.msg_if.pub_debug("Starting Node Params IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node Params IF Initialization Processes" )
         ##############################   
 
         ##############################  
@@ -433,7 +425,7 @@ class NodeParamsIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ##############################  
 
 
@@ -446,16 +438,16 @@ class NodeParamsIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_debug("Waiting for Ready", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Waiting for Ready" )
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_debug("Wait for Ready Timed Out", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Wait for Ready Timed Out" )
         else:
-            self.msg_if.pub_debug("Ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Ready" )
         return self.ready
 
     def load_params(self, file_path):
@@ -478,10 +470,10 @@ class NodeParamsIF:
 
     def initialize_params(self):
 
-        #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()), log_name_list = self.log_name_list)
-        #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict.keys()) )
+        #self.msg_if.pub_warn("Initializing params: " + str(self.params_dict) )
         #get_params = nepi_sdk.get_params(self.node_namespace)
-        #self.msg_if.pub_warn("Got Init params for node namespace: " + str(self.node_namespace) + " : " + str(get_params), log_name_list = self.log_name_list)
+        #self.msg_if.pub_warn("Got Init params for node namespace: " + str(self.node_namespace) + " : " + str(get_params) )
         params_dict = copy.deepcopy(self.params_dict)
         init_val = None
         got_params_dict = dict()
@@ -489,7 +481,7 @@ class NodeParamsIF:
             namespace = params_dict[param_key]['namespace']
             if namespace not in got_params_dict.keys():
                 get_params_dict = nepi_sdk.get_params(namespace)
-                #self.msg_if.pub_warn("Got Init params dict for namespace: " + str(namespace) + " : " + str(get_params_dict), log_name_list = self.log_name_list)
+                #self.msg_if.pub_warn("Got Init params dict for namespace: " + str(namespace) + " : " + str(get_params_dict) )
                 if get_params_dict is not None:
                     if isinstance(get_params_dict, dict):
 
@@ -508,7 +500,7 @@ class NodeParamsIF:
 
                 ns_param_dict = got_params_dict[namespace]
                 init_val = self.getNestedInitVal(ns_param_dict, param_name)
-                #self.msg_if.pub_warn("Got Init value for param name: " + str(param_name) + " : " + str(init_val), log_name_list = self.log_name_list)
+                #self.msg_if.pub_warn("Got Init value for param name: " + str(param_name) + " : " + str(init_val) )
                 if init_val is None:
                     init_val = factory_val
                 param_dict['init_val'] = init_val
@@ -517,13 +509,13 @@ class NodeParamsIF:
                 cur_val = self.get_param(param_key)
 
                 if param_key == self.DEBUG_PARAM:
-                    self.msg_if.pub_warn("Initialized param factory,init,value " + str([param_key,factory_val,init_val,cur_val]), log_name_list = self.log_name_list)
-                    self.msg_if.pub_warn("Initialized params dict " + str([param_key,params_dict[param_key]]), log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("Initialized param factory,init,value " + str([param_key,factory_val,init_val,cur_val]) )
+                    self.msg_if.pub_warn("Initialized params dict " + str([param_key,params_dict[param_key]]) )
         self.params_dict = params_dict
         return True
             
     def reset_params(self, param_keys = None):
-        self.msg_if.pub_warn("Resetting params", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Resetting params" )
         success = self.initialize_params()
         if param_keys is None:
             param_keys = list(self.params_dict.keys())
@@ -540,11 +532,11 @@ class NodeParamsIF:
                 if init_val is None:
                     init_val = self.params_dict[param_key]['factory_val']
                 if param_key == self.DEBUG_PARAM:
-                    self.msg_if.pub_warn("Resetting param from:to " + str([param_key,cur_val,init_val]), log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("Resetting param from:to " + str([param_key,cur_val,init_val]) )
                 self.set_param(param_key, init_val)
 
     def factory_reset_params(self, param_keys = None):
-        self.msg_if.pub_warn("Factory Resetting params", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Factory Resetting params" )
         success = self.initialize_params()
         if param_keys is None:
             param_keys = list(self.params_dict.keys())
@@ -555,7 +547,7 @@ class NodeParamsIF:
                 
                 factory_val = self.params_dict[param_key]['factory_val']
                 if param_key == self.DEBUG_PARAM:
-                    self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_key,cur_val,factory_val]), log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("Factory Resetting param from:to " + str([param_key,cur_val,factory_val]) )
                 self.set_param(param_key, factory_val)
 
     def save_params(self, file_path):
@@ -585,10 +577,10 @@ class NodeParamsIF:
                     fallback = param_dict['factory_val']
 
                 if value is None:
-                    self.msg_if.pub_warn("Got param using fallback_value " + str([param_key,fallback]), log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("Got param using fallback_value " + str([param_key,fallback]) )
                     value = fallback
         if param_key == self.DEBUG_PARAM:
-            self.msg_if.pub_warn("Got param val " + str([param_key,value]), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Got param val " + str([param_key,value]) )
 
         return value
 
@@ -599,7 +591,7 @@ class NodeParamsIF:
                 self.params_ns_dict[namespace] = value
                 nepi_sdk.set_param(namespace,value)
                 if param_key == self.DEBUG_PARAM:
-                    self.msg_if.pub_warn("Set param val " + str([param_key,self.params_ns_dict[namespace]]), log_name_list = self.log_name_list)
+                    self.msg_if.pub_warn("Set param val " + str([param_key,self.params_ns_dict[namespace]]) )
                 
 
     def reset_param(self, param_key):
@@ -689,9 +681,6 @@ class NodeServicesIF:
     ### IF Initialization
     def __init__(self, 
                 services_dict = None,
-                log_name = None,
-                log_class_name = True,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -706,9 +695,7 @@ class NodeServicesIF:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        self.msg_if.pub_debug("Starting Node Services IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node Services IF Initialization Processes" )
         ##############################   
 
         ##############################  
@@ -721,7 +708,7 @@ class NodeServicesIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ##############################  
 
 
@@ -734,16 +721,16 @@ class NodeServicesIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_debug("Waiting for Ready", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Waiting for Ready" )
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_debug("Wait for Ready Timed Out", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Wait for Ready Timed Out" )
         else:
-            self.msg_if.pub_debug("Ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Ready" )
         return self.ready
 
        
@@ -803,18 +790,18 @@ class NodeServicesIF:
                     srv_msg = srv_dict['srv']
                     srv_callback = srv_dict['callback']
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e), throttle_s = 5.0, log_name_list = self.log_name_list) 
+                    self.msg_if.pub_warn("Failed to get service info from dict: " + service_name + " " + str(e), throttle_s = 5.0 ) 
                 if srv_callback is not None and not nepi_sdk.is_shutdown():
-                    self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace), log_name_list = self.log_name_list)
+                    self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace) )
                     service = None
                     try:
-                        service = nepi_sdk.create_service(srv_namespace, srv_msg, srv_callback, log_name_list = self.log_name_list)   
+                        service = nepi_sdk.create_service(srv_namespace, srv_msg, srv_callback )   
                         self.srvs_dict[service_name]['service'] = service
                         self.srvs_dict[service_name]['namespace'] = srv_namespace
                         self.msg_if.pub_debug("Created service for: " + service_name + " with namespace: " + str(srv_namespace), \
-                                        throttle_s = 5.0, log_name_list = self.log_name_list)                 
+                                        throttle_s = 5.0 )                 
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e), log_name_list = self.log_name_list)  
+                        self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e) )  
                     
 
     def _unregisterService(self, service_name):
@@ -826,7 +813,7 @@ class NodeServicesIF:
                 try:
                     self.srvs_dict[service_name]['service'].shutdown()
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e), log_name_list = self.log_name_list) 
+                    self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e) ) 
         if purge == True:
             del self.srvs_dict[service_name]
                     
@@ -862,9 +849,6 @@ class NodePublishersIF:
     ### IF Initialization
     def __init__(self, 
                 pubs_dict = None,
-                log_name = None,
-                log_class_name = True,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -879,9 +863,7 @@ class NodePublishersIF:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        self.msg_if.pub_debug("Starting Node Pubs IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node Pubs IF Initialization Processes" )
         ##############################   
 
 
@@ -896,7 +878,7 @@ class NodePublishersIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ##############################  
 
 
@@ -909,16 +891,16 @@ class NodePublishersIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_debug("Waiting for Ready", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Waiting for Ready" )
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_debug("Wait for Ready Timed Out", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Wait for Ready Timed Out" )
         else:
-            self.msg_if.pub_debug("Ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Ready" )
         return self.ready
 
         
@@ -934,7 +916,7 @@ class NodePublishersIF:
                 if pub_dict['pub'] is not None:
                     has_subs = pub_dict['pub'].get_num_connections() > 0
                     self.msg_if.pub_debug("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs), \
-                                        throttle_s = 5.0, log_name_list = self.log_name_list) 
+                                        throttle_s = 5.0 ) 
         return has_subs
 
     def publish_pub(self,pub_name,pub_msg):
@@ -945,12 +927,12 @@ class NodePublishersIF:
             if 'pub' in pub_dict.keys():
                 if pub_dict['pub'] is not None and not nepi_sdk.is_shutdown():
                     try:
-                        nepi_sdk.publish_pub(pub_dict['pub'], pub_msg, log_name_list = self.log_name_list)
+                        nepi_sdk.publish_pub(pub_dict['pub'], pub_msg )
                         success = True
                     except Exception as e:
                         namespace =  pub_dict['namespace']
                         self.msg_if.pub_warn("Failed to publish msg: " + pub_name + \
-                            " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)   
+                            " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0 )   
         #self.pubs_dict_lock.release()
         return success
 
@@ -986,11 +968,11 @@ class NodePublishersIF:
             self._unregisterPub(pub_name)
 
     def add_pubs(self,pubs_dict):
-        self.msg_if.pub_debug("Adding pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
+        self.msg_if.pub_debug("Adding pubs dict: " + str(pubs_dict)  ) 
         #self.pubs_dict_lock.acquire()
         self.pubs_dict.update(pubs_dict)
         #self.pubs_dict_lock.release()
-        #self.msg_if.pub_debug("Updated pubs dict: " + str(pubs_dict) , log_name_list = self.log_name_list) 
+        #self.msg_if.pub_debug("Updated pubs dict: " + str(pubs_dict)  ) 
         self._initializePubs(print_msg = True)
 
     ###############################
@@ -1008,7 +990,7 @@ class NodePublishersIF:
             if add_pub == True:  
                 if 'topic' in pub_dict.keys() and 'msg' in pub_dict.keys() and not nepi_sdk.is_shutdown():
                     pub_namespace = nepi_sdk.create_namespace(pub_dict['namespace'] ,pub_dict['topic'])
-                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace , log_name_list = self.log_name_list) 
+                    self.msg_if.pub_debug("Creating pub for: " + pub_name + " with namespace: " + pub_namespace  ) 
                     pub = None
                     if 'qsize' not in pub_dict.keys():
                         self.pubs_dict[pub_name]['qsize'] = 1
@@ -1018,15 +1000,15 @@ class NodePublishersIF:
                         pub_dict['latch'] = False
                     try:
                         pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'], \
-                                latch = pub_dict['latch'], log_name_list = self.log_name_list)
+                                latch = pub_dict['latch'] )
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
+                        self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e) ) 
                     self.pubs_dict[pub_name]['pub_namespace'] = pub_namespace
                     self.pubs_dict[pub_name]['pub'] = pub
                     # if print_msg == True:
-                    #     self.msg_if.pub_warn("Added Pub: " + pub_name, log_name_list = self.log_name_list)
+                    #     self.msg_if.pub_warn("Added Pub: " + pub_name )
             else:
-                #self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name, log_name_list = self.log_name_list) 
+                #self.msg_if.pub_warn("Pubublisher already exists for: " + pub_name ) 
                 pass
         #self.pubs_dict_lock.release()
 
@@ -1040,9 +1022,9 @@ class NodePublishersIF:
                 if pub_dict['pub'] is not None:
                     try:
                         self.pubs_dict[pub_name]['pub'].unregister()
-                        self.msg_if.pub_warn("Unregister pub: " + pub_name, log_name_list = self.log_name_list)                    
+                        self.msg_if.pub_warn("Unregister pub: " + pub_name )                    
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e), log_name_list = self.log_name_list) 
+                        self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e) ) 
                     self.pubs_dict[pub_name]['pub'] = None
         #self.pubs_dict_lock.release()
 
@@ -1076,9 +1058,6 @@ class NodeSubscribersIF:
     ### IF Initialization
     def __init__(self, 
                 subs_dict = None,
-                log_name = None,
-                log_class_name = True,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1093,9 +1072,7 @@ class NodeSubscribersIF:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        self.msg_if.pub_debug("Starting Node Subs IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node Subs IF Initialization Processes" )
 
         ##############################   
 
@@ -1109,7 +1086,7 @@ class NodeSubscribersIF:
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ##############################  
 
 
@@ -1122,16 +1099,16 @@ class NodeSubscribersIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_debug("Waiting for Ready", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Waiting for Ready" )
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_debug("Wait for Ready Timed Out", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Wait for Ready Timed Out" )
         else:
-            self.msg_if.pub_debug("Ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Ready" )
         return self.ready
 
         
@@ -1179,24 +1156,24 @@ class NodeSubscribersIF:
             self.msg_if.pub_debug("Will try to create sub for: " + sub_name )
             if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_sdk.is_shutdown():
                 sub_namespace = nepi_sdk.create_namespace(sub_dict['namespace'],sub_dict['topic'])
-                self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list) 
+                self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace ) 
                 if 'callback_args' not in sub_dict.keys():
                     sub_dict['callback_args'] = ()
                 if sub_dict['callback_args'] is None:
                     sub_dict['callback_args'] = ()
                 try:
                     if len(sub_dict['callback_args']) == 0:
-                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'], sub_dict['callback'], queue_size = sub_dict['qsize'], \
-                            log_name_list = self.log_name_list)
+                        sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'], sub_dict['callback'], queue_size = sub_dict['qsize'])
+                            
                     else:
                         sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], \
-                             callback_args=sub_dict['callback_args'], log_name_list = self.log_name_list)
+                             callback_args=sub_dict['callback_args'] )
                     self.subs_dict[sub_name]['sub'] = sub
                     self.subs_dict[sub_name]['sub_namespace'] = sub_namespace
                     success = True
-                    self.msg_if.pub_debug("Created sub for: " + sub_name + " with namespace: " + sub_namespace, log_name_list = self.log_name_list) 
+                    self.msg_if.pub_debug("Created sub for: " + sub_name + " with namespace: " + sub_namespace ) 
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e), log_name_list = self.log_name_list)   
+                    self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e) )   
                     self.subs_dict[sub_name]['sub'] = None
          #self.subs_dict_lock.release()
 
@@ -1299,8 +1276,6 @@ class NodeClassIF:
     ready = False
     node_if = None
     msg_if = None
-    log_name = None
-
     configs_dict = None
     configs_if = None
     params_if = None
@@ -1318,7 +1293,6 @@ class NodeClassIF:
                 services_dict = None,
                 pubs_dict = None,
                 subs_dict = None,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -1335,9 +1309,7 @@ class NodeClassIF:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        self.msg_if.pub_info("Starting Node IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting Node IF Initialization Processes" )
 
         ##############################  
         # Create Sub Classes
@@ -1362,24 +1334,24 @@ class NodeClassIF:
 
 
         self.configs_if = NodeConfigsIF(configs_dict = configs_dict,
-                                        log_name_list = self.log_name_list,
+                                        
                                         msg_if = self.msg_if
                                         )
         nepi_sdk.sleep(1)
 
 
-        self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-        self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+        self.params_if = NodeParamsIF(params_dict = params_dict, msg_if = self.msg_if )
+        self.services_if = NodeServicesIF(services_dict = services_dict, msg_if = self.msg_if )
 
-        self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
-        self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if, log_name_list = self.log_name_list)
+        self.pubs_if = NodePublishersIF(pubs_dict = pubs_dict, msg_if = self.msg_if )
+        self.subs_if = NodeSubscribersIF(subs_dict = subs_dict, msg_if = self.msg_if )
 
         nepi_sdk.sleep(0.1)
       
         ##############################  
         # Complete Initialization Process
         self.ready = True
-        self.msg_if.pub_info("Node IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Node IF Initialization Complete" )
         ##############################  
 
 
@@ -1392,16 +1364,16 @@ class NodeClassIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_debug("Waiting for Ready", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Waiting for Ready" )
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_debug("Wait for Ready Timed Out", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Wait for Ready Timed Out" )
         else:
-            self.msg_if.pub_debug("Ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Ready" )
         return self.ready
 
     def get_namespace(self):
@@ -1615,7 +1587,7 @@ class NodeClassIF:
             
 
     def _resetConfigCb(self):
-        self.msg_if.pub_warn("Node Got Reset Params Request", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Node Got Reset Params Request" )
         self.reset_params()
         if self.configs_dict is not None:
             if 'reset_callback' in self.configs_dict.keys():
@@ -1623,7 +1595,7 @@ class NodeClassIF:
                     self.configs_dict['reset_callback']()
 
     def _factoryResetConfigCb(self):
-        self.msg_if.pub_warn("Node Got Factory Reset Params Request", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Node Got Factory Reset Params Request" )
         self.factory_reset_params()
         if self.configs_dict is not None:
             if 'factory_reset_callback' in self.configs_dict.keys():

@@ -233,8 +233,6 @@ class AiDetectorIF:
                 processImageFunction,
                 processFileFunction,
                 enable_image_pub = True,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -251,11 +249,7 @@ class AiDetectorIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node Class IF Initialization Processes" )
 
 
         ##############################  
@@ -270,9 +264,7 @@ class AiDetectorIF:
         ##############################
         # Get for System Folders
         self.msg_if.pub_warn("Waiting for system folders")
-        system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
         while system_folders is None and nepi_sdk.is_shutdown() == False:
-            system_folders = nepi_system.get_system_folders(log_name_list = [self.node_name])
             nepi_sdk.sleep(1)
 
         self.msg_if.pub_warn("Got system folders: " + str(system_folders))
@@ -756,7 +748,7 @@ class AiDetectorIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
+                        
                         msg_if = self.msg_if
                                             )
 
@@ -797,7 +789,7 @@ class AiDetectorIF:
         self.states_if_targets = StatesIF(
                         states_name = 'targets',
                         get_states_dict_function = self.get_targets_states,
-                        log_name_list = self.log_name_list,
+                        
                             msg_if = self.msg_if)
                             # msg_if = self.msg_if,
                             # node_if = self.node_if
@@ -831,7 +823,7 @@ class AiDetectorIF:
 
         self.save_data_namespace = self.node_namespace + '/save_data'
         self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates,
-                        log_name_list = self.log_name_list,
+                        
                             msg_if = self.msg_if)
                             # msg_if = self.msg_if,
                             # node_if = self.node_if
@@ -845,11 +837,11 @@ class AiDetectorIF:
         ###############################
         # Create Per-Data-Product IFs
 
-        self.msg_if.pub_warn("Pre TargetsIF set_process_rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Pre TargetsIF set_process_rate: " + str(self.set_process_rate) )
         self.targets_if = TargetsIF(namespace = self.namespace,
                         data_product = 'targets',
                         save_data_if = self.save_data_if,
-                        log_name_list = self.log_name_list,
+                        
                         msg_if = self.msg_if)
         nepi_sdk.sleep(1)
 
@@ -866,8 +858,8 @@ class AiDetectorIF:
 
         self.msg_str = 'Loaded'
         ##########################
-        self.msg_if.pub_warn("IF Initialization Complete", log_name_list = self.log_name_list)
-        self.msg_if.pub_warn("set_process_rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("IF Initialization Complete" )
+        self.msg_if.pub_warn("set_process_rate: " + str(self.set_process_rate) )
         ##########################
 
     def systemStatusCb(self,msg):
@@ -968,7 +960,7 @@ class AiDetectorIF:
 
 
     def initCb(self,do_updates = False):
-        self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Setting init values to param values" )
         if self.node_if is not None:
             self.imaging_enabled = self.node_if.get_param('imaging_enabled')
             self.enabled = self.node_if.get_param('enabled')
@@ -976,7 +968,7 @@ class AiDetectorIF:
             self.selected_classes_targets = self.node_if.get_param('selected_classes')
             self.threshold = self.node_if.get_param('threshold')
             self.set_process_rate = self.node_if.get_param('set_process_rate')
-            self.msg_if.pub_warn("Init max process rate: " + str(self.set_process_rate), log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Init max process rate: " + str(self.set_process_rate) )
             self.set_image_rate = self.node_if.get_param('set_image_rate')
             self.use_last_image = self.node_if.get_param('use_last_image')
 
@@ -989,7 +981,7 @@ class AiDetectorIF:
             self.auto_select_enabled = auto_select_enabled
             self.auto_select_active = auto_select_enabled
             self.selected_sources = self.node_if.get_param('selected_sources')
-            self.msg_if.pub_info("Init selected images: " + str(self.selected_sources), log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Init selected images: " + str(self.selected_sources) )
 
             
         if do_updates == True:
@@ -1561,7 +1553,7 @@ class AiDetectorIF:
             # Pubs Config Dict 
             img_pubs_if = NodePublishersIF(
                     pubs_dict = img_pubs_dict,
-                    log_name_list = self.log_name_list,
+                    
                     msg_if = self.msg_if
                                         )
 
@@ -1569,7 +1561,7 @@ class AiDetectorIF:
             # Subs Config Dict 
             img_subs_if = NodeSubscribersIF(
                     subs_dict = img_subs_dict,
-                    log_name_list = self.log_name_list,
+                    
                         msg_if = self.msg_if)
                         # msg_if = self.msg_if,
                         # node_if = self.node_if
@@ -2255,7 +2247,7 @@ class AiDetectorIF:
             topic_names.append(namespace)
     
         try:
-            [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
+            [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters )
         except:
             [has_subs,has_subs_dict] = [ False, dict() ]
         
@@ -2284,7 +2276,7 @@ class AiDetectorIF:
                     if source_topic in self.imgs_info_dict.keys():
                         topic_names.append(self.imgs_info_dict[source_topic]['img_pub_topic'])
                     try:
-                        [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters, log_name_list = self.log_name_list)
+                        [has_subs,has_subs_dict] = nepi_sdk.find_subscribers(topic_names,filters )
                     except:
                         [has_subs,has_subs_dict] = [ False, dict() ]
 

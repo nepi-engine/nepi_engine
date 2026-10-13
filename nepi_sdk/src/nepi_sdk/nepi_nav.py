@@ -57,7 +57,7 @@ from nepi_sdk import nepi_utils
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_nav"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 
 # try and import geoid height calculation module and databases
@@ -846,7 +846,7 @@ def check_tranform_dict(transform_dict):
       transform_dict[key] = BLANK_TRANSFORM_DICT[key]
   return transform_dict
 
-def convert_transform_dict2msg(transform_dict, log_name_list = []):
+def convert_transform_dict2msg(transform_dict):
   transform_dict = check_tranform_dict(transform_dict)
   transform_msg = Transform()
   if transform_dict is not None:
@@ -875,11 +875,11 @@ def convert_transform_dict2msg(transform_dict, log_name_list = []):
 
     
     except Exception as e:
-      logger.log_warn("Failed to convert Transform Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+      logger.log_warn("Failed to convert Transform Data dict: " + str(e), throttle_s = 5.0)
   return transform_msg
 
 
-def convert_transform_list2msg(transform_list, source_ref_description = '', end_ref_description = '', log_name_list = []):
+def convert_transform_list2msg(transform_list, source_ref_description = '', end_ref_description = ''):
   # transform_list = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
   transform_msg = Transform()
   if transform_list is not None:
@@ -897,11 +897,11 @@ def convert_transform_list2msg(transform_list, source_ref_description = '', end_
 
       transform_msg.heading_deg = float(transform_list[6])
     except Exception as e:
-      logger.log_warn("Failed to convert Transform Data list: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+      logger.log_warn("Failed to convert Transform Data list: " + str(e), throttle_s = 5.0)
   return transform_msg
 
 
-def convert_transform_list2dict(transform_list, log_name_list = []):
+def convert_transform_list2dict(transform_list):
   # transform_list = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
   # Descriptions are left blank so an all-zero list stays == BLANK_TRANSFORM_DICT (identity no-op)
   transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
@@ -917,7 +917,7 @@ def convert_transform_list2dict(transform_list, log_name_list = []):
 
       transform_dict['heading_deg'] = float(transform_list[6])
     except Exception as e:
-      logger.log_warn("Failed to convert Transform Data list to dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+      logger.log_warn("Failed to convert Transform Data list to dict: " + str(e), throttle_s = 5.0)
   return transform_dict
 
 
@@ -964,7 +964,7 @@ def transform_object_pose(current_pose, rpy_rotation, units='deg'):
 
 
 
-def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None, log_name_list = []):
+def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None):
   #logger.log_warn("passing transform_dict: " + str(transform_dict), throttle_s = 5.0)
   #logger.log_warn("passing transform_dict: " + str(npdata_dict), throttle_s = 5.0)
   #logger.log_warn("passing transform_dict: " + str(pt_transform_dict), throttle_s = 5.0)
@@ -1092,7 +1092,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
       except Exception as e:
         success = False
-        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
   return navpose_dict
 
 
@@ -1151,10 +1151,10 @@ def convert_navpose_ned2edu(npdata_dict):
 
 
 
-def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
+def convert_navpose_dict2msg(npdata_dict):
   npdata_msg = None
   if npdata_dict is None:
-    logger.log_info("Got None navpose dict", throttle_s = 5.0, log_name_list = log_name_list)
+    logger.log_info("Got None navpose dict", throttle_s = 5.0)
   else:
 
     blank_dict = BLANK_NAVPOSE_DICT
@@ -1227,11 +1227,11 @@ def convert_navpose_dict2msg(npdata_dict, log_name_list = []):
       np_msg.pan_tilt_yaw_deg = npdata_dict['pan_tilt_yaw_deg'] if np_msg.has_pan_tilt else 0.0
     except Exception as e:
       np_msg = None
-      logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+      logger.log_warn("Failed to convert NavPose Data dict: " + str(e), throttle_s = 5.0)
   return np_msg
 
 
-def convert_navpose_msg2dict(np_msg, log_name_list = []):
+def convert_navpose_msg2dict(np_msg):
   if np_msg is None:
     return None
   try:
@@ -1282,12 +1282,12 @@ def convert_navpose_msg2dict(np_msg, log_name_list = []):
     npdata_dict['pan_tilt_pitch_deg'] = np_msg.pan_tilt_pitch_deg
     npdata_dict['pan_tilt_yaw_deg'] = np_msg.pan_tilt_yaw_deg
   except Exception as e:
-    logger.log_warn("Failed to convert NavPose msg to dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+    logger.log_warn("Failed to convert NavPose msg to dict: " + str(e), throttle_s = 5.0)
     return None
   return npdata_dict
 
 
-def convert_navposes_msg2dict(npsdata_msg, log_name_list = []):
+def convert_navposes_msg2dict(npsdata_msg):
   npsdata_dict = None
   for npdata_msg in npsdata_msg:
     try:
@@ -1295,7 +1295,7 @@ def convert_navposes_msg2dict(npsdata_msg, log_name_list = []):
       del npdata_dict['header']
       npsdata_dict[npdata_dict['name']] = npdata_dict
     except Exception as e:
-      logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+      logger.log_warn("Failed to convert NavPose Data msg: " + str(e), throttle_s = 5.0)
   return npsdata_dict
 
 def get_navpose_orientation_enu_degs(navpose_response):
@@ -1407,13 +1407,13 @@ def get_navpose_geoid_height(navpose_response):
   geoid_height =  geoid_height
   return geoid_height
   
-def get_navpose_track_msg_from_dict(navpose_dict, log_name_list = []):
+def get_navpose_track_msg_from_dict(navpose_dict):
     track = BLANK_NAVPOSE_TRACK_DICT
     for key in track.keys():
         if key in navpose_dict.keys():
             track[key] = navpose_dict[key]
     track_msg = NavPoseTrack()
-    nepi_sdk.log_msg_debug("Got NavPoseTrack msg: " + str(track_msg), throttle_s = 5.0, log_name_list = log_name_list)
+    nepi_sdk.log_msg_debug("Got NavPoseTrack msg: " + str(track_msg), throttle_s = 5.0)
     timestamp = nepi_utils.get_time() 
     track_msg.timestamp = timestamp
     track_msg.date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
@@ -1756,7 +1756,7 @@ def update_transform_from_pantilt(transform, pan_deg, tilt_deg):
 
 
 
-def update_navpose_dict_pantilt(npdata_dict, transform_dict, log_name_list = []):
+def update_navpose_dict_pantilt(npdata_dict, transform_dict):
   success = True
   if npdata_dict is None:
     success = False
@@ -1801,5 +1801,5 @@ def update_navpose_dict_pantilt(npdata_dict, transform_dict, log_name_list = [])
 
       except Exception as e:
         success = False
-        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0, log_name_list = log_name_list)
+        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
   return npdata_dict

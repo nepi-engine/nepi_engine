@@ -38,7 +38,7 @@ from nepi_interfaces.msg import Detection, Detections
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_detections"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 
 ########################
@@ -58,7 +58,7 @@ def get_targeting_source_publisher_namespaces():
 
 
 
-# def convert_target_dict2msg(target_data_dict, log_name_list = []):
+# def convert_target_dict2msg(target_data_dict):
 #   target_msg = None
 #   if target_data_dict is None:
 #     logger.log_info("Got None target dict", throttle_s = 5.0)
@@ -108,7 +108,7 @@ def get_targeting_source_publisher_namespaces():
 #       logger.log_warn("Failed to convert Target Data dict: " + str(e), throttle_s = 5.0)
 #   return target_msg
 
-# def convert_target_msg2dict(target_msg, log_name_list = []):
+# def convert_target_msg2dict(target_msg):
 #   target_data_dict = None
 #   try:
 #     target_data_dict = nepi_sdk.convert_msg2dict(target_msg)

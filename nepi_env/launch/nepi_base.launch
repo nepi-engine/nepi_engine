@@ -27,7 +27,7 @@
 
     <group if="$(arg run_web_utils)" >
       <!-- Rosbridge_websocket (for RUI or stand-alone)-->
-      <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" >
+      <include file="/opt/nepi/nepi_engine/share/nepi_env/launch/rosbridge_websocket.launch" >
         <arg name="address" value="0.0.0.0"/>
         <arg name="port" value="9090"/>
         <!-- Use a long unregister_timeout as a work-around for the well-known unregister rospy bug -->
@@ -37,6 +37,7 @@
       <!-- Web Video Server (for RUI or stand-alone) -->
       <node name="web_video_server" pkg="web_video_server" type="web_video_server" output="$(arg output_destination)">
         <param name="port" value="9091"/>
+        <param name="log_level" value="warn" />
       </node>
     </group>
 

@@ -29,7 +29,7 @@ from nepi_sdk import nepi_utils
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_mmap"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 ####################
 # General Functions

@@ -68,8 +68,6 @@ class ListIF:
                 callback_dict = None,
                 multi_select_enabled = False,
                 update_order_enabled = False,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -85,18 +83,14 @@ class ListIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
 
-        self.msg_if.pub_info("Starting List IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting List IF Initialization Processes" )
         ############################## 
         # Initialize Class Variables
         if namespace is None:
             namespace = nepi_sdk.create_namespace(self.node_namespace,'list')
         self.namespace = nepi_sdk.get_full_namespace(namespace)
-        self.msg_if.pub_warn("Using list namespace: " + self.namespace, log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Using list namespace: " + self.namespace )
         
 
         self.reset_list_dict = self.update_list_dict(list_dict)
@@ -194,7 +188,7 @@ class ListIF:
         self.node_if = NodeClassIF(
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
+                        
                         msg_if = self.msg_if
                                             )
 
@@ -208,7 +202,7 @@ class ListIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ###############################
 
 
@@ -236,16 +230,16 @@ class ListIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready    
 
     def statusPubCb(self,timer):

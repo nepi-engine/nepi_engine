@@ -75,7 +75,7 @@ class ConnectImagesAllIF:
         # Connect Msg Class
 
         if msg_if is None:
-            self.msg_if = MsgIF(log_name = self.class_name)
+            self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")

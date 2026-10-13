@@ -35,7 +35,7 @@ from nepi_sdk.nepi_sdk import find_topics_by_msg
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_triggers"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 EXAMPLE_TRIGGER_DICT = {"name":"None",
                         "description": "None",

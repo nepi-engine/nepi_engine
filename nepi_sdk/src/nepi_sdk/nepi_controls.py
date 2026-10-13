@@ -33,12 +33,11 @@ from nepi_interfaces.msg import Control, ControlsStatus, UpdateControl
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_controls"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 
 #########################
 ### Controls Helper Functions
-
 
 
 
@@ -170,7 +169,7 @@ EXAMPLE_INIT_DICT = {
                 'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False},
 
             'floats_row': {
-                'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
+                'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0, 1, 1], 'round_value': 2,
                 'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False, 'display_row': True},
 
             'float_slider': {
@@ -178,7 +177,7 @@ EXAMPLE_INIT_DICT = {
                 'display_name': 'Demo Float Slider', 'description': 'Single-value slider over [0, 100].', 'display_hidden': False},
 
             'range_slider': {
-                'type': 'RangeSlider', 'default': [0.25, 0.75], 'bounds': [0.0, 1.0], 'round_value': 2,
+                'type': 'RangeSlider', 'default': [0.25, 0.75], 'bounds': [0.0, 1.0, 0.1], 'round_value': 2,
                 'display_name': 'Demo Floats Slider', 'description': 'Dual-value range slider (0.0-1.0 ratio).', 'display_hidden': False},
           }
 
@@ -219,12 +218,15 @@ def create_controls_dict(init_dict):
         control_dict['round'] = 6
         control_dict['default'] = []
         control_dict['length'] = 0
-        control_dict['min_bound'] = -999
-        control_dict['max_bound'] = -999
+        control_dict['min_bound'] = -999.0
+        control_dict['max_bound'] =  -999.0
+        control_dict['delta_bound'] =  -999.0
+        control_dict['dir_bound'] =  -999.0
         control_dict['display_name'] = name
+        control_dict['display_labels'] = name
         control_dict['display_round'] = 2
         control_dict['display_row'] = False
-        control_dict['display_bounds'] = True
+        control_dict['display_bounds'] = False
         for key in control_dict.keys():
           if key in init_control_dict.keys():
             control_dict[key] = init_control_dict[key]
@@ -267,16 +269,19 @@ def create_controls_dict(init_dict):
         # Clean Bounds
         #############
         # Clean Bounds
-        min_bound = -999
-        max_bound = -999
+        min_bound = -999.0
+        max_bound = -999.0
+        delta_bound = -999.0
+        dir_bound = -999.0
 
 
         # Membership test, not equality against the name of the list. As an
         # equality test this was never true, so min_bound/max_bound stayed at
-        # the -999 sentinel for every Int and Float control and a device's
+        # the -999.0 sentinel for every Int and Float control and a device's
         # reported bounds (v4l2 hands them over as init_control_dict['bounds'])
         # were discarded.
         if input_type in BOUND_TYPES:
+          delta_bound = -999.0
           if input_type == 'ColorRGB':
                 min_bound = 0
                 max_bound = 255
@@ -290,8 +295,18 @@ def create_controls_dict(init_dict):
             except:
               pass
             try:
+              delta_bound = float(control_dict['delta_bound'])
+            except:
+              pass
+            try:
+              dir_bound = float(control_dict['dir_bound'])
+            except:
+              pass
+            try:
               min_bound = float(init_control_dict['bounds'][0])
               max_bound = float(init_control_dict['bounds'][1])
+              delta_bound = float(init_control_dict['bounds'][2])
+              dir_bound = float(init_control_dict['bounds'][3])
             except:
               pass
           elif input_type in INT_TYPES:
@@ -304,13 +319,29 @@ def create_controls_dict(init_dict):
             except:
               pass
             try:
+              delta_bound = int(control_dict['delta_bound'])
+            except:
+              pass
+            try:
+              dir_bound = float(control_dict['dir_bound'])
+            except:
+              pass
+            try:
               min_bound = int(float(init_control_dict['bounds'][0]))
               max_bound = int(float(init_control_dict['bounds'][1]))
+              delta_bound = int(float(init_control_dict['bounds'][2]))
+              dir_bound = int(float(init_control_dict['bounds'][3]))
             except:
               pass
 
-        control_dict['min_bound'] = min_bound
-        control_dict['max_bound'] = max_bound
+        control_dict['min_bound'] = float(min_bound)
+        control_dict['max_bound'] = float(max_bound)
+        control_dict['delta_bound'] = float(delta_bound)
+        if dir_bound == 0:
+          dir_bound = -999.0
+        if int(float(dir_bound)) == -999.0:
+          dir_bound = -999.0
+        control_dict['dir_bound'] = float(dir_bound)
 
         #############
         # Clean Value
@@ -326,12 +357,12 @@ def create_controls_dict(init_dict):
           if value == []:
             value = control_dict['value']
 
-          if value is not None:
-            if isinstance(value, list) == False:
-                values = [str(value)]
-            else:
-              values = [str(item) for item in value]
-            value = values
+        if value is not None:
+          if isinstance(value, list) == False:
+              values = [str(value)]
+          else:
+            values = [str(item) for item in value]
+          value = values
         if value is None or isinstance(value, list) == False:
           # Third drop path, and it was the last silent one: no exception to
           # catch, so nothing was logged.
@@ -484,8 +515,8 @@ def create_controls_dict(init_dict):
           check_value = [check_value[0],check_value[1]]
         elif input_type in TRIPLE_TYPES:
           check_value = [check_value[0],check_value[1],check_value[2]]
-        clean_value = get_clean_value(check_dict, check_name, check_value)
-        #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(clean_value) + ": " + str(check_value))
+        clean_value = get_clean_value(check_dict, check_name, check_value, debug = True)
+        logger.log_debug("Got clean value from check value: " + str(name) + ": " + str(clean_value) + ": " + str(check_value))
         if clean_value is None:
           logger.log_warn("create_controls_dict: dropped control returned None clean value " + str(name) + " : " + str(clean_value))
           continue
@@ -549,21 +580,27 @@ def get_value_list(value):
   return [str(item) for item in value]
 
 
-def get_clean_value(controls_dict, control_name, control_value = None):
+def get_clean_value(controls_dict, control_name, control_value = None, debug = False):
+
   # If control_name not in controls_dict keys, None is returned
   # If control_value is None or any control_value is invalid, current valid values are returned
   valid = False
   value = None
+  fallback_value = []
   control_name = nepi_utils.get_clean_name(control_name)
   if control_name != '' and control_name in controls_dict.keys():
       control_dict = controls_dict[control_name]
+      if debug == True:
+        logger.log_debug("Checking control value: " + str([control_name,control_value,control_dict]))
       current_value = control_dict['value']
       control_type = control_dict['type']
       control_length = control_dict['length']
       options = control_dict['options']
       min_bound = control_dict['min_bound']
       max_bound = control_dict['max_bound']
-      #logger.log_warn("Checking control value: " + str(control_value))
+      delta_bound = control_dict['delta_bound']
+      dir_bound = control_dict['dir_bound']
+      #logger.log_debug("Checking control value: " + str(control_value))
       if control_value is None:
         try:
           control_value = copy.deepcopy(current_value)
@@ -592,7 +629,7 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
 
       if control_type in OPTION_TYPES: ###########################################################
-        #logger.log_warn("Checking Options control value: " + str(control_value))
+        #logger.log_debug("Checking Options control value: " + str(control_value))
         if control_type == "Menu": ###########################################################
           # The value of a Menu is an INDEX into options. int() of the whole
           # list raised every time, so this only ever reached its own except
@@ -665,11 +702,15 @@ def get_clean_value(controls_dict, control_name, control_value = None):
 
       else:
         values = []
+
+
         for i in range(control_length):
           cur_value = current_value[i]
           add_value = copy.deepcopy(cur_value)
           if len(control_value) > i:
             add_value = control_value[i]
+            if debug == True:
+              logger.log_debug("Using add value with limits: " + str([add_value,min_bound,max_bound]))
 
           if control_type in STRING_TYPES: ###########################################################
             add_value = str(add_value)
@@ -684,18 +725,27 @@ def get_clean_value(controls_dict, control_name, control_value = None):
           elif control_type in INT_TYPES:  ###########################################################
             try:
               add_value = int(float(add_value))
+              cur_value = int(float(cur_value))
+              fallback_value.append(cur_value)
+              # Do Bounds Check if Needed
               if int(float(min_bound)) != -999 and add_value < min_bound:
                 add_value = min_bound
+
               if int(float(max_bound)) != -999 and add_value > max_bound:
                 add_value = max_bound
+
             except Exception as e:
+              logger.log_debug("Failed to set value: " + str([control_name,add_value, min_bound,max_bound]) + " : " + str(e))
               add_value = cur_value
 
-
+            if debug == True:
+              logger.log_debug("Checking value with limits: " + str([add_value,min_bound,max_bound]))
           elif control_type in FLOAT_TYPES: ###########################################################
 
             try:
               add_value  = float(add_value)
+              cur_value = float(cur_value)
+              fallback_value.append(cur_value)
               # Named round_to, not round: binding the name `round` shadowed the
               # builtin, so round(add_value, round) raised "'int' object is not
               # callable" on the very next line. The except below swallowed it and
@@ -706,14 +756,20 @@ def get_clean_value(controls_dict, control_name, control_value = None):
                 add_value = round(add_value,round_to)
               # Clamps to min_bound. This assigned max_bound, so a value below the
               # minimum came back as the MAXIMUM.
-              if float(min_bound) != -999 and add_value < min_bound:
+
+              # Do Bounds Check if Needed
+              if int(float(min_bound)) != -999 and add_value < min_bound:
                 add_value = min_bound
-              if float(max_bound) != -999 and add_value > max_bound:
+
+              if int(float(max_bound)) != -999 and add_value > max_bound:
                 add_value = max_bound
+
             except Exception as e:
+              logger.log_warn("Failed to set value: " + str([control_name,add_value, min_bound,max_bound]) + " : " + str(e), throttle_s = 5)
               add_value = cur_value
 
-
+            if debug == True:
+              logger.log_debug("Updated value with limits: " + str([add_value,min_bound,max_bound]))
           elif control_type in TRIGGER_TYPES: ###########################################################
               # The stored value is the time the control last fired; get_value
               # reports seconds since, and reads <= 0 as "never fired". A press
@@ -730,6 +786,23 @@ def get_clean_value(controls_dict, control_name, control_value = None):
           values.append(add_value)
         value = values
 
+  if control_type in INT_TYPES or control_type in FLOAT_TYPES:  ###########################################################
+         
+      # Do Bounds Check if Needed
+      if len(value) == 2 and int(float(dir_bound)) != -999:
+        if debug == True:
+            logger.log_debug("Checking add values with direction: " + str([value,dir_bound]))
+        if (value[1] - value[0] ) > 0 and dir_bound < 0:
+            value = fallback_value
+        elif (value[0] - value[1] ) > 0 and dir_bound > 0:
+          value = fallback_value
+
+      if len(value) == 2 and int(float(delta_bound)) != -999:
+        if debug == True:
+            logger.log_debug("Checking add values with delta: " + str([value,delta_bound]))
+        if abs((value[1] - value[0] )) > delta_bound:
+          value = fallback_value
+
 
   clean_value = None
   if value is not None:
@@ -742,7 +815,9 @@ def get_clean_value(controls_dict, control_name, control_value = None):
           clean_value = [value[0],value[1],value[2]]
       else:
           clean_value = value
-        
+
+  if debug == True:
+      logger.log_debug("Returning Clean Value: " + str(clean_value))        
   return clean_value
 
 
@@ -755,7 +830,7 @@ def get_value(controls_dict, control_name, index = None):
           control_type = controls_dict[control_name]['type']
           control_value = get_clean_value(controls_dict, control_name)
           if control_value is None:
-              logger.log_warn("Got None Value for control: " + str([control_name, controls_dict[control_name]]))
+              logger.log_debug("Got None Value for control: " + str([control_name, controls_dict[control_name]]))
               pass
           else:
             if index is None:
@@ -807,7 +882,7 @@ def get_values_dict(controls_dict):
       if control_value is not None:
         controls_values_dict[control_name] = control_value
       else:
-        #logger.log_warn("Got None Value for control: " + str(control_name))
+        #logger.log_debug("Got None Value for control: " + str(control_name))
         pass
   return controls_values_dict
 
@@ -821,13 +896,13 @@ def get_params_dict(controls_dict):
       if control_value is not None and param == True:
         controls_values_dict[control_name] = control_value
       else:
-        #logger.log_warn("Got None Value for control: " + str(control_name))
+        #logger.log_debug("Got None Value for control: " + str(control_name))
         pass
   return controls_values_dict
 
-def set_value(controls_dict, control_name, update_value, index = None,  check_valid = True):
+def set_value(controls_dict, control_name, update_value, index = None,  check_valid = True, debug = True):
   if control_name in controls_dict.keys():
-      
+      cur_val = controls_dict[control_name]['value']
       if index is not None:
         try:
           index = int(index)
@@ -842,21 +917,28 @@ def set_value(controls_dict, control_name, update_value, index = None,  check_va
               if len(control_value) > index:
                 control_value[index] = update_value
                 update_value = control_value
+                  
         except:
           pass
-
+      logger.log_warn("Attempting Updated Value: " + str(update_value))
       # Validate when asked to validate. The test was inverted, so the default
       # path (check_valid = True) wrote the raw wire value straight into the dict
       # -- handing a driver's setSettingFunction ['False'] for a Toggle and ['5']
       # for an Int -- while a caller passing check_valid = False to SKIP the check
       # got it run. drivers_mgr's discovery pass is that caller.
-      if check_valid == True:
-        update_value = get_clean_value(controls_dict, control_name, update_value)
+      
+      if check_valid == True and cur_val != update_value:
+        update_value = get_clean_value(controls_dict, control_name, update_value, debug = True)
+        if debug == True:
+            logger.log_debug("Set Val Got Clean Value: " + str(update_value))  
       if update_value is not None:
         # Stored as a list of strings, the one shape the dict holds: 'length'
         # counts list entries and get_clean_value re-lists whatever it reads, so
         # a scalar written here comes back out one character per entry.
-        controls_dict[control_name]['value'] = get_value_list(update_value)
+        clean_list = get_value_list(update_value)
+        if debug == True:
+            logger.log_debug("Set Val Got Clean List: " + str(clean_list))  
+        controls_dict[control_name]['value'] = clean_list
   return controls_dict
 
 def sets_values(controls_dict, controls_values_dict):
@@ -911,7 +993,7 @@ def set_options(controls_dict, control_name, options):
 
 
 def get_bounds(controls_dict, control_name):
-  bounds = [-999,-999]
+  bounds = [-999.0,-999.0]
   if control_name in controls_dict.keys():
       min_bound = controls_dict[control_name]['min_bound']
       max_bound = controls_dict[control_name]['max_bound']
@@ -922,23 +1004,24 @@ def get_bounds(controls_dict, control_name):
 
 def set_min_bound(controls_dict, control_name, min_bound = None):
   if min_bound is None:
-    min_bound = -999
+    min_bound = -999.0
   if control_name in controls_dict.keys():
+      cur_val = controls_dict[control_name]['min_bound']
       input_type = controls_dict[control_name]['type']
       max_bound = controls_dict[control_name]['max_bound']
-      if input_type in FLOAT_TYPES:
-        try:
-          min_bound = float(min_bound)
-        except:
-          pass
+
+      try:
+        min_bound = float(min_bound)
+      except:
+        return controls_dict
      
-      elif input_type in INT_TYPES:
-        try:
-          min_bound = int(float(min_bound))
-        except:
-          pass
+
       if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
-        controls_dict[control_name]['min_bound'] = min_bound
+        controls_dict[control_name]['min_bound'] = float(min_bound)
+
+      if cur_val != min_bound:
+        clean_val = get_clean_value(controls_dict, control_name, debug = True)
+        controls_dict = set_value(controls_dict,control_name,clean_val)
   return controls_dict
 
 def clear_min_bound(controls_dict, control_name):
@@ -947,42 +1030,44 @@ def clear_min_bound(controls_dict, control_name):
 
 def set_max_bound(controls_dict, control_name, max_bound = None):
   if max_bound is None:
-    max_bound = -999
+    max_bound = -999.0
   if control_name in controls_dict.keys():
+      cur_val = controls_dict[control_name]['max_bound']
       input_type = controls_dict[control_name]['type']
       min_bound = controls_dict[control_name]['min_bound']
-      if input_type in FLOAT_TYPES:
-        try:
-          max_bound = float(max_bound)
-        except:
-          pass
+
+      try:
+        max_bound = float(max_bound)
+      except:
+        return controls_dict
      
-      elif input_type in INT_TYPES:
-        try:
-          max_bound = int(max_bound)
-        except:
-          pass
+
       if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
-        controls_dict[control_name]['max_bound'] = max_bound
+        controls_dict[control_name]['max_bound'] = float(max_bound)
+      if cur_val != max_bound:
+        clean_val = get_clean_value(controls_dict, control_name)
+        controls_dict = set_value(controls_dict,control_name,clean_val)
   return controls_dict
 
 def clear_max_bound(controls_dict, control_name):
   controls_dict = set_max_bound(controls_dict, control_name)
   return controls_dict
 
-def set_bounds(controls_dict, control_name, bounds = [-999,-999]):
+def set_bounds(controls_dict, control_name, bounds = [-999.0,-999.0]):
   if len(bounds) == 2:
     [min_bound,max_bound] = bounds
     if min_bound is None:
-      min_bound = -999
+      min_bound = -999.0
     if max_bound is None:
-      max_bound = -999
+      max_bound = -999.0
     try:
       if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
 
         if control_name in controls_dict.keys():
             controls_dict = set_min_bound(controls_dict, control_name, min_bound)
             controls_dict = set_max_bound(controls_dict, control_name, max_bound)
+
+
     except:
       pass
 
@@ -1170,6 +1255,9 @@ def update_status_msg( status_msg, controls_dict):
   if status_msg is None:
     status_msg = ControlsStatus()
 
+  controls_name = status_msg.name
+  if controls_name == '':
+     controls_name = 'control'
 
   names_list = [] 
   types_list = [] 
@@ -1181,7 +1269,7 @@ def update_status_msg( status_msg, controls_dict):
     logger.log_warn("update_status_msg: could not read control names from controls dict: " +
                     type(e).__name__ + ": " + str(e))
     names = []
-  for name in names:
+  for i, name in enumerate(names):
     try:
       control_dict = controls_dict[name]
       control_type = control_dict['type']
@@ -1209,25 +1297,48 @@ def update_status_msg( status_msg, controls_dict):
           else:
             msg_value = [str(nepi_utils.get_time() - fired_at)]
 
-        msg_dict = nepi_sdk.convert_msg2dict(Control())
-        for key in msg_dict.keys():
-          if key in control_dict.keys():
-            msg_dict[key] = control_dict[key]
-        msg_dict['value'] = msg_value
-        # Carried by the key loop above like every other display field. The
-        # coercion is repeated here because a controls dict assembled by hand
-        # never passed through create_controls_dict's normalization, and a
-        # string in this bool field makes convert_dict2msg return None -- which
-        # takes the whole control out of the status message, not just its
-        # layout.
-        msg_dict['display_row'] = cleanDisplayRow(control_dict.get('display_row',False))
+
+        control_msg = Control()
 
 
-        msg_type = 'nepi_interfaces/Control'
-        control_msg = nepi_sdk.convert_dict2msg(msg_type,msg_dict)
+        try:
+          control_msg.name = control_dict['name']
+          control_msg.description = control_dict['description']
+          control_msg.type = control_dict['type']
+          control_msg.param = control_dict['param']
+          control_msg.options = control_dict['options']
+          control_msg.round = control_dict['round']
+
+          control_msg.min_bound = float(control_dict['min_bound'])
+          control_msg.max_bound = float(control_dict['max_bound'])
+          control_msg.delta_bound = float(control_dict['delta_bound'])
+          control_msg.dir_bound = float(control_dict['dir_bound'])
+
+          control_msg.value = control_dict['value']
+
+
+          control_msg.display_disabled = control_dict['display_disabled']
+          control_msg.display_hidden = control_dict['display_hidden']
+          control_msg.display_name = control_dict['display_name']
+          control_msg.display_options = control_dict['display_options']
+          control_msg.display_labels = control_dict['display_labels']
+          control_msg.display_round = control_dict['display_round']
+          control_msg.display_row = cleanDisplayRow(control_dict.get('display_row',False))
+          control_msg.display_bounds = control_dict['display_bounds']
+          control_msg.display_group = control_dict['display_group']
+          control_msg.display_width = control_dict['display_width']
+        except Exception as e:
+          logger.log_warn("Failed to convert dict to msg: " + str(e), throttle_s = 5)
+
+
+        # control_dict['display_row'] = cleanDisplayRow(control_dict.get('display_row',False))
+
+        # msg_type = 'nepi_interfaces/Control'
+        # control_msg = nepi_sdk.convert_dict2msg(msg_type,control_dict,Control(),controls_name)
+
+
         if control_msg is not None:
           names_list.append(name)
-          types_list.append(control_type)
           msgs_list.append(control_msg)
       else:
         # Same silent fall-through as create_controls_dict: a control that made
@@ -1244,8 +1355,8 @@ def update_status_msg( status_msg, controls_dict):
       logger.log_warn("update_status_msg: left control '" + str(name) +
                       "' out of the status message: " +
                       type(e).__name__ + ": " + str(e), throttle_s = 5)
-    status_msg.controls_name_list = names_list
-    status_msg.controls_msg_list = msgs_list
+  status_msg.controls_name_list = names_list
+  status_msg.controls_msg_list = msgs_list
   return status_msg
 
 def apply_update_msg( controls_dict, msg):
@@ -1273,18 +1384,23 @@ def apply_update_msg( controls_dict, msg):
   # every other field arrives at its ROS default. For the two string[] fields
   # that default is the EMPTY list, not [''], so testing only against ['']
   # treated "field omitted" as "set this field to nothing".
-  value = list(msg.value)
-  if len(value) > 0 and value != ['']:
+
     # An index update carries ONE component, not the whole value, so it cannot
     # be cleaned here: get_clean_value length-checks against the control's
     # arity and returns None for it. set_value merges the component at index
     # into the current value and validates the merged list.
-    if index is None:
-      value = get_clean_value(controls_dict, name, value)
+    if index is None:  
+      value = list(msg.value)
+      if len(value) > 0 and value != ['']:
+        value = get_clean_value(controls_dict, name, value)
+        updated_value = get_value(controls_dict, name)
     else:
       value = value[0]
     if value is not None:
-      controls_dict = set_value(controls_dict, name, value, index = index)
+      controls_dict = set_value(controls_dict, name, value, index = index, debug = True)
+      updated_value = get_value(controls_dict, name)
+
+    logger.log_debug("Updated Control Value: " + str([value,updated_value]))
 
   min_bound = msg.min_bound
   if min_bound != '':

@@ -161,9 +161,8 @@ class NPXDeviceIF:
                 frame_altitude = 'WGS84', frame_depth = 'DEPTH',
                 getNavPoseCb = None,
                 max_navpose_update_rate = DEFAULT_UPDATE_RATE,
-                log_name = None,
-                log_name_list = [],
-                msg_if = None
+                msg_if = None,
+                node_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -180,11 +179,7 @@ class NPXDeviceIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting NPX Device IF Initialization Processes", log_name_list = self.log_name_list)  
+        self.msg_if.pub_info("Starting NPX Device IF Initialization Processes" )  
 
 
 
@@ -244,13 +239,13 @@ class NPXDeviceIF:
             try:
                 navpose_dict = getNavPoseCb()
             except Exception as e:
-                self.msg_if.pub_warn("getNavPoseCb failed during initialization: " + str(e), log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("getNavPoseCb failed during initialization: " + str(e) )
 
             if navpose_dict is None:
                 # Source not up yet. Defer the NavPose IF to _updateNavPoseDictCb so
                 # its capability flags get derived from real telemetry rather than
                 # frozen at all-False here. See createNavPoseIf below.
-                self.msg_if.pub_info("NavPose source not ready during initialization, deferring NavPose IF until first telemetry", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("NavPose source not ready during initialization, deferring NavPose IF until first telemetry" )
             else:
                 self.deriveNavPoseCaps(navpose_dict)
         else:
@@ -305,7 +300,7 @@ class NPXDeviceIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node IF Initialization" )
         alt_namespace = None
         if self.device_name != self.node_name:
             alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
@@ -393,7 +388,7 @@ class NPXDeviceIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
+                        
                         msg_if = self.msg_if
                             )
       
@@ -412,13 +407,13 @@ class NPXDeviceIF:
         self.getSettingsFunction = getSettingsFunction
         self.setSettingFunction = setSettingFunction
         if self.getSettingsFunction is not None and self.setSettingFunction is not None:
-            self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Starting Settings IF Initialization" )
             settings_ns = self.namespace
 
             self.settings_if = SettingsIF(namespace = settings_ns,
                             getSettingsFunction=self.getSettingsFunction, 
                             setSettingFunction=self.setSettingFunction, 
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -427,7 +422,7 @@ class NPXDeviceIF:
 
 
         # Setup Save Data IF Class ####################
-        self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting Save Data IF Initialization" )
         factory_data_rates = {}
         for d in self.data_products_list:
             factory_data_rates[d] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
@@ -448,7 +443,7 @@ class NPXDeviceIF:
                             factory_rate_dict = factory_data_rates,
                             factory_filename_dict = factory_filename_dict,
                             namespace = sd_namespace,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -460,7 +455,7 @@ class NPXDeviceIF:
                             source_ref_description = '',
                             end_ref_description = self.node_name,
                             get_3d_transform_function = None,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -497,7 +492,7 @@ class NPXDeviceIF:
         # Finish Initialization
 
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
 
 
 
@@ -524,16 +519,16 @@ class NPXDeviceIF:
       """
       success = False
       if self.ready is not None:
-          self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+          self.msg_if.pub_info("Waiting for connection" )
           timer = 0
           time_start = nepi_sdk.get_time()
           while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
               nepi_sdk.sleep(.1)
               timer = nepi_sdk.get_time() - time_start
           if self.ready == False:
-              self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+              self.msg_if.pub_info("Failed to Connect" )
           else:
-              self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+              self.msg_if.pub_info("Connected" )
       return self.ready   
 
 
@@ -605,10 +600,9 @@ class NPXDeviceIF:
                         pub_depth = self.has_depth,
                         pub_pan_tilt = self.has_pan_tilt,
                         save_data_if = self.save_data_if,
-                        transform_namespace = self.transform_if.get_namespace(),
-                        log_name = 'navpose',
-                        log_name_list = self.log_name_list,
-                        msg_if = self.msg_if)
+                        transform_namespace = self.transform_if.get_namespace(),                        
+                        msg_if = self.msg_if,
+                        node_if = self.node_if)
     self.status_msg.navpose_topic = self.navpose_if.get_namespace()
 
 
@@ -634,7 +628,7 @@ class NPXDeviceIF:
         self.node_if.set_param('navpose_frame',frame)
       self.publish_status()
     else:
-      self.msg_if.pub_warn("Ignoring invalid navpose_frame: " + str(frame) + " not in " + str(nepi_nav.NAVPOSE_3D_FRAME_OPTIONS), log_name_list = self.log_name_list)
+      self.msg_if.pub_warn("Ignoring invalid navpose_frame: " + str(frame) + " not in " + str(nepi_nav.NAVPOSE_3D_FRAME_OPTIONS) )
 
 
   def publishStatus(self, do_updates=True):
@@ -644,7 +638,7 @@ class NPXDeviceIF:
       self.initCb()
 
   def initCb(self,do_updates = False):
-      #self.msg_if.pub_info("Setting init values to param values", log_name_list = self.log_name_list)
+      #self.msg_if.pub_info("Setting init values to param values" )
       if self.node_if is not None:
         self.update_rate = self.node_if.get_param('update_rate')
         self.navpose_frame = self.node_if.get_param('navpose_frame')
@@ -706,7 +700,7 @@ class NPXDeviceIF:
         try:
             navpose_dict = self.getNavPoseCb()
         except Exception as e:
-            self.msg_if.pub_warn("getNavPoseCb failed: " + str(e), throttle_s = 5.0, log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("getNavPoseCb failed: " + str(e), throttle_s = 5.0 )
 
     if self.navpose_caps_known == False:
         # The telemetry source was not up when this IF was constructed, so the
@@ -715,9 +709,9 @@ class NPXDeviceIF:
         if navpose_dict is None:
             if self.navpose_wait_warned == False:
                 self.navpose_wait_warned = True
-                self.msg_if.pub_warn("Waiting on NavPose source before creating NavPose IF", log_name_list = self.log_name_list)
+                self.msg_if.pub_warn("Waiting on NavPose source before creating NavPose IF" )
             else:
-                self.msg_if.pub_debug("Waiting on NavPose source before creating NavPose IF", throttle_s = 10.0, log_name_list = self.log_name_list)
+                self.msg_if.pub_debug("Waiting on NavPose source before creating NavPose IF", throttle_s = 10.0 )
             nepi_sdk.start_timer_process(1.0, self._updateNavPoseDictCb, oneshot = True)
             return
         try:
@@ -728,14 +722,14 @@ class NPXDeviceIF:
             # retry on the next read rather than locking in half-derived flags or
             # letting the exception kill this timer loop for good.
             self.navpose_caps_known = False
-            self.msg_if.pub_warn("Failed to create NavPose IF from telemetry, will retry: " + str(e), throttle_s = 10.0, log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Failed to create NavPose IF from telemetry, will retry: " + str(e), throttle_s = 10.0 )
             nepi_sdk.start_timer_process(1.0, self._updateNavPoseDictCb, oneshot = True)
             return
         self.msg_if.pub_info("Created NavPose IF from first telemetry at " + str(self.status_msg.navpose_topic) + \
             " with has_location: " + str(self.has_location) + " has_heading: " + str(self.has_heading) + \
             " has_orientation: " + str(self.has_orientation) + " has_position: " + str(self.has_position) + \
             " has_altitude: " + str(self.has_altitude) + " has_depth: " + str(self.has_depth) + \
-            " has_pan_tilt: " + str(self.has_pan_tilt), log_name_list = self.log_name_list)
+            " has_pan_tilt: " + str(self.has_pan_tilt) )
         self.publish_status()
 
     if navpose_dict is None:
@@ -784,7 +778,7 @@ class NPXDeviceIF:
     Logs a shutdown message via the message interface. Called by the node shutdown
     hook to allow orderly teardown of the device interface.
     """
-    self.msg_if.pub_info("Shutting down: Executing script cleanup actions", log_name_list = self.log_name_list)
+    self.msg_if.pub_info("Shutting down: Executing script cleanup actions" )
 
 
 

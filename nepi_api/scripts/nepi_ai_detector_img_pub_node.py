@@ -149,7 +149,7 @@ class AiDetectorImgPub:
 
         ##############################  
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
+        self.msg_if = MsgIF()
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################  
@@ -449,21 +449,21 @@ class AiDetectorImgPub:
             self.img_node_lock.acquire()
             if source_topic in self.img_node_dict.keys():
                 self.imgs_info_dict[source_topic]['active'] = True
-                self.img_node_dict[source_topic]['img_pub'] = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1, log_name_list = [])
+                self.img_node_dict[source_topic]['img_pub'] = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1)
                 nepi_sdk.sleep(1)
-                self.img_node_dict[source_topic]['img_sub'] = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic), log_name_list = [])
+                self.img_node_dict[source_topic]['img_sub'] = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic))
                 self.img_node_dict[source_topic]['img_if'].register_pubs()
             self.img_node_lock.release()
 
             return True
 
 
-        img_pub = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1, log_name_list = [])
+        img_pub = nepi_sdk.create_publisher(img_pub_topic,Image, queue_size = 1)
         nepi_sdk.sleep(1)
-        img_sub = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic), log_name_list = [])
+        img_sub = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic))
         img_status_topic = nepi_sdk.create_namespace(source_topic, 'status')
         self.msg_if.pub_warn('Subscribing to image status topic: ' + img_status_topic)
-        img_stutus_sub = nepi_sdk.create_subscriber(img_status_topic,ImageStatus, self.imageStatusCb, queue_size = 1, callback_args= (source_topic), log_name_list = [])
+        img_stutus_sub = nepi_sdk.create_subscriber(img_status_topic,ImageStatus, self.imageStatusCb, queue_size = 1, callback_args= (source_topic))
 
 
         # Create detections image publisher
@@ -476,8 +476,6 @@ class AiDetectorImgPub:
                         init_overlay_text_list = [],
                         live_adjustments_disabled = True,
                         aspect_adjustment_disabled = True,
-                        log_name = 'targets_image',
-                        log_name_list = [],
                         msg_if = self.msg_if,
                         node_if = self.node_if
                         )

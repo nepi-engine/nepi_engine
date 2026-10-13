@@ -30,6 +30,7 @@
   
 import os
 import sys
+import copy
 import importlib
 import shutil
 import time
@@ -37,6 +38,10 @@ from datetime import datetime
 import subprocess
 import yaml
 import inspect
+import string
+import re
+import logging
+import threading
 
 # import tracemalloc
 # tracemalloc.start()
@@ -65,7 +70,7 @@ from geographic_msgs.msg import *
 from nepi_interfaces.srv import *
 from nepi_interfaces.msg import *
 
-
+from nepi_interfaces.msg import Message
 
 #######################
 ### Setup some global variables
@@ -75,128 +80,537 @@ DEFUALT_CFG_FOLDERS = ['/mnt/nepi_storage/user_cfg','/mnt/nepi_config/system_cfg
 #######################
 ### Log Utility Functions
 
+IGNORE_CLASSES = ['MsgIF']
+def get_message_classes():
+    """Returns a list of classes that called this function in the execution chain."""
+    classes = []
+    
+    # Get the current call stack (excluding this function's frame)
+    frames = inspect.stack()[1:]
+    
+    for frame_info in frames:
+        frame = frame_info.frame
+        frame_class = None
+        # Check if 'self' is in local variables (indicates an instance method call)
+        if 'self' in frame.f_locals:
+            frame_class = frame.f_locals['self'].__class__
+        # Check if 'cls' is in local variables (indicates a class method call)
+        elif 'cls' in frame.f_locals and isinstance(frame.f_locals['cls'], type):
+            frame_class = frame.f_locals['cls']
+        if frame_class is not None:
+            try:
+              caller_class = str(frame_class.__name__).rsplit('.', 1)[0]
+              if caller_class not in IGNORE_CLASSES or len(IGNORE_CLASSES) == 0:
+                if caller_class not in classes:
+                  classes.append(caller_class)
+            except:
+              pass
+            
+    return classes
+
+def get_msg_uids(ignore_files = [], ignore_functions = []):
+    # Get Msg ID
+    uid = ''
+    stack = inspect.stack()
+    frame = stack[1]
+    frame_dict = dict()
+    msg_uids = []
+
+    function_name = inspect.currentframe().f_code.co_name
+    ignore_functions.append(function_name)
+    for i, frame in enumerate(stack):
+
+        try:
+            file_path = frame.filename
+            if 'nepi' in file_path or 'nepi_system' in file_path:
+                file_name = os.path.basename(frame.filename).split('.')[0]
+                if file_name not in ignore_files:
+                    if file_name not in frame_dict.keys():
+                        frame_dict[file_name] = ''
+                
+                    function_name = frame.function
+                    if function_name not in ignore_functions:
+                        if function_name not in frame_dict[file_name]:
+                            if len(frame_dict[file_name]) == 0:
+                              frame_dict[file_name] = frame_dict[file_name] + str(function_name)
+                            else:
+                              frame_dict[file_name] = frame_dict[file_name] + str("/" + function_name)
+        except Exception as e:
+            log_msg_warn('Failed to get function: ' + str(e))
+            pass
+
+    for i, key in enumerate(frame_dict.keys()):
+        if len(frame_dict[key]) > 0:
+          entry = str(key) + '/' + str(frame_dict[key])
+          msg_uids.append(entry)
+
+
+
+    return msg_uids
+      
+
+def remove_msg_numbers(msg):
+    # string.digits provides '0123456789'
+    clean_msg = msg
+    try:
+      clean_msg = re.sub(r'\d+', '', msg)
+    except Exception as e:
+        rospy.logwarn('Failed to remove numbers from msg: ' + str(e))
+    return clean_msg
+
+def round_msg_floats(msg , roundf = 3):
+    """
+    Finds all floating-point numbers in a string and rounds them 
+    to the specified number of decimal places.
+    """
+    clean_msg = msg
+    # Regex to match numbers with decimal points (e.g., 12.3456)
+    # \d+\.\d+ ensures it looks for digits before and after a dot
+    pattern = r'\d+\.\d+'
+    
+    # Format specifier for the f-string (e.g., ".2f")
+    fmt = f".{roundf}f"
+    
+    # re.sub can accept a lambda function to process each match object
+    clean_msg = re.sub(pattern, lambda match: f"{float(match.group()):{fmt}}", msg)
+    return clean_msg
+
+
+
+def clean_throttle_dict(throttle_dict, purge_time = 60):
+    if throttle_dict is None:
+        throttle_dict = dict()
+    cur_time = get_time()
+    purge_list = []
+    try:
+        for uid in throttle_dict.keys():
+            try:
+                [throttle_s,last_time] = throttle_dict[uid]
+                if cur_time - last_time > purge_time:
+                    purge_list.append(uid)
+            except:
+                purge_list.append(uid)
+    except:
+        throttle_dict = dict()
+
+    for uid in purge_list:
+        try:
+            del throttle_dict[uid]
+        except:
+            pass
+    return throttle_dict
+
+
+def process_msg(msg, msg_list = [], roundf = 3):
+    msg_str = None
+    if msg is not None:
+        try:
+            str_msg = str(msg)
+            if str_msg != '':
+                if msg_list is not None:
+                  if isinstance(msg_list, list) == False:
+                      msg_list = str(msg_list)
+                  if isinstance(msg_list, list) == True:
+                      for entry in msg_list:
+                          try:
+                              str_msg = str_msg + " : " + str(entry)
+                          except Exception as e:
+                              #rospy.logwarn_throttle(1,'Failed to process msg: ' + str(e))
+                              pass
+                msg_str  = round_msg_floats(str_msg, roundf)
+        except Exception as e:
+            #rospy.logwarn_throttle(1,'Failed to process msg: ' + str(e))
+            pass
+    return msg_str
+
+
+
+def get_debug_mode(base_namespace = '/nepi/device1'):
+    param_namespace = create_namespace(base_namespace,'debug_mode')
+    debug_mode = get_param(param_namespace,fallback_param = False)
+    return debug_mode
+
+
 def set_debug_log(enabled):
   if enabled == True:
     rospy.logger.setLevel(logging.DEBUG)
   else:
     rospy.logger.setLevel(logging.INFO)
 
-def log_msg(msg, level = "None", throttle_s = None, prefix = "", log_name_list = []):
+def log_msg(msg, level = "None", throttle_s = None, prefix = ""):
   #if msg is None:
       #msg = "nepi_sdk log_msg got None msg"
   if msg is not None:
     msg_str = prefix + str(msg)
     level = level.lower()
     if level == 'debug':
-      log_msg_debug(msg_str, throttle_s = throttle_s, log_name_list = log_name_list)
+      msg_str = log_msg_debug(msg_str, throttle_s = throttle_s)
     elif level == 'warn':
-      log_msg_warn(msg_str, throttle_s = throttle_s, log_name_list = log_name_list)
+      msg_str = log_msg_warn(msg_str, throttle_s = throttle_s)
     elif level == 'error':
-      log_msg_error(msg_str, throttle_s = throttle_s, log_name_list = log_name_list)
+      msg_str = log_msg_error(msg_str, throttle_s = throttle_s)
     elif level == 'fatal':
-      log_msg_fatal(msg_str, throttle_s = throttle_s, log_name_list = log_name_list)
+      msg_str = log_msg_fatal(msg_str, throttle_s = throttle_s)
     else:
-      log_msg_info(msg_str, throttle_s = throttle_s, log_name_list = log_name_list)
+      msg_str = log_msg_info(msg_str, throttle_s = throttle_s)
+    return msg_str
 
-def log_msg_info(msg, throttle_s = None, log_name_list = []):
+def log_msg_info(msg, throttle_s = None):
+  classes_list = get_message_classes()
+  if len(classes_list):
+    try:
+      log_name_msg = str(' : '.join(classes_list)) 
+    except Exception as e:
+       log_name_msg = ''
+       rospy.logwarn('Failed to convert classes to log_name_msg: ' + str(classes_list) + " : " + str(e))
+
+  caller_name = None
+  try:
+    caller_name = sys._getframe(1).f_code.co_name
+  except:
+     pass
+  if caller_name is not None:
+    caller_str = str(caller_name)
+    if caller_str not in log_name_msg and 'log_' not in caller_str:
+      if log_name_msg.strip():
+        log_name_msg = log_name_msg + ": "
+      log_name_msg = log_name_msg + caller_str
   msg_str = str(msg)
-  if len(log_name_list) > 0:
-      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
+  if log_name_msg.strip() and log_name_msg != ': ':
+      msg_str = log_name_msg + ": " + msg_str
   if throttle_s is None:
     rospy.loginfo(msg_str)
   else:
     rospy.loginfo_throttle(throttle_s,msg_str)
+  return msg_str
 
-def log_msg_warn(msg, throttle_s = None, log_name_list = []):
+def log_msg_warn(msg, throttle_s = None):
+  classes_list = get_message_classes()
+  log_name_msg = str(' : '.join(classes_list)) 
+  caller_name = None
+  try:
+    caller_name = sys._getframe(1).f_code.co_name
+  except:
+     pass
+  if caller_name is not None:
+    caller_str = str(caller_name)
+    if caller_str not in log_name_msg and 'log_' not in caller_str:
+      if log_name_msg.strip():
+        log_name_msg = log_name_msg + ": "
+      log_name_msg = log_name_msg + "# " +caller_str
   msg_str = str(msg)
-  if len(log_name_list) > 0:
-      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
+  if log_name_msg.strip() and log_name_msg != ': ':
+      msg_str = log_name_msg + ": " + msg_str
   if throttle_s is None:
     rospy.logwarn(msg_str)
   else:
     rospy.logwarn_throttle(throttle_s,msg_str)
+  return msg_str
 
-def log_msg_debug(msg, throttle_s = None, log_name_list = []):
+def log_msg_error(msg, throttle_s = None):
+  classes_list = get_message_classes()
+  log_name_msg = str(' : '.join(classes_list)) 
+  caller_name = None
+  try:
+    caller_name = sys._getframe(1).f_code.co_name
+  except:
+     pass
+  if caller_name is not None:
+    caller_str = str(caller_name)
+    if caller_str not in log_name_msg and 'log_' not in caller_str:
+      if log_name_msg.strip():
+        log_name_msg = log_name_msg + ": "
+      log_name_msg = log_name_msg + caller_str
   msg_str = str(msg)
-  if len(log_name_list) > 0:
-      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
-  if throttle_s is None:
-    rospy.logdebug(msg_str)
-  else:
-    rospy.logdebug_throttle(throttle_s,msg_str)
-
-def log_msg_error(msg, throttle_s = None, log_name_list = []):
-  msg_str = str(msg)
-  if len(log_name_list) > 0:
-      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
+  if log_name_msg.strip() and log_name_msg != ': ':
+      msg_str = log_name_msg + ": " + msg_str
   if throttle_s is None:
      rospy.logerror(msg_str)
   else:
     rospy.logerror_throttle(throttle_s,msg_str)
+  return msg_str
 
-def log_msg_fatal(msg, throttle_s = None, log_name_list = []):
+def log_msg_fatal(msg, throttle_s = None):
+  classes_list = get_message_classes()
+  log_name_msg = str(' : '.join(classes_list)) 
+  caller_name = None
+  try:
+    caller_name = sys._getframe(1).f_code.co_name
+  except:
+     pass
+  if caller_name is not None:
+    caller_str = str(caller_name)
+    if caller_str not in log_name_msg and 'log_' not in caller_str:
+      if log_name_msg.strip():
+        log_name_msg = log_name_msg + ": "
+      log_name_msg = log_name_msg + caller_str
   msg_str = str(msg)
-  if len(log_name_list) > 0:
-      msg_str = str(' : '.join(log_name_list)) + ": " + msg_str
+  if log_name_msg.strip() and log_name_msg != ': ':
+      msg_str = log_name_msg + ": " + msg_str
   if throttle_s is None:
     rospy.logfatal(msg_str)
   else:
     rospy.logfatal_throttle(throttle_s,msg_str)
+  return msg_str
 
+
+def log_msg_debug(msg, throttle_s = None):
+  classes_list = get_message_classes()
+  log_name_msg = str(' : '.join(classes_list)) 
+  caller_name = None
+  try:
+    caller_name = sys._getframe(1).f_code.co_name
+  except:
+     pass
+  if caller_name is not None:
+    caller_str = str(caller_name)
+    if caller_str not in log_name_msg and 'log_' not in caller_str:
+      if log_name_msg.strip():
+        log_name_msg = log_name_msg + ": "
+      log_name_msg = log_name_msg + caller_str
+  msg_str = str(msg)
+  if log_name_msg.strip() and log_name_msg != ': ':
+      msg_str = log_name_msg + ": " + msg_str
+  if throttle_s is None:
+    rospy.logdebug(msg_str)
+  else:
+    rospy.logdebug_throttle(throttle_s,msg_str)
+  return msg_str
 
 class logger:
 
+    ignore_functions = ['__init__','_logSelfMsg','<module>']
+    ignore_functions = ignore_functions + ['log','log_msg','log_info','log_warn','log_error','log_debug',]
+    ignore_files = ['log_msg','node_if','connect_node_if','logger','Logger']
+
+    update_delay = 60
+
     ln_str = ""
 
+    debug_mode = False
+    throttle_dict = dict()
+    throttle_busy = False
+
+    msg_pub = None
+    msg_pub_sys = None
     #######################
     ### IF Initialization
-    def __init__(self, log_name = None, log_name_list = []):
-        # if log_name_list is None:
-        #   log_name_list = []
-        # if log_name is not None:
-        #     log_name_list = [log_name] + log_name_list
-        # if len(log_name_list) > 0:
-        #   self.ln_str = str(' : '.join(log_name_list)) + ": " 
-        self.ln_str = str(log_name) + ": " 
+    def __init__(self,  namespace = None, ignore_functions = [], ignore_files = []):
+        self.base_namespace = get_base_namespace()
+        self.namespace = namespace
+
+        self.ignore_functions = self.ignore_functions + ignore_functions
+        self.ignore_files = self.ignore_files + ignore_functions
+
+        pub_updater_thread = threading.Thread(target=self.pubUpdaterCb)
+        pub_updater_thread.start()
+
+        throttle_updater_thread = threading.Thread(target=self.throttleUpdaterCb)
+        throttle_updater_thread.start()
+
+        debug_updater_thread = threading.Thread(target=self.debugUpdaterCb)
+        debug_updater_thread.start()
+
+  
+        ###############################
+        # Init Complete
+        ###############################
+
+
 
     ###############################
     # Class Public Methods
     
-    def log(self, msg, level = "None", throttle_s = None, log_name_list = []):
-        if log_name_list is None:
-          log_name_list = []
-        if self.ln_str in log_name_list:
-          log_name_list.remove(self.ln_str)
-        log_name_list.append(self.ln_str)
+    def log(self, msg, msg_list = [], level = "None", throttle_s = None, roundf = 3):
+        
+        if self.debug_mode == False and level == 'debug':
+            return
+        elif level == 'None':
+          level = 'info'
+
         if msg is None:
-            msg = "nepi_sdk logger got None msg"
-        if msg is not None:
-          msg_str = str(msg)
-          #print('LOGNAME LIST: ' + str(log_name_list))
-          log_msg(msg_str, level = level, throttle_s = throttle_s, log_name_list = log_name_list)
+            return
+        try:
+            msg = str(msg)
+        except:
+            msg = None
+        if msg is None:
+            return
+
+        
+        msg = process_msg(msg, msg_list, roundf)
+        if msg is None:
+            return
+        
+        #############
+        msg_uids = get_msg_uids(self.ignore_files,self.ignore_functions)
+        uid = ''
+        msg_len = len(msg_uids)
+        if msg_len > 0:
+            for i, entry in enumerate(msg_uids):
+                if i != 0:
+                    uid = uid + ":"
+                uid = uid + entry
+
+        clean_msg =  remove_msg_numbers(msg).replace(' ','').replace(',','').replace('[]','').replace(']]','')
+        msg_uid = uid + ':' + clean_msg
+
+
+        #################################
+        if throttle_s is None:
+            # if level != 'debug':
+            #     throttle_s = 1
+            # else:
+            #     throttle_s = -1
+            throttle_s = 0
+        if throttle_s > 0.1 or throttle_s == -1:
+            try:
+                throttle_dict = copy.deepcopy(self.throttle_dict)
+                if throttle_dict is None:
+                    throttle_dict = dict()
+                
+                # print('Got Msg UID: ' + str(msg_uid))
+                throttle_update = None
+                if msg_uid is not None:
+                    # rospy.logwarn('Got Msg uid: ' + str(msg_uid))
+                    cur_time = get_time()
+                    if msg_uid not in throttle_dict.keys():
+                        # rospy.logwarn('New Msg uid: ' + str(msg_uid))
+                        throttle_update = [throttle_s,cur_time]
+                    else:
+
+                        if throttle_s == -1:
+                            msg = None
+                        else:
+                          try:
+                              last_time = throttle_dict[msg_uid][1]
+                          except Exception as e:
+                              #rospy.logwarn('Failed to get throttle data for uid: ' + str(msg_uid) + " : " + str(e))
+                              last_time = 0
+                          if (cur_time-last_time) > throttle_s:
+                              throttle_update = [throttle_s,cur_time]
+                          else:
+                              msg = None
+            
+                if throttle_update is not None:
+                    throttle_dict[msg_uid] = throttle_update
+                self.throttle_dict = throttle_dict
+            except:
+              pass
+      
+        if msg is None:
+            return
+
+
+        msg_str = msg
+        pub_str = None
+        if level != 'debug':
+            pub_str = log_msg(msg_str, level = level)
+            
 
     
-    def log_info(self, msg, throttle_s = None, log_name_list = []):
-        self.log(msg, level = 'info', throttle_s = throttle_s, log_name_list = log_name_list)
-    
-    def log_warn(self, msg, throttle_s = None, log_name_list = []):
-        self.log(msg,level = 'warn', throttle_s = throttle_s, log_name_list = log_name_list)
-    
-    def log_debug(self, msg, throttle_s = None, log_name_list = []):
-        self.log(msg,level = 'debug', throttle_s = throttle_s, log_name_list = log_name_list)
-    
-    def log_error(self, msg, throttle_s = None, log_name_list = []):
-        self.log(msg,level = 'error', throttle_s = throttle_s, log_name_list = log_name_list)
-    
-    def log_fatal(self, msg, throttle_s = None, log_name_list = []):
-        self.log(msg,level = 'fatal', throttle_s = throttle_s, log_name_list = log_name_list)
 
+        elif self.debug_mode == True:
+            # rospy.logdebug output is dropped unless the ROS console log level is
+            # raised to DEBUG (nothing does that), so debug messages never reached
+            # the console. When Debug Mode is on, log at info level so they are
+            # actually visible, and publish to the message topics. When Debug Mode
+            # is off, debug messages are dropped entirely.
+            # Wrap the console copy in a green ANSI color so debug lines stand out
+            # from normal (white) info output. The topic copy is left uncolored so
+            # the RUI message viewer does not show escape codes.
+
+            msg_str = msg_str +  ' : ' + uid
+            msg_str = msg_str +  ' : throttle_s = ' + str(throttle_s)
+            console_str = self.DEBUG_COLOR + msg_str + self.COLOR_RESET
+            pub_str = log_msg(console_str, level = 'info')
+
+
+        if pub_str is not None:
+          pub_msg = Message()
+          pub_msg.level = level
+          pub_msg.message = msg_str
+          if self.msg_pub_sys is not None:
+            try:
+              self.msg_pub_sys.publish(pub_msg)
+            except:
+              pass
+
+          if self.msg_pub is not None:
+            try:
+              self.msg_pub.publish(pub_msg)
+            except:
+              pass
+    
+    def log_info(self, msg, msg_list = [], throttle_s = None, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'info', throttle_s = throttle_s, roundf = roundf)
+    
+    def log_warn(self, msg, msg_list = [], throttle_s = None, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'warn', throttle_s = throttle_s, roundf = roundf)
+    
+    def log_error(self, msg, msg_list = [], throttle_s = None, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'error', throttle_s = throttle_s, roundf = roundf)
+    
+    def log_fatal(self, msg, msg_list = [], throttle_s = None, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'fatal', throttle_s = throttle_s, roundf = roundf)
+
+    def log_debug(self, msg, msg_list = [], throttle_s = None, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'debug', throttle_s = throttle_s, roundf = roundf)
+    
     ###############################
     # Class Private Methods
     ###############################
+    def pubUpdaterCb(self):
+
+
+      while self.msg_pub is None and self.msg_pub_sys is None and not is_shutdown():
+        
+        if self.msg_pub_sys is None:
+          try:
+            self.msg_pub_sys = create_publisher(self.namespace + "/messages", Message, queue_size=1)
+          except:
+            pass
+
+        if self.namespace is None:
+          try:
+              self.namespace = get_node_namespace()
+          except:
+              pass
+        if self.msg_pub is None and self.namespace is not None:
+          try:
+            self.msg_pub = create_publisher(self.namespace + "/messages", Message, queue_size=1)
+          except:
+            pass
+
+        sleep(5)
+        
+
+
+
+
+
+    def throttleUpdaterCb(self):
+        while not is_shutdown():
+
+          try:
+              delay = self.update_delay
+              self.throttle_busy = True
+              self.throttle_dict = clean_throttle_dict(self.throttle_dict)
+              self.throttle_busy = False
+          except:
+             delay = 1
+
+          sleep(delay)
+
+
+    def debugUpdaterCb(self):
+        while not is_shutdown():
+         
+          self.debug_mode = get_debug_mode()
+
+          sleep(5)
   
-    def _createMsgString(self,msg):
-         return self.ln_str + str(msg)
+
 
 
 
@@ -204,7 +618,7 @@ class logger:
 #######################
 ### Namespace Utility Functions
 
-def get_full_namespace(namespace, log_name_list = []):
+def get_full_namespace(namespace):
   base_namespace = get_base_namespace()
   node_namespace = get_node_namespace()
   if namespace is None:
@@ -292,7 +706,7 @@ def get_base_namespace():
     if len(nepi_names) < 3:
       # Slow path. Log on entry, not just on expiry: this runs before the node
       # has emitted anything, so silence here is indistinguishable from a hang.
-      log_msg_warn("nepi_sdk: get_base_namespace: no ROS node matching 'nepi' with a" + \
+      log_msg_warn("get_base_namespace: no ROS node matching 'nepi' with a" + \
         " /<rootname>/<device_id>/ namespace is registered yet. Waiting up to " + \
         str(BASE_NAMESPACE_TIMEOUT_S) + "s. Nodes must run under the device namespace" + \
         " set by the ROOTNAME and DEVICE_ID environment variables.")
@@ -304,16 +718,16 @@ def get_base_namespace():
         nepi_names = nepi_node.split('/')
         timer = get_time() - start_time
         if len(nepi_names) < 3:
-          log_msg_warn("nepi_sdk: get_base_namespace: still waiting for a namespaced" + \
+          log_msg_warn("get_base_namespace: still waiting for a namespaced" + \
             " 'nepi' node ({:.1f}s".format(timer) + " elapsed of " + \
             str(BASE_NAMESPACE_TIMEOUT_S) + "s). Closest match so far: '" + \
             str(nepi_node) + "'", throttle_s = 2.0)
       if len(nepi_names) < 3:
         if rospy.is_shutdown():
-          msg = ("nepi_sdk: get_base_namespace: ROS shutdown requested after" + \
+          msg = ("get_base_namespace: ROS shutdown requested after" + \
             " {:.1f}s".format(timer) + " while waiting for a namespaced 'nepi' node.")
         else:
-          msg = ("nepi_sdk: get_base_namespace: gave up after {:.1f}s".format(timer) + \
+          msg = ("get_base_namespace: gave up after {:.1f}s".format(timer) + \
             " waiting for a ROS node matching 'nepi' under a /<rootname>/<device_id>/" + \
             " namespace. Closest match found: '" + str(nepi_node) + "'. Run this node" + \
             " under a device namespace, for example" + \
@@ -365,20 +779,20 @@ def check_for_node(node_name):
   return node_exists
 
 ### Function to wait for a node
-def wait_for_node(node_name, timeout = 60, log_name_list = []):
+def wait_for_node(node_name, timeout = 60):
   start_time = get_time()
   timer = 0
-  log_msg_debug("nepi_sdk: Waiting for node with name: " + node_name, log_name_list = log_name_list, throttle_s = 5.0)
+  log_msg_debug("Waiting for node with name: " + node_name, throttle_s = 5.0)
   node = ""
   while node == "" and timer < timeout and not rospy.is_shutdown():
     node=find_node(node_name)
     time.sleep(.1)
     timer = get_time() - start_time
-  log_msg_debug("nepi_sdk: Found node: " + node, log_name_list = log_name_list, throttle_s = 5.0)
+  log_msg_debug("Found node: " + node, throttle_s = 5.0)
   return node
 
 
-def launch_node(pkg_name, file_name, ros_node_name, namespace = None, device_path = None, log_name_list = []):
+def launch_node(pkg_name, file_name, ros_node_name, namespace = None, device_path = None):
   sub_process = None
   msg = 'Success'
   success = False
@@ -390,15 +804,15 @@ def launch_node(pkg_name, file_name, ros_node_name, namespace = None, device_pat
   else:
     device_node_run_cmd = ['rosrun', pkg_name, file_name, '__name:=' + ros_node_name, '__ns:=' + namespace, '_device_path:=' + device_path]
   try:
-    msg = ("nepi_sdk: " + "Launching node " + ros_node_name + " via " + " ".join(x for x in device_node_run_cmd))
+    msg = ("" + "Launching node " + ros_node_name + " via " + " ".join(x for x in device_node_run_cmd))
     sub_process = subprocess.Popen(device_node_run_cmd)
     success = True
   except Exception as e:
-    msg = str("nepi_sdk: " + "Failed to launch node %s with Exception: %s", ros_node_name, str(e), log_name_list = log_name_list)
-    log_msg_debug("nepi_sdk: " + msg)
+    msg = str("" + "Failed to launch node %s with Exception: %s", ros_node_name, str(e))
+    log_msg_debug("" + msg)
   if success: 
     if sub_process.poll() is not None:
-      msg = ("nepi_sdk: " + "Failed to start " + ros_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
+      msg = ("" + "Failed to start " + ros_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
       log_msg_warn(msg)
       sub_process = None
       success = False
@@ -416,7 +830,7 @@ def check_node_by_process(sub_process):
     return running
 
 
-def kill_node(node_name, sub_process = None, log_name_list = []):
+def kill_node(node_name, sub_process = None):
   success = False
   kill_node = ""
   if check_for_node(node_name):
@@ -429,12 +843,12 @@ def kill_node(node_name, sub_process = None, log_name_list = []):
     os.system("rosnode kill " + kill_node)
     if sub_process is not None:
       sleep(2)
-      success = kill_node_process(node_name, sub_process, log_name_list)
+      success = kill_node_process(node_name, sub_process)
   return success
 
 
-def kill_node_process(node_name, sub_process, log_name_list = []):
-    log_msg_warn("nepi_sdk: Killing node: " + node_name, log_name_list = log_name_list)
+def kill_node_process(node_name, sub_process):
+    log_msg_warn("Killing node: " + node_name)
     success = False
     if sub_process.poll() is None:
       sub_process.terminate()
@@ -453,19 +867,19 @@ def kill_node_process(node_name, sub_process, log_name_list = []):
         time.sleep(1)
     if sub_process.poll() is not None:
       success = True
-      log_msg_warn("nepi_sdk: Killed node: " + node_name, log_name_list = log_name_list)
+      log_msg_warn("Killed node: " + node_name)
     else:
-      log_msg_warn("nepi_sdk: failed to node: " + node_name, log_name_list = log_name_list)
+      log_msg_warn("failed to node: " + node_name)
     return success
         
 
-def kill_node_namespace(node_namespace, log_name_list = []):
+def kill_node_namespace(node_namespace):
   success = False
   try:
     subprocess.call(["rosnode","kill", node_namespace])
     success = True
   except Exception as e:
-    log_msg_debug("nepi_sdk: Failed to kill node_namespace: " + node_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_debug("Failed to kill node_namespace: " + node_namespace + " " + str(e), throttle_s = 5.0)
   return success
 
 def spin():
@@ -476,21 +890,21 @@ def spin():
 
 EXAMPLE_PARAMS_DICT = {'threshold': 0.3,'max_rate': 5}
 
-def set_params_from_dict(params_dict, namespace, log_name_list = []):
+def set_params_from_dict(params_dict, namespace):
     for key in params_dict:
       val = params_dict[key]
       namespace = create_namespace(namespace,key)
       try:
           rospy.set_param(namespace,val)
       except Exception as e:
-          log_msg_warn("Error creating parameters from param key: " + str(key) + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+          log_msg_warn("Error creating parameters from param key: " + str(key) + " " + str(e), throttle_s = 5.0)
 
 
-def load_params_from_file(file_path, namespace = None, prime_key = None, log_name_list = []):
+def load_params_from_file(file_path, namespace = None, prime_key = None):
     if namespace is None:
       namespace = "~/"
     namespace = get_full_namespace(namespace)
-    log_msg_debug("Will try loading parameters from file: " + file_path, log_name_list = log_name_list)
+    log_msg_debug("Will try loading parameters from file: " + file_path)
     params_dict = dict()
     if os.path.exists(file_path):
         try:
@@ -505,15 +919,15 @@ def load_params_from_file(file_path, namespace = None, prime_key = None, log_nam
           params_dict = get_params_dict
         if params_dict is None:
           params_dict = dict()
-          log_msg_warn("Failed to load params for " + str(namespace) +  " from file: " + str(file_path), log_name_list = log_name_list)
+          log_msg_warn("Failed to load params for " + str(namespace) +  " from file: " + str(file_path))
         else:
           for key in params_dict.keys():
             ns = create_namespace(namespace,key)
             value = params_dict[key]
             set_param(ns,value)
-          log_msg_debug("Parameters loaded successfully for " + namespace, log_name_list = log_name_list)
+          log_msg_debug("Parameters loaded successfully for " + namespace)
     else:
-        log_msg_warn("Param file not found: " + file_path, log_name_list = log_name_list)
+        log_msg_warn("Param file not found: " + file_path)
     return params_dict
 
 def load_node_config(node_name, load_name = None):
@@ -555,7 +969,7 @@ def load_node_config(node_name, load_name = None):
       log_msg_info("No config file found for " + node_name + " in " + config_folder)
   
   if config_file is not None:
-    node_namespace = os.path.join(nepi_sdk.get_base_namespace(), load_name)
+    node_namespace = os.path.join(get_base_namespace(), load_name)
     log_msg_warn("Loading parameters from " + config_file + " for " + node_namespace)
     rosparam_load_cmd = ['rosparam', 'load', config_file, node_namespace]
     try:
@@ -566,11 +980,11 @@ def load_node_config(node_name, load_name = None):
   return success
 
 
-def save_params_to_file(file_path, namespace, save_all = False, log_name_list = []):
+def save_params_to_file(file_path, namespace, save_all = False):
     namespace = get_full_namespace(namespace)
     params_dict = dict()
     params = get_params(namespace,dict())
-    #log_msg_warn("Got params to save: " + str(params), log_name_list = log_name_list)
+    #log_msg_warn("Got params to save: " + str(params))
     if save_all == False: # Use only base ns level
       if params is not None:
         for key in params.keys():
@@ -583,10 +997,10 @@ def save_params_to_file(file_path, namespace, save_all = False, log_name_list = 
     try:
       rosparam.dump_params(file_path, namespace)
     except Exception as e:
-      log_msg_warn("Could not create params file: " + str(e), log_name_list = log_name_list)
+      log_msg_warn("Could not create params file: " + str(e))
   
 
-def has_param(namespace,param_name = None, log_name_list = []):
+def has_param(namespace,param_name = None):
   if param_name is not None:
     namespace = create_namespace(namespace,param_name)
   namespace = get_full_namespace(namespace)
@@ -594,7 +1008,7 @@ def has_param(namespace,param_name = None, log_name_list = []):
 
 
 
-def get_params(param_namespace,fallback_param = dict(), log_name_list = []):
+def get_params(param_namespace,fallback_param = dict()):
   params = None
   param_namespace = get_full_namespace(param_namespace)
   try:
@@ -603,11 +1017,11 @@ def get_params(param_namespace,fallback_param = dict(), log_name_list = []):
     else:
       params = rospy.get_param(param_namespace,fallback_param)
   except Exception as e:
-    log_msg_warn("Failed to get param for: " + param_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_warn("Failed to get param for: " + param_namespace + " " + str(e), throttle_s = 5.0)
   return params
 
 
-def get_param(param_namespace,fallback_param = None, log_name_list = []):
+def get_param(param_namespace,fallback_param = None):
   param = None
   param_namespace = get_full_namespace(param_namespace)
   try:
@@ -616,21 +1030,21 @@ def get_param(param_namespace,fallback_param = None, log_name_list = []):
     else:
       param = rospy.get_param(param_namespace,fallback_param)
   except Exception as e:
-    log_msg_warn("Failed to get param for: " + param_namespace + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_warn("Failed to get param for: " + param_namespace + " " + str(e), throttle_s = 5.0)
   return param
 
-def set_param(param_namespace,param_val, log_name_list = []):
+def set_param(param_namespace,param_val):
   success = False
   param_namespace = get_full_namespace(param_namespace)
   try:
     rospy.set_param(param_namespace,param_val)
     success = True
   except Exception as e:
-    log_msg_warn("Failed to set param for: " + str(param_namespace) + " "  + str(param_val) + " " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_warn("Failed to set param for: " + str(param_namespace) + " "  + str(param_val) + " " + str(e), throttle_s = 5.0)
   return success
 
 
-def delete_params(params_namespace, log_name_list = []):
+def delete_params(params_namespace):
   success = False
   if rospy.has_param(params_namespace):
       rospy.delete_param(params_namespace)
@@ -639,12 +1053,12 @@ def delete_params(params_namespace, log_name_list = []):
   return success
 
 # Function to wait for a param
-def wait_for_param(param_namespace, timeout = 60, log_name_list = []):
+def wait_for_param(param_namespace, timeout = 60):
   start_time = get_time()
   timer = 0
-  #log_msg_warn("nepi_sdk: Waiting for param name: " + param_namespace, log_name_list = log_name_list , throttle_s = 10.0)
+  #log_msg_warn("Waiting for param name: " + param_namespace , throttle_s = 10.0)
   param = 'NOPARAM'
-  #log_msg_warn("nepi_sdk: Waiting for param check: " + str([param,param_namespace,timer,rospy.is_shutdown()]), log_name_list = log_name_list ) # , throttle_s = 5.0)
+  #log_msg_warn("Waiting for param check: " + str([param,param_namespace,timer,rospy.is_shutdown()]) ) # , throttle_s = 5.0)
   param_namespace = get_full_namespace(param_namespace)
   while param == 'NOPARAM' and timer < timeout and not rospy.is_shutdown():
     try:
@@ -656,7 +1070,7 @@ def wait_for_param(param_namespace, timeout = 60, log_name_list = []):
     timer = get_time() - start_time
   if param == 'NOPARAM':
     param = None
-    log_msg_warn("nepi_sdk: Failed to get param: " + str([param_namespace,timer,rospy.is_shutdown()]), log_name_list = log_name_list ) # , throttle_s = 5.0)
+    log_msg_warn("Failed to get param: " + str([param_namespace,timer,rospy.is_shutdown()]) ) # , throttle_s = 5.0)
   return param
 
 
@@ -727,48 +1141,48 @@ def check_for_service(service_name):
   return service_exists
 
 # Function to wait for a service
-def wait_for_service(service_name, timeout = 60, log_name_list = []):
+def wait_for_service(service_name, timeout = 60):
   start_time = get_time()
   timer = 0
-  log_msg_debug("nepi_sdk: Waiting for service name: " + service_name, log_name_list = log_name_list, throttle_s = 5.0)
+  log_msg_debug("Waiting for service name: " + service_name, throttle_s = 5.0)
   found_service = ""
   while found_service == "" and timer < timeout and not rospy.is_shutdown():
     found_service=find_service(service_name)
     time.sleep(.01)
     timer = get_time() - start_time
-  log_msg_debug("nepi_sdk: Found service: " + found_service, log_name_list = log_name_list, throttle_s = 5.0)
+  log_msg_debug("Found service: " + found_service, throttle_s = 5.0)
   return found_service
 
-def create_service(service_namespace, srv_msg, srv_callback, log_name_list = []):
+def create_service(service_namespace, srv_msg, srv_callback):
   service = None
   #service_namespace = get_full_namespace(service_namespace)
   try:
     service = rospy.Service(service_namespace, srv_msg, srv_callback)
   except Exception as e:
-    log_msg_debug("nepi_sdk: Failed to create service: " + str(e) , log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_debug("Failed to create service: " + str(e) , throttle_s = 5.0)
   return service
 
-def connect_service(service_namespace, service_msg, log_name_list = []):
+def connect_service(service_namespace, service_msg):
   service = None
   #service_namespace = get_full_namespace(service_namespace)
   try:
     service = rospy.ServiceProxy(service_namespace, service_msg)
   except Exception as e:
-      log_msg_debug("nepi_sdk: Failed to connect to service: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+      log_msg_debug("Failed to connect to service: " + str(e), throttle_s = 5.0)
   return service
 
-def call_service(service, request, verbose = True, log_name_list = []):
+def call_service(service, request, verbose = True):
     response = None
     if service is not None and service != "None":
       try:
           response = service(request)
       except Exception as e:
           if verbose == True:
-            log_msg_debug("nepi_sdk: Failed to call service: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+            log_msg_debug("Failed to call service: " + str(e), throttle_s = 5.0)
           else:
             pass
     else:
-      log_msg_debug("nepi_sdk: Cant call None service", log_name_list = log_name_list, throttle_s = 5.0)
+      log_msg_debug("Cant call None service", throttle_s = 5.0)
     return response
 
 
@@ -777,7 +1191,7 @@ def call_service(service, request, verbose = True, log_name_list = []):
 ### Topic Utility Functions
 
 
-def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args = (), log_name_list = [], buff_size = None):
+def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_args = (), buff_size = None):
   # buff_size is rospy's RECEIVE buffer, not the queue. It defaults to 65536,
   # which is smaller than a single color image frame, and a queue_size of 1
   # cannot drop a stale frame that has not been read out of the socket yet --
@@ -800,10 +1214,10 @@ def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_ar
     else:
         sub = rospy.Subscriber(sub_namespace, msg, callback, callback_args = callback_args, **kwargs)
   except Exception as e:
-    log_msg_debug("nepi_sdk: Failed to create subscriber: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_debug("Failed to create subscriber: " + str(e), throttle_s = 5.0)
   return sub
 
-def create_publisher(pub_namespace, msg, queue_size = 10, latch = False, log_name_list = []):
+def create_publisher(pub_namespace, msg, queue_size = 10, latch = False):
   if queue_size is None:
     queue_size = 1
   pub = None
@@ -811,17 +1225,17 @@ def create_publisher(pub_namespace, msg, queue_size = 10, latch = False, log_nam
   try:
     pub = rospy.Publisher(pub_namespace, msg, queue_size = queue_size, latch = latch)
   except Exception as e:
-    log_msg_debug("nepi_sdk: Failed to create publisher: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_debug("Failed to create publisher: " + str(e), throttle_s = 5.0)
   return pub
 
-def publish_pub(publisher, msg, log_name_list = []):
+def publish_pub(publisher, msg):
   success = False
   if publisher is not None and msg is not None:
     try:
       publisher.publish(msg)
       success = True
     except Exception as e:
-      log_msg_debug("nepi_sdk: Failed to publish message: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+      log_msg_debug("Failed to publish message: " + str(e), throttle_s = 5.0)
   return success
 
 
@@ -986,24 +1400,24 @@ def check_for_topic(topic_name, topics_list = None, types_list = None):
   return topic_exists
 
 # Function to wait for a topic
-def wait_for_topic(topic_name, timeout = 60, log_name_list = [], topics_list = None, types_list = None):
+def wait_for_topic(topic_name, timeout = 60, topics_list = None, types_list = None):
   start_time = get_time()
   timer = 0
-  log_msg_debug("nepi_sdk: Waiting for topic with name: " + topic_name, log_name_list = log_name_list, throttle_s = 5.0)
+  log_msg_debug("Waiting for topic with name: " + topic_name, throttle_s = 5.0)
   topic = ""
   while topic == "" and timer < timeout and not rospy.is_shutdown():
     topic=find_topic(topic_name)
     time.sleep(.01)
     timer = get_time() - start_time
-  log_msg_debug("nepi_sdk: Found topic: " + topic, log_name_list = log_name_list, throttle_s = 5.0)
+  log_msg_debug("Found topic: " + topic, throttle_s = 5.0)
   return topic
 
-def check_for_subscribers(topic_names,filters=[], log_name_list = []):
-  [has_subs,has_subs_dict] = find_subscribers(topic_names = topic_names,filters = filters, log_name_list = log_name_list)
+def check_for_subscribers(topic_names,filters=[]):
+  [has_subs,has_subs_dict] = find_subscribers(topic_names = topic_names,filters = filters)
   return has_subs
 
 
-def find_subscribers(topic_names,filters=[], log_name_list = [], topics_list = None, types_list = None):
+def find_subscribers(topic_names,filters=[], topics_list = None, types_list = None):
 
     """
     Checks if topics have any active subscribers.
@@ -1014,7 +1428,7 @@ def find_subscribers(topic_names,filters=[], log_name_list = [], topics_list = N
     if len(topic_names) > 0:
 
       try:
-          #log_msg_warn("nepi_sdk: Checking subscribers for: " + str(topic_names), log_name_list = log_name_list)
+          #log_msg_warn("Checking subscribers for: " + str(topic_names))
           
           for topic in topic_names:
             has_subs_dict[topic] = []
@@ -1027,7 +1441,7 @@ def find_subscribers(topic_names,filters=[], log_name_list = [], topics_list = N
                 if pub_topic == topic:
                     # If the topic is published, check if it has any subscribers
                     for sub_topic, _ in subscribers:
-                        #log_msg_warn("nepi_sdk: Found subscriber: " + sub_topic + " for topic " + pub_topic, log_name_list = log_name_list)
+                        #log_msg_warn("Found subscriber: " + sub_topic + " for topic " + pub_topic)
                         if sub_topic not in filters:
                             has_subs = True
                             has_subs_dict[topic].append(sub_topic)  # Found subscribers for this 
@@ -1041,7 +1455,7 @@ def find_subscribers(topic_names,filters=[], log_name_list = [], topics_list = N
 #########################
 ### Publisher, Subscriber, and Service Utility Functions
 
-def start_timer_process(duration, callback_function, oneshot = False, log_name_list = []):
+def start_timer_process(duration, callback_function, oneshot = False):
   success = False
   if isinstance(duration,int) or isinstance(duration,float):
     duration = ros_duration(duration)
@@ -1049,7 +1463,7 @@ def start_timer_process(duration, callback_function, oneshot = False, log_name_l
     rospy.Timer(duration, callback_function, oneshot)
     success = True
   except Exception as e:
-    log_msg_warn("Failed to start timer process: " + str(e), log_name_list = log_name_list, throttle_s = 5.0)
+    log_msg_warn("Failed to start timer process: " + str(e), throttle_s = 5.0)
   return success
 
 
@@ -1098,9 +1512,9 @@ def sec_from_msg_stamp(msg_stamp):
 
 
 
-def msg_stamp_from_timestamp(timestamp, log_name_list = []):
-    log_msg_debug("Got timestamp to convert to stamp: " + str(timestamp), log_name_list = log_name_list, throttle_s = 5.0)
-    log_msg_debug("Got timestamp type to convert to stamp: " + str(type(timestamp)), log_name_list = log_name_list, throttle_s = 5.0)
+def msg_stamp_from_timestamp(timestamp):
+    log_msg_debug("Got timestamp to convert to stamp: " + str(timestamp), throttle_s = 5.0)
+    log_msg_debug("Got timestamp type to convert to stamp: " + str(type(timestamp)), throttle_s = 5.0)
     stamp = get_msg_stamp()
     if timestamp is None:
         return stamp
@@ -1118,9 +1532,9 @@ def msg_stamp_from_timestamp(timestamp, log_name_list = []):
     return stamp
 
 
-def sec_from_timestamp(timestamp = None, log_name_list = []):
-    log_msg_debug("Got timestamp to convert to sec: " + str(timestamp), log_name_list = log_name_list, throttle_s = 5.0)
-    log_msg_debug("Got timestamp type to convert to sec: " + str(type(timestamp)), log_name_list = log_name_list, throttle_s = 5.0)
+def sec_from_timestamp(timestamp = None):
+    log_msg_debug("Got timestamp to convert to sec: " + str(timestamp), throttle_s = 5.0)
+    log_msg_debug("Got timestamp type to convert to sec: " + str(type(timestamp)), throttle_s = 5.0)
     if timestamp is None:
         time_sec = get_time()
     else:
@@ -1231,12 +1645,52 @@ def convert_msg2dict(msg):
     msg_dict = message_converter.convert_ros_message_to_dictionary(msg)
   return msg_dict
 
-def convert_dict2msg(msg_instanance, data_dict):
+def convert_dict2msg(msg_instanance, data_dict, data_msg = None, control_name = None):
+  if control_name is None:
+     control_name = 'control'
+  failed_list = []
+  if data_msg is not None:
+     clean_dict = convert_msg2dict(data_msg)
+     for key in clean_dict.keys():
+        if key in data_dict.keys():
+          clean_val = clean_dict[key]
+          clean_type = type(clean_val)
+          data_val = data_dict[key]
+          convert_msg = ''
+          if type(clean_val).__name__ == 'int': 
+            try:
+              data_val = int(float(data_val))
+              convert_msg = 'converted to type' + str(type(data_val))
+            except Exception as e:
+              convert_msg ='Failed to convert type' +  str(e)
+          if type(clean_val).__name__ == 'float': 
+            try:
+              data_val = float(data_val)
+              convert_msg = 'converted to type' + str(type(data_val))
+            except Exception as e:
+              convert_msg ='Failed to convert type' +  str(e)
+          if type(clean_val).__name__ == 'str':  
+            try:
+              data_val = str(data_val)
+              convert_msg = 'converted to type' + str(type(data_val))
+            except Exception as e:
+              convert_msg ='Failed to convert type' +  str(e)
+          data_type = type(data_val)
+
+          if data_type == clean_type:
+             clean_dict[key] = data_dict[key]
+             #log_msg_warn("Added Dict entry to Msg: " + str([control_name,key,clean_val,clean_type,data_val,data_type]), throttle_s = 10.0)
+          else:
+             failed_list.append([control_name, key,clean_val,clean_type,data_val,data_type,convert_msg])
+  else:
+     clean_dict = data_dict
+  if len(failed_list) > 0:
+     log_msg_warn("Failed to add Dict entrys to Msg: " + str(failed_list), throttle_s = 10.0)
   msg = None
   try:
-    msg = message_converter.convert_dictionary_to_ros_message(msg_instanance,data_dict)
+    msg = message_converter.convert_dictionary_to_ros_message(msg_instanance,clean_dict)
   except Exception as e:
-    pass
+    log_msg_warn("Failed to Convert Dict to Msg: " + str(e), throttle_s = 10.0)
   return msg
 
 def parse_string_list_msg_data(msg_data):

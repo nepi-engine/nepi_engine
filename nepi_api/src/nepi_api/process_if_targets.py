@@ -91,8 +91,6 @@ class TargetsIF:
                 data_product = None,
                 save_data_if = None,
                 save_data_enabled = True,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
@@ -108,12 +106,7 @@ class TargetsIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IF Initialization Processes" )
 
         ##############################
         # Initialize Class Variables
@@ -182,7 +175,7 @@ class TargetsIF:
                             services_dict = None,
                             pubs_dict = self.PUBS_DICT,
                             subs_dict = self.SUBS_DICT,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if
             )
             self.node_if.wait_for_ready()
@@ -191,7 +184,7 @@ class TargetsIF:
         # Save Data Setup
         self.save_data_enabled = save_data_enabled
         if self.save_data_enabled == True:
-            self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None) )
             if save_data_if is not None and save_data_if != 'None':
                 self.save_data_if = save_data_if
                 data_products = self.save_data_if.get_data_products()
@@ -199,7 +192,7 @@ class TargetsIF:
                     self.save_data_if.register_data_product(self.data_product)
             elif save_data_if != 'None':
                 # Setup Save Data IF Class
-                self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Starting Save Data IF Initialization" )
                 factory_data_rates = dict()
                 factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
 
@@ -216,14 +209,14 @@ class TargetsIF:
                                         data_products = [self.data_product],
                                         factory_rate_dict = factory_data_rates,
                                         factory_filename_dict = factory_filename_dict,
-                                        log_name_list = self.log_name_list,
+                                        
                                         msg_if = self.msg_if,
                                         node_if = self.node_if)
                 nepi_sdk.sleep(1)
 
             if self.save_data_if is not None:
                 self.status_msg.process_status.save_data_topic = self.save_data_if.get_namespace()
-                self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.process_status.save_data_topic), log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.process_status.save_data_topic) )
 
         ##############################
         # Update vals and publish first status
@@ -238,7 +231,7 @@ class TargetsIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete" )
         ###############################
 
     ###############################
@@ -263,7 +256,7 @@ class TargetsIF:
             bool: True if the interface became ready within the timeout, False otherwise.
         """
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for ready" )
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
@@ -344,7 +337,7 @@ class TargetsIF:
                     data_dict = nepi_sdk.convert_msg2dict(data_msg)
                     self.save_data_if.save(self.data_product, data_dict, timestamp = timestamp)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to save " + self.data_product + " data: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                    self.msg_if.pub_warn("Failed to save " + self.data_product + " data: " + str(e) , throttle_s = 5.0)
         return True
 
     def publish_status(self, status_msg = None):
@@ -358,7 +351,7 @@ class TargetsIF:
             return
         if status_msg is not None:
             #self.status_msg = status_msg
-            #self.msg_if.pub_warn("Publishing Detections Status: " + str(status_msg), log_name_list = self.log_name_list, throttle_s = 20.0)
+            #self.msg_if.pub_warn("Publishing Detections Status: " + str(status_msg) , throttle_s = 20.0)
             self.node_if.publish_pub(self.status_pub_name, status_msg)
 
     def unregister_pubs(self):
@@ -484,8 +477,6 @@ class TargetsImageIF:
                 data_product = None,
                 save_data_if = None,
                 save_data_enabled = True,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):
@@ -501,12 +492,7 @@ class TargetsImageIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            log_name = nepi_utils.get_clean_name(log_name)
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IF Initialization Processes" )
 
         ##############################
         # Initialize Class Variables
@@ -575,7 +561,7 @@ class TargetsImageIF:
                             services_dict = None,
                             pubs_dict = self.PUBS_DICT,
                             subs_dict = self.SUBS_DICT,
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if
             )
             self.node_if.wait_for_ready()
@@ -584,7 +570,7 @@ class TargetsImageIF:
         # Save Data Setup
         self.save_data_enabled = save_data_enabled
         if self.save_data_enabled == True:
-            self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None), log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None) )
             if save_data_if is not None and save_data_if != 'None':
                 self.save_data_if = save_data_if
                 data_products = self.save_data_if.get_data_products()
@@ -592,7 +578,7 @@ class TargetsImageIF:
                     self.save_data_if.register_data_product(self.data_product)
             elif save_data_if != 'None':
                 # Setup Save Data IF Class
-                self.msg_if.pub_info("Starting Save Data IF Initialization", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Starting Save Data IF Initialization" )
                 factory_data_rates = dict()
                 factory_data_rates[self.data_product] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
 
@@ -609,14 +595,14 @@ class TargetsImageIF:
                                         data_products = [self.data_product],
                                         factory_rate_dict = factory_data_rates,
                                         factory_filename_dict = factory_filename_dict,
-                                        log_name_list = self.log_name_list,
+                                        
                                         msg_if = self.msg_if,
                                         node_if = self.node_if)
                 nepi_sdk.sleep(1)
 
             if self.save_data_if is not None:
                 self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-                self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic), log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
 
         ##############################
         # Update vals and publish first status
@@ -631,7 +617,7 @@ class TargetsImageIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete" )
         ###############################
 
     ###############################
@@ -656,7 +642,7 @@ class TargetsImageIF:
             bool: True if the interface became ready within the timeout, False otherwise.
         """
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for ready" )
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
@@ -729,7 +715,7 @@ class TargetsImageIF:
                     cv2_img = nepi_img.rosimg_to_cv2img(data_msg)
                     self.save_data_if.save(self.data_product, cv2_img, timestamp = timestamp)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to save " + self.data_product + " data: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+                    self.msg_if.pub_warn("Failed to save " + self.data_product + " data: " + str(e) , throttle_s = 5.0)
         return True
 
     def publish_cv2_image(self, cv2_img, encoding = 'bgr8', timestamp = None):
@@ -750,7 +736,7 @@ class TargetsImageIF:
         try:
             data_msg = nepi_img.cv2img_to_rosimg(cv2_img, encoding = encoding)
         except Exception as e:
-            self.msg_if.pub_warn("Failed to convert cv2 image to ros image: " + str(e), log_name_list = self.log_name_list, throttle_s = 5.0)
+            self.msg_if.pub_warn("Failed to convert cv2 image to ros image: " + str(e) , throttle_s = 5.0)
             return False
         return self.publish_data(data_msg, timestamp = timestamp)
 

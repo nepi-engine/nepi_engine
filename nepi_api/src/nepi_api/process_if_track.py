@@ -29,11 +29,6 @@ from nepi_sdk import nepi_process_track
 
 from nepi_api.process_if import ProcessIF
 
-from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_process_track"
-logger = Logger(log_name = log_name)
-
-
 
 
 ##################################################
@@ -50,8 +45,6 @@ class ProcessTrackIF(ProcessIF):
                 callback_dict = None,
                 config_dict = None,
                 show_dict = None,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None,
                 save_data_if = None
@@ -63,7 +56,7 @@ class ProcessTrackIF(ProcessIF):
         ###############################
         ####  IF INIT SETUP ####
         class_name = type(self).__name__
-        log_name=class_name
+        
         ###############################
 
         super().__init__(process_name,
@@ -73,8 +66,8 @@ class ProcessTrackIF(ProcessIF):
                 config_dict,
                 callback_dict,
                 show_dict,
-                log_name,
-                log_name_list,
+                
+                
                 msg_if,
                 node_if,
                 save_data_if,

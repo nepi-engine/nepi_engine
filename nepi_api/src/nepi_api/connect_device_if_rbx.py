@@ -99,8 +99,6 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None,
                 node_if = None
                 ):

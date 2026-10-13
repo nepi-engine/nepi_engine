@@ -34,7 +34,7 @@ from nepi_sdk.nepi_sdk import find_topics_by_msg
 
 from nepi_sdk.nepi_sdk import logger as Logger
 log_name = "nepi_states"
-logger = Logger(log_name = log_name)
+logger = Logger( )
 
 #########################
 ### System States Helper Functions

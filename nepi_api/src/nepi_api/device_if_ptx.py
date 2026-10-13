@@ -214,8 +214,6 @@ class PTXActuatorIF:
                  navpose_update_rate = 10,
                  deviceResetCb = None,
                  calibrateCenterCB = None,
-                 log_name = None,
-                 log_name_list = [],
                  msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -233,11 +231,7 @@ class PTXActuatorIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting PTX Device IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting PTX Device IF Initialization Processes" )
 
 
 
@@ -448,7 +442,7 @@ class PTXActuatorIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node IF Initialization" )
         alt_namespace = None
         if self.device_name != self.node_name:
             alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
@@ -827,7 +821,7 @@ class PTXActuatorIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
+                        
                         msg_if = self.msg_if
                         )
 
@@ -860,13 +854,13 @@ class PTXActuatorIF:
         self.getSettingsFunction = getSettingsFunction
         self.setSettingFunction = setSettingFunction
         if self.getSettingsFunction is not None and self.setSettingFunction is not None:
-            self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Starting Settings IF Initialization" )
             settings_ns = self.namespace
 
             self.settings_if = SettingsIF(namespace = settings_ns,
                             getSettingsFunction=self.getSettingsFunction, 
                             setSettingFunction=self.setSettingFunction, 
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -881,7 +875,7 @@ class PTXActuatorIF:
 
         ####################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ####################################
 
 
@@ -1129,7 +1123,7 @@ class PTXActuatorIF:
     #         pos_dict['x_m'] = round(x,5)
     #         pos_dict['y_m'] = round(y,5)   
     #         pos_dict['z_m'] = round(z,5)
-    #         self.msg_if.pub_debug("Calculate navpose x,y,z: " + str([x,y,z]), log_name_list = self.log_name_list, throttle_s = 3.0)
+    #         self.msg_if.pub_debug("Calculate navpose x,y,z: " + str([x,y,z]) , throttle_s = 3.0)
     #     return pos_dict
 
     # def getNpOrientationAdjustedCb(self):
@@ -1167,16 +1161,16 @@ class PTXActuatorIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready   
 
 
@@ -1229,8 +1223,8 @@ class PTXActuatorIF:
 
     def getPositionConditioned(self, pan_deg, tilt_deg):
         [adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max] = self.getLimitsSoftstopAdj()
-        #self.msg_if.pub_info("Checking Positions against soft limits: " + str([pan_deg, tilt_deg]), log_name_list = self.log_name_list)
-        #self.msg_if.pub_info("Got Soft Limits: " + str([adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max]), log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Checking Positions against soft limits: " + str([pan_deg, tilt_deg]) )
+        #self.msg_if.pub_info("Got Soft Limits: " + str([adj_pan_min,adj_pan_max,adj_tilt_min,adj_tilt_max]) )
         if (pan_deg > adj_pan_max):
             pan_deg = adj_pan_max
         if (pan_deg < adj_pan_min):
@@ -1304,7 +1298,7 @@ class PTXActuatorIF:
         else:
             tilt_stop_deg = self.status_msg.tilt_goal_deg * self.rpi
 
-        self.msg_if.pub_info("Stopping motion by request", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Stopping motion by request" )
         if self.stopMovingCb is not None:
             self.stopMovingCb()
         elif self.gotoPositionCb is not None:
@@ -1377,7 +1371,7 @@ class PTXActuatorIF:
     def _setHomePositionCb(self, msg):
         [pan_deg_adj,tilt_deg_adj] = self.getPanTiltAdj(msg.pan_deg, msg.tilt_deg)
         if not self.positionWithinSoftLimits(pan_deg_adj, tilt_deg_adj):
-            self.msg_if.pub_warn("Requested home position is invalid... ignoring", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Requested home position is invalid... ignoring" )
             return
 
         self.home_pan_deg = pan_deg_adj
@@ -1391,7 +1385,7 @@ class PTXActuatorIF:
             # Driver supports absolute positioning, so just let it operate
             self.setHomePositionCb(self.home_pan_deg, self.home_tilt_deg)
         else:
-            self.msg_if.pub_warn("Absolution position home setpoints not available... ignoring", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Absolution position home setpoints not available... ignoring" )
             return
         
         
@@ -1501,7 +1495,7 @@ class PTXActuatorIF:
             direction = msg.direction * self.rpi
             time_s = msg.duration_s
             self.movePanCb(direction,  time_s)
-            #self.msg_if.pub_info("Jogging pan", log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Jogging pan" )
         self.publish_status()
         
 
@@ -1512,7 +1506,7 @@ class PTXActuatorIF:
             direction = msg.direction * self.rti
             time_s = msg.duration_s
             self.moveTiltCb(direction, time_s)
-            #self.msg_if.pub_info("Jogging tilt", log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Jogging tilt" )
         self.publish_status()
 
     def _jogTimedPanSpeedRatioCb(self, msg):
@@ -1523,7 +1517,7 @@ class PTXActuatorIF:
             speed_ratio = nepi_utils.check_ratio(msg.speed_ratio)
             time_s = msg.duration_s
             self.movePanSpeedRatioCb(direction, speed_ratio, time_s)
-            #self.msg_if.pub_info("Jogging pan", log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Jogging pan" )
         self.publish_status()
         
 
@@ -1535,7 +1529,7 @@ class PTXActuatorIF:
             speed_ratio = nepi_utils.check_ratio(msg.speed_ratio)
             time_s = msg.duration_s
             self.moveTiltSpeedRatioCb(direction, speed_ratio, time_s)
-            #self.msg_if.pub_info("Jogging tilt at ratio ", log_name_list = self.log_name_list)
+            #self.msg_if.pub_info("Jogging tilt at ratio " )
         self.publish_status()
         
 
@@ -1721,7 +1715,7 @@ class PTXActuatorIF:
         """
         #self.msg_if.pub_warn("entering Pub_stat msg", throttle_s = 5.0)
         start_time = nepi_utils.get_time()
-        #self.msg_if.pub_info("Entering Publish Status", log_name_list = self.log_name_list)
+        #self.msg_if.pub_info("Entering Publish Status" )
         if self.has_absolute_positioning == True and self.getPositionCb is not None:
             
             
@@ -1820,14 +1814,14 @@ class PTXActuatorIF:
             
 
             axis_info = [pan_now_deg_adj,pan_goal_deg_adj,adj_pan_ss_min,adj_pan_ss_max]
-            #self.msg_if.pub_warn("Using Pan now,goal,min,max: " + str(axis_info), log_name_list = self.log_name_list, throttle_s = 2.0)        
+            #self.msg_if.pub_warn("Using Pan now,goal,min,max: " + str(axis_info) , throttle_s = 2.0)        
             pan_now_ratio_adj =  1 - (pan_now_deg_adj - adj_pan_ss_min) / (adj_pan_ss_max - adj_pan_ss_min) 
             self.status_msg.pan_now_ratio = pan_now_ratio_adj
             pan_goal_ratio_adj =  1 - (pan_goal_deg_adj - adj_pan_ss_min) / (adj_pan_ss_max - adj_pan_ss_min)
             self.status_msg.pan_goal_ratio = pan_goal_ratio_adj
 
             axis_info = [tilt_now_deg_adj,tilt_goal_deg_adj,adj_tilt_ss_min,adj_tilt_ss_max]
-            #self.msg_if.pub_warn("Using Tilt now,goal,min,max: " + str(axis_info), log_name_list = self.log_name_list, throttle_s = 2.0)    
+            #self.msg_if.pub_warn("Using Tilt now,goal,min,max: " + str(axis_info) , throttle_s = 2.0)    
             tilt_now_ratio_adj =  1 - (tilt_now_deg_adj - adj_tilt_ss_min) / (adj_tilt_ss_max - adj_tilt_ss_min) 
             self.status_msg.tilt_now_ratio = tilt_now_ratio_adj
             tilt_goal_ratio_adj =  1 - (tilt_goal_deg_adj - adj_tilt_ss_min) / (adj_tilt_ss_max - adj_tilt_ss_min)
@@ -1866,7 +1860,7 @@ class PTXActuatorIF:
 
         if self.node_if is not None:
             #self.msg_if.pub_warn("Created status msg: " + str(self.status_msg), throttle_s = 5.0)
-            #self.msg_if.pub_debug("Publishing Status", log_name_list = self.log_name_list)
+            #self.msg_if.pub_debug("Publishing Status" )
             self.node_if.publish_pub('status_pub',self.status_msg)
             pan_tilt_msg = NavPosePanTilt()
             pan_tilt_msg.timestamp = nepi_utils.get_time()

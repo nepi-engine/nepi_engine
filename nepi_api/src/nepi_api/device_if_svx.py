@@ -159,8 +159,6 @@ class SVXActuatorIF:
                  setHomePositionCb = None,
                  setHomePositionHereCb = None,
                  deviceResetCb = None,
-                 log_name = None,
-                 log_name_list = [],
                  msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -178,11 +176,7 @@ class SVXActuatorIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting SVX Device IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting SVX Device IF Initialization Processes" )
 
 
 
@@ -338,7 +332,7 @@ class SVXActuatorIF:
         ##################################################
         ### Node Class Setup
 
-        self.msg_if.pub_debug("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_debug("Starting Node IF Initialization" )
         alt_namespace = None
         if self.device_name != self.node_name:
             alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
@@ -559,7 +553,7 @@ class SVXActuatorIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
+                        
                         msg_if = self.msg_if
                         )
 
@@ -592,13 +586,13 @@ class SVXActuatorIF:
         self.getSettingsFunction = getSettingsFunction
         self.setSettingFunction = setSettingFunction
         if self.getSettingsFunction is not None and self.setSettingFunction is not None:
-            self.msg_if.pub_debug("Starting Settings IF Initialization", log_name_list = self.log_name_list)
+            self.msg_if.pub_debug("Starting Settings IF Initialization" )
             settings_ns = self.namespace
 
             self.settings_if = SettingsIF(namespace = settings_ns,
                             getSettingsFunction=self.getSettingsFunction, 
                             setSettingFunction=self.setSettingFunction, 
-                            log_name_list = self.log_name_list,
+                            
                             msg_if = self.msg_if,
                             node_if = self.node_if
                             )
@@ -612,7 +606,7 @@ class SVXActuatorIF:
 
         ####################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete" )
         ####################################
 
 
@@ -749,16 +743,16 @@ class SVXActuatorIF:
             bool: True if the device became ready within the timeout, False if it did not.
         """
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for connection" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected", log_name_list = self.log_name_list)
+                self.msg_if.pub_info("Connected" )
         return self.ready
 
 
@@ -864,7 +858,7 @@ class SVXActuatorIF:
         self.stopServo()
 
     def stopServo(self):
-        self.msg_if.pub_info("Stopping motion by request", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Stopping motion by request" )
         if self.continuous_enabled == True:
             # A continuous servo "stops" only at the center/stop pulse -- holding the
             # current pulse (what stopMovingCb does) would keep it spinning.
@@ -882,7 +876,7 @@ class SVXActuatorIF:
             # No driver setter, so the live max cannot move. Writing the param anyway
             # would leave initCb restoring a max the device never actually adopted, so
             # the live value and the value after a restart would disagree.
-            self.msg_if.pub_warn("Max speed is not adjustable on this device... ignoring", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Max speed is not adjustable on this device... ignoring" )
             return
         max_speed = msg.data
         if (max_speed > 0.0):
@@ -905,7 +899,7 @@ class SVXActuatorIF:
         if self.has_adjustable_speed == False:
             return
         if self.speed_max_dps is None or self.speed_max_dps <= 0.0:
-            self.msg_if.pub_warn("Speed max is not set... ignoring speed dps command", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Speed max is not set... ignoring speed dps command" )
             return
         ratio = nepi_utils.check_ratio(msg.data / self.speed_max_dps)
         # Delegate rather than duplicate: _setSpeedRatio is what persists the speed_ratio
@@ -929,7 +923,7 @@ class SVXActuatorIF:
     def _setHomePositionCb(self, msg):
         deg_adj = self.getPosAdj(msg.data)
         if not self.positionWithinSoftLimits(deg_adj):
-            self.msg_if.pub_warn("Requested home position is invalid... ignoring", log_name_list = self.log_name_list)
+            self.msg_if.pub_warn("Requested home position is invalid... ignoring" )
             return
         self.home_pos_deg = deg_adj
         self.msg_if.pub_info("Updated home position to " + "%.2f" % self.home_pos_deg)

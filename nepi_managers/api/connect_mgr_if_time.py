@@ -46,8 +46,8 @@ class ConnectMgrTimeSyncIF:
     #######################
     ### IF Initialization
     def __init__(self, time_updated_callback = None, timeout = float('inf'),
-                log_name = None,
-                log_name_list = [],
+                
+              ,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -62,11 +62,7 @@ class ConnectMgrTimeSyncIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IF Initialization Processes", 
 
 
         ##############################    
@@ -77,7 +73,7 @@ class ConnectMgrTimeSyncIF:
         ##############################
         ### Wait for status to publish
         status_topic = nepi_sdk.create_namespace(self.mgr_namespace,'status')
-        self.msg_if.pub_info("Waiting for status topic: " + status_topic, log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Waiting for status topic: " + status_topic, 
         nepi_sdk.wait_for_topic(status_topic)
         ##############################
         ### Setup Node
@@ -150,7 +146,7 @@ class ConnectMgrTimeSyncIF:
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
+                        
                         msg_if = self.msg_if
                                             )
 
@@ -163,7 +159,7 @@ class ConnectMgrTimeSyncIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("IF Initialization Complete", 
         
 
     #######################
@@ -174,20 +170,20 @@ class ConnectMgrTimeSyncIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Waiting for connection", 
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Failed to Connect", 
         else:
-            self.msg_if.pub_info("ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("ready", 
         return self.ready
 
     def wait_for_services(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Waiting for status connection", 
         timer = 0
         time_start = nepi_sdk.get_time()
         connected = False
@@ -200,9 +196,9 @@ class ConnectMgrTimeSyncIF:
                 connected = (ret is not None)
             timer = nepi_sdk.get_time() - time_start
         if connected == False:
-            self.msg_if.pub_info("Failed to connect to status msg", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Failed to connect to status msg", 
         else:
-            self.msg_if.pub_info("Status Connected", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Status Connected", 
         return connected
 
 

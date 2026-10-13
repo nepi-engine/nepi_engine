@@ -30,7 +30,7 @@ import yaml
 
 from nepi_sdk import nepi_sdk
 log_name = "nepi_keys"
-logger = nepi_sdk.logger(log_name=log_name)
+logger = nepi_sdk.logger()
 
 PBKDF2_ITERATIONS = 260000
 

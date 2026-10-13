@@ -97,7 +97,7 @@ class PointcloudImgPub:
 
         ##############################
         # Create Msg Class
-        self.msg_if = MsgIF(log_name = self.class_name)
+        self.msg_if = MsgIF()
         self.msg_if.pub_info("Starting IF Initialization Processes")
 
         ##############################
@@ -187,8 +187,6 @@ class PointcloudImgPub:
                         init_overlay_text_list = [],
                         save_data_if = self.save_data_if,
                         navpose_namespace = self.navpose_namespace,
-                        log_name = self.data_product,
-                        log_name_list = [],
                         msg_if = self.msg_if
                         )
 

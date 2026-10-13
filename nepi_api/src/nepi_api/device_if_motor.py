@@ -86,8 +86,6 @@ class MotorsDeviceIF:
                  stopMotorFunction = None,
                  gotoRotationFunction = None,
                  setRotationSpeedFunction = None,
-                log_name = None,
-                log_name_list = [],
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -103,11 +101,7 @@ class MotorsDeviceIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.log_name_list = copy.deepcopy(log_name_list)
-        self.log_name_list.append(self.class_name)
-        if log_name is not None:
-            self.log_name_list.append(log_name)
-        self.msg_if.pub_info("Starting IF Initialization Processes", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting IF Initialization Processes" )
 
         ##############################
         # Initialize Class Variables
@@ -133,7 +127,7 @@ class MotorsDeviceIF:
 
         ##################################################
         ### Node Class Setup
-        self.msg_if.pub_info("Starting Node IF Initialization", log_name_list = self.log_name_list)
+        self.msg_if.pub_info("Starting Node IF Initialization" )
 
         # Configs Config Dict ####################
         self.CONFIGS_DICT = {
@@ -221,7 +215,7 @@ class MotorsDeviceIF:
                         services_dict = None,
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
-                        log_name_list = self.log_name_list,
+                        
                             msg_if = self.msg_if
                         )
         self.node_if.wait_for_ready()
@@ -238,7 +232,7 @@ class MotorsDeviceIF:
         ##############################
         # Complete Initialization
         self.ready = True
-        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete", log_name_list = self.log_name_list)
+        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete" )
         ###############################
 
 
@@ -264,7 +258,7 @@ class MotorsDeviceIF:
             bool: True if the interface became ready, False if the timeout was reached.
         """
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for ready", log_name_list = self.log_name_list)
+            self.msg_if.pub_info("Waiting for ready" )
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
@@ -351,11 +345,11 @@ class MotorsDeviceIF:
         self.publish_status()
 
     def resetCb(self, do_updates = True):
-        self.msg_if.pub_warn("Resetting", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Resetting" )
         self.initCb(do_updates = do_updates)
 
     def factoryResetCb(self, do_updates = True):
-        self.msg_if.pub_warn("Factory Resetting", log_name_list = self.log_name_list)
+        self.msg_if.pub_warn("Factory Resetting" )
         self.initCb(do_updates = do_updates)
 
     ### Status publish timer callback
