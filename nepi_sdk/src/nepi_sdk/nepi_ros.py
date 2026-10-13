@@ -393,6 +393,11 @@ class logger:
 
     msg_pub = None
     msg_pub_sys = None
+
+    # ANSI color codes used to make console debug output stand out from info
+    DEBUG_COLOR = "\033[32m"   # green (ROS convention for debug)
+    COLOR_RESET = "\033[0m"
+    
     #######################
     ### IF Initialization
     def __init__(self,  namespace = None, ignore_functions = [], ignore_files = []):

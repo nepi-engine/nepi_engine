@@ -1580,7 +1580,7 @@ class ProcessIF:
         if cur_value is not None:
             controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
             update_value = nepi_controls.get_value(controls_dict, control_name )
-            self.msg_if.pub_info("Checking for update: " + str([controls_dict,update_value])  )
+            #self.msg_if.pub_info("Checking for update: " + str([controls_dict,update_value])  )
             if cur_value != update_value:
                 self.set_control_value(control_name, update_value)
                 self.publish_status()
