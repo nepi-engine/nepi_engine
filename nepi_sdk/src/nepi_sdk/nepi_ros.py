@@ -80,7 +80,7 @@ DEFUALT_CFG_FOLDERS = ['/mnt/nepi_storage/user_cfg','/mnt/nepi_config/system_cfg
 #######################
 ### Log Utility Functions
 
-IGNORE_CLASSES = ['MsgIF']
+IGNORE_CLASSES = ['logger','MsgIF']
 def get_message_classes():
     """Returns a list of classes that called this function in the execution chain."""
     classes = []
@@ -99,7 +99,7 @@ def get_message_classes():
             frame_class = frame.f_locals['cls']
         if frame_class is not None:
             try:
-              caller_class = str(frame_class.__name__).rsplit('.', 1)[0]
+              caller_class = str(frame_class.__name__).rsplit('.', 1)[0].strip()
               if caller_class not in IGNORE_CLASSES or len(IGNORE_CLASSES) == 0:
                 if caller_class not in classes:
                   classes.append(caller_class)
@@ -380,7 +380,7 @@ def log_msg_debug(msg, throttle_s = None):
 class logger:
 
     ignore_functions = ['__init__','_logSelfMsg','<module>']
-    ignore_functions = ignore_functions + ['log','log_msg','log_info','log_warn','log_error','log_debug',]
+    ignore_functions = ignore_functions + ['log','logger','log_msg','log_info','log_warn','log_error','log_debug',]
     ignore_files = ['log_msg','node_if','connect_node_if','logger','Logger']
 
     update_delay = 60
@@ -397,7 +397,7 @@ class logger:
     # ANSI color codes used to make console debug output stand out from info
     DEBUG_COLOR = "\033[32m"   # green (ROS convention for debug)
     COLOR_RESET = "\033[0m"
-    
+
     #######################
     ### IF Initialization
     def __init__(self,  namespace = None, ignore_functions = [], ignore_files = []):

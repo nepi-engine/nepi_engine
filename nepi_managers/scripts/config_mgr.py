@@ -329,7 +329,7 @@ class config_mgr(object):
             self.msg_if.pub_warn("Loading Params for namespace: " + namespace  + " from file " + file_pathname )
             params_dict = None
             try:
-                params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace = [self.class_name])
+                params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace)
                 self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()))
             except Exception as e:
                 self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
@@ -512,7 +512,7 @@ class config_mgr(object):
                 success = False
                 for source_pathname in source_pathnames:
                     if os.path.exists(source_pathname):
-                        #self.msg_if.pub_warn("Loading config for namespace: " + restore_namespace + " from: " + str(source_pathname))
+                        self.msg_if.pub_warn("Loading config for namespace: " + restore_namespace + " from: " + str(source_pathname))
                         success = self.update_from_file(source_pathname, restore_namespace)
                         if success == True:
                             self.msg_if.pub_warn("Loaded saved config for namespace: " + restore_namespace + " from: " + str(source_pathname))
