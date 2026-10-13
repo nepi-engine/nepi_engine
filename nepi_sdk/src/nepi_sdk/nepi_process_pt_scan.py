@@ -32,7 +32,6 @@ from nepi_interfaces.msg import DevicePTXStatus
 from nepi_interfaces.msg import NavPose
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_process_scan"
 logger = Logger( )
 
 

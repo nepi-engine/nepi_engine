@@ -41,7 +41,6 @@ from nepi_sdk import nepi_img
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_lines"
 logger = Logger( )
 
 BLANK_LINE_DICT = dict()

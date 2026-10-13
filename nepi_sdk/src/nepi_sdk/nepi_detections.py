@@ -37,7 +37,6 @@ from nepi_interfaces.msg import Detection, Detections
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_detections"
 logger = Logger( )
 
 
