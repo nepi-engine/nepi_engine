@@ -33,7 +33,6 @@ from nepi_interfaces.msg import Control, SettingsStatus
 
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_settings"
 logger = Logger( )
 
 

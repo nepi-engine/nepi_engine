@@ -30,7 +30,6 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_nav"
 logger = Logger( )
 
 REBACK_SLEEP_MS = 5

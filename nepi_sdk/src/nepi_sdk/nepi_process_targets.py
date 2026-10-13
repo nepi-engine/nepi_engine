@@ -38,7 +38,6 @@ from nepi_interfaces.msg import NavPose
 from nepi_api.process_if import ProcessIF
 
 from nepi_sdk.nepi_sdk import logger as Logger
-log_name = "nepi_process_targets"
 logger = Logger( )
 
 
