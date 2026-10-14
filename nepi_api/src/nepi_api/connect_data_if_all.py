@@ -247,9 +247,9 @@ class ConnectImagesAllIF:
                 'msg': Bool,
                 'qsize': 1,
             },
-            'all_overlay_crosshair_messages': {
+            'all_overlay_crosshair_text': {
                 'namespace': self.all_namespace,
-                'topic': 'overlay_crosshair_messages',
+                'topic': 'overlay_crosshair_text',
                 'msg': Bool,
                 'qsize': 1,
             },
@@ -343,9 +343,9 @@ class ConnectImagesAllIF:
                 'msg': Bool,
                 'qsize': 1,
             },
-            'all_overlay_target_messages': {
+            'all_overlay_target_text': {
                 'namespace': self.all_namespace,
-                'topic': 'overlay_target_messages',
+                'topic': 'overlay_target_text',
                 'msg': Bool,
                 'qsize': 1,
             },
@@ -778,13 +778,13 @@ class ConnectImagesAllIF:
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_overlay_crosshair_messages(self, enable):
+    def set_overlay_crosshair_text(self, enable):
         """Enable or disable crosshair messages coordinate labels on every IDX image output.
 
         Args:
             enable (bool): True to overlay crosshair messages coordinates, False to hide them.
         """
-        pub_name = 'all_overlay_crosshair_messages'
+        pub_name = 'all_overlay_crosshair_text'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
@@ -967,13 +967,13 @@ class ConnectImagesAllIF:
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_overlay_target_messages(self, enable):
+    def set_overlay_target_text(self, enable):
         """Enable or disable target message labels on every IDX image output.
 
         Args:
             enable (bool): True to overlay target messages, False to hide them.
         """
-        pub_name = 'all_overlay_target_messages'
+        pub_name = 'all_overlay_target_text'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 

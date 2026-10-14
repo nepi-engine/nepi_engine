@@ -584,7 +584,7 @@ class NavPoseIF:
                 if key in navpose_dict.keys():
                     np_dict[key] = navpose_dict[key]
             
-            self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = 5.0)
+            #self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = 30)
 
             if timestamp == None:
                 timestamp = nepi_utils.get_time()
@@ -593,7 +593,7 @@ class NavPoseIF:
 
             current_time = nepi_utils.get_time()
             get_latency = (current_time - timestamp)
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(get_latency) , throttle_s = 5.0)
+            #self.msg_if.pub_debug("Get Data Latency: {:.2f}".format(get_latency) , throttle_s = 30)
 
             # Start Img Pub Process
             start_time = nepi_utils.get_time()   
@@ -738,7 +738,7 @@ class NavPoseIF:
             current_time = nepi_utils.get_time()
             pub_latency = (current_time - timestamp)
             process_time = (current_time - start_time)
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(pub_latency) , throttle_s = 5.0)
+            #self.msg_if.pub_debug("Get Data Latency: {:.2f}".format(pub_latency) , throttle_s = 30)
 
             # Update Pub Stats
             if self.last_pub_time is None:
@@ -1038,7 +1038,7 @@ class BaseImageIF:
             overlay_crosshair_names = False,
             overlay_crosshair_pixels = False,
             overlay_crosshair_degrees = False,
-            overlay_crosshair_messages = False,
+            overlay_crosshair_text = False,
             crosshairs_dict = dict(),
             
             targets_enabled = False,
@@ -1050,7 +1050,7 @@ class BaseImageIF:
             overlay_target_names = False,
             overlay_target_pixels = False,
             overlay_target_degrees = False,
-            overlay_target_messages = False,
+            overlay_target_text = False,
             targets_dict = dict(),
     )
 
@@ -1834,10 +1834,10 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairDegreesCb
             },
-            self.node_if_prefix + 'overlay_crosshair_messages': {
+            self.node_if_prefix + 'overlay_crosshair_text': {
                 'msg': Bool,
                 'namespace': self.namespace,
-                'topic': 'overlay_crosshair_messages',
+                'topic': 'overlay_crosshair_text',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairMessagesCb
             },
@@ -2014,10 +2014,10 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setrOverlayTargetDegreesCb
             },
-            self.node_if_prefix + 'overlay_target_messages': {
+            self.node_if_prefix + 'overlay_target_text': {
                 'msg': Bool,
                 'namespace': self.namespace,
-                'topic': 'overlay_target_messages',
+                'topic': 'overlay_target_text',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetMessagesCb
             },
@@ -2343,10 +2343,10 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairDegreesCb
             },
-            self.node_if_prefix + 'all_overlay_crosshair_messages': {
+            self.node_if_prefix + 'all_overlay_crosshair_text': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
-                'topic': 'overlay_crosshair_messages',
+                'topic': 'overlay_crosshair_text',
                 'qsize': 5,
                 'callback': self._setrOverlayCrosshairMessagesCb
             },
@@ -2456,10 +2456,10 @@ class BaseImageIF:
                 'qsize': 5,
                 'callback': self._setrOverlayTargetDegreesCb
             },
-            self.node_if_prefix + 'all_overlay_target_messages': {
+            self.node_if_prefix + 'all_overlay_target_text': {
                 'msg': Bool,
                 'namespace': self.all_namespace,
-                'topic': 'overlay_target_messages',
+                'topic': 'overlay_target_text',
                 'qsize': 5,
                 'callback': self._setrOverlayTargetMessagesCb
             },
@@ -3398,7 +3398,7 @@ class BaseImageIF:
                 current_time = nepi_utils.get_time()
                 latency = (current_time - timestamp)
                 self.status_msg.get_latency_time = latency
-                #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency) , throttle_s = 5.0)
+                #self.msg_if.pub_debug("Get Data Latency: {:.2f}".format(latency) , throttle_s = 30)
 
                 # Start Img Pub Process
                 start_time = nepi_utils.get_time()   
@@ -3455,7 +3455,7 @@ class BaseImageIF:
                         overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
                         overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
                         overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
-                        overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
+                        overlay_crosshair_text = self.overlays_dict['overlay_crosshair_text']
                         if crosshair_len > 0 and crosshairs_enabled == True:
                             #self.msg_if.pub_warn("Rendering image overlays: " + str(self.overlays_dict)  , throttle_s = 5)
                             for crosshair_name in crosshairs_dict.keys():
@@ -3527,7 +3527,7 @@ class BaseImageIF:
                                     overlay_text.append(str(x_pixel) + ',' + str(y_pixel))
                                 if overlay_crosshair_degrees == True:
                                     overlay_text.append(str(round(x_deg_offset,0)) + ',' + str(round(y_deg_offset,0)))
-                                if overlay_crosshair_messages == True and len(crosshair_msg) > 0:
+                                if overlay_crosshair_text == True and len(crosshair_msg) > 0:
                                     overlay_text.append(str(crosshair_msg))
 
                                 crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
@@ -3550,7 +3550,7 @@ class BaseImageIF:
                         overlay_target_names = self.overlays_dict['overlay_target_names']
                         overlay_target_pixels = self.overlays_dict['overlay_target_pixels']
                         overlay_target_degrees = self.overlays_dict['overlay_target_degrees']
-                        overlay_target_messages = self.overlays_dict['overlay_target_messages']
+                        overlay_target_text = self.overlays_dict['overlay_target_text']
                         if target_len > 0 and targets_enabled == True:
                             
                             for target_name in targets_dict.keys():
@@ -3613,7 +3613,7 @@ class BaseImageIF:
                                     overlay_text.append(str(x_pixel) + ',' + str(y_pixel))
                                 if overlay_target_degrees == True:
                                     overlay_text.append(str(round(x_deg_offset,0)) + ',' + str(round(y_deg_offset,0)))
-                                if overlay_target_messages == True and len(target_msg) > 0:
+                                if overlay_target_text == True and len(target_msg) > 0:
                                     overlay_text.append(str(target_msg))
 
                                 targets_size_ratio = self.overlays_dict['targets_size_ratio']
@@ -4696,13 +4696,13 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
-    def set_overlay_crosshair_messages(self,enabled):
+    def set_overlay_crosshair_text(self,enabled):
         """Enable or disable the crosshair messages overlays.
 
         Args:
             enabled (bool): True to show crosshairs messages, False to hide it.
         """
-        self.overlays_dict['overlay_crosshair_messages'] = enabled
+        self.overlays_dict['overlay_crosshair_text'] = enabled
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
@@ -4924,13 +4924,13 @@ class BaseImageIF:
         if self.node_if is not None:
             self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
-    def set_overlay_target_messages(self,enabled):
+    def set_overlay_target_text(self,enabled):
         """Enable or disable the target messages overlays.
 
         Args:
             enabled (bool): True to show targets messages, False to hide it.
         """
-        self.overlays_dict['overlay_target_messages'] = enabled
+        self.overlays_dict['overlay_target_text'] = enabled
         self.publish_status()
         self.needs_update()
         if self.node_if is not None:
@@ -5374,7 +5374,7 @@ class BaseImageIF:
                 self.status_msg.overlay_crosshair_names = self.overlays_dict['overlay_crosshair_names']
                 self.status_msg.overlay_crosshair_pixels = self.overlays_dict['overlay_crosshair_pixels']
                 self.status_msg.overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
-                self.status_msg.overlay_crosshair_messages = self.overlays_dict['overlay_crosshair_messages']
+                self.status_msg.overlay_crosshair_text = self.overlays_dict['overlay_crosshair_text']
                 self.status_msg.num_crosshairs = len(list(crosshairs_dict.keys()))
                 self.status_msg.crosshairs = crosshairs_msg_list
 
@@ -5440,7 +5440,7 @@ class BaseImageIF:
                 self.status_msg.overlay_target_names = self.overlays_dict['overlay_target_names']
                 self.status_msg.overlay_target_pixels = self.overlays_dict['overlay_target_pixels']
                 self.status_msg.overlay_target_degrees = self.overlays_dict['overlay_target_degrees']
-                self.status_msg.overlay_target_messages = self.overlays_dict['overlay_target_messages']
+                self.status_msg.overlay_target_text = self.overlays_dict['overlay_target_text']
                 self.status_msg.num_targets = len(list(targets_dict.keys()))
                 self.status_msg.targets = targets_msg_list
 
@@ -6297,7 +6297,7 @@ class BaseImageIF:
 
     def _setrOverlayCrosshairMessagesCb(self,msg):
         enabled = msg.data
-        self.set_overlay_crosshair_messages(enabled)
+        self.set_overlay_crosshair_text(enabled)
 
 
     def _addCrosshairPixelCb(self,msg):
@@ -6404,7 +6404,7 @@ class BaseImageIF:
 
     def _setrOverlayTargetMessagesCb(self,msg):
         enabled = msg.data
-        self.set_overlay_target_messages(enabled)
+        self.set_overlay_target_text(enabled)
 
 
     def _addTargetPixelCb(self,msg):
@@ -7524,7 +7524,7 @@ class DepthMapIF:
             current_time = nepi_utils.get_time()
             latency = (current_time - timestamp)
             self.status_msg.get_latency_time = latency
-            self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency) , throttle_s = 5.0)
+            #self.msg_if.pub_debug("Get Data Latency: {:.2f}".format(latency) , throttle_s  = 30)
 
             # Start Img Pub Process
             start_time = nepi_utils.get_time()   
@@ -8881,7 +8881,7 @@ class PointcloudIF:
             current_time = nepi_utils.get_time()
             latency = (current_time - timestamp)
             self.status_msg.get_latency_time = latency
-            #self.msg_if.pub_debug("Get Img Latency: {:.2f}".format(latency) , throttle_s = 5.0)
+            #self.msg_if.pub_debug("Get Data Latency: {:.2f}".format(latency) , throttle_s = 5.0)
 
             # Start Pub Process. Timed from here so process_time covers the process controls
             # below as well as the message conversion and publish.

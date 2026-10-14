@@ -1065,9 +1065,9 @@ class ConnectBaseImageIF(ConnectDataIF):
                 'msg': Bool,
                 'qsize': 1,
             },
-            self.node_if_prefix + 'image_overlay_crosshair_messages': {
+            self.node_if_prefix + 'image_overlay_crosshair_text': {
                 'namespace': 'unknown',
-                'topic': 'overlay_crosshair_messages',
+                'topic': 'overlay_crosshair_text',
                 'msg': Bool,
                 'qsize': 1,
             },
@@ -1163,9 +1163,9 @@ class ConnectBaseImageIF(ConnectDataIF):
                 'msg': Bool,
                 'qsize': 1,
             },
-            self.node_if_prefix + 'image_overlay_target_messages': {
+            self.node_if_prefix + 'image_overlay_target_text': {
                 'namespace': 'unknown',
-                'topic': 'overlay_target_messages',
+                'topic': 'overlay_target_text',
                 'msg': Bool,
                 'qsize': 1,
             },
@@ -1916,7 +1916,7 @@ class ConnectBaseImageIF(ConnectDataIF):
             return False
         return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_crosshair_degrees', Bool(enable))
 
-    def set_overlay_crosshair_messages(self, enable):
+    def set_overlay_crosshair_text(self, enable):
         """Enable or disable crosshair message labels.
 
         Args:
@@ -1928,7 +1928,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_crosshair_messages', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_crosshair_text', Bool(enable))
 
     def set_click_crosshair(self, enable):
         """Enable or disable click-driven crosshair placement.
@@ -2139,7 +2139,7 @@ class ConnectBaseImageIF(ConnectDataIF):
             return False
         return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_target_degrees', Bool(enable))
 
-    def set_overlay_target_messages(self, enable):
+    def set_overlay_target_text(self, enable):
         """Enable or disable target message labels.
 
         Args:
@@ -2151,7 +2151,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         """
         if self.node_if is None or self.connected == False:
             return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_target_messages', Bool(enable))
+        return self.node_if.publish_pub(self.node_if_prefix + 'image_overlay_target_text', Bool(enable))
 
     def set_click_target(self, enable):
         """Enable or disable click-driven target placement.

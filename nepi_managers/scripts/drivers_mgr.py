@@ -122,7 +122,7 @@ class NepiDriversMgr(object):
   def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
-        nepi_sdk.sleep(1)
+        nepi_sdk.sleep(5)
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = os.path.join(self.base_namespace,self.node_name)
@@ -150,12 +150,12 @@ class NepiDriversMgr(object):
     
         self.msg_if.pub_warn("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()    
-        
+        self.msg_if.pub_warn("Got config folders: " + str(system_folders))
         ##############################
         # Wait for System Info
         self.msg_if.pub_info("Waiting for nepi config info")
         self.nepi_config = nepi_system.get_nepi_config()
-        #self.msg_if.pub_warn("Got NEPI config: " + str(self.nepi_config))
+        self.msg_if.pub_warn("Got NEPI config: " + str(self.nepi_config))
 
         ##############################
         # Initialize Class Variables

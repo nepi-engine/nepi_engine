@@ -80,7 +80,38 @@ DEFUALT_CFG_FOLDERS = ['/mnt/nepi_storage/user_cfg','/mnt/nepi_config/system_cfg
 #######################
 ### Log Utility Functions
 
-IGNORE_CLASSES = ['MsgIF']
+IGNORE_CLASSES = ['logger','MsgIF']
+
+def get_message_class():
+    """Returns a list of classes that called this function in the execution chain."""
+    classes = []
+    
+    # Get the current call stack (excluding this function's frame)
+    frames = inspect.stack()[1:]
+    
+    for frame_info in frames:
+        frame = frame_info.frame
+        frame_class = None
+        # Check if 'self' is in local variables (indicates an instance method call)
+        if 'self' in frame.f_locals:
+            frame_class = frame.f_locals['self'].__class__
+        # Check if 'cls' is in local variables (indicates a class method call)
+        elif 'cls' in frame.f_locals and isinstance(frame.f_locals['cls'], type):
+            frame_class = frame.f_locals['cls']
+        if frame_class is not None:
+            try:
+              caller_class = str(frame_class.__name__).rsplit('.', 1)[0].strip()
+              if caller_class not in IGNORE_CLASSES or len(IGNORE_CLASSES) == 0:
+                if caller_class not in classes:
+                  classes.append(caller_class)
+            except:
+              pass
+
+    msg_class = 'UKNOWN'
+    if len(classes) > 0:
+       msg_class = classes[-1]
+    return msg_class
+
 def get_message_classes():
     """Returns a list of classes that called this function in the execution chain."""
     classes = []
@@ -99,7 +130,7 @@ def get_message_classes():
             frame_class = frame.f_locals['cls']
         if frame_class is not None:
             try:
-              caller_class = str(frame_class.__name__).rsplit('.', 1)[0]
+              caller_class = str(frame_class.__name__).rsplit('.', 1)[0].strip()
               if caller_class not in IGNORE_CLASSES or len(IGNORE_CLASSES) == 0:
                 if caller_class not in classes:
                   classes.append(caller_class)
@@ -110,43 +141,52 @@ def get_message_classes():
 
 def get_msg_uids(ignore_files = [], ignore_functions = []):
     # Get Msg ID
-    uid = ''
-    stack = inspect.stack()
-    frame = stack[1]
+
     frame_dict = dict()
     msg_uids = []
 
     function_name = inspect.currentframe().f_code.co_name
     ignore_functions.append(function_name)
-    for i, frame in enumerate(stack):
+    try:
+      stack = inspect.stack()
+      frame = stack[1]
+      for i, frame in enumerate(stack):
 
-        try:
-            file_path = frame.filename
-            if 'nepi' in file_path or 'nepi_system' in file_path:
-                file_name = os.path.basename(frame.filename).split('.')[0]
-                if file_name not in ignore_files:
-                    if file_name not in frame_dict.keys():
-                        frame_dict[file_name] = ''
-                
-                    function_name = frame.function
-                    if function_name not in ignore_functions:
-                        if function_name not in frame_dict[file_name]:
-                            if len(frame_dict[file_name]) == 0:
-                              frame_dict[file_name] = frame_dict[file_name] + str(function_name)
-                            else:
-                              frame_dict[file_name] = frame_dict[file_name] + str("/" + function_name)
-        except Exception as e:
-            log_msg_warn('Failed to get function: ' + str(e))
-            pass
+          try:
+              file_path = frame.filename
+              if 'nepi' in file_path or 'nepi_system' in file_path:
+                  file_name = os.path.basename(frame.filename).split('.')[0]
+                  if file_name not in ignore_files:
+                      if file_name not in frame_dict.keys():
+                          frame_dict[file_name] = ''
+                  
+                      function_name = frame.function
+                      if function_name not in ignore_functions:
+                          if function_name not in frame_dict[file_name]:
+                              if len(frame_dict[file_name]) == 0:
+                                frame_dict[file_name] = frame_dict[file_name] + str(function_name)
+                              else:
+                                frame_dict[file_name] = frame_dict[file_name] + str("/" + function_name)
+          except Exception as e:
+              log_msg_warn('Failed to get function: ' + str(e))
+              pass
 
-    for i, key in enumerate(frame_dict.keys()):
-        if len(frame_dict[key]) > 0:
-          entry = str(key) + '/' + str(frame_dict[key])
-          msg_uids.append(entry)
+      for i, key in enumerate(frame_dict.keys()):
+          if len(frame_dict[key]) > 0:
+            try:
+              entry = str(key) + '/' + str(frame_dict[key])
+              msg_uids.append(entry)
+            except:
+               pass
 
-
-
-    return msg_uids
+    except Exception as e:
+        #rospy.logerr('Failed to get frame from stack: '  + str(stack) + " : " + str(e))
+        pass
+    if msg_uids is None:
+       msg_uids = []
+       #rospy.logerr('Got None msg_uids from stack: '  + str(stack))
+    rmsg_uids = msg_uids[::-1]
+    return rmsg_uids
       
 
 def remove_msg_numbers(msg):
@@ -183,19 +223,19 @@ def clean_throttle_dict(throttle_dict, purge_time = 60):
     cur_time = get_time()
     purge_list = []
     try:
-        for uid in throttle_dict.keys():
+        for msg_key in throttle_dict.keys():
             try:
-                [throttle_s,last_time] = throttle_dict[uid]
+                [throttle_s,last_time] = throttle_dict[msg_key]
                 if cur_time - last_time > purge_time:
-                    purge_list.append(uid)
+                    purge_list.append(msg_key)
             except:
-                purge_list.append(uid)
+                purge_list.append(msg_key)
     except:
         throttle_dict = dict()
 
-    for uid in purge_list:
+    for msg_key in purge_list:
         try:
-            del throttle_dict[uid]
+            del throttle_dict[msg_key]
         except:
             pass
     return throttle_dict
@@ -224,6 +264,10 @@ def process_msg(msg, msg_list = [], roundf = 3):
     return msg_str
 
 
+def get_debug_namespace(base_namespace = '/nepi/device1'):
+    param_namespace = create_namespace(base_namespace,'debug_namespace')
+    debug_mode = get_param(param_namespace,fallback_param = 'NONE')
+    return debug_mode
 
 def get_debug_mode(base_namespace = '/nepi/device1'):
     param_namespace = create_namespace(base_namespace,'debug_mode')
@@ -237,56 +281,68 @@ def set_debug_log(enabled):
   else:
     rospy.logger.setLevel(logging.INFO)
 
-def log_msg(msg, level = "None", throttle_s = None, prefix = ""):
+def log_msg(msg, level = "None", throttle_s = None, prefix = "", debug = False):
   #if msg is None:
       #msg = "nepi_sdk log_msg got None msg"
+  msg_str = msg
   if msg is not None:
     msg_str = prefix + str(msg)
     level = level.lower()
     if level == 'debug':
-      msg_str = log_msg_debug(msg_str, throttle_s = throttle_s)
+      msg_str = log_msg_debug(msg_str, throttle_s = throttle_s, debug = debug)
     elif level == 'warn':
-      msg_str = log_msg_warn(msg_str, throttle_s = throttle_s)
+      msg_str = log_msg_warn(msg_str, throttle_s = throttle_s, debug = debug)
     elif level == 'error':
-      msg_str = log_msg_error(msg_str, throttle_s = throttle_s)
+      msg_str = log_msg_error(msg_str, throttle_s = throttle_s, debug = debug)
     elif level == 'fatal':
-      msg_str = log_msg_fatal(msg_str, throttle_s = throttle_s)
+      msg_str = log_msg_fatal(msg_str, throttle_s = throttle_s, debug = debug)
     else:
-      msg_str = log_msg_info(msg_str, throttle_s = throttle_s)
-    return msg_str
+      msg_str = log_msg_info(msg_str, throttle_s = throttle_s, debug = debug)
+  return msg_str
 
-def log_msg_info(msg, throttle_s = None):
+def log_msg_info(msg, throttle_s = None, debug = False):
+  log_name_msg = ''
   classes_list = get_message_classes()
   if len(classes_list):
+    msg_classes = classes_list
+    if debug == False and len(classes_list) > 1:
+       msg_classes = [classes_list[0]]
     try:
-      log_name_msg = str(' : '.join(classes_list)) 
+      log_name_msg = str(' : '.join(msg_classes)) 
     except Exception as e:
-       log_name_msg = ''
-       rospy.logwarn('Failed to convert classes to log_name_msg: ' + str(classes_list) + " : " + str(e))
-
-  caller_name = None
-  try:
-    caller_name = sys._getframe(1).f_code.co_name
-  except:
-     pass
-  if caller_name is not None:
-    caller_str = str(caller_name)
-    if caller_str not in log_name_msg and 'log_' not in caller_str:
-      if log_name_msg.strip():
-        log_name_msg = log_name_msg + ": "
-      log_name_msg = log_name_msg + caller_str
+       rospy.logwarn('Failed to convert classes to log_name_msg: ' + str(msg_classes) + " : " + str(e))
   msg_str = str(msg)
-  if log_name_msg.strip() and log_name_msg != ': ':
-      msg_str = log_name_msg + ": " + msg_str
+  if debug == True:
+    caller_name = None
+    try:
+      caller_name = sys._getframe(1).f_code.co_name
+    except:
+      pass
+    if caller_name is not None:
+      caller_str = str(caller_name)
+      if caller_str not in log_name_msg and 'log_' not in caller_str:
+        if log_name_msg.strip():
+          log_name_msg = log_name_msg + ": "
+        log_name_msg = log_name_msg + caller_str
+    if log_name_msg.strip() and log_name_msg != ': ':
+        msg_str = log_name_msg + ": " + msg_str
   if throttle_s is None:
     rospy.loginfo(msg_str)
   else:
     rospy.loginfo_throttle(throttle_s,msg_str)
   return msg_str
 
-def log_msg_warn(msg, throttle_s = None):
+def log_msg_warn(msg, throttle_s = None, debug = False):
+  log_name_msg = ''
   classes_list = get_message_classes()
-  log_name_msg = str(' : '.join(classes_list)) 
+  if len(classes_list):
+    msg_classes = classes_list
+    if debug == False and len(classes_list) > 1:
+       msg_classes = [classes_list[0]]
+    try:
+      log_name_msg = str(' : '.join(msg_classes)) 
+    except Exception as e:
+       rospy.logwarn('Failed to convert classes to log_name_msg: ' + str(msg_classes) + " : " + str(e))
   caller_name = None
   try:
     caller_name = sys._getframe(1).f_code.co_name
@@ -307,9 +363,17 @@ def log_msg_warn(msg, throttle_s = None):
     rospy.logwarn_throttle(throttle_s,msg_str)
   return msg_str
 
-def log_msg_error(msg, throttle_s = None):
+def log_msg_error(msg, throttle_s = None, debug = False):
+  log_name_msg = ''
   classes_list = get_message_classes()
-  log_name_msg = str(' : '.join(classes_list)) 
+  if len(classes_list):
+    msg_classes = classes_list
+    if debug == False and len(classes_list) > 1:
+       msg_classes = [classes_list[0]]
+    try:
+      log_name_msg = str(' : '.join(msg_classes)) 
+    except Exception as e:
+       rospy.logwarn('Failed to convert classes to log_name_msg: ' + str(msg_classes) + " : " + str(e))
   caller_name = None
   try:
     caller_name = sys._getframe(1).f_code.co_name
@@ -325,14 +389,22 @@ def log_msg_error(msg, throttle_s = None):
   if log_name_msg.strip() and log_name_msg != ': ':
       msg_str = log_name_msg + ": " + msg_str
   if throttle_s is None:
-     rospy.logerror(msg_str)
+     rospy.logerr(msg_str)
   else:
-    rospy.logerror_throttle(throttle_s,msg_str)
+    rospy.logerr_throttle(throttle_s,msg_str)
   return msg_str
 
-def log_msg_fatal(msg, throttle_s = None):
+def log_msg_fatal(msg, throttle_s = None, debug = False):
+  log_name_msg = ''
   classes_list = get_message_classes()
-  log_name_msg = str(' : '.join(classes_list)) 
+  if len(classes_list):
+    msg_classes = classes_list
+    if debug == False and len(classes_list) > 1:
+       msg_classes = [classes_list[0]]
+    try:
+      log_name_msg = str(' : '.join(msg_classes)) 
+    except Exception as e:
+       rospy.logwarn('Failed to convert classes to log_name_msg: ' + str(msg_classes) + " : " + str(e))
   caller_name = None
   try:
     caller_name = sys._getframe(1).f_code.co_name
@@ -354,9 +426,17 @@ def log_msg_fatal(msg, throttle_s = None):
   return msg_str
 
 
-def log_msg_debug(msg, throttle_s = None):
+def log_msg_debug(msg, throttle_s = None, debug = False):
+  log_name_msg = ''
   classes_list = get_message_classes()
-  log_name_msg = str(' : '.join(classes_list)) 
+  if len(classes_list):
+    msg_classes = classes_list
+    if debug == False and len(classes_list) > 1:
+       msg_classes = [classes_list[0]]
+    try:
+      log_name_msg = str(' : '.join(msg_classes)) 
+    except Exception as e:
+       rospy.logwarn('Failed to convert classes to log_name_msg: ' + str(msg_classes) + " : " + str(e))
   caller_name = None
   try:
     caller_name = sys._getframe(1).f_code.co_name
@@ -380,7 +460,7 @@ def log_msg_debug(msg, throttle_s = None):
 class logger:
 
     ignore_functions = ['__init__','_logSelfMsg','<module>']
-    ignore_functions = ignore_functions + ['log','log_msg','log_info','log_warn','log_error','log_debug',]
+    ignore_functions = ignore_functions + ['log','logger','log_msg','log_info','log_warn','log_error','log_debug',]
     ignore_files = ['log_msg','node_if','connect_node_if','logger','Logger']
 
     update_delay = 60
@@ -388,21 +468,30 @@ class logger:
     ln_str = ""
 
     debug_mode = False
+    debug_namespace = 'NONE'
     throttle_dict = dict()
     throttle_busy = False
 
+    msg_class = None
     msg_pub = None
     msg_pub_sys = None
+
+    log_name = None
+    namespace = None
 
     # ANSI color codes used to make console debug output stand out from info
     DEBUG_COLOR = "\033[32m"   # green (ROS convention for debug)
     COLOR_RESET = "\033[0m"
-    
+
     #######################
     ### IF Initialization
-    def __init__(self,  namespace = None, ignore_functions = [], ignore_files = []):
+    def __init__(self, namespace = None, ignore_functions = [], ignore_files = []):
         self.base_namespace = get_base_namespace()
+
+        if namespace is not None:
+          namespace = get_full_namespace(namespace)
         self.namespace = namespace
+
 
         self.ignore_functions = self.ignore_functions + ignore_functions
         self.ignore_files = self.ignore_files + ignore_functions
@@ -426,9 +515,12 @@ class logger:
     ###############################
     # Class Public Methods
     
-    def log(self, msg, msg_list = [], level = "None", throttle_s = None, roundf = 3):
+    def log(self, msg, msg_list = [], level = "None", throttle_s = None, throttle_n = True, roundf = 3):
         
-        if self.debug_mode == False and level == 'debug':
+        if (self.debug_mode == False and level == 'debug'):
+            return
+        if (level == 'debug' and (self.debug_namespace != 'ALL' and self.debug_namespace != self.namespace)):
+            
             return
         elif level == 'None':
           level = 'info'
@@ -449,16 +541,20 @@ class logger:
         
         #############
         msg_uids = get_msg_uids(self.ignore_files,self.ignore_functions)
-        uid = ''
-        msg_len = len(msg_uids)
-        if msg_len > 0:
+        # if msg_uids is None:
+        #   msg_uids = []
+        #   #rospy.logerr('Got None msg_uids from get_msg_uids: '  + str(msg))
+        msg_uid = ''
+        if len(msg_uids) > 0:
             for i, entry in enumerate(msg_uids):
                 if i != 0:
-                    uid = uid + ":"
-                uid = uid + entry
-
-        clean_msg =  remove_msg_numbers(msg).replace(' ','').replace(',','').replace('[]','').replace(']]','')
-        msg_uid = uid + ':' + clean_msg
+                    msg_uid = msg_uid + ":"
+                msg_uid = msg_uid + entry
+        if throttle_n == True:
+          key_msg =  remove_msg_numbers(msg).replace(' ','').replace(',','').replace('[]','').replace(']]','')
+        else:
+           key_msg = msg
+        msg_key = msg_uid + ':' + key_msg
 
 
         #################################
@@ -474,13 +570,13 @@ class logger:
                 if throttle_dict is None:
                     throttle_dict = dict()
                 
-                # print('Got Msg UID: ' + str(msg_uid))
+                # print('Got Msg Throttle Key: ' + str(msg_key))
                 throttle_update = None
-                if msg_uid is not None:
-                    # rospy.logwarn('Got Msg uid: ' + str(msg_uid))
+                if msg_key is not None:
+                    # rospy.logwarn('Got Msg Throttle Key: ' + str(msg_key))
                     cur_time = get_time()
-                    if msg_uid not in throttle_dict.keys():
-                        # rospy.logwarn('New Msg uid: ' + str(msg_uid))
+                    if msg_key not in throttle_dict.keys():
+                        # rospy.logwarn('New Msg Throttle Key: ' + str(msg_key))
                         throttle_update = [throttle_s,cur_time]
                     else:
 
@@ -488,9 +584,9 @@ class logger:
                             msg = None
                         else:
                           try:
-                              last_time = throttle_dict[msg_uid][1]
+                              last_time = throttle_dict[msg_key][1]
                           except Exception as e:
-                              #rospy.logwarn('Failed to get throttle data for uid: ' + str(msg_uid) + " : " + str(e))
+                              #rospy.logwarn('Failed to get throttle data for throttle key: ' + str(msg_key) + " : " + str(e))
                               last_time = 0
                           if (cur_time-last_time) > throttle_s:
                               throttle_update = [throttle_s,cur_time]
@@ -498,7 +594,7 @@ class logger:
                               msg = None
             
                 if throttle_update is not None:
-                    throttle_dict[msg_uid] = throttle_update
+                    throttle_dict[msg_key] = throttle_update
                 self.throttle_dict = throttle_dict
             except:
               pass
@@ -509,32 +605,27 @@ class logger:
 
         msg_str = msg
         pub_str = None
+
+
+        if self.debug_mode == True:
+            if (self.debug_namespace == 'ALL' or self.debug_namespace == self.namespace):
+              msg_str = msg_str +  ' : ' + msg_uid
+              msg_str = msg_str +  ' : throttle_s = ' + str(throttle_s)           
+
         if level != 'debug':
-            pub_str = log_msg(msg_str, level = level)
+            console_str = msg_str
+            pub_str = log_msg(console_str, level = level, debug = self.debug_mode)
+        else:
+            console_str = self.DEBUG_COLOR + msg_str + self.COLOR_RESET # + " : " + str(self.namespace) + " : " + str(self.debug_namespace)
+            pub_str = log_msg(console_str, level = 'info', debug = self.debug_mode)
+            pub_str = pub_str.replace(self.DEBUG_COLOR,'').replace(self.COLOR_RESET,'')
             
-
-    
-
-        elif self.debug_mode == True:
-            # rospy.logdebug output is dropped unless the ROS console log level is
-            # raised to DEBUG (nothing does that), so debug messages never reached
-            # the console. When Debug Mode is on, log at info level so they are
-            # actually visible, and publish to the message topics. When Debug Mode
-            # is off, debug messages are dropped entirely.
-            # Wrap the console copy in a green ANSI color so debug lines stand out
-            # from normal (white) info output. The topic copy is left uncolored so
-            # the RUI message viewer does not show escape codes.
-
-            msg_str = msg_str +  ' : ' + uid
-            msg_str = msg_str +  ' : throttle_s = ' + str(throttle_s)
-            console_str = self.DEBUG_COLOR + msg_str + self.COLOR_RESET
-            pub_str = log_msg(console_str, level = 'info')
-
 
         if pub_str is not None:
           pub_msg = Message()
           pub_msg.level = level
-          pub_msg.message = msg_str
+          pub_msg.message = pub_str
+
           if self.msg_pub_sys is not None:
             try:
               self.msg_pub_sys.publish(pub_msg)
@@ -547,20 +638,20 @@ class logger:
             except:
               pass
     
-    def log_info(self, msg, msg_list = [], throttle_s = None, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'info', throttle_s = throttle_s, roundf = roundf)
+    def log_info(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'info', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
     
-    def log_warn(self, msg, msg_list = [], throttle_s = None, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'warn', throttle_s = throttle_s, roundf = roundf)
+    def log_warn(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'warn', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
     
-    def log_error(self, msg, msg_list = [], throttle_s = None, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'error', throttle_s = throttle_s, roundf = roundf)
+    def log_error(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'error', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
     
-    def log_fatal(self, msg, msg_list = [], throttle_s = None, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'fatal', throttle_s = throttle_s, roundf = roundf)
+    def log_fatal(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'fatal', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
 
-    def log_debug(self, msg, msg_list = [], throttle_s = None, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'debug', throttle_s = throttle_s, roundf = roundf)
+    def log_debug(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
+        self.log(msg, msg_list = msg_list, level = 'debug', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
     
     ###############################
     # Class Private Methods
@@ -572,27 +663,31 @@ class logger:
         
         if self.msg_pub_sys is None:
           try:
-            self.msg_pub_sys = create_publisher(self.namespace + "/messages", Message, queue_size=1)
+            self.msg_pub_sys = create_publisher(self.base_namespace + "/messages", Message, queue_size=1)
           except:
             pass
 
         if self.namespace is None:
           try:
-              self.namespace = get_node_namespace()
+              namespace = get_node_namespace()
+              if 'unnamed' not in namespace:
+                 self.namespace = namespace
           except:
               pass
+        
+
+
         if self.msg_pub is None and self.namespace is not None:
+          msg_namespace = self.namespace
+          # self.msg_class = get_message_class()
+          # msg_namespace = create_namespace(self.namespace,self.msg_class)
           try:
-            self.msg_pub = create_publisher(self.namespace + "/messages", Message, queue_size=1)
+            self.msg_pub = create_publisher(msg_namespace + "/messages", Message, queue_size=1)
           except:
             pass
 
         sleep(5)
         
-
-
-
-
 
     def throttleUpdaterCb(self):
         while not is_shutdown():
@@ -610,8 +705,8 @@ class logger:
 
     def debugUpdaterCb(self):
         while not is_shutdown():
-         
-          self.debug_mode = get_debug_mode()
+          self.debug_namespace = get_debug_namespace(self.base_namespace)
+          self.debug_mode = get_debug_mode(self.base_namespace)
 
           sleep(5)
   
@@ -635,6 +730,8 @@ def get_full_namespace(namespace):
   elif namespace[0] == '~':
     ext_namespace = namespace.replace('~','')
     namespace = os.path.join(get_node_namespace(),ext_namespace)
+  if base_namespace not in namespace:
+     namespace = os.path.join(base_namespace,namespace)
   if namespace[-1] == '/':
     namespace = namespace[:-1]
 

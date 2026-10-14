@@ -114,7 +114,7 @@ BASE_CONTROLS_DICT = dict(
             # OPTIONAL
             'display_name':'Pan Limits (Deg)', 'display_labels':['Min','Max'], 'description':' Scan Limits in Degs', 'display_bounds': False, 'display_hidden':False, 'round_display': 0, 'display_row': True},
 
-        tilt_scan = {"type":"Toggle", "value":False,
+        tilt_scan = {"type":"Toggle", "value": False,
                    # OPTIONAL
                    'display_name':'Tilt Enable', 'description':'Scan in Tilt Axis', 'display_hidden':False}, 
 
@@ -194,14 +194,14 @@ def scan_1_process(data_dict, controls_dict, states_dict, results_dict, if_dict)
     pan_scan = controls_values_dict.get('pan_scan', True)
     controls_dict = nepi_controls.set_hidden(controls_dict,'pan_speed',pan_scan == False)
     controls_dict = nepi_controls.set_hidden(controls_dict,'pan_limits',pan_scan == False)
-    pan_enabled = nepi_controls.get_value(controls_dict,'pan_scan', False)
+    pan_enabled = nepi_controls.get_value(controls_dict,'pan_scan')
     pan_speed_ratio = nepi_controls.get_value(controls_dict,'pan_speed')
 
 
     tilt_scan = controls_values_dict.get('tilt_scan', True)
     controls_dict = nepi_controls.set_hidden(controls_dict,'tilt_speed',tilt_scan == False)
     controls_dict = nepi_controls.set_hidden(controls_dict,'tilt_limits',tilt_scan == False)
-    tilt_enabled = nepi_controls.get_value(controls_dict,'tilt_scan', False)
+    tilt_enabled = nepi_controls.get_value(controls_dict,'tilt_scan')
     tilt_speed_ratio = nepi_controls.get_value(controls_dict,'tilt_speed')
 
     #logger.log_warn("Got Pan Tilt Speed Ratios: " + str([pan_speed_ratio,tilt_speed_ratio]), throttle_s = 5)

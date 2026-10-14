@@ -85,8 +85,8 @@ class NavPoseMgr(object):
 
 
 
-    NAVPOSE_COMPONENT_NAMES = ['navpose_update','navpose_init','navpose_offset','navpose_reset']
-    NAVPOSE_COMPONENT_TOPICS = ['update_topic','init_topic','offset_topic','reset_topic']
+    NAVPOSE_COMPONENT_NAMES = ['navpose_init','navpose_update','navpose_offset','navpose_reset']
+    NAVPOSE_COMPONENT_TOPICS = ['init_topic','update_topic','offset_topic','reset_topic']
     
     ZERO_TRANSFORM_DICT = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
 
@@ -277,7 +277,7 @@ class NavPoseMgr(object):
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
-        nepi_sdk.sleep(1)
+        nepi_sdk.sleep(5)
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()

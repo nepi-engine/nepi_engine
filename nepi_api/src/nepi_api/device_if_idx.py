@@ -1795,7 +1795,7 @@ class IDXDeviceIF:
             self.status_msg.rtsp_username = rtsp_username
             self.status_msg.rtsp_password = rtsp_password
 
-        self.msg_if.pub_debug("Created status msg: " + str(self.status_msg))
+        #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = -1)
         if self.node_if is not None:
             self.node_if.publish_pub('status_pub',self.status_msg)
     

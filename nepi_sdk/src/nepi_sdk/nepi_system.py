@@ -53,9 +53,9 @@ def set_nepi_config(value):
 
 ##########################
 
-def get_admin_mode(timeout = 1000):
+def get_admin_mode():
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'admin_mode')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout)
+    data = nepi_sdk.get_param(param_namespace, False)
     return data
 
 def set_admin_mode(value):
@@ -63,9 +63,9 @@ def set_admin_mode(value):
     success = nepi_sdk.set_param(param_namespace, value)
     return success
 
-def get_develop_mode(timeout = 1000):
+def get_develop_mode():
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'develop_mode')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout)
+    data = nepi_sdk.get_param(param_namespace, False)
     return data
 
 def set_develop_mode(value):
@@ -73,9 +73,9 @@ def set_develop_mode(value):
     success = nepi_sdk.set_param(param_namespace, value)
     return success
 
-def get_debug_mode(timeout = 1000):
+def get_debug_mode():
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_mode')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout)
+    data = nepi_sdk.get_param(param_namespace, False)
     return data
 
 def set_debug_mode(value):
@@ -83,10 +83,19 @@ def set_debug_mode(value):
     success = nepi_sdk.set_param(param_namespace, value)
     return success
 
+def get_debug_namespace():
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_namespace')
+    data = nepi_sdk.get_param(param_namespace, 'ALL')
+    return data
 
-def get_managers_running(timeout = 1000):
+def set_debug_namespace(value):
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_namespace')
+    success = nepi_sdk.set_param(param_namespace, str(value))
+    return success
+
+def get_managers_running():
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'managers_running')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout)
+    data = nepi_sdk.get_param(param_namespace, [])
     return data
 
 def set_managers_running(value):
@@ -94,9 +103,9 @@ def set_managers_running(value):
     success = nepi_sdk.set_param(param_namespace, value)
     return success
 
-def get_user_restrictions(timeout = 1000):
+def get_user_restrictions():
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'user_restrictions')
-    data = nepi_sdk.wait_for_param(param_namespace, timeout = timeout)
+    data = nepi_sdk.get_param(param_namespace, [])
     return data
 
 def set_user_restrictions(value):

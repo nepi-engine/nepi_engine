@@ -711,7 +711,7 @@ class NPXDeviceIF:
                 self.navpose_wait_warned = True
                 self.msg_if.pub_warn("Waiting on NavPose source before creating NavPose IF" )
             else:
-                self.msg_if.pub_debug("Waiting on NavPose source before creating NavPose IF", throttle_s = 10.0 )
+                self.msg_if.pub_debug("Waiting on NavPose source before creating NavPose IF", throttle_s = -1 )
             nepi_sdk.start_timer_process(1.0, self._updateNavPoseDictCb, oneshot = True)
             return
         try:
