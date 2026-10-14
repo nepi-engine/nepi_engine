@@ -723,8 +723,6 @@ def get_full_namespace(namespace):
   node_namespace = get_node_namespace()
   if namespace is None:
     namespace = get_node_namespace()
-  elif base_namespace not in namespace:
-     namespace = os.path.join(base_namespace,namespace)
   elif namespace == 'None':
     namespace = get_node_namespace()
   elif namespace == '':
@@ -732,6 +730,8 @@ def get_full_namespace(namespace):
   elif namespace[0] == '~':
     ext_namespace = namespace.replace('~','')
     namespace = os.path.join(get_node_namespace(),ext_namespace)
+  if base_namespace not in namespace:
+     namespace = os.path.join(base_namespace,namespace)
   if namespace[-1] == '/':
     namespace = namespace[:-1]
 
