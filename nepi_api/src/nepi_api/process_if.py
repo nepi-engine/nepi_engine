@@ -302,8 +302,8 @@ class ProcessIF:
         if msg_if is not None:
             self.msg_if = msg_if
         else:
-            msg_namespace = self.node_namespace + '_' + self.process_name
-            self.msg_if = MsgIF(namespace = msg_namespace)
+            #msg_namespace = self.node_namespace + '_' + self.process_name
+            self.msg_if = MsgIF()
         self.msg_if.pub_info("Starting IF Initialization Processes" )
 
         # Create Process Name

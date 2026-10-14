@@ -40,7 +40,7 @@ class MsgIF(logger):
 
     #######################
     ### IF Initialization
-    def __init__(self, namespace = None):
+    def __init__(self):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.node_name = nepi_sdk.get_node_name()
@@ -48,12 +48,9 @@ class MsgIF(logger):
         self.node_namespace = nepi_sdk.get_node_namespace()
         ############################## 
 
-
-        if namespace is None:
-            namespace = self.node_namespace
         # Call the parent class constructor
         super().__init__( 
-                         namespace = namespace, 
+                         namespace = self.node_namespace, 
                          ignore_functions = self.add_functions, 
                          ignore_files = self.add_files
                 )
