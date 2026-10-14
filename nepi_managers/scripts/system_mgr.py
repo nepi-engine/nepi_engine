@@ -203,6 +203,7 @@ class SystemMgrNode():
     
     run_mode = 'deploy'
     debug_mode_enabled = False
+    debug_namespace = 'NONE'
 
     user_restriction_options = USER_RESTRICTION_OPTIONS
     user_restrictions = []
@@ -630,6 +631,14 @@ class SystemMgrNode():
                 'msg': Bool,
                 'qsize': None,
                 'callback': self.enableDebugCb, 
+                'callback_args': ()
+            },
+            'set_debug_namespace': {
+                'namespace': self.base_namespace,
+                'topic': 'set_debug_namespace',
+                'msg': String,
+                'qsize': None,
+                'callback': self.setDebugNamaspaceCb, 
                 'callback_args': ()
             },
             'add_user_restriction': {
@@ -1316,6 +1325,15 @@ class SystemMgrNode():
         self.services_name_list = nepi_sdk.get_service_list()
         #self.msg_if.pub_warn("Got Services List: " + str(self.services_name_list))
         self.status_msg.active_services = self.services_name_list
+
+
+        debug_namespace = self.debug_namespace
+        if debug_namespace != 'ALL' and debug_namespace != 'NONE':
+            check_namespace = debug_namespace + '/messages'
+            if check_namespace not in self.topics_name_list:
+                self.set_debug_namespace('NONE')
+
+
         nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
 
 
@@ -1497,7 +1515,7 @@ class SystemMgrNode():
 
         self.status_msg.sys_run_mode = self.run_mode
         self.status_msg.sys_debug_enabled = self.debug_mode_enabled
-
+        self.status_msg.sys_debug_namespace = self.debug_namespace
 
         self.status_msg.user_restrictions = self.user_restrictions
         user_restricted = []
@@ -1514,6 +1532,7 @@ class SystemMgrNode():
         self.publish_status()
         nepi_system.set_admin_mode(self.admin_mode_set)
         nepi_system.set_debug_mode(self.debug_mode_enabled)
+        nepi_system.set_debug_namespace(self.debug_namespace)
         nepi_system.set_managers_running(self.managers_running_list)
 
 
@@ -1553,6 +1572,15 @@ class SystemMgrNode():
 
     def enableDebugCb(self, msg):
         self.debug_mode_enabled = msg.data
+        self.updateSystemAdminSettings()
+
+    def setDebugNamaspaceCb(self, msg):
+        namespace = msg.data
+        self.set_debug_namespace(namespace)
+
+
+    def set_debug_namespace(self,namespace):
+        self.debug_namespace = namespace
         self.updateSystemAdminSettings()
 
 

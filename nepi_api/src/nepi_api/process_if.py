@@ -296,16 +296,18 @@ class ProcessIF:
 
         ##############################  
 
-        
+        self.process_name = nepi_utils.get_clean_name(process_name)
+
         # Create Msg Class
         if msg_if is not None:
             self.msg_if = msg_if
         else:
-            self.msg_if = MsgIF()
+            msg_namespace = self.node_namespace + '_' + self.process_name
+            self.msg_if = MsgIF(namespace = msg_namespace)
         self.msg_if.pub_info("Starting IF Initialization Processes" )
 
         # Create Process Name
-        self.process_name = nepi_utils.get_clean_name(process_name)
+        
         if self.process_name is None or self.process_name == '':
             self.msg_if.pub_warn("Process Name Not Valid: " + str(process_name) )
             return
@@ -1579,8 +1581,8 @@ class ProcessIF:
         cur_value = nepi_controls.get_value(controls_dict, control_name)
         if cur_value is not None:
             controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
-            update_value = nepi_controls.get_value(controls_dict, control_name )
-            #self.msg_if.pub_info("Checking for update: " + str([controls_dict,update_value])  )
+            update_value = nepi_controls.get_value(controls_dict, control_name)
+            self.msg_if.pub_info("Checking for update:current Change: " + str([control_name,update_value,cur_value]) )
             if cur_value != update_value:
                 self.set_control_value(control_name, update_value)
                 self.publish_status()
