@@ -1580,7 +1580,7 @@ class ProcessIF:
         controls_dict = copy.deepcopy(self.controls_dict)
         cur_value = nepi_controls.get_value(controls_dict, control_name)
         if cur_value is not None:
-            controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
+            controls_dict = nepi_controls.apply_update_msg(controls_dict, msg, debug = True)
             update_value = nepi_controls.get_value(controls_dict, control_name)
             self.msg_if.pub_info("Checking for update:current Change: " + str([control_name,update_value,cur_value]) )
             if cur_value != update_value:

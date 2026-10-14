@@ -198,7 +198,7 @@ def remove_msg_numbers(msg):
         rospy.logwarn('Failed to remove numbers from msg: ' + str(e))
     return clean_msg
 
-def round_msg_floats(msg , roundf = 3):
+def round_msg_floats(msg , throttle_f = 3, round_f = 3):
     """
     Finds all floating-point numbers in a string and rounds them 
     to the specified number of decimal places.
@@ -209,7 +209,7 @@ def round_msg_floats(msg , roundf = 3):
     pattern = r'\d+\.\d+'
     
     # Format specifier for the f-string (e.g., ".2f")
-    fmt = f".{roundf}f"
+    fmt = f".{round_f}f"
     
     # re.sub can accept a lambda function to process each match object
     clean_msg = re.sub(pattern, lambda match: f"{float(match.group()):{fmt}}", msg)
@@ -241,7 +241,7 @@ def clean_throttle_dict(throttle_dict, purge_time = 60):
     return throttle_dict
 
 
-def process_msg(msg, msg_list = [], roundf = 3):
+def process_msg(msg, msg_list = [], throttle_f = 3, round_f = 3):
     msg_str = None
     if msg is not None:
         try:
@@ -257,7 +257,7 @@ def process_msg(msg, msg_list = [], roundf = 3):
                           except Exception as e:
                               #rospy.logwarn_throttle(1,'Failed to process msg: ' + str(e))
                               pass
-                msg_str  = round_msg_floats(str_msg, roundf)
+                msg_str  = round_msg_floats(str_msg, round_f)
         except Exception as e:
             #rospy.logwarn_throttle(1,'Failed to process msg: ' + str(e))
             pass
@@ -515,7 +515,7 @@ class logger:
     ###############################
     # Class Public Methods
     
-    def log(self, msg, msg_list = [], level = "None", throttle_s = None, throttle_n = True, roundf = 3):
+    def log(self, msg, msg_list = [], level = "None", throttle_s = None, throttle_n = False, throttle_f = -1, round_f = 3):
         
         if (self.debug_mode == False and level == 'debug'):
             return
@@ -535,7 +535,7 @@ class logger:
             return
 
         
-        msg = process_msg(msg, msg_list, roundf)
+        msg = process_msg(msg, msg_list, round_f)
         if msg is None:
             return
         
@@ -550,10 +550,13 @@ class logger:
                 if i != 0:
                     msg_uid = msg_uid + ":"
                 msg_uid = msg_uid + entry
-        if throttle_n == True:
-          key_msg =  remove_msg_numbers(msg).replace(' ','').replace(',','').replace('[]','').replace(']]','')
+        if throttle_n == False:
+          key_msg =  remove_msg_numbers(msg)
+        elif throttle_f > 0:
+          key_msg = round_msg_floats(key_msg, throttle_f)
         else:
            key_msg = msg
+        key_msg = key_msg.replace(' ','').replace(',','').replace('[]','').replace(']]','')
         msg_key = msg_uid + ':' + key_msg
 
 
@@ -638,20 +641,20 @@ class logger:
             except:
               pass
     
-    def log_info(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'info', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
+    def log_info(self, msg, msg_list = [], throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+        self.log(msg, msg_list = msg_list, level = 'info', throttle_s = throttle_s, throttle_n = throttle_n, round_f = round_f)
     
-    def log_warn(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'warn', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
+    def log_warn(self, msg, msg_list = [], throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+        self.log(msg, msg_list = msg_list, level = 'warn', throttle_s = throttle_s, throttle_n = throttle_n, round_f = round_f)
     
-    def log_error(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'error', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
+    def log_error(self, msg, msg_list = [], throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+        self.log(msg, msg_list = msg_list, level = 'error', throttle_s = throttle_s, throttle_n = throttle_n, round_f = round_f)
     
-    def log_fatal(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'fatal', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
+    def log_fatal(self, msg, msg_list = [], throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+        self.log(msg, msg_list = msg_list, level = 'fatal', throttle_s = throttle_s, throttle_n = throttle_n, round_f = round_f)
 
-    def log_debug(self, msg, msg_list = [], throttle_s = None, throttle_n = True, roundf = 3):
-        self.log(msg, msg_list = msg_list, level = 'debug', throttle_s = throttle_s, throttle_n = throttle_n, roundf = roundf)
+    def log_debug(self, msg, msg_list = [], throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+        self.log(msg, msg_list = msg_list, level = 'debug', throttle_s = throttle_s, throttle_n = throttle_n, round_f = round_f)
     
     ###############################
     # Class Private Methods
