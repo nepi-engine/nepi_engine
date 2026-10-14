@@ -592,7 +592,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
       
       current_value = control_dict['value']
       if debug == True:
-        logger.log_debug("Checking control value: " + str([control_name,control_value,current_value]), throttle_s = 5)
+        logger.log_warn("Checking control value: " + str([control_name,control_value,current_value]), throttle_s = 5)
       control_type = control_dict['type']
       control_length = control_dict['length']
       options = control_dict['options']
@@ -601,7 +601,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
       delta_bound = control_dict['delta_bound']
       dir_bound = control_dict['dir_bound']
       if debug == True:
-        logger.log_debug("Checking control value: " + str(control_value))
+        logger.log_warn("Checking control value: " + str(control_value))
       add_value = None
       if control_value is None:
         try:
@@ -632,7 +632,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
 
       if control_type in OPTION_TYPES: ###########################################################
         if debug == True:
-          logger.log_debug("Checking Options control value: " + str(control_value))
+          logger.log_warn("Checking Options control value: " + str(control_value))
         if control_type == "Menu": ###########################################################
           # The value of a Menu is an INDEX into options. int() of the whole
           # list raised every time, so this only ever reached its own except
@@ -713,7 +713,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
           if len(control_value) > i:
             add_value = control_value[i]
             if debug == True:
-              logger.log_debug("Using add value with limits: " + str([control_name,add_value,min_bound,max_bound]))
+              logger.log_warn("Using add value with limits: " + str([control_name,add_value,min_bound,max_bound]))
 
           if control_type in STRING_TYPES: ###########################################################
             add_value = str(add_value)
@@ -733,21 +733,21 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
               # Do Bounds Check if Needed
               if int(float(min_bound)) != -999 and add_value < min_bound:
                 if debug == True:
-                  logger.log_debug("Check min_bound failed: " + str([control_name, add_value, min_bound]), throttle_s = 5, throttle_n = True)
+                  logger.log_warn("Check min_bound failed: " + str([control_name, add_value, min_bound]), throttle_s = 5, throttle_n = True)
                 add_value = min_bound
 
               if int(float(max_bound)) != -999 and add_value > max_bound:
                 if debug == True:
-                  logger.log_debug("Check max_bound failed: " + str([control_name, add_value, max_bound]), throttle_s = 5, throttle_n = True)
+                  logger.log_warn("Check max_bound failed: " + str([control_name, add_value, max_bound]), throttle_s = 5, throttle_n = True)
                 add_value = max_bound
 
             except Exception as e:
               if debug == True:
-                logger.log_debug("Failed to set value: " + str([control_name,add_value, min_bound,max_bound]) + " : " + str(e))
+                logger.log_warn("Failed to set value: " + str([control_name,add_value, min_bound,max_bound]) + " : " + str(e))
               add_value = cur_value
 
             if debug == True:
-              logger.log_debug("Updated value with limits: " + str([control_name,add_value,min_bound,max_bound]), throttle_s = 5, throttle_n = True)
+              logger.log_warn("Updated value with limits: " + str([control_name,add_value,min_bound,max_bound]), throttle_s = 5, throttle_n = True)
           elif control_type in FLOAT_TYPES: ###########################################################
 
             try:
@@ -768,12 +768,12 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
               # Do Bounds Check if Needed
               if int(float(min_bound)) != -999 and add_value < min_bound:
                 if debug == True:
-                  logger.log_debug("Check min_bound failed: " + str([control_name, add_value, min_bound]), throttle_s = 5, throttle_n = True)
+                  logger.log_warn("Check min_bound failed: " + str([control_name, add_value, min_bound]), throttle_s = 5, throttle_n = True)
                 add_value = min_bound
 
               if int(float(max_bound)) != -999 and add_value > max_bound:
                 if debug == True:
-                  logger.log_debug("Check max_bound failed: " + str([control_name, add_value, max_bound]), throttle_s = 5, throttle_n = True)
+                  logger.log_warn("Check max_bound failed: " + str([control_name, add_value, max_bound]), throttle_s = 5, throttle_n = True)
                 add_value = max_bound
 
             except Exception as e:
@@ -782,7 +782,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
 
 
             if debug == True:
-              logger.logger.log_debug("Updated value with limits: " + str([control_name, add_value, min_bound, max_bound]), throttle_s = 5, throttle_n = True)
+              logger.logger.log_warn("Updated value with limits: " + str([control_name, add_value, min_bound, max_bound]), throttle_s = 5, throttle_n = True)
           elif control_type in TRIGGER_TYPES: ###########################################################
               # The stored value is the time the control last fired; get_value
               # reports seconds since, and reads <= 0 as "never fired". A press
@@ -806,7 +806,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
         
         if (value[1] - value[0] ) > 0 and dir_bound < 0:
             if debug == True:
-              logger.log_debug("Check dir_bound failed: " + str([control_name, value, dir_bound]), throttle_s = 5, throttle_n = True)
+              logger.log_warn("Check dir_bound failed: " + str([control_name, value, dir_bound]), throttle_s = 5, throttle_n = True)
             value = fallback_value
         elif (value[0] - value[1] ) > 0 and dir_bound > 0:
           value = fallback_value
@@ -814,7 +814,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
       if len(value) == 2 and int(float(delta_bound)) != -999:
         if abs((value[1] - value[0] )) < delta_bound:
           if debug == True:
-            logger.log_debug("Check delta_bound failed: " + str([control_name, value, delta_bound]), throttle_s = 5, throttle_n = True)
+            logger.log_warn("Check delta_bound failed: " + str([control_name, value, delta_bound]), throttle_s = 5, throttle_n = True)
           value = fallback_value
 
 
@@ -831,7 +831,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
           clean_value = value
 
   if debug == True:
-    logger.logger.log_debug("Returning Clean Value: " + str([control_name, clean_value]), throttle_s = 5, throttle_n = True)       
+    logger.logger.log_warn("Returning Clean Value: " + str([control_name, clean_value]), throttle_s = 5, throttle_n = True)       
   return clean_value
 
 
@@ -845,7 +845,7 @@ def get_value(controls_dict, control_name, value_index = None, debug = False):
           control_value = get_clean_value(controls_dict, control_name, debug = debug)
           if control_value is None:
               if debug == True:
-                logger.log_debug("Got None Value for control: " + str([control_name, control_value]), throttle_s = 5, throttle_n = True)
+                logger.log_warn("Got None Value for control: " + str([control_name, control_value]), throttle_s = 5, throttle_n = True)
               pass
           else:
             if value_index is None:
@@ -863,7 +863,7 @@ def get_value(controls_dict, control_name, value_index = None, debug = False):
                       value = control_value[value_index]
               except:
                 value = None
-              logger.log_debug("Got value_index Value for control: " + str([control_name, value, value_index]))
+              logger.log_warn("Got value_index Value for control: " + str([control_name, value, value_index]))
 
         except:
           pass
@@ -898,7 +898,7 @@ def get_values_dict(controls_dict):
       if control_value is not None:
         controls_values_dict[control_name] = control_value
       else:
-        #logger.log_debug("Got None Value for control: " + str(control_name))
+        #logger.log_warn("Got None Value for control: " + str(control_name))
         pass
   return controls_values_dict
 
@@ -912,7 +912,7 @@ def get_params_dict(controls_dict):
       if control_value is not None and param == True:
         controls_values_dict[control_name] = control_value
       else:
-        #logger.log_debug("Got None Value for control: " + str(control_name))
+        #logger.log_warn("Got None Value for control: " + str(control_name))
         pass
   return controls_values_dict
 
@@ -937,8 +937,8 @@ def set_value(controls_dict, control_name, update_value, value_index = None,  ch
         except:
           pass
         if debug == True:
-          logger.log_debug("Set value_index Value for control: " + str([control_name, update_value]))
-      # logger.log_debug("Attempting Updated Value From,To: " + str([control_name,cur_val,update_value]))
+          logger.log_warn("Set value_index Value for control: " + str([control_name, update_value]))
+      # logger.log_warn("Attempting Updated Value From,To: " + str([control_name,cur_val,update_value]))
       # Validate when asked to validate. The test was inverted, so the default
       # path (check_valid = True) wrote the raw wire value straight into the dict
       # -- handing a driver's setSettingFunction ['False'] for a Toggle and ['5']
@@ -947,14 +947,14 @@ def set_value(controls_dict, control_name, update_value, value_index = None,  ch
       if check_valid == True and cur_val != update_value:
         update_value = get_clean_value(controls_dict, control_name, update_value, debug = debug)
         if debug == True:
-          logger.log_debug("Set Val Got Clean Value: " + str([control_name,update_value]))  
+          logger.log_warn("Set Val Got Clean Value: " + str([control_name,update_value]))  
       if update_value is not None:
         # Stored as a list of strings, the one shape the dict holds: 'length'
         # counts list entries and get_clean_value re-lists whatever it reads, so
         # a scalar written here comes back out one character per entry.
         clean_list = get_value_list(update_value)
         if debug == True:
-          logger.log_debug("Set Val Got Clean List: " + str([control_name,clean_list]))  
+          logger.log_warn("Set Val Got Clean List: " + str([control_name,clean_list]))  
         controls_dict[control_name]['value'] = clean_list
   return controls_dict
 
@@ -1393,32 +1393,52 @@ def apply_update_msg( controls_dict, msg, debug = False):
   if description != '':
     controls_dict[name]['description'] = description
 
-  value_index = msg.index
-  if value_index == '':
-    value_index = None
+  value_index = None
+  try:
+    int(float(msg.index))
+  except:
+    pass
 
   # An UpdateControl carries only the fields the sender is actually changing;
   # every other field arrives at its ROS default. For the two string[] fields
   # that default is the EMPTY list, not [''], so testing only against ['']
   # treated "field omitted" as "set this field to nothing".
 
-    # An value_index update carries ONE component, not the whole value, so it cannot
-    # be cleaned here: get_clean_value length-checks against the control's
-    # arity and returns None for it. set_value merges the component at value_index
-    # into the current value and validates the merged list.
-    # if value_index is None:  
-    #   value = msg.value
-    #   if len(value) > 0 and value != ['']:
-    #     value = get_clean_value(controls_dict, name, value)
-    #     updated_value = get_value(controls_dict, name)
-    # else:
-    #   value = value[0]
+  # An value_index update carries ONE component, not the whole value, so it cannot
+  # be cleaned here: get_clean_value length-checks against the control's
+  # arity and returns None for it. set_value merges the component at value_index
+  # into the current value and validates the merged list.
+  value = None
+  if msg.value != ['']:
     value = msg.value
-    if value is not None:
-      controls_dict = set_value(controls_dict, name, value, value_index = value_index, debug = debug)
+
+    update_value = None
+    if len(value) > 0:
+      if debug == True:
+          logger.log_warn("Got value Update with index: " + str([name, value, value_index])) 
+
+      if value_index is not None: 
+ 
+        value = value[0]
+        values = get_value(controls_dict, name)
+        values_len = len(values)
+        if values_len > value_index:
+          values[value_index] = value
+          update_value = values
+        else:
+          if debug == True:
+            logger.log_warn("Index out of range: " + str([name, value_index, values]))        
+      else:
+        update_value = value
+
+    if debug == True:
+      logger.log_warn("Updating value: " + str([name, update_value])) 
+
+    if update_value is not None:
+      controls_dict = set_value(controls_dict, name, update_value, debug = debug)
       updated_value = get_value(controls_dict, name, debug = debug)
     if debug == True:
-      logger.log_debug("Updated Control Value: " + str([name, value, updated_value]))
+      logger.log_warn("Updated Control Value: " + str([name, update_value, updated_value]))
 
   min_bound = msg.min_bound
   if min_bound != '':

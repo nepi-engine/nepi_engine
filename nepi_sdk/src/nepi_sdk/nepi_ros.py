@@ -70,7 +70,7 @@ from geographic_msgs.msg import *
 from nepi_interfaces.srv import *
 from nepi_interfaces.msg import *
 
-from nepi_interfaces.msg import Message
+from nepi_interfaces.msg import Message, MgrSystemStatus
 
 #######################
 ### Setup some global variables
@@ -266,13 +266,13 @@ def process_msg(msg, msg_list = [], throttle_f = 3, round_f = 3):
 
 def get_debug_namespace(base_namespace = '/nepi/device1'):
     param_namespace = create_namespace(base_namespace,'debug_namespace')
-    debug_mode = get_param(param_namespace,fallback_param = 'NONE')
-    return debug_mode
+    debug_enabled = get_param(param_namespace,fallback_param = 'NONE')
+    return debug_enabled
 
-def get_debug_mode(base_namespace = '/nepi/device1'):
-    param_namespace = create_namespace(base_namespace,'debug_mode')
-    debug_mode = get_param(param_namespace,fallback_param = False)
-    return debug_mode
+def get_debug_enabled(base_namespace = '/nepi/device1'):
+    param_namespace = create_namespace(base_namespace,'debug_enabled')
+    debug_enabled = get_param(param_namespace,fallback_param = False)
+    return debug_enabled
 
 
 def set_debug_log(enabled):
@@ -467,10 +467,12 @@ class logger:
 
     ln_str = ""
 
-    debug_mode = False
+    debug_enabled = False
     debug_namespace = 'NONE'
     throttle_dict = dict()
     throttle_busy = False
+
+    status_sub = None
 
     msg_class = None
     msg_pub = None
@@ -496,14 +498,16 @@ class logger:
         self.ignore_functions = self.ignore_functions + ignore_functions
         self.ignore_files = self.ignore_files + ignore_functions
 
+        sub_updater_thread = threading.Thread(target=self.subUpdaterCb)
+        sub_updater_thread.start()
+
         pub_updater_thread = threading.Thread(target=self.pubUpdaterCb)
         pub_updater_thread.start()
 
         throttle_updater_thread = threading.Thread(target=self.throttleUpdaterCb)
         throttle_updater_thread.start()
 
-        debug_updater_thread = threading.Thread(target=self.debugUpdaterCb)
-        debug_updater_thread.start()
+
 
   
         ###############################
@@ -517,7 +521,7 @@ class logger:
     
     def log(self, msg, msg_list = [], level = "None", throttle_s = None, throttle_n = False, throttle_f = -1, round_f = 3):
         
-        if (self.debug_mode == False and level == 'debug'):
+        if (self.debug_enabled == False and level == 'debug'):
             return
         if (level == 'debug' and (self.debug_namespace != 'ALL' and self.debug_namespace != self.namespace)):
             
@@ -610,17 +614,18 @@ class logger:
         pub_str = None
 
 
-        if self.debug_mode == True:
+        if self.debug_enabled == True:
             if (self.debug_namespace == 'ALL' or self.debug_namespace == self.namespace):
               msg_str = msg_str +  ' : ' + msg_uid
               msg_str = msg_str +  ' : throttle_s = ' + str(throttle_s)           
 
         if level != 'debug':
             console_str = msg_str
-            pub_str = log_msg(console_str, level = level, debug = self.debug_mode)
+            pub_str = log_msg(console_str, level = level, debug = self.debug_enabled)
         else:
-            console_str = self.DEBUG_COLOR + msg_str + self.COLOR_RESET # + " : " + str(self.namespace) + " : " + str(self.debug_namespace)
-            pub_str = log_msg(console_str, level = 'info', debug = self.debug_mode)
+            namespace = os.path.basename(str(self.namespace))
+            console_str = self.DEBUG_COLOR + msg_str + self.COLOR_RESET + " : " + str(namespace)
+            pub_str = log_msg(console_str, level = 'info', debug = self.debug_enabled)
             pub_str = pub_str.replace(self.DEBUG_COLOR,'').replace(self.COLOR_RESET,'')
             
 
@@ -659,11 +664,21 @@ class logger:
     ###############################
     # Class Private Methods
     ###############################
+
+    def subUpdaterCb(self):
+      while self.status_sub is None and not is_shutdown():
+
+        try:
+          self.status_sub = create_subscriber(self.base_namespace + "/status", MgrSystemStatus, self.statusCb, queue_size=1)
+        except:
+          pass
+
+        sleep(5)
+
+
     def pubUpdaterCb(self):
-
-
       while self.msg_pub is None and self.msg_pub_sys is None and not is_shutdown():
-        
+
         if self.msg_pub_sys is None:
           try:
             self.msg_pub_sys = create_publisher(self.base_namespace + "/messages", Message, queue_size=1)
@@ -706,12 +721,11 @@ class logger:
           sleep(delay)
 
 
-    def debugUpdaterCb(self):
-        while not is_shutdown():
-          self.debug_namespace = get_debug_namespace(self.base_namespace)
-          self.debug_mode = get_debug_mode(self.base_namespace)
+    def statusCb(self, msg):
+          self.debug_namespace = msg.sys_debug_namespace
+          self.debug_enabled = msg.sys_debug_enabled
 
-          sleep(5)
+
   
 
 
