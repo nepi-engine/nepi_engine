@@ -40,7 +40,7 @@ class MsgIF(logger):
 
     #######################
     ### IF Initialization
-    def __init__(self, namespace):
+    def __init__(self, namespace = None):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.node_name = nepi_sdk.get_node_name()
