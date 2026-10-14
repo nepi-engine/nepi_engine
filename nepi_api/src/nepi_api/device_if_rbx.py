@@ -50,7 +50,7 @@ from nepi_interfaces.msg import DeviceRBXInfo, DeviceRBXStatus
 from nepi_interfaces.msg import AxisControls, ErrorBounds
 from nepi_interfaces.msg import MotorControl
 from nepi_interfaces.msg import MotorStatus, MotorsStatus
-from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, GotoVelocity, MotorControl, GotoErrors
+from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, GotoVelocity, MotorControl, GotoErrors, GotoGoals
 
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
 
@@ -288,6 +288,10 @@ class RBXRobotIF:
         self.navpose_update_rate = navpose_update_rate
 
 
+        # Initialize goto goals and errors messages
+        self.goals_msg = GotoGoals()
+        self.errors_msg = GotoErrors()
+
         # Initialize status message
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
@@ -297,16 +301,31 @@ class RBXRobotIF:
         self.status_msg.process_last = "None"
         self.status_msg.ready = False
         self.status_msg.battery = 0
-        errors_msg = GotoErrors()
-        errors_msg.x_m = 0
-        errors_msg.y_m = 0
-        errors_msg.z_m = 0
-        errors_msg.heading_deg = 0
-        errors_msg.roll_deg = 0
-        errors_msg.pitch_deg = 0
-        errors_msg.yaw_deg = 0
-        self.status_msg.errors_current = errors_msg
-        self.status_msg.errors_prev = errors_msg
+        self.errors_msg.x_m = 0
+        self.errors_msg.y_m = 0
+        self.errors_msg.z_m = 0
+        self.errors_msg.heading_deg = 0
+        self.errors_msg.roll_deg = 0
+        self.errors_msg.pitch_deg = 0
+        self.errors_msg.yaw_deg = 0
+        self.status_msg.errors_current = self.errors_msg
+        errors_prev_msg = GotoErrors()
+        errors_prev_msg.x_m = 0
+        errors_prev_msg.y_m = 0
+        errors_prev_msg.z_m = 0
+        errors_prev_msg.heading_deg = 0
+        errors_prev_msg.roll_deg = 0
+        errors_prev_msg.pitch_deg = 0
+        errors_prev_msg.yaw_deg = 0
+        self.status_msg.errors_prev = errors_prev_msg
+        self.goals_msg.x_m = 0
+        self.goals_msg.y_m = 0
+        self.goals_msg.z_m = 0
+        self.goals_msg.heading_deg = 0
+        self.goals_msg.roll_deg = 0
+        self.goals_msg.pitch_deg = 0
+        self.goals_msg.yaw_deg = 0
+        self.status_msg.goals_current = self.goals_msg
         self.status_msg.last_error_message = ""
 
         self.rbx_info=DeviceRBXInfo()
@@ -1053,6 +1072,7 @@ class RBXRobotIF:
             self.update_error_msg("No matching rbx state found")
         else:
             self.update_current_errors( [0,0,0,0,0,0,0] )
+            self.update_current_goals( [0,0,0,0,0,0,0] )
             self.status_msg.process_current = self.states[new_state_ind]
             self.rbx_state_last = self.rbx_info.state
             self.msg_if.pub_info("Waiting for rbx state " + self.states[new_state_ind] + " to set" )
@@ -1079,6 +1099,7 @@ class RBXRobotIF:
             self.update_error_msg("No matching rbx mode found")
         else:
             self.update_current_errors( [0,0,0,0,0,0,0] )
+            self.update_current_goals( [0,0,0,0,0,0,0] )
             self.status_msg.process_current = self.modes[new_mode_ind]
             self.msg_if.pub_info("Setting rbx mode to : " + self.modes[new_mode_ind])
             self.setModeIndFunction(new_mode_ind)
@@ -1236,6 +1257,7 @@ class RBXRobotIF:
             self.status_msg.ready = False
             self.update_prev_errors()
             self.update_current_errors( [0,0,0,0,0,0,0] )
+            self.update_current_goals( [0,0,0,0,0,0,0] )
             self.rbx_cmd_success_current = self.goHomeFunction()
             self.status_msg.process_last = "Go Home"
             self.status_msg.process_current = "None"
@@ -1256,6 +1278,7 @@ class RBXRobotIF:
             self.status_msg.ready = False
             self.update_prev_errors()
             self.update_current_errors( [0,0,0,0,0,0,0] )
+            self.update_current_goals( [0,0,0,0,0,0,0] )
             self.rbx_cmd_success_current = self.goStopFunction()
             self.status_msg.process_last = "Stop"
             self.status_msg.process_current = "None"
@@ -1316,6 +1339,7 @@ class RBXRobotIF:
                 self.status_msg.ready = False
                 self.rbx_cmd_success_current = False
                 self.update_current_errors( [0,0,0,0,0,0,0] )
+                self.update_current_goals( [0,0,0,0,0,0,0] )
                 self.rbx_cmd_success_current = self.setpoint_attitude_ned(setpoint_data)
                 self.status_msg.process_last = "GoTo Pose"
                 self.status_msg.process_current = "None"
@@ -1359,6 +1383,7 @@ class RBXRobotIF:
                 self.status_msg.ready = False
                 self.rbx_cmd_success_current = False
                 self.update_current_errors( [0,0,0,0,0,0,0] )
+                self.update_current_goals( [0,0,0,0,0,0,0] )
                 if self.gotoVelocityFunction is not None:
                     self.rbx_cmd_success_current = self.gotoVelocityFunction(velocity_cmd_msg.x_mps,
                                                                              velocity_cmd_msg.y_mps,
@@ -1392,6 +1417,7 @@ class RBXRobotIF:
                 self.status_msg.ready = False
                 self.rbx_cmd_success_current = False
                 self.update_current_errors( [0,0,0,0,0,0,0] )
+                self.update_current_goals( [0,0,0,0,0,0,0] )
                 self.rbx_cmd_success_current = self.setpoint_position_local_body(setpoint_data)
                 self.status_msg.process_last = "GoTo Position"
                 self.status_msg.process_current = "None"
@@ -1418,6 +1444,7 @@ class RBXRobotIF:
                 self.status_msg.ready = False
                 self.rbx_cmd_success_current = False
                 self.update_current_errors( [0,0,0,0,0,0,0] )
+                self.update_current_goals( [0,0,0,0,0,0,0] )
                 self.rbx_cmd_success_current = self.setpoint_location_global_wgs84(setpoint_data)
                 self.status_msg.process_last = "GoTo Location"
                 self.status_msg.process_current = "None"
@@ -1544,6 +1571,7 @@ class RBXRobotIF:
       timeout_sec = self.rbx_info.cmd_timeout
       self.update_prev_errors()
       self.update_current_errors( [0,0,0,0,0,0,0] )
+      self.update_current_goals( [0,0,0,0,0,0,0] )
       self.msg_if.pub_info("" )
       self.msg_if.pub_info("************************" )
       self.msg_if.pub_info("Starting Setpoint Attitude Process" )
@@ -1580,6 +1608,8 @@ class RBXRobotIF:
       ##############################################
       ## Send Setpoint Message and Check for Success
       ##############################################
+      # Update current goals with NED attitude goal in degrees
+      self.update_current_goals( [None,None,None,None,new_attitude_ned_degs[0],new_attitude_ned_degs[1],new_attitude_ned_degs[2]] )
       self.msg_if.pub_info("Sending Setpoint Attitude Command" )
       self.gotoPoseFunction(new_attitude_enu_degs)
       self.msg_if.pub_info("Waiting for Attitude Setpoint to complete" )
@@ -1593,6 +1623,7 @@ class RBXRobotIF:
             self.msg_if.pub_info("Setpoint Attitude received Stop Command" )
             # Hold the current attitude on stop (same source used below for error calc).
             new_attitude_ned_degs = list(self.current_orientation_ned_degs)
+            self.update_current_goals( [None,None,None,None,new_attitude_ned_degs[0],new_attitude_ned_degs[1],new_attitude_ned_degs[2]] )
         if timeout_timer > timeout_sec:
           self.update_error_msg("Setpoint cmd timed out")
           cmd_success = False
@@ -1620,11 +1651,11 @@ class RBXRobotIF:
         # Reset timer if past
         if stabilize_timer > self.rbx_info.error_bounds.min_stabilize_time_s:
           stabilize_timer=0 # Reset timer
-        self.update_current_errors( [0,0,0,0,attitude_errors_degs[0],attitude_errors_degs[1],attitude_errors_degs[2]]  )
+        self.update_current_errors( [None,None,None,None,attitude_errors_degs[0],attitude_errors_degs[1],attitude_errors_degs[2]]  )
       if cmd_success:
         self.msg_if.pub_info("************************" )
         self.msg_if.pub_info("Setpoint Reached" )
-      self.update_current_errors( [0,0,0,0,attitude_errors_degs[0],attitude_errors_degs[1],attitude_errors_degs[2]]  )
+      self.update_current_errors( [None,None,None,None,attitude_errors_degs[0],attitude_errors_degs[1],attitude_errors_degs[2]]  )
       return cmd_success
       
 
@@ -1666,6 +1697,7 @@ class RBXRobotIF:
       timeout_sec = self.rbx_info.cmd_timeout
       self.update_prev_errors()
       self.update_current_errors( [0,0,0,0,0,0,0] )
+      self.update_current_goals( [0,0,0,0,0,0,0] )
       self.msg_if.pub_info("************************" )
       self.msg_if.pub_info("Starting Setpoint Position Local Process" )
       ##############################################
@@ -1745,6 +1777,15 @@ class RBXRobotIF:
       ##############################################
       ## Send Message and Check for Setpoint Success
       ##############################################
+      # Update current goals with body offset goal in meters and ENU yaw goal in degrees
+      goal_point_body_m = list(new_point_body_m)
+      for ind in range(3): # Zero offset goal if set to current
+        if input_point_body_m[ind] == -999:
+          goal_point_body_m[ind] = 0
+      goal_yaw_enu_deg = new_yaw_enu_deg
+      if input_yaw_body_deg == -999: # Start yaw goal if set to current
+        goal_yaw_enu_deg = start_yaw_enu_deg
+      self.update_current_goals( [goal_point_body_m[0],goal_point_body_m[1],goal_point_body_m[2],None,None,None,goal_yaw_enu_deg] )
       self.msg_if.pub_info("Sending Setpoint Position Local Command" )
       self.gotoPositionFunction(new_point_enu_m,new_orientation_enu_deg)
       self.msg_if.pub_info("Waiting for Position Setpoint to complete" )
@@ -1759,6 +1800,12 @@ class RBXRobotIF:
         if self.checkStopFunction() is True:
             self.msg_if.pub_info("Setpoint Position received Stop Command" )
             new_position_enu_m = copy.deepcopy(self.current_position_enu_m)
+            goal_offset_enu_m = np.array(new_position_enu_m) - np.array(start_position_enu_m)
+            goal_point_body_m = nepi_nav.convert_point_enu2body(goal_offset_enu_m,start_yaw_enu_deg)
+            for ind in range(3): # Zero offset goal if set to current
+              if input_point_body_m[ind] == -999:
+                goal_point_body_m[ind] = 0
+            self.update_current_goals( [goal_point_body_m[0],goal_point_body_m[1],goal_point_body_m[2],None,None,None,None] )
         if timeout_timer > timeout_sec:
           self.update_error_msg("Setpoint cmd timed out")
           cmd_success = False
@@ -1805,12 +1852,12 @@ class RBXRobotIF:
         if stabilize_timer > self.rbx_info.error_bounds.min_stabilize_time_s:
           stabilize_timer=0 # Reset timer
         point_body_errors_m = nepi_nav.convert_point_enu2body(point_enu_errors_m,start_yaw_enu_deg)
-        self.update_current_errors(  [point_body_errors_m[1],point_body_errors_m[0],point_body_errors_m[2],0,0,0,max_yaw_enu_error_deg] )
+        self.update_current_errors(  [point_body_errors_m[1],point_body_errors_m[0],point_body_errors_m[2],None,None,None,max_yaw_enu_error_deg] )
       if cmd_success:
         self.msg_if.pub_info("Setpoint Reached" )
         self.msg_if.pub_info("************************" )
       point_body_errors_m = nepi_nav.convert_point_enu2body(point_enu_errors_m,start_yaw_enu_deg)
-      self.update_current_errors(  [point_body_errors_m[1],point_body_errors_m[0],point_body_errors_m[2],0,0,0,max_yaw_enu_error_deg] )
+      self.update_current_errors(  [point_body_errors_m[1],point_body_errors_m[0],point_body_errors_m[2],None,None,None,max_yaw_enu_error_deg] )
       return cmd_success
 
 
@@ -1845,6 +1892,7 @@ class RBXRobotIF:
       timeout_sec = self.rbx_info.cmd_timeout
       self.update_prev_errors()
       self.update_current_errors( [0,0,0,0,0,0,0] )
+      self.update_current_goals( [0,0,0,0,0,0,0] )
       self.msg_if.pub_info("************************" )
       self.msg_if.pub_info("Starting Setpoint Location Global Process" )
       ##############################################
@@ -1911,6 +1959,8 @@ class RBXRobotIF:
       ##############################################
       ## Send Message and Check for Setpoint Success
       ##############################################
+      # Update current goals with start to goal offset in meters and NED yaw goal in degrees
+      self.update_current_goals( [(new_geopoint_wgs84[0] - start_geopoint_wgs84[0])*111139,(new_geopoint_wgs84[1] - start_geopoint_wgs84[1])*111139,new_geopoint_wgs84[2] - start_geopoint_wgs84[2],None,None,None,new_yaw_ned_deg] )
       self.msg_if.pub_info("Sending MAVLINK Setpoint Position Local Command" )
       self.gotoLocationFunction(new_geopoint_amsl,new_orientation_ned_deg)
       self.msg_if.pub_info(" checking for Setpoint Reached" )
@@ -1926,6 +1976,7 @@ class RBXRobotIF:
         if self.checkStopFunction() is True:
           self.msg_if.pub_info("Setpoint Location received Stop Command" )
           new_geopoint_wgs84 = copy.deepcopy(self.current_location_wgs84_geo)
+          self.update_current_goals( [(new_geopoint_wgs84[0] - start_geopoint_wgs84[0])*111139,(new_geopoint_wgs84[1] - start_geopoint_wgs84[1])*111139,new_geopoint_wgs84[2] - start_geopoint_wgs84[2],None,None,None,None] )
         if timeout_timer > timeout_sec:
           self.update_error_msg("Setpoint cmd timed out")
           cmd_success = False
@@ -1972,11 +2023,11 @@ class RBXRobotIF:
         # Reset timer if past
         if stabilize_timer > 1:
           stabilize_timer=0 # Reset timer
-        self.update_current_errors( [geopoint_errors_m[0],geopoint_errors_m[1],geopoint_errors_m[2],0,0,0,max_yaw_ned_error_deg] )
+        self.update_current_errors( [geopoint_errors_m[0],geopoint_errors_m[1],geopoint_errors_m[2],None,None,None,max_yaw_ned_error_deg] )
       if cmd_success:
         self.msg_if.pub_info("Setpoint Reached" )
         self.msg_if.pub_info("************************" )
-      self.update_current_errors( [geopoint_errors_m[0],geopoint_errors_m[1],geopoint_errors_m[2],0,0,0,max_yaw_ned_error_deg] )
+      self.update_current_errors( [geopoint_errors_m[0],geopoint_errors_m[1],geopoint_errors_m[2],None,None,None,max_yaw_ned_error_deg] )
       return cmd_success
 
     #######################
@@ -1988,25 +2039,73 @@ class RBXRobotIF:
 
       Expects exactly seven elements corresponding to x, y, z translation
       errors in meters and heading, roll, pitch, yaw rotation errors in
-      degrees. Does nothing if the list length is not seven.
+      degrees. Each element that is not None is written into the persistent
+      errors message. A None element leaves that axis at its last value, so a
+      command that only measures some axes can update those alone. The
+      errors message is then assigned to the status message. Does nothing if
+      the list length is not seven.
 
       Args:
           error_list (list): Error values in the order
               [x_m, y_m, z_m, heading_deg, roll_deg, pitch_deg, yaw_deg].
+              Use None for any element to leave that axis unchanged.
       """
       if len(error_list) == 7:
-        errors_msg = GotoErrors()
-        errors_msg.x_m = error_list[0]
-        errors_msg.y_m = error_list[1]
-        errors_msg.z_m = error_list[2]
-        errors_msg.heading_deg = error_list[3]
-        errors_msg.roll_deg = error_list[4]
-        errors_msg.pitch_deg = error_list[5]
-        errors_msg.yaw_deg = error_list[6]
+        if error_list[0] is not None:
+          self.errors_msg.x_m = error_list[0]
+        if error_list[1] is not None:
+          self.errors_msg.y_m = error_list[1]
+        if error_list[2] is not None:
+          self.errors_msg.z_m = error_list[2]
+        if error_list[3] is not None:
+          self.errors_msg.heading_deg = error_list[3]
+        if error_list[4] is not None:
+          self.errors_msg.roll_deg = error_list[4]
+        if error_list[5] is not None:
+          self.errors_msg.pitch_deg = error_list[5]
+        if error_list[6] is not None:
+          self.errors_msg.yaw_deg = error_list[6]
 
-        self.status_msg.errors_current = errors_msg
+        self.status_msg.errors_current = self.errors_msg
       else:
         self.msg_if.pub_info("Skipping current error update. Error list to short" )
+
+    ### Function for updating current goto goal values
+    def update_current_goals(self,goal_list):
+      """Updates the current goto goal values in the status message.
+
+      Expects exactly seven elements corresponding to x, y, z translation
+      goals in meters and heading, roll, pitch, yaw rotation goals in
+      degrees. Each element that is not None is written into the persistent
+      goals message. A None element leaves that axis at its last value, so a
+      command that only targets some axes can update those alone. The goals
+      message is then assigned to the status message. Does nothing if the
+      list length is not seven.
+
+      Args:
+          goal_list (list): Goal values in the order
+              [x_m, y_m, z_m, heading_deg, roll_deg, pitch_deg, yaw_deg].
+              Use None for any element to leave that axis unchanged.
+      """
+      if len(goal_list) == 7:
+        if goal_list[0] is not None:
+          self.goals_msg.x_m = goal_list[0]
+        if goal_list[1] is not None:
+          self.goals_msg.y_m = goal_list[1]
+        if goal_list[2] is not None:
+          self.goals_msg.z_m = goal_list[2]
+        if goal_list[3] is not None:
+          self.goals_msg.heading_deg = goal_list[3]
+        if goal_list[4] is not None:
+          self.goals_msg.roll_deg = goal_list[4]
+        if goal_list[5] is not None:
+          self.goals_msg.pitch_deg = goal_list[5]
+        if goal_list[6] is not None:
+          self.goals_msg.yaw_deg = goal_list[6]
+
+        self.status_msg.goals_current = self.goals_msg
+      else:
+        self.msg_if.pub_info("Skipping current goal update. Goal list to short" )
 
     ### Function for updating last goto error values
     def update_prev_errors(self):
