@@ -853,7 +853,12 @@ class NetworkMgr:
             scan_result = ""
             try:
                 #with self.wifi_lock:
-                scan_result = subprocess.check_output(network_scan_cmd, text=True)
+                # timeout needed -- on hardware/environments where wlan0 can't
+                # actually scan (e.g. no real WiFi radio), this call blocked
+                # forever with no timeout, pegging a full CPU core
+                # indefinitely and leaving self.wifi_scanning stuck True so
+                # every later scan attempt was silently skipped too.
+                scan_result = subprocess.check_output(network_scan_cmd, text=True, timeout=10)
                 #self.msg_if.pub_debug("Got WiFi scan results: " + str(scan_result))
             except Exception as e:
                 #self.msg_if.pub_debug("Failed to scan for available WiFi networks: " + str(scan_result) + str(e))

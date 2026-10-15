@@ -1852,6 +1852,28 @@ def find_subscribers(topic_names,filters=[], topics_list = None, types_list = No
     return has_subs, has_subs_dict
 
 
+def find_publishers(topic_name):
+    """
+    Returns the names of the nodes currently publishing a topic.
+
+    Args:
+        topic_name (str): Fully qualified topic name.
+
+    Returns:
+        list: Publishing node names. Empty if the topic has no publishers
+            or the ROS master could not be queried.
+    """
+    pub_names = []
+    try:
+        master = rosgraph.Master('/rospy_info')  # Create a Master proxy
+        for pub_topic, node_names in master.getSystemState()[0]:
+            if pub_topic == topic_name:
+                pub_names = list(node_names)
+    except Exception as e:
+        log_msg_debug("Could not read publishers for " + str(topic_name) + ": " + str(e))
+    return pub_names
+
+
 #########################
 ### Publisher, Subscriber, and Service Utility Functions
 

@@ -33,8 +33,16 @@ import copy
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
-from nepi_sdk import nepi_img
+# nepi_pc (imports open3d) MUST come before nepi_img (imports scipy.sparse.linalg,
+# matplotlib, cv_bridge) -- confirmed live on aarch64/glibc 2.31: those heavier
+# libraries' own native TLS usage exhausts the process's static TLS block, so
+# open3d's OpenMP extension (libgomp.so.1) then fails importing with
+# "cannot allocate memory in static TLS block" -- 100% reproducible in this
+# order, 100% avoided by importing open3d (via nepi_pc) first. This broke
+# EVERY RBXRobotIF-based driver (rbx_sim, rbx_ardupilot, ...) on this
+# platform. Order matters here; do not "clean up" back to alphabetical.
 from nepi_sdk import nepi_pc
+from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
 
 
@@ -204,6 +212,8 @@ class RBXRobotIF:
                  manualControlsReadyFunction=None,
                  getMotorControlRatios=None,
                  setMotorControlRatio=None,
+                 teleopControlsReadyFunction=None,
+                 setTeleopVelocityFunction=None,
                  autonomousControlsReadyFunction=None,
                  goHomeFunction=None, goStopFunction=None, 
                  gotoPoseFunction=None, gotoPositionFunction=None, gotoLocationFunction=None,
@@ -395,6 +405,21 @@ class RBXRobotIF:
             motor_controls_info_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
         else:
             motor_controls_info_msg = self.get_motor_controls_status_msg([])
+
+        ## Setup Teleop Controls
+        # Driver-optional, like manual controls: both functions default to None,
+        # and set_teleop_velocity commands are ignored unless the driver supplies
+        # setTeleopVelocityFunction. There is no has_teleop_controls capability
+        # flag; readiness is reported live in teleop_control_mode_ready (mirroring
+        # manual/autonomous_control_mode_ready) so a client can tell "driver not
+        # ready" apart from "broken" before sending a command, and is checked
+        # again at command time in setTeleopVelocityCb.
+        self.teleopControlsReadyFunction = teleopControlsReadyFunction
+        self.setTeleopVelocityFunction = setTeleopVelocityFunction
+        if self.teleopControlsReadyFunction is not None:
+          self.status_msg.teleop_control_mode_ready = self.teleopControlsReadyFunction()
+        else:
+          self.status_msg.teleop_control_mode_ready = False
 
         # Setup Autonomous Controls
         self.autonomousControlsReadyFunction = autonomousControlsReadyFunction
@@ -613,6 +638,22 @@ class RBXRobotIF:
                 # max (16) so a full burst is never dropped.
                 'qsize': 20,
                 'callback': self.setMotorControlCb,
+                'callback_args': ()
+            },
+
+            'set_teleop_velocity': {
+                'namespace': self.namespace,
+                'topic': 'set_teleop_velocity',
+                # Stock geometry_msgs/Twist, not a new nepi_interfaces message.
+                # linear.x/y/z and angular.z are the only fields any driver
+                # reads; angular.x/y (roll/pitch RATE) are deliberately unused --
+                # see setTeleopVelocityCb.
+                'msg': Twist,
+                # qsize=1, unlike set_motor_control above: a keyboard-driven
+                # teleop client re-sends on every key event, so only the newest
+                # command matters, never a queued-up backlog of stale ones.
+                'qsize': 1,
+                'callback': self.setTeleopVelocityCb,
                 'callback_args': ()
             },
 
@@ -1121,6 +1162,13 @@ class RBXRobotIF:
                     self.status_msg.process_current = self.setup_actions[action_ind]
                     self.status_msg.ready = False
                     self.rbx_cmd_success_current = False
+                    # Clear the previous run's error before starting. Nothing else
+                    # clears last_error_message, so a failed action (e.g. a LAUNCH
+                    # that would not ARM) stayed on the RUI even after a later
+                    # attempt succeeded. Cleared at action START, not on success,
+                    # so an error raised DURING the action -- including FCU prearm
+                    # text relayed by update_error_msg -- survives to be read.
+                    self.status_msg.last_error_message = ""
                     self.msg_if.pub_info("Starting action: " + self.setup_actions[action_ind])
                     success = self.setSetupActionIndFunction(action_ind)
                     self.rbx_cmd_success_current = success
@@ -1202,20 +1250,50 @@ class RBXRobotIF:
     ### Function to set motor control
     def setMotorControl(self,new_motor_ctrl):
         if self.manualControlsReadyFunction() is True and self.setMotorControlRatio is not None:
+            # Clear any stale error (e.g. an earlier "not Ready" from before the
+            # device became ready) now that a command is actually being
+            # accepted. The driver's own setMotorControlRatio below still sets a
+            # fresh, specific error if IT rejects the command.
+            self.status_msg.last_error_message = ""
             m_ind = new_motor_ctrl.motor_ind
             m_sr = new_motor_ctrl.speed_ratio
             m_len = len(self.getMotorControlRatios())
             if m_ind > (m_len -1):
                 self.update_error_msg("New Motor Control Ind " + str(m_ind) + " is out of range")
-            elif m_sr < 0 or m_sr > 1:
+            elif m_sr < -1 or m_sr > 1:
+                # A wire-level sanity bound matching MotorControl.speed_ratio, not
+                # a semantic one: 0..1 rejected reverse commands before they
+                # reached a driver whose motors genuinely reverse (a wheeled
+                # rover). Each driver's own setMotorControlRatio still enforces
+                # the range that is meaningful for it (rbx_ardupilot, rbx_gazebo
+                # and custom_robot clamp to 0..1).
                 self.update_error_msg("New Motor Control Speed Ratio " + str(m_sr) + " is out of range")
             elif self.setMotorControlRatio is not None:
                 self.setMotorControlRatio(m_ind,m_sr)
         else:
-            self.update_error_msg("Ignoring Set Motor Control msg, Manual Controls not Ready")     
+            self.update_error_msg("Ignoring Set Motor Control msg, " + self._notReadyReason("Manual Controls"))
 
 
- 
+    ### Callback to set teleop (keyboard-driven) velocity
+    def setTeleopVelocityCb(self,twist_msg):
+        self.msg_if.pub_info("Received teleop velocity message")
+        if self.setTeleopVelocityFunction is None:
+            self.update_error_msg("Ignoring teleop velocity command, no teleop function")
+            return
+        if self.teleopControlsReadyFunction is None or self.teleopControlsReadyFunction() is not True:
+            self.update_error_msg("Ignoring teleop velocity command, " + self._notReadyReason("Teleop Controls"))
+            return
+        # linear.x/y/z, angular.z only. angular.x/y (roll-rate/pitch-rate) are
+        # deliberately not read here: a rover has no meaning for them at all,
+        # and for a drone the teleop "roll, pitch" controls are body-frame
+        # horizontal VELOCITY (linear.x forward/back, linear.y left/right), the
+        # same command shape MAVROS SET_POSITION_TARGET_LOCAL_NED velocity
+        # setpoints use for GUIDED-mode flight -- not raw attitude-rate
+        # setpoints, which would fight the flight controller's own attitude
+        # loop and are a riskier command to accept from a keyboard with no
+        # stick centering/failsafe.
+        self.setTeleopVelocityFunction(twist_msg.linear.x, twist_msg.linear.y,
+                                       twist_msg.linear.z, twist_msg.angular.z)
 
 
     ### Callback to set home
@@ -1266,7 +1344,10 @@ class RBXRobotIF:
     def goStopCb(self,stop_msg):
         self.msg_if.pub_info("Received go stop message" )
         self.msg_if.pub_info(stop_msg)
-        time.sleep(1)
+        # No time.sleep(1) here, unlike the goto callbacks: this callback has no
+        # "another command is active" check to debounce, and a one-second delay
+        # on a stop let a running goto loop keep driving toward its old target
+        # for that whole second before the stop was even issued.
         if self.goStopFunction is not None:
             self.status_msg.process_current = "Stop"
             self.rbx_cmd_success_current = False
@@ -1403,7 +1484,12 @@ class RBXRobotIF:
         self.msg_if.pub_info("Recieved GoTo Position Command Message" )
         self.msg_if.pub_info(position_cmd_msg)
         time.sleep(1)
-        if self.status_msg.manual_control_mode_ready is False:
+        # Gated on autonomous readiness like gotoPoseCb/gotoVelocityCb/
+        # gotoLocationCb. The old "manual_control_mode_ready is False" gate was
+        # inverted: a driver whose manual controls are always ready (rbx_ardupilot)
+        # could never goto position, and ones gated on a live connection
+        # (rbx_gazebo, custom_robot) only accepted it while disconnected.
+        if self.autonomousControlsReadyFunction() is True:
             setpoint_data=[position_cmd_msg.x_meters,position_cmd_msg.y_meters,position_cmd_msg.z_meters,position_cmd_msg.yaw_deg]
             if self.status_msg.ready is False:
                 self.update_error_msg("Ignoring GoTo Position Request, Another GoTo Command Process is Active")
@@ -2129,6 +2215,22 @@ class RBXRobotIF:
       self.msg_if.pub_info(error_msg)
       self.status_msg.last_error_message = error_msg
 
+    # Best-effort, driver-agnostic reason a manual/teleop command was rejected.
+    # A flight-capable driver reports ARM/DISARM through the same
+    # states/getStateIndFunction this class already holds, so when the robot
+    # has an "ARM" state and is not in it, say so. Robots without an "ARM" state
+    # (rovers have none) keep the plain "<controls_name> not Ready" wording.
+    def _notReadyReason(self, controls_name):
+        reason = controls_name + " not Ready"
+        if self.states and "ARM" in self.states and self.getStateIndFunction is not None:
+            try:
+                state_ind = self.getStateIndFunction()
+                if 0 <= state_ind < len(self.states) and self.states[state_ind] != "ARM":
+                    reason = reason + " (vehicle is not armed -- arm it first)"
+            except Exception:
+                pass
+        return reason
+
     def get_motor_controls_status_msg(self,motor_controls):
       """Builds a list of MotorControl messages from a speed-ratio list.
 
@@ -2239,6 +2341,11 @@ class RBXRobotIF:
         else:
           self.status_msg.manual_control_mode_ready = False
 
+        if self.teleopControlsReadyFunction is not None:
+          self.status_msg.teleop_control_mode_ready = self.teleopControlsReadyFunction()
+        else:
+          self.status_msg.teleop_control_mode_ready = False
+
         if self.getMotorControlRatios is not None:
             motor_controls_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
         else:
@@ -2330,17 +2437,26 @@ class RBXRobotIF:
 
         ## Update image source topic and subscriber if changed from last time.
         image_source = self.node_if.get_param('image_source')
+        if image_source is None:
+            # Param read failed (param server gone at shutdown): keep the
+            # current source this tick rather than crash in find_topic.
+            image_source = self.rbx_image_source_last
         image_topic = nepi_sdk.find_topic(image_source)
+        # Unsubscribe-if-changed runs outside the "if image_topic != ''" branch
+        # below so that a transition TO "" (source set to "None") also tears the
+        # old subscriber down. Inside that branch it only ran when switching
+        # between two real topics, so clearing the source left the old
+        # subscriber firing imageSubscriberCb and overwriting the blank frame.
+        if image_topic != self.rbx_image_source_last:
+            if self.rbx_image_sub != None:
+                try:
+                  self.msg_if.pub_info("Unsubscribing from image source: " + self.rbx_image_source_last)
+                  self.rbx_image_sub.unregister()
+                  self.rbx_image_sub = None
+                  time.sleep(1)
+                except Exception as e:
+                  self.msg_if.pub_info(e)
         if image_topic != "":
-          if image_topic != self.rbx_image_source_last:
-              if self.rbx_image_sub != None:
-                  try:
-                    self.msg_if.pub_info("Unsubscribing from image source: " + image_topic)
-                    self.rbx_image_sub.unregister()
-                    self.rbx_image_sub = None
-                    time.sleep(1)
-                  except Exception as e:
-                    self.msg_if.pub_info(e)
           if self.rbx_image_sub == None:
             self.msg_if.pub_info("Subscribing to image topic: " + image_topic)
             self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1)

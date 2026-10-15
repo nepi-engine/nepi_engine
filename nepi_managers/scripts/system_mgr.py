@@ -901,7 +901,21 @@ class SystemMgrNode():
 
 
             # Now gather all the params and set members appropriately
-            self.storage_folder = self.node_if.get_param("storage_folder")
+            # Keep the value __init__ already resolved from the system config
+            # (NEPI_STORAGE) whenever the param server has nothing usable yet.
+            # get_param() returns None when the param is not on the server, and
+            # os.statvfs(None) below then raised TypeError inside __init__, so
+            # system_mgr died and took the platform with it (every other manager
+            # waits on it, and the RUI blocks on its status topic). Confirmed live
+            # after an in-place `supervisorctl restart nepi_engine`: the restart
+            # wipes the param server and this read can lose the race against the
+            # params being re-registered. Intermittent, hence a fallback.
+            storage_folder_param = self.node_if.get_param("storage_folder")
+            if storage_folder_param:
+                self.storage_folder = storage_folder_param
+            else:
+                self.msg_if.pub_warn("No usable storage_folder param yet; keeping " +
+                                     str(self.storage_folder) + " from the system config")
 
 
             # nepi_storage has some additional logic
@@ -920,9 +934,18 @@ class SystemMgrNode():
             self.status_msg.warning_temps.append(60.0)
             self.status_msg.critical_temps.append(70.0)
 
-            statvfs = os.statvfs(self.storage_folder)
-            self.status_msg.disk_capacity = statvfs.f_frsize * statvfs.f_blocks / \
-                BYTES_PER_MEGABYTE     # Size of data filesystem in Megabytes
+            # Reporting an unknown disk capacity is a cosmetic degradation; an
+            # exception here is fatal, because this runs inside __init__ and
+            # nothing respawns system_mgr. self.storage_folder is also set to ""
+            # when the disk is full, which would raise here too.
+            try:
+                statvfs = os.statvfs(self.storage_folder)
+                self.status_msg.disk_capacity = statvfs.f_frsize * statvfs.f_blocks / \
+                    BYTES_PER_MEGABYTE     # Size of data filesystem in Megabytes
+            except Exception as e:
+                self.status_msg.disk_capacity = 0
+                self.msg_if.pub_warn("Could not determine disk capacity of " +
+                                     str(self.storage_folder) + ": " + str(e))
 
             for i in self.status_msg.temperature_sensor_names:
                 self.status_msg.temperatures.append(0.0)
