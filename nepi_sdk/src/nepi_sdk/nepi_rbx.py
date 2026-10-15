@@ -76,10 +76,10 @@ def rbx_initialize(self, rbx_namespace):
   time.sleep(1)
   rbx_caps = rbx_caps_service()
   nepi_sdk.log_msg_info(rbx_caps)
-  self.rbx_cap_states = (rbx_caps.state_options)
-  self.rbx_cap_modes = (rbx_caps.mode_options)
-  self.rbx_cap_setup_actions = (rbx_caps.setup_action_options)
-  self.rbx_cap_go_actions = (rbx_caps.go_action_options)
+  self.rbx_cap_states = (rbx_caps.device_status.state_options)
+  self.rbx_cap_modes = (rbx_caps.device_status.mode_options)
+  self.rbx_cap_setup_actions = (rbx_caps.device_status.setup_action_options)
+  self.rbx_cap_go_actions = (rbx_caps.device_status.go_action_options)
   # nepi_sdk.log_msg_info some results
   nepi_sdk.log_msg_info("NEPI_RBX: RBX State Options: ")
   for state in self.rbx_cap_states:

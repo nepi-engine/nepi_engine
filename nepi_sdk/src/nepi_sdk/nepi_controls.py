@@ -1375,7 +1375,10 @@ def apply_update_msg( controls_dict, msg):
   if description != '':
     controls_dict[name]['description'] = description
 
-  value_index = msg.value_index
+  # UpdateControl's wire field is 'index' (nepi_interfaces/UpdateControl.msg,
+  # and the RUI's Store.sendUpdateControlValue fills it). Only the local name
+  # is value_index.
+  value_index = msg.index
   if value_index == '':
     value_index = None
 

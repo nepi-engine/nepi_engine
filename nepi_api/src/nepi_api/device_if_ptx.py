@@ -74,7 +74,6 @@ class PTXActuatorIF:
 
     status_msg = DevicePTXStatus()
     info_report = DeviceInfoQueryResponse()
-    caps_report = PTXCapabilitiesQueryResponse()
 
     has_position_feedback = False
     has_absolute_positioning = False
@@ -259,10 +258,6 @@ class PTXActuatorIF:
         self.info_report.sw_version = self.sw_version
         self.info_report.type = 'PTX'
 
-        self.caps_report.device_name = self.device_name
-        self.caps_report.device_path = self.path
-        self.caps_report.device_node_name = self.node_name
-
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
 
@@ -370,22 +365,6 @@ class PTXActuatorIF:
         if self.calibrateCenterCB is not None:
             self.has_calibration = True
 
-
-
-
-        # Create Capabilities Report
-        self.caps_report = PTXCapabilitiesQueryResponse()
-        self.caps_report.has_absolute_positioning = self.has_absolute_positioning
-        self.caps_report.has_timed_positioning = self.has_timed_positioning
-        self.caps_report.has_timed_speed_positioning = self.has_timed_speed_positioning
-        self.caps_report.has_seperate_pan_tilt_control = self.has_seperate_pan_tilt_control
-        self.caps_report.has_position_feedback = self.has_position_feedback
-        self.caps_report.has_adjustable_speed = self.has_adjustable_speed
-        self.caps_report.has_seperate_pan_tilt_speed = self.has_seperate_pan_tilt_speed
-        self.caps_report.has_limit_controls = self.has_limit_controls
-        self.caps_report.has_homing = self.has_homing
-        self.caps_report.has_set_home = self.has_set_home
-        self.caps_report.has_calibration = self.has_calibration
 
 
         #######################################
@@ -1323,7 +1302,7 @@ class PTXActuatorIF:
         self._setSpeedRatio(ratio)
 
     def _setSpeedRatio(self,speed_ratio):
-        if self.caps_report.has_adjustable_speed == True:
+        if self.has_adjustable_speed == True:
             speed_cur = math.floor(self.getSpeedRatioCb())
             
             self.msg_if.pub_warn("new speed ratio " + "%.2f" % speed_ratio)
@@ -1344,7 +1323,7 @@ class PTXActuatorIF:
         self._setPanSpeedRatio(ratio)
 
     def _setPanSpeedRatio(self,speed_ratio):
-        if self.caps_report.has_seperate_pan_tilt_speed == True:
+        if self.has_seperate_pan_tilt_speed == True:
             speed_cur = math.floor(self.getPanSpeedRatioCb())
             if speed_cur != speed_ratio and self.setPanSpeedRatioCb is not None:
                 self.speed_pan_ratio = speed_ratio
@@ -1359,7 +1338,7 @@ class PTXActuatorIF:
         self._setTiltSpeedRatio(ratio)
 
     def _setTiltSpeedRatio(self,speed_ratio):
-        if self.caps_report.has_seperate_pan_tilt_speed == True:
+        if self.has_seperate_pan_tilt_speed == True:
             speed_cur = math.floor(self.getTiltSpeedRatioCb())
             if speed_cur != speed_ratio and self.setTiltSpeedRatioCb is not None:
                 self.speed_tilt_ratio = speed_ratio
@@ -1684,12 +1663,13 @@ class PTXActuatorIF:
         """Service handler that returns the PTX capabilities report.
 
         Returns:
-            PTXCapabilitiesQueryResponse: Response describing which PTX capabilities
-                are supported, including absolute positioning, timed positioning,
-                separate pan/tilt control, position feedback, adjustable speed,
-                limit controls, homing, set-home, and calibration.
+            PTXCapabilitiesQueryResponse: The current DevicePTXStatus in device_status,
+                describing which PTX capabilities are supported, including absolute
+                positioning, timed positioning, separate pan/tilt control, position
+                feedback, adjustable speed, limit controls, homing, set-home, and
+                calibration.
         """
-        return self.caps_report
+        return PTXCapabilitiesQueryResponse(device_status = self.status_msg)
     
   
 

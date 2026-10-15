@@ -135,7 +135,6 @@ class RBXRobotIF:
     ready = False
     status_msg=DeviceRBXStatus()
     info_report = DeviceInfoQueryResponse()
-    caps_report = RBXCapabilitiesQueryResponse()
 
     factory_device_name = ''
 
@@ -254,10 +253,6 @@ class RBXRobotIF:
         self.info_report.sw_version = self.sw_version
         self.info_report.type = 'RBX'
 
-        self.caps_report.device_name = self.device_name
-        self.caps_report.device_path = self.path
-        self.caps_report.device_node_name = self.node_name
-
 
 
 
@@ -357,20 +352,20 @@ class RBXRobotIF:
           axis_controls.pitch = False
           axis_controls.yaw = False
           axisControls = axis_controls
-        self.caps_report.control_support = axisControls
+        self.status_msg.control_support = axisControls
         
-        self.caps_report.state_options = states
-        self.caps_report.mode_options = modes
-        self.caps_report.setup_action_options = setup_actions
-        self.caps_report.go_action_options = go_actions
-        self.caps_report.data_products = self.data_products_list
+        self.status_msg.state_options = states
+        self.status_msg.mode_options = modes
+        self.status_msg.setup_action_options = setup_actions
+        self.status_msg.go_action_options = go_actions
+        self.status_msg.data_products = self.data_products_list
 
 
         self.getBatteryPercentFunction = getBatteryPercentFunction
         if self.getBatteryPercentFunction is not None:
-          self.caps_report.has_battery_feedback = True
+          self.status_msg.has_battery_feedback = True
         else:
-          self.caps_report.has_battery_feedback = False
+          self.status_msg.has_battery_feedback = False
 
         ## Setup Manual Controls
         self.manualControlsReadyFunction = manualControlsReadyFunction
@@ -392,9 +387,9 @@ class RBXRobotIF:
 
         self.setMotorControlRatio = setMotorControlRatio
         if self.setMotorControlRatio is None:
-            self.caps_report.has_manual_controls = False
+            self.status_msg.has_manual_controls = False
         else:
-            self.caps_report.has_manual_controls = True
+            self.status_msg.has_manual_controls = True
         self.getMotorControlRatios = getMotorControlRatios
         if self.getMotorControlRatios is not None:
             motor_controls_info_msg = self.get_motor_controls_status_msg(self.getMotorControlRatios())
@@ -405,10 +400,10 @@ class RBXRobotIF:
         self.autonomousControlsReadyFunction = autonomousControlsReadyFunction
         if self.autonomousControlsReadyFunction is not None:
           self.status_msg.autonomous_control_mode_ready = self.autonomousControlsReadyFunction()
-          self.caps_report.has_autonomous_controls = True
+          self.status_msg.has_autonomous_controls = True
         else:
           self.status_msg.autonomous_control_mode_ready = False
-          self.caps_report.has_autonomous_controls = False
+          self.status_msg.has_autonomous_controls = False
 
 
         self.go_actions = go_actions
@@ -418,48 +413,48 @@ class RBXRobotIF:
         self.getHomeFunction = getHomeFunction
         self.setHomeFunction  = setHomeFunction
         if self.setHomeFunction is None :
-            self.caps_report.has_set_home = False
+            self.status_msg.has_set_home = False
         else:
-            self.caps_report.has_set_home = True
+            self.status_msg.has_set_home = True
      
 
         self.goHomeFunction = goHomeFunction
         if self.goHomeFunction is None:
-            self.caps_report.has_go_home = False
+            self.status_msg.has_go_home = False
         else:
-            self.caps_report.has_go_home = True
+            self.status_msg.has_go_home = True
 
 
         self.goStopFunction = goStopFunction
         if self.goStopFunction is None:
-            self.caps_report.has_go_stop = False
+            self.status_msg.has_go_stop = False
         else:
-            self.caps_report.has_go_stop = True
+            self.status_msg.has_go_stop = True
 
 
         self.gotoPoseFunction = gotoPoseFunction
         if self.gotoPoseFunction is None:
-            self.caps_report.has_goto_pose = False
+            self.status_msg.has_goto_pose = False
         else:
-            self.caps_report.has_goto_pose = True            
+            self.status_msg.has_goto_pose = True            
 
         self.gotoPositionFunction = gotoPositionFunction
         if self.gotoPositionFunction is None:
-            self.caps_report.has_goto_position = False
+            self.status_msg.has_goto_position = False
         else:
-            self.caps_report.has_goto_position = True            
+            self.status_msg.has_goto_position = True            
 
         self.gotoLocationFunction = gotoLocationFunction
         if self.gotoLocationFunction is None:
-            self.caps_report.has_goto_location = False
+            self.status_msg.has_goto_location = False
         else:
-            self.caps_report.has_goto_location = True
+            self.status_msg.has_goto_location = True
 
         self.gotoVelocityFunction = gotoVelocityFunction
         if self.gotoVelocityFunction is None:
-            self.caps_report.has_goto_velocity = False
+            self.status_msg.has_goto_velocity = False
         else:
-            self.caps_report.has_goto_velocity = True
+            self.status_msg.has_goto_velocity = True
 
         self.status_msg.cmd_success = False
 
@@ -1498,11 +1493,11 @@ class RBXRobotIF:
             _: Unused service request object.
 
         Returns:
-            RBXCapabilitiesQueryResponse: The pre-populated capabilities
-                report describing supported control axes, states, modes,
-                actions, and data products.
+            RBXCapabilitiesQueryResponse: The current DeviceRBXStatus in
+                device_status, which carries the supported control axes,
+                states, modes, actions, and data products.
         """
-        return self.caps_report
+        return RBXCapabilitiesQueryResponse(device_status = self.status_msg)
     
 
            

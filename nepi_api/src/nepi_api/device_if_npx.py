@@ -83,7 +83,6 @@ class NPXDeviceIF:
 
   status_msg = DeviceNPXStatus()
   info_report = DeviceInfoQueryResponse()
-  caps_report = NPXCapabilitiesQueryResponse()
   
   update_rate = DEFAULT_UPDATE_RATE
   navpose_frame = DEFAULT_3D_FRAME
@@ -207,10 +206,6 @@ class NPXDeviceIF:
         self.info_report.sw_version = self.sw_version
         self.info_report.type = 'NPX'
 
-        self.caps_report.device_name = self.device_name
-        self.caps_report.device_path = self.path
-        self.caps_report.device_node_name = self.node_name
-
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
         self.tr_source_ref_description = data_ref_description
@@ -254,21 +249,21 @@ class NPXDeviceIF:
             self.navpose_caps_known = True
 
 
-        # Create capabilities report
-        self.caps_report.has_heading = self.has_heading
-        self.caps_report.has_position = self.has_position
-        self.caps_report.has_orientation = self.has_orientation
-        self.caps_report.has_location = self.has_location      
-        self.caps_report.has_altitude = self.has_altitude
-        self.caps_report.has_depth =  self.has_depth
-        self.caps_report.has_pan_tilt = self.has_pan_tilt
+        # Fill in capabilities, which capabilities_query returns with the status
+        self.status_msg.has_heading = self.has_heading
+        self.status_msg.has_position = self.has_position
+        self.status_msg.has_orientation = self.has_orientation
+        self.status_msg.has_location = self.has_location
+        self.status_msg.has_altitude = self.has_altitude
+        self.status_msg.has_depth =  self.has_depth
+        self.status_msg.has_pan_tilt = self.has_pan_tilt
 
 
-        self.caps_report.supports_updates = self.supports_updates
+        self.status_msg.supports_updates = self.supports_updates
 
-        self.caps_report.pub_rate_min_max = [self.MIN_PUB_RATE,max_navpose_update_rate]
+        self.status_msg.pub_rate_min_max = [self.MIN_PUB_RATE,max_navpose_update_rate]
 
-        self.caps_report.data_products =  self.data_products_list
+        self.status_msg.data_products =  self.data_products_list
 
 
         # Initialize navpose_dict
@@ -551,7 +546,7 @@ class NPXDeviceIF:
 
   def deriveNavPoseCaps(self,navpose_dict):
     # Derive the has_* capability flags from a telemetry dict and mirror them into
-    # the caps report and the status message. Called exactly once per node life --
+    # the status message, which capabilities_query also returns. Called exactly once per node life --
     # either from __init__ when the source answers immediately, or from
     # _updateNavPoseDictCb on the first successful read when it does not. The flags
     # cannot move after that, because NavPoseIF is created from them in the same
@@ -563,14 +558,6 @@ class NPXDeviceIF:
     self.has_altitude = navpose_dict['has_altitude']
     self.has_depth = navpose_dict['has_depth']
     self.has_pan_tilt = navpose_dict['has_pan_tilt']
-
-    self.caps_report.has_location = self.has_location
-    self.caps_report.has_heading = self.has_heading
-    self.caps_report.has_orientation = self.has_orientation
-    self.caps_report.has_position = self.has_position
-    self.caps_report.has_altitude = self.has_altitude
-    self.caps_report.has_depth = self.has_depth
-    self.caps_report.has_pan_tilt = self.has_pan_tilt
 
     self.status_msg.has_location = self.has_location
     self.status_msg.has_heading = self.has_heading
@@ -686,12 +673,12 @@ class NPXDeviceIF:
     """Service handler that returns the NPX capabilities report.
 
     Returns:
-        NPXCapabilitiesQueryResponse: Response describing which navpose data types
-            this device provides, including location, heading, orientation, position,
-            altitude, depth, and pan/tilt, as well as supported update rate range
-            and available data products.
+        NPXCapabilitiesQueryResponse: The current DeviceNPXStatus in device_status,
+            describing which navpose data types this device provides, including
+            location, heading, orientation, position, altitude, depth, and pan/tilt,
+            as well as supported update rate range and available data products.
     """
-    return self.caps_report
+    return NPXCapabilitiesQueryResponse(device_status = self.status_msg)
 
 
   def _updateNavPoseDictCb(self,timer):

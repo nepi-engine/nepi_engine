@@ -294,8 +294,9 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         """Query and return the RBX device capabilities report.
 
         Returns:
-            RBXCapabilitiesQueryResponse: The capabilities response, or None if
-                no device is selected or the call failed.
+            RBXCapabilitiesQueryResponse: The capabilities response, carrying the
+                device's DeviceRBXStatus in device_status, or None if no device
+                is selected or the call failed.
         """
         resp = None
         if self.node_if is not None:
@@ -316,11 +317,12 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         resp = self.get_capabilities()
         if resp is None:
             return None
+        caps = resp.device_status
         return {
-            'has_goto_pose': resp.has_goto_pose,
-            'has_goto_position': resp.has_goto_position,
-            'has_goto_location': resp.has_goto_location,
-            'has_goto_velocity': resp.has_goto_velocity
+            'has_goto_pose': caps.has_goto_pose,
+            'has_goto_position': caps.has_goto_position,
+            'has_goto_location': caps.has_goto_location,
+            'has_goto_velocity': caps.has_goto_velocity
         }
 
     def get_motors_status_dict(self):
