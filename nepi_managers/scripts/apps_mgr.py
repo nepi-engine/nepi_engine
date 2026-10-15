@@ -94,7 +94,7 @@ class NepiAppsMgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_warn("Starting IF Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes")
 
         ##############################
         # Get for System Folders
@@ -256,7 +256,7 @@ class NepiAppsMgr(object):
 
         #########################################################
         ## Initiation Complete
-        self.msg_if.pub_warn("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         #Set up node shutdown
         nepi_sdk.on_shutdown(self.cleanup_actions)
         # Spin forever (until object is detected)
@@ -376,7 +376,7 @@ class NepiAppsMgr(object):
       if app_name not in apps_active_list and app_name in self.apps_active_dict.keys():
           namespace = self.apps_active_dict[app_name]['node_namespace']
           sub_process = self.apps_active_dict[app_name]['subprocess']
-          self.msg_if.pub_warn("Killing app: " + str(app_name) + " : " + namespace)
+          self.msg_if.pub_info("Killing app: " + str(app_name) + " : " + namespace)
           success = nepi_sdk.kill_node_process(namespace,sub_process)
           purge_list.append(app_name)
     # purge from active discovery dict
@@ -400,7 +400,7 @@ class NepiAppsMgr(object):
         was_running = app_dict['running']
 
       if app_name in apps_active_list and app_name not in self.apps_active_dict.keys():
-        self.msg_if.pub_warn("Launching app: " + str(app_name) )
+        self.msg_if.pub_info("Launching app: " + str(app_name) )
 
         #self.msg_if.pub_debug(app_dict)
         app_pkg_name = app_dict['pkg_name']
@@ -433,8 +433,8 @@ class NepiAppsMgr(object):
             #self.msg_if.pub_debug("Could not find config file at: " + config_file_path + " starting with factory settings")
           
           #Try and launch node
-          self.msg_if.pub_warn("")
-          self.msg_if.pub_warn("Launching application node: " + app_node_name)
+          self.msg_if.pub_info("")
+          self.msg_if.pub_info("Launching application node: " + app_node_name)
           #self.msg_if.pub_debug("Launching application node: " + app_node_name + " with App Dict: " + str(app_dict))
           [success, msg, sub_process] = nepi_sdk.launch_node(app_pkg_name, app_file_name, app_node_name)
           if success == True:

@@ -86,7 +86,7 @@ class ScriptsManager(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes")
 
 
         ##############################
@@ -95,7 +95,7 @@ class ScriptsManager(object):
         # Get for System Folders
         self.msg_if.pub_info("Waiting for user folders")
         user_folders = nepi_system.get_user_folders()
-        #self.msg_if.pub_warn("Got user folders: " + str(user_folders))
+        #self.msg_if.pub_debug("Got user folders: " + str(user_folders))
 
         if 'nepi_scripts' in user_folders.keys():
             self.scripts_folder = user_folders['nepi_scripts']
@@ -105,7 +105,7 @@ class ScriptsManager(object):
             self.scripts_log_folder = user_folders['logs/nepi_scripts_logs']
         self.msg_if.pub_info("Using Scripts Log Folder: " + str(self.scripts_log_folder))
         
-        self.msg_if.pub_warn("Waiting for Config Mgr")
+        self.msg_if.pub_debug("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()
           
 
@@ -276,7 +276,7 @@ class ScriptsManager(object):
         # Ensure all known scripts have a script_config
         for script_name in script_list:
             if script_name not in self.script_configs:
-                #self.msg_if.pub_warn("Initializing config for " + script_name)
+                #self.msg_if.pub_debug("Initializing config for " + script_name)
                 self.script_configs[script_name] = {'auto_start': False, 'cmd_line_args': ''}
 
                 # Good place to dos2unix it
@@ -292,26 +292,26 @@ class ScriptsManager(object):
             del self.script_configs[script_name]
 
     def update_script_configs(self):
-        #self.msg_if.pub_warn("Ready to run update_script_configs!!!")
+        #self.msg_if.pub_debug("Ready to run update_script_configs!!!")
         script_configs = {} # Dictionary of dictionaries
 
         try:
             if self.node_if is not None:
                 script_configs = self.node_if.get_param('script_configs')
         except KeyError:
-            #self.msg_if.pub_warn("Parameter ~script_configs does not exist")
+            #self.msg_if.pub_debug("Parameter ~script_configs does not exist")
             pass
 
         for script_name in script_configs:
             if script_name not in self.scripts:
-                self.msg_if.pub_warn("Config file includes configuration for unknown script " + script_name  + "... skipping this config")
+                self.msg_if.pub_debug("Config file includes configuration for unknown script " + script_name  + "... skipping this config")
                 continue
 
             script_config = script_configs[script_name]
             self.msg_if.pub_info(script_name + " configuration from param server: " + str(script_config))
 
             if 'auto_start' not in script_config or 'cmd_line_args' not in script_config:
-                self.msg_if.pub_warn("Invalid config. file settings for script " + script_name + "... skipping this config")
+                self.msg_if.pub_debug("Invalid config. file settings for script " + script_name + "... skipping this config")
                 continue
 
             self.script_configs[script_name]['auto_start'] = script_config['auto_start']
@@ -319,7 +319,7 @@ class ScriptsManager(object):
         
     def AutoStartEnabled_cb(self, msg):
         if msg.script not in self.script_configs:
-            self.msg_if.pub_warn("Cannot configure autostart for unknown script " + msg.script)
+            self.msg_if.pub_debug("Cannot configure autostart for unknown script " + msg.script)
             return
         
         self.msg_if.pub_info("Script AUTOSTART : " + msg.script + " - " + str(msg.enabled))
@@ -473,7 +473,7 @@ class ScriptsManager(object):
                 except Exception as e:
                     return LaunchScriptResponse(False)
             else:
-                self.msg_if.pub_warn("is already running... will not start another instance " +  str(req.script))
+                self.msg_if.pub_debug("is already running... will not start another instance " +  str(req.script))
                 return LaunchScriptResponse(False)
         else:
             self.msg_if.pub_info("not found: " + str(req.script))
@@ -589,7 +589,7 @@ class ScriptsManager(object):
             #self.msg_if.pub_info("CPU Percent: %.5f%%, Memory Usage: %.5f%%, Run Time: %.2f" % (response.cpu_percent, response.memory_percent, response.run_time_s))
 
         except Exception as e:
-            self.msg_if.pub_warn("Error gathering running stats: " + str(e))
+            self.msg_if.pub_debug("Error gathering running stats: " + str(e))
             return response  # Add new None values for the counters
         # Return the system stats as a GetSystemStatsQuery response object
         return response

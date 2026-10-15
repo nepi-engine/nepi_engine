@@ -80,7 +80,7 @@ class config_mgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_warn("Starting IF Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes")
 
         ##############################
         # Wait for System Manager
@@ -242,7 +242,7 @@ class config_mgr(object):
         #########################################################
         ## Initiation Complete
 
-        self.msg_if.pub_warn("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################
@@ -512,10 +512,10 @@ class config_mgr(object):
                 success = False
                 for source_pathname in source_pathnames:
                     if os.path.exists(source_pathname):
-                        self.msg_if.pub_warn("Loading config for namespace: " + restore_namespace + " from: " + str(source_pathname))
+                        self.msg_if.pub_debug("Loading config for namespace: " + restore_namespace + " from: " + str(source_pathname))
                         success = self.update_from_file(source_pathname, restore_namespace)
                         if success == True:
-                            self.msg_if.pub_warn("Loaded saved config for namespace: " + restore_namespace + " from: " + str(source_pathname))
+                            self.msg_if.pub_info("Loaded saved config for namespace: " + restore_namespace + " from: " + str(source_pathname))
                             return success
                         else:
                             self.msg_if.pub_warn("Failed to load. Removing config file for namespace: " + restore_namespace + " from: " + str(source_pathname))

@@ -249,7 +249,7 @@ class SystemMgrNode():
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_warn("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes")
 
 
         ###############################
@@ -782,7 +782,7 @@ class SystemMgrNode():
         self.msg_if.pub_debug("Got Init System Config: " + str(system_config))
         ###############################
         # Setup System Settings IF Class ####################
-        self.msg_if.pub_debug("Starting Settings IF Initialization")
+        self.msg_if.pub_debug("Starting Settings Initialization")
         system_settings_ns = self.base_namespace
 
         self.system_settings_if = SettingsIF(namespace = system_settings_ns,
@@ -817,7 +817,6 @@ class SystemMgrNode():
         time.sleep(1)
 
 
-        self.msg_if.pub_warn("Completing Initialization Processes") 
         ########################
         # Complete Initialization
 
@@ -843,7 +842,7 @@ class SystemMgrNode():
 
         ##################################
         # Setup Save Data IF Class ####################
-        self.msg_if.pub_debug("Starting Save Data IF Initialization")
+        self.msg_if.pub_debug("Starting Save Data Initialization")
         self.data_products_list = ['All']
         factory_data_rates= {}
         factory_data_rates['All'] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
@@ -872,7 +871,7 @@ class SystemMgrNode():
         #########################################################
         ## Initiation Complete
         self.ready = True
-        self.msg_if.pub_warn("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         nepi_sdk.spin()
 
 
@@ -1074,7 +1073,7 @@ class SystemMgrNode():
         if self.nepi_update_requested == False and self.nepi_updating_config == False:
             while (self.nepi_config_updating == True):
               nepi_sdk.sleep(0.5)            
-            self.msg_if.pub_warn("Starting System Update Process")
+            self.msg_if.pub_info("Starting System Update Process")
             umsg = "Sending NEPI Update Request"
             self.msg_if.pub_debug(str(umsg))
             self.status_msg.nepi_update_msg = umsg
@@ -1152,7 +1151,7 @@ class SystemMgrNode():
             self.msg_if.pub_warn("Storage Expansion Allready in Progress")
             self.status_msg.nepi_update_msg = 'STORAGE EXPANSION ALLREADY IN PROGRESS'
         else:
-            self.msg_if.pub_warn("Starting Storage Drive Expansion Process")
+            self.msg_if.pub_info("Starting Storage Drive Expansion Process")
             self.nepi_expand_requested = True
             umsg = 'STORAGE EXPANSION REQUESTED'
             self.msg_if.pub_debug(str(umsg))
@@ -1215,7 +1214,7 @@ class SystemMgrNode():
                 if self.node_if is not None:
                     self.node_if.publish_pub('throttle_ratio_pub', Float32(throttle_ratio_min))
                 self.current_throttle_ratio = throttle_ratio_min
-                #self.msg_if.pub_warn("New thermal rate throttle value: %f%%", self.current_throttle_ratio)
+                #self.msg_if.pub_debug("New thermal rate throttle value: %f%%", self.current_throttle_ratio)
 
     def update_storage(self):
         # Data partition
@@ -1223,7 +1222,7 @@ class SystemMgrNode():
             statvfs = os.statvfs(self.storage_folder)
         except Exception as e:
             warn_str = "Error checking data storage status of " + self.storage_folder + ": " + e.what()
-            self.msg_if.pub_warn(warn_str)
+            self.msg_if.pub_debug(warn_str)
             self.add_info_string("warn_str")
             self.status_msg.disk_usage = 0
             self.storage_rate = 0
@@ -1439,7 +1438,7 @@ class SystemMgrNode():
         for manager_name in purge_list:
             node_namespace = managers_dict[manager_name]['node_namespace']
             subprocess = self.managers_process_dict[manager_name]
-            self.msg_if.pub_warn("Killing Deactivated Manager: " + str(manager_name))
+            self.msg_if.pub_info("Killing Deactivated Manager: " + str(manager_name))
             success = nepi_mgrs.killManagerNode(node_namespace,subprocess)
             del self.managers_process_dict[manager_name]
             needs_update = True
@@ -1455,7 +1454,7 @@ class SystemMgrNode():
                 [success, msg, subprocess] = nepi_mgrs.launchManagerNode(file_name, node_name, etc_file)
                 if success == True:
                     self.managers_process_dict[manager_name] = subprocess
-                    self.msg_if.pub_warn("Manager launched successfully: " + str(manager_name))
+                    self.msg_if.pub_info("Manager launched successfully: " + str(manager_name))
                 else:
                     self.msg_if.pub_warn("Manager Failed to Launch. Will not retry: " + str(manager_name))
                     self.managers_failed_list.append(manager_name)
@@ -1489,7 +1488,7 @@ class SystemMgrNode():
         if space_available == False and self.space_available == True:
             self.msg_if.pub_warn("Data folder minimum free space percent limit reached: " + str(self.disk_required_percent))
             free_space = self.disk_required_percent + self.disk_clean_percent
-            self.msg_if.pub_warn("Deleting old data files to free up space in folder: " + str(data_path))
+            self.msg_if.pub_info("Deleting old data files to free up space in folder: " + str(data_path))
             nepi_utils.free_path_space(data_path,free_space)
         space_available = nepi_utils.check_path_space(data_path,self.disk_required_percent)
         if space_available == False:
@@ -1822,7 +1821,7 @@ class SystemMgrNode():
         #      self.system_config = nepi_system.update_nepi_system_config('NEPI_SW_DESC','unknown')
 
 
-        self.msg_if.pub_warn("Device ID Updated - Requires device reboot")
+        self.msg_if.pub_info("Device ID Updated - Requires device reboot")
         self.add_info_string(
             "Device ID updated - Requires device reboot", StampedString.PRI_ELEVATED)
         self.node_if.save_config()
