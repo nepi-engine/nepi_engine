@@ -141,11 +141,13 @@ MSG_COLORS = {
     "WARN": "\033[33m",
     "ERROR": "\033[31m",
     "FATAL": "\033[31m",
-    "DEBUG": "\033[38;5;130m",
+    "DEBUG": "\033[38;5;208m",
 
     # --- Utility ---
     "RESET": "\033[0m"
 }
+
+
 
 MSG_DEFAULT_COLORS = {
   'info': MSG_COLORS['INFO'],
@@ -873,21 +875,21 @@ class logger:
               str_msg = str_msg + " : " + str(namespace)  
 
 
-
+        msg_color = None
         if color is not None:
           if color in MSG_COLORS.keys():
-             color = MSG_COLORS[color]
+             msg_color = color
         
 
-        if color is None:
-           color = self.colors_dict[level]
+        if msg_color is None:
+           msg_color = level.upper()
 
-        pub_str = log_msg(str_msg, level = level, color = color, caller_str = caller_str)      
+        pub_str = log_msg(str_msg, level = level, color = msg_color, caller_str = caller_str)      
 
         if pub_str is not None:
           pub_msg = Message()
           pub_msg.level = level
-          pub_msg.color = color
+          pub_msg.color = msg_color
           pub_msg.message = pub_str
 
           if self.msg_pub_sys is not None:
