@@ -272,6 +272,9 @@ class ProcessIF:
     last_status_time = 0
 
     if_dict = dict()
+
+    debug = False
+
     #######################
     ### IF Initialization
     def __init__(self, 
@@ -302,8 +305,8 @@ class ProcessIF:
         if msg_if is not None:
             self.msg_if = msg_if
         else:
-            msg_namespace = self.node_namespace + '_' + self.process_name
-            self.msg_if = MsgIF(namespace = msg_namespace)
+            #msg_namespace = self.node_namespace + '_' + self.process_name
+            self.msg_if = MsgIF()
         self.msg_if.pub_info("Starting IF Initialization Processes" )
 
         # Create Process Name
@@ -1440,8 +1443,10 @@ class ProcessIF:
             self.active_topics = msg.active_topics
             self.active_topic_types = msg.active_topic_types
             self.active_services = msg.active_services
-
-
+            
+            namespace = msg.sys_debug_namespace
+            enabled = msg.sys_debug_enabled
+            self.debug = enabled and (namespace == 'ALL' or namespace == self.node_namespace)
 
     def _updatePubStats(self):
         if self.last_process_time is None:
@@ -1580,7 +1585,7 @@ class ProcessIF:
         controls_dict = copy.deepcopy(self.controls_dict)
         cur_value = nepi_controls.get_value(controls_dict, control_name)
         if cur_value is not None:
-            controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
+            controls_dict = nepi_controls.apply_update_msg(controls_dict, msg, debug = self.debug)
             update_value = nepi_controls.get_value(controls_dict, control_name)
             self.msg_if.pub_info("Checking for update:current Change: " + str([control_name,update_value,cur_value]) )
             if cur_value != update_value:

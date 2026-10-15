@@ -203,7 +203,7 @@ class SystemMgrNode():
     
     run_mode = 'deploy'
     debug_mode_enabled = False
-    debug_namespace = 'NONE'
+    debug_namespace = 'ALL'
 
     user_restriction_options = USER_RESTRICTION_OPTIONS
     user_restrictions = []
@@ -1331,7 +1331,10 @@ class SystemMgrNode():
         if debug_namespace != 'ALL' and debug_namespace != 'NONE':
             check_namespace = debug_namespace + '/messages'
             if check_namespace not in self.topics_name_list:
-                self.set_debug_namespace('NONE')
+                self.debug_mode_enabled = False
+                self.set_debug_namespace('ALL')
+
+
 
 
         nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
