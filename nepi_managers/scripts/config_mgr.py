@@ -80,7 +80,7 @@ class config_mgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_debug("Starting Initialization Processes")
 
         ##############################
         # Wait for System Manager

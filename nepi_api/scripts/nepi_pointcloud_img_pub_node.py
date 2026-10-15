@@ -106,19 +106,19 @@ class PointcloudImgPub:
         backup_data_products = ['pointcloud_image']
         self.data_products = nepi_sdk.get_param(self.node_namespace + "/data_products", backup_data_products)
         #self.data_product = self.data_products[-1]
-        self.msg_if.pub_warn("Starting with Data Products: " + str(self.data_products))
+        self.msg_if.pub_debug("Starting with Data Products: " + str(self.data_products))
 
         backup_pointcloud_namespace = self.node_namespace.replace("_img_pub", "")
         self.pointcloud_namespace = nepi_sdk.get_param(self.node_namespace + "/pointcloud_namespace", backup_pointcloud_namespace)
-        self.msg_if.pub_warn("Starting with Pointcloud Namespace: " + str(self.pointcloud_namespace))
+        self.msg_if.pub_debug("Starting with Pointcloud Namespace: " + str(self.pointcloud_namespace))
 
 
         backup_navpose_namespace = self.node_namespace.replace("_img_pub", "") + '/navpose'
         self.navpose_namespace = nepi_sdk.get_param(self.node_namespace + "/navpose_namespace", backup_navpose_namespace)
-        self.msg_if.pub_warn("Starting with NavPose Namespace: " + str(self.navpose_namespace))
+        self.msg_if.pub_debug("Starting with NavPose Namespace: " + str(self.navpose_namespace))
 
         self.pointcloud_image_namespace = nepi_sdk.create_namespace(self.pointcloud_namespace,self.data_product)
-        self.msg_if.pub_warn("Starting with Pointcloud Image Namespace: " + str(self.pointcloud_image_namespace))
+        self.msg_if.pub_debug("Starting with Pointcloud Image Namespace: " + str(self.pointcloud_image_namespace))
 
         self.status_msg = PointcloudStatus()
 
@@ -222,7 +222,7 @@ class PointcloudImgPub:
         else:
             if timer > WATCHDOG_TIMEOUT:
                 msg = "Lost connection to parent node status msg.  Shutting down"
-                self.msg_if.pub_warn(msg)
+                self.msg_if.pub_debug(msg)
                 nepi_sdk.signal_shutdown(msg)
 
         nepi_sdk.start_timer_process(1, self.watchdogCb, oneshot = True)
@@ -306,7 +306,7 @@ class PointcloudImgPub:
                                     frame_id = frame_id
                                     )
         except Exception as e:
-            self.msg_if.pub_warn("Failed to render pointcloud image: " + str(e))
+            self.msg_if.pub_warn("Failed to render pointcloud image: " + str(e), throttle_s = 5)
         self.processing = False
 
 

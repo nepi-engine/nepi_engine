@@ -425,7 +425,7 @@ class AIDetectorManager:
                             self.msg_if.pub_debug("Created aif instantiated if class: " + aif_name )
                             supported = aif_if_class_instance.checkFrameworkSupport()
                             if supported == False:
-                                self.msg_if.pub_warn("Framework not supported: " + aif_name )
+                                self.msg_if.pub_debug("Framework not supported: " + aif_name )
                                 if aif_name not in purge_list:
                                         purge_list.append(aif_name)
                                 success = False
@@ -666,7 +666,7 @@ class AIDetectorManager:
         if model_name != "None": 
             aif_name=self.models_dict[model_name]['framework']
             if aif_name not in self.aifs_classes_dict.keys():
-                self.msg_if.pub_warn("Model Framework Class not instantiated")
+                self.msg_if.pub_debug("Model Framework Class not instantiated")
             else:
                 try:
                     aif_class = self.aifs_classes_dict[aif_name]
@@ -694,7 +694,7 @@ class AIDetectorManager:
                 node_name = models_dict[model_name]['node_name']
                 aif_name=self.models_dict[model_name]['framework']
                 if aif_name not in self.aifs_classes_dict.keys():
-                    self.msg_if.pub_warn("Model Framework Class not instantiated")
+                    self.msg_if.pub_debug("Model Framework Class not instantiated")
                 else:
                     # Call Kill model
                     aif_class = self.aifs_classes_dict[aif_name]

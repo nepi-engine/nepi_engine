@@ -307,7 +307,7 @@ class ProcessIF:
         else:
             #msg_namespace = self.node_namespace + '_' + self.process_name
             self.msg_if = MsgIF()
-        self.msg_if.pub_warn("Starting IF Initialization Processes" )
+        self.msg_if.pub_info("Starting Initialization Processes" )
 
         # Create Process Name
         
@@ -654,7 +654,7 @@ class ProcessIF:
         # RUI process panel stays blank forever.
         nepi_sdk.start_timer_process(1, self._publishStatusCb)
         self.publish_status()
-        self.msg_if.pub_warn(str(self.class_name) + " Initialization Complete" )
+        self.msg_if.pub_info(str(self.process_name) + " Initialization Complete" )
         ###############################
     
 
@@ -728,7 +728,7 @@ class ProcessIF:
         if process_name in self.available_processes:
             cur_process = copy.deepcopy(self.selected_process)
             if process_name != cur_process or check_updates == False:
-                self.msg_if.pub_warn("Process Selected: " + str(process_name) )
+                self.msg_if.pub_info("Process Selected: " + str(process_name) )
                 self.process_ready = False
                 self.selected_process = process_name
                 self.publish_status()
@@ -751,7 +751,7 @@ class ProcessIF:
                 self.process_function = self.processes_functions_dict[process_name]
                 nepi_sdk.sleep(1)
                 success = True
-                self.msg_if.pub_warn("Process Ready: " + str(process_name) )
+                self.msg_if.pub_info("Process Ready: " + str(process_name) )
                 self.msg_if.pub_debug("Process Dictionaries: " + str([self.data_dict.keys(),self.controls_dict.keys(),self.results_display_dict.keys(),self.states_dict.keys(),self.process_function]) )
 
         self.process_ready = self.selected_process in self.available_processes
@@ -1181,7 +1181,7 @@ class ProcessIF:
                     [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict, self.if_dict)
                     self.results_dict = results_dict
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 5 )
+                    self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 10 )
 
                 self.results_dict = results_dict
                 if self.results_dict is not None:
@@ -1496,9 +1496,9 @@ class ProcessIF:
                 try:
                     importlib.reload(self.process_module)
                     processes_dict = self.process_module.PROCESSES_DICT
-                    self.msg_if.pub_warn("################################" )
-                    self.msg_if.pub_warn("Process Reloaded" )
-                    self.msg_if.pub_warn("Updating Process Dictionaries" )
+                    self.msg_if.pub_debug("################################" )
+                    self.msg_if.pub_debug("Process Reloaded" )
+                    self.msg_if.pub_debug("Updating Process Dictionaries" )
 
 
                     try:
@@ -1572,7 +1572,7 @@ class ProcessIF:
                     try:
                         self.callback_dict['settings_updated_callback'](setting_name, update_value)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to call settings_updated_callback: " + str(e), throttle_s = 1 )
+                        self.msg_if.pub_debug("Failed to call settings_updated_callback: " + str(e), throttle_s = 1 )
                         pass
 
 

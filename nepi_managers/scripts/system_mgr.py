@@ -249,7 +249,7 @@ class SystemMgrNode():
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
 
 
         ###############################
