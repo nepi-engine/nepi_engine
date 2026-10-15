@@ -72,7 +72,6 @@ class SVXActuatorIF:
     status_msg = DeviceSVXStatus()
     info_report = DeviceInfoQueryResponse()
 
-
     has_absolute_positioning = False
     has_adjustable_speed = False
     has_limit_controls = False
@@ -204,7 +203,6 @@ class SVXActuatorIF:
         self.info_report.sw_version = self.sw_version
         self.info_report.type = 'SVX'
 
-
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
 
@@ -281,20 +279,6 @@ class SVXActuatorIF:
             self.has_set_home = True
 
 
-        # Create Capabilities Report
-        self.status_msg.mode = 0
-        self.status_msg.has_absolute_positioning = self.has_absolute_positioning
-        self.status_msg.has_adjustable_speed = self.has_adjustable_speed
-        self.status_msg.set_max_dps_disabled = self.set_max_dps_disabled
-        self.status_msg.has_limit_control = self.has_limit_controls
-        self.status_msg.has_homing = self.has_homing
-        self.status_msg.has_set_home = self.has_set_home
-        self.status_msg.has_spin_control = self.has_spin
-        self.status_msg.has_goto_control = self.has_goto_control
-        self.status_msg.has_stop_control = self.has_stop_control
-        self.status_msg.max_speed_dps = self.speed_max_dps
-
-
         #######################################
         # Set up factory limits
 
@@ -317,6 +301,8 @@ class SVXActuatorIF:
         self.status_msg.data_source_description = self.data_source_description
         self.status_msg.data_ref_description = self.data_ref_description
 
+        # Capabilities, which capabilities_query returns with the status
+        self.status_msg.mode = 0
         self.status_msg.has_absolute_positioning = self.has_absolute_positioning
         self.status_msg.has_adjustable_speed = self.has_adjustable_speed
         self.status_msg.set_max_dps_disabled = self.set_max_dps_disabled
@@ -324,6 +310,9 @@ class SVXActuatorIF:
         self.status_msg.has_homing = self.has_homing
         self.status_msg.has_set_home = self.has_set_home
         self.status_msg.has_spin = self.has_spin
+        self.status_msg.has_goto_control = self.has_goto_control
+        self.status_msg.has_stop_control = self.has_stop_control
+        self.status_msg.speed_max_dps = self.speed_max_dps
 
 
         ##################################################
@@ -978,12 +967,11 @@ class SVXActuatorIF:
 
     def _applyContinuousMode(self):
         # Reflect the IF-owned continuous_enabled flag into the reported capability.
-        # has_spin (status) and has_spin_control (capabilities) both track it, so the
-        # UI switches to direction+speed as soon as the mode is toggled -- no driver
+        # has_spin in the status (which capabilities_query also returns) tracks it, so
+        # the UI switches to direction+speed as soon as the mode is toggled -- no driver
         # callback required.
         self.has_spin = bool(self.continuous_enabled)
         self.status_msg.has_spin = self.has_spin
-        self.status_msg.has_spin_control = self.has_spin
 
     def _setContinuousModeCb(self, msg):
         self.continuous_enabled = msg.data
@@ -1121,12 +1109,12 @@ class SVXActuatorIF:
         """Service handler that returns the SVX capabilities report.
 
         Returns:
-            SVXCapabilitiesQueryResponse: Response describing which SVX capabilities
-                are supported, including absolute positioning, adjustable speed,
-                limit control, homing, set-home, spin control, goto control, stop
-                control, and the maximum speed in degrees per second.
+            SVXCapabilitiesQueryResponse: The current DeviceSVXStatus in device_status,
+                describing which SVX capabilities are supported, including absolute
+                positioning, adjustable speed, limit controls, homing, set-home, spin,
+                goto control, stop control, and the maximum speed in degrees per second.
         """
-        return self.status_msg
+        return SVXCapabilitiesQueryResponse(device_status = self.status_msg)
 
 
 

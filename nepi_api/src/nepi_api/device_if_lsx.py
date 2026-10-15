@@ -62,6 +62,7 @@ class LSXDeviceIF:
     ready = False
 
     status_msg = DeviceLSXStatus()
+    last_status_msg = None
     info_report = DeviceInfoQueryResponse()
 
     getStatusFunction = None
@@ -151,8 +152,6 @@ class LSXDeviceIF:
         self.info_report.sw_version = self.sw_version
         self.info_report.type = 'LSX'
 
-
-
         # Create and update factory controls dictionary
         self.factory_controls_dict = self.FACTORY_CONTROLS_DICT
         if factoryControls is not None:
@@ -219,7 +218,7 @@ class LSXDeviceIF:
           self.reports_power = True
 
 
-        # Populate and advertise LSX node capabilities report
+        # Populate LSX node capabilities, which capabilities_query returns with the status
         self.status_msg.has_standby_mode = self.has_standby_mode
         self.status_msg.has_on_off_control = self.has_on_off_control
         self.status_msg.has_intensity_control = self.has_intensity_control
@@ -641,6 +640,24 @@ class LSXDeviceIF:
             if self.getStatusFunction is not None:
                 status_msg=self.getStatusFunction()
                 status_msg.on_off_state = self.node_if.get_param('on_off_state')
+                # The driver builds this msg, so stamp the IF-owned identity and
+                # capabilities onto it, then keep it for capabilities_query to return
+                status_msg.device_name = self.device_name
+                status_msg.device_path = self.path
+                status_msg.device_node_name = self.node_name
+                status_msg.has_standby_mode = self.has_standby_mode
+                status_msg.has_on_off_control = self.has_on_off_control
+                status_msg.has_intensity_control = self.has_intensity_control
+                status_msg.has_color_control = self.has_color_control
+                status_msg.color_options_list = self.color_options_list
+                status_msg.has_kelvin_control = self.has_kelvin_control
+                status_msg.kelvin_min = self.kelvin_limits_list[0]
+                status_msg.kelvin_max = self.kelvin_limits_list[1]
+                status_msg.has_blink_control = self.has_blink_control
+                status_msg.has_hw_strobe = self.has_hw_strobe
+                status_msg.reports_temperature = self.reports_temp
+                status_msg.reports_power = self.reports_power
+                self.last_status_msg = status_msg
                 try:
                     if self.node_if is not None:
                         self.node_if.publish_pub('status_pub',status_msg)
@@ -666,12 +683,16 @@ class LSXDeviceIF:
         """Service handler that returns the LSX capabilities report.
 
         Returns:
-            LSXCapabilitiesQueryResponse: Response describing which LSX capabilities
-                are supported, including standby mode, on/off control, intensity control,
-                color control, kelvin control, blink control, hardware strobe,
-                temperature reporting, and power reporting.
+            LSXCapabilitiesQueryResponse: The last published DeviceLSXStatus in
+                device_status (the IF's own status before the first publish),
+                describing which LSX capabilities are supported, including standby mode,
+                on/off control, intensity control, color control, kelvin control, blink
+                control, hardware strobe, temperature reporting, and power reporting.
         """
-        return self.status_msg
+        status_msg = self.status_msg
+        if self.last_status_msg is not None:
+            status_msg = self.last_status_msg
+        return LSXCapabilitiesQueryResponse(device_status = status_msg)
 
     ### LSX callbacks
     def setStandbyCb(self, standby_msg):

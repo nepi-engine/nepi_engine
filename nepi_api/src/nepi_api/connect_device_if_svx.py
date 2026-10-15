@@ -298,7 +298,8 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         """Query and return the SVX device capabilities report.
 
         Returns:
-            SVXCapabilitiesQueryResponse: The capabilities response, or None if the call failed.
+            SVXCapabilitiesQueryResponse: The capabilities response, carrying the device's
+                DeviceSVXStatus in device_status, or None if the call failed.
         """
         resp = None
         if self.node_if is not None:

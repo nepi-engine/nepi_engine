@@ -247,7 +247,6 @@ class IDXDeviceIF:
         self.info_report.sw_version = self.sw_version
         self.info_report.type = 'IDX'
 
-
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
 
@@ -1634,8 +1633,8 @@ class IDXDeviceIF:
     def capabilities_query_callback(self, _):
         """Handles a ROS service request for device capabilities.
 
-        Refreshes the data-products list in the capabilities report before
-        returning it. The report reflects which optional capabilities
+        Refreshes the data-products list in the status message before
+        returning it. The status reflects which optional capabilities
         (framerate, range, auto-adjust, brightness, contrast, threshold,
         resolution, color image, depth map, pointcloud) were provided at
         construction time.
@@ -1644,9 +1643,11 @@ class IDXDeviceIF:
             _ (IDXCapabilitiesQueryRequest): Unused service request object.
 
         Returns:
-            IDXCapabilitiesQueryResponse: The device capabilities report.
+            IDXCapabilitiesQueryResponse: The current DeviceIDXStatus in
+                device_status.
         """
-        return self.status_msg
+        self.status_msg.data_products = self.data_products_list
+        return IDXCapabilitiesQueryResponse(device_status = self.status_msg)
 
     # Function to update and publish status message
     def publishStatusCb(self,timer):
