@@ -955,7 +955,17 @@ def sets_values(controls_dict, controls_values_dict):
 
 
 def reset_value(controls_dict, control_name):
-  controls_dict[control_name]['value'] = controls_dict[control_name]['default']
+  # A control entry missing 'default' (or control_name missing from
+  # controls_dict entirely) raised KeyError here, uncaught all the way up
+  # through SettingsIF/NodeConfigsIF's own reset_config() -- confirmed live
+  # crashing every RBXRobotIF-based node on its first settings reset, before
+  # Settings IF init ever completed. Same "log and continue" shape as every
+  # other drop path in this file: skip only this one control.
+  try:
+    controls_dict[control_name]['value'] = controls_dict[control_name]['default']
+  except (KeyError, TypeError) as e:
+    logger.log_warn("reset_value: left control '" + str(control_name) +
+                    "' unreset: " + type(e).__name__ + ": " + str(e))
   return controls_dict
 
 def reset_values(controls_dict):
