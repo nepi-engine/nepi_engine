@@ -276,12 +276,12 @@ def log_msg_info(msg, throttle_s = None, color = None, caller_str = None):
 
     ##########
     # Log Msg
-    color = MSG_DEFAULT_COLORS['info']
+    msg_color = MSG_DEFAULT_COLORS['info']
     if color is not None:
       if color in MSG_COLORS.keys():
-          color = MSG_COLORS[color]
+          msg_color = MSG_COLORS[color]
 
-    log_str = color + msg_str + MSG_COLORS['RESET']
+    log_str = msg_color + msg_str + MSG_COLORS['RESET']
 
     if throttle_s is None:
       rospy.loginfo(log_str)
@@ -329,12 +329,12 @@ def log_msg_warn(msg, throttle_s = None, color = None, caller_str = None):
 
     ##########
     # Log Msg
-    color = MSG_DEFAULT_COLORS['warn']
+    msg_color = MSG_DEFAULT_COLORS['warn']
     if color is not None:
       if color in MSG_COLORS.keys():
-          color = MSG_COLORS[color]
+          msg_color = MSG_COLORS[color]
 
-    log_str = color + msg_str + MSG_COLORS['RESET']
+    log_str = msg_color + msg_str + MSG_COLORS['RESET']
 
 
     if throttle_s is None:
@@ -384,12 +384,12 @@ def log_msg_error(msg, throttle_s = None, color = None, caller_str = None):
 
     ##########
     # Log Msg
-    color = MSG_DEFAULT_COLORS['error']
+    msg_color = MSG_DEFAULT_COLORS['error']
     if color is not None:
       if color in MSG_COLORS.keys():
-          color = MSG_COLORS[color]
+          msg_color = MSG_COLORS[color]
 
-    log_str = color + msg_str + MSG_COLORS['RESET']
+    log_str = msg_color + msg_str + MSG_COLORS['RESET']
 
 
     if throttle_s is None:
@@ -439,12 +439,12 @@ def log_msg_fatal(msg, throttle_s = None, color = None, caller_str = None):
 
     ##########
     # Log Msg
-    color = MSG_DEFAULT_COLORS['fatal']
+    msg_color = MSG_DEFAULT_COLORS['fatal']
     if color is not None:
       if color in MSG_COLORS.keys():
-          color = MSG_COLORS[color]
+          msg_color = MSG_COLORS[color]
 
-    log_str = color + msg_str + MSG_COLORS['RESET']
+    log_str = msg_color + msg_str + MSG_COLORS['RESET']
 
 
     if throttle_s is None:
@@ -494,12 +494,12 @@ def log_msg_debug(msg, throttle_s = None, color = None, caller_str = None):
 
     ##########
     # Log Msg
-    color = MSG_DEFAULT_COLORS['debug']
+    msg_color = MSG_DEFAULT_COLORS['debug']
     if color is not None:
       if color in MSG_COLORS.keys():
-          color = MSG_COLORS[color]
+          msg_color = MSG_COLORS[color]
 
-    log_str = color + msg_str + MSG_COLORS['RESET']
+    log_str = msg_color + msg_str + MSG_COLORS['RESET']
 
 
     if throttle_s is None:
@@ -880,7 +880,6 @@ class logger:
           if color in MSG_COLORS.keys():
              msg_color = color
         
-
         if msg_color is None:
            msg_color = level.upper()
 
