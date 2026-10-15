@@ -63,7 +63,6 @@ class LSXDeviceIF:
 
     status_msg = DeviceLSXStatus()
     info_report = DeviceInfoQueryResponse()
-    caps_report = LSXCapabilitiesQueryResponse()
 
     getStatusFunction = None
     device_name = ""
@@ -153,9 +152,6 @@ class LSXDeviceIF:
         self.info_report.type = 'LSX'
 
 
-        self.caps_report.device_name = self.device_name
-        self.caps_report.device_path = self.path
-        self.caps_report.device_node_name = self.node_name
 
         # Create and update factory controls dictionary
         self.factory_controls_dict = self.FACTORY_CONTROLS_DICT
@@ -224,18 +220,18 @@ class LSXDeviceIF:
 
 
         # Populate and advertise LSX node capabilities report
-        self.caps_report.has_standby_mode = self.has_standby_mode
-        self.caps_report.has_on_off_control = self.has_on_off_control
-        self.caps_report.has_intensity_control = self.has_intensity_control
-        self.caps_report.has_color_control = self.has_color_control
-        self.caps_report.color_options_list = self.color_options_list
-        self.caps_report.has_kelvin_control = self.has_kelvin_control
-        self.caps_report.kelvin_min = self.kelvin_limits_list[0]
-        self.caps_report.kelvin_max = self.kelvin_limits_list[1]
-        self.caps_report.has_blink_control = self.has_blink_control
-        self.caps_report.has_hw_strobe = self.has_hw_strobe
-        self.caps_report.reports_temperature = self.reports_temp
-        self.caps_report.reports_power = self.reports_power
+        self.status_msg.has_standby_mode = self.has_standby_mode
+        self.status_msg.has_on_off_control = self.has_on_off_control
+        self.status_msg.has_intensity_control = self.has_intensity_control
+        self.status_msg.has_color_control = self.has_color_control
+        self.status_msg.color_options_list = self.color_options_list
+        self.status_msg.has_kelvin_control = self.has_kelvin_control
+        self.status_msg.kelvin_min = self.kelvin_limits_list[0]
+        self.status_msg.kelvin_max = self.kelvin_limits_list[1]
+        self.status_msg.has_blink_control = self.has_blink_control
+        self.status_msg.has_hw_strobe = self.has_hw_strobe
+        self.status_msg.reports_temperature = self.reports_temp
+        self.status_msg.reports_power = self.reports_power
 
 
         self.getStatusFunction = getStatusFunction
@@ -675,7 +671,7 @@ class LSXDeviceIF:
                 color control, kelvin control, blink control, hardware strobe,
                 temperature reporting, and power reporting.
         """
-        return self.caps_report
+        return self.status_msg
 
     ### LSX callbacks
     def setStandbyCb(self, standby_msg):

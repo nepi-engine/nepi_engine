@@ -99,7 +99,6 @@ class IDXDeviceIF:
 
     status_msg = DeviceIDXStatus()
     info_report = DeviceInfoQueryResponse()
-    caps_report = IDXCapabilitiesQueryResponse()
 
     node_if = None
     settings_if = None
@@ -248,9 +247,6 @@ class IDXDeviceIF:
         self.info_report.sw_version = self.sw_version
         self.info_report.type = 'IDX'
 
-        self.caps_report.device_name = self.device_name
-        self.caps_report.device_path = self.path
-        self.caps_report.device_node_name = self.node_name
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
@@ -323,35 +319,35 @@ class IDXDeviceIF:
 
         self.setMaxFramerate = setMaxFramerate
         if self.setMaxFramerate is not None:
-            self.caps_report.has_framerate = True
+            self.status_msg.has_framerate = True
         
         self.getFramerate = getFramerate
 
         self.setRangeRatio = setRangeRatio
         if self.setRangeRatio is not None:
-            self.caps_report.has_range = True
+            self.status_msg.has_range = True
 
 
         self.setAutoAdjustRatio = setAutoAdjustRatio
         if self.setAutoAdjustRatio is not None:
-            self.caps_report.has_auto_adjust = True
+            self.status_msg.has_auto_adjust = True
         self.auto_adjust_controls = autoAdjustControls
 
         self.setBrightnessRatio = setBrightnessRatio
         if self.setBrightnessRatio is not None:
-            self.caps_report.has_brightness = True
+            self.status_msg.has_brightness = True
 
         self.setContrastRatio = setContrastRatio
         if self.setContrastRatio is not None:
-            self.caps_report.has_contrast = True
+            self.status_msg.has_contrast = True
 
         self.setThresholdingRatio = setThresholdingRatio       
         if self.setThresholdingRatio is not None:
-            self.caps_report.has_threshold = True
+            self.status_msg.has_threshold = True
 
         self.setResolutionRatio = setResolutionRatio
         if self.setResolutionRatio is not None:
-            self.caps_report.has_resolution = True
+            self.status_msg.has_resolution = True
 
 
      
@@ -599,12 +595,12 @@ class IDXDeviceIF:
             self.image_thread = threading.Thread(target=self.runImageThread)
             self.image_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.caps_report.has_color_image = True
+            self.status_msg.has_color_image = True
         else:
-            self.caps_report.has_color_image = False
+            self.status_msg.has_color_image = False
         
-        self.caps_report.has_depth_map = False
-        self.caps_report.has_pointcloud = False
+        self.status_msg.has_depth_map = False
+        self.status_msg.has_pointcloud = False
 
         if (getDepthMap is not None and 'depth_map' in self.data_products_list):
             self.getDepthMap = getDepthMap
@@ -621,9 +617,9 @@ class IDXDeviceIF:
             self.depth_map_thread = threading.Thread(target=self.runDepthMapThread)
             self.depth_map_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.caps_report.has_depth_map = True
+            self.status_msg.has_depth_map = True
         else:
-            self.caps_report.has_depth_map = False
+            self.status_msg.has_depth_map = False
 
         if (getPointcloud is not None and 'pointcloud' in self.data_products_list):
             self.getPointcloud = getPointcloud
@@ -640,9 +636,9 @@ class IDXDeviceIF:
             self.pointcloud_thread = threading.Thread(target=self.runPointcloudThread)
             self.pointcloud_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.caps_report.has_pointcloud = True
+            self.status_msg.has_pointcloud = True
         else:
-            self.caps_report.has_pointcloud = False
+            self.status_msg.has_pointcloud = False
 
 
 
@@ -1650,8 +1646,7 @@ class IDXDeviceIF:
         Returns:
             IDXCapabilitiesQueryResponse: The device capabilities report.
         """
-        self.caps_report.data_products = self.data_products_list
-        return self.caps_report
+        return self.status_msg
 
     # Function to update and publish status message
     def publishStatusCb(self,timer):

@@ -71,7 +71,7 @@ class SVXActuatorIF:
 
     status_msg = DeviceSVXStatus()
     info_report = DeviceInfoQueryResponse()
-    caps_report = SVXCapabilitiesQueryResponse()
+
 
     has_absolute_positioning = False
     has_adjustable_speed = False
@@ -204,9 +204,6 @@ class SVXActuatorIF:
         self.info_report.sw_version = self.sw_version
         self.info_report.type = 'SVX'
 
-        self.caps_report.device_name = self.device_name
-        self.caps_report.device_path = self.path
-        self.caps_report.device_node_name = self.node_name
 
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
@@ -285,17 +282,17 @@ class SVXActuatorIF:
 
 
         # Create Capabilities Report
-        self.caps_report.mode = 0
-        self.caps_report.has_absolute_positioning = self.has_absolute_positioning
-        self.caps_report.has_adjustable_speed = self.has_adjustable_speed
-        self.caps_report.set_max_dps_disabled = self.set_max_dps_disabled
-        self.caps_report.has_limit_control = self.has_limit_controls
-        self.caps_report.has_homing = self.has_homing
-        self.caps_report.has_set_home = self.has_set_home
-        self.caps_report.has_spin_control = self.has_spin
-        self.caps_report.has_goto_control = self.has_goto_control
-        self.caps_report.has_stop_control = self.has_stop_control
-        self.caps_report.max_speed_dps = self.speed_max_dps
+        self.status_msg.mode = 0
+        self.status_msg.has_absolute_positioning = self.has_absolute_positioning
+        self.status_msg.has_adjustable_speed = self.has_adjustable_speed
+        self.status_msg.set_max_dps_disabled = self.set_max_dps_disabled
+        self.status_msg.has_limit_control = self.has_limit_controls
+        self.status_msg.has_homing = self.has_homing
+        self.status_msg.has_set_home = self.has_set_home
+        self.status_msg.has_spin_control = self.has_spin
+        self.status_msg.has_goto_control = self.has_goto_control
+        self.status_msg.has_stop_control = self.has_stop_control
+        self.status_msg.max_speed_dps = self.speed_max_dps
 
 
         #######################################
@@ -986,7 +983,7 @@ class SVXActuatorIF:
         # callback required.
         self.has_spin = bool(self.continuous_enabled)
         self.status_msg.has_spin = self.has_spin
-        self.caps_report.has_spin_control = self.has_spin
+        self.status_msg.has_spin_control = self.has_spin
 
     def _setContinuousModeCb(self, msg):
         self.continuous_enabled = msg.data
@@ -1129,7 +1126,7 @@ class SVXActuatorIF:
                 limit control, homing, set-home, spin control, goto control, stop
                 control, and the maximum speed in degrees per second.
         """
-        return self.caps_report
+        return self.status_msg
 
 
 
