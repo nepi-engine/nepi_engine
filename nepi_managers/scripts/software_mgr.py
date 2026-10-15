@@ -113,7 +113,7 @@ class SoftwareMgrNode():
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_warn("Starting IF Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes")
 
 
         ###############################
@@ -373,7 +373,7 @@ class SoftwareMgrNode():
 
         ##################################
         # Setup Save Data IF Class ####################
-        self.msg_if.pub_debug("Starting Save Data IF Initialization")
+        self.msg_if.pub_debug("Starting Save Data Initialization")
         self.data_products_list = ['All']
         factory_data_rates= {}
         factory_data_rates['All'] = [0.0, 0.0, 100] # Default to 0Hz save rate, set last save = 0.0, max rate = 100Hz
@@ -402,7 +402,7 @@ class SoftwareMgrNode():
         #########################################################
         ## Initiation Complete
         self.ready = True
-        self.msg_if.pub_warn("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         nepi_sdk.spin()
 
 
@@ -532,22 +532,22 @@ class SoftwareMgrNode():
                 status = False
                 
             if status is False:
-                self.msg_if.pub_warn("Automatic rootfs active/inactive switch failed: " + err_msg)
+                self.msg_if.pub_debug("Automatic rootfs active/inactive switch failed: " + err_msg)
             else:
                 self.msg_if.pub_debug("Executed automatic rootfs A/B switch... on next reboot new image will load")
                 self.status_msg.warnings.flags[WarningFlags.ACTIVE_INACTIVE_ROOTFS_STALE] = True
                 self.status_msg.sys_img_update_status = 'complete - needs reboot'
     
     def handle_switch_active_inactive_image(self, msg):
-        self.msg_if.pub_warn("Received switch active/inactive nepi images msg")
+        self.msg_if.pub_info("Received switch active/inactive nepi images msg")
         if self.in_container == True:
-            self.msg_if.pub_warn("In Container")
+            self.msg_if.pub_debug("In Container")
             status, err_msg = self.nepi_image.switchActiveAndInactiveContainers()
         elif self.rootfs_ab_scheme == 'nepi':
-            self.msg_if.pub_warn("In Nepi")
+            self.msg_if.pub_debug("In Nepi")
             status, err_msg = self.nepi_image.switchActiveAndInactivePartitions(self.first_rootfs)
         elif self.rootfs_ab_scheme == 'jetson':
-            self.msg_if.pub_warn("In Jetson")
+            self.msg_if.pub_debug("In Jetson")
             status, err_msg = self.nepi_image.switchActiveAndInactivePartitionsJetson()
         else:
             err_msg = "Unknown ROOTFS A/B Scheme"
@@ -573,7 +573,7 @@ class SoftwareMgrNode():
             info_dict['version']=fw_str
             now = datetime.datetime.now()
             backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y_%m-%d-%H%M%S")
-            self.msg_if.pub_warn("Saving NEPI File System to filename: -" + backup_file_basename)
+            self.msg_if.pub_info("Saving NEPI File System to filename: -" + backup_file_basename)
             self.status_msg.sys_img_archive_status = 'archiving'
             self.status_msg.sys_img_archive_filename = backup_file_basename
 
@@ -585,7 +585,7 @@ class SoftwareMgrNode():
             fw_str = fw_str.replace('/','_')
             now = datetime.datetime.now()
             backup_file_basename = 'nepi_' + fw_str + now.strftime("_%Y%m%d")
-            self.msg_if.pub_warn("Archiving inactive rootfs to filename: -" + backup_file_basename)
+            self.msg_if.pub_info("Archiving inactive rootfs to filename: -" + backup_file_basename)
             self.status_msg.sys_img_archive_status = 'archiving'
             self.status_msg.sys_img_archive_filename = backup_file_basename
 
@@ -658,7 +658,7 @@ class SoftwareMgrNode():
                     self.msg_if.pub_warn("Failed to identify the ROOTFS A/B Scheme... cannot update A/B info and status")
 
             if status is True:
-                self.msg_if.pub_warn("Got Rootfs Dict: " + str(ab_fs_dict))
+                self.msg_if.pub_debug("Got Rootfs Dict: " + str(ab_fs_dict))
                 self.status_msg.active_rootfs = self.get_friendly_name(ab_fs_dict['active_part_device'])
 
                 self.status_msg.active_rootfs_size_mb = self.nepi_image.getPartitionByteCount(ab_fs_dict[
@@ -675,7 +675,7 @@ class SoftwareMgrNode():
                 self.status_msg.max_boot_fail_count = ab_fs_dict[
                     'max_boot_fail_count']
             else:
-                self.msg_if.pub_warn(
+                self.msg_if.pub_debug(
                     "Unable to gather ROOTFS A/B system definitions: " + err_msg)
                 self.status_msg.active_rootfs = "Unknown"
                 self.status_msg.inactive_rootfs = "Unknown"

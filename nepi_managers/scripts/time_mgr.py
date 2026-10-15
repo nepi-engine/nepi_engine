@@ -89,7 +89,7 @@ class time_sync_mgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes")
 
 
 
@@ -99,22 +99,22 @@ class time_sync_mgr(object):
         # Wait for System Info
         self.msg_if.pub_info("Waiting for nepi config info")
         self.nepi_config = nepi_system.get_nepi_config()
-        #self.msg_if.pub_warn("Got NEPI config: " + str(self.nepi_config))
+        #self.msg_if.pub_debug("Got NEPI config: " + str(self.nepi_config))
 
         self.in_container = self.nepi_config['NEPI_IN_CONTAINER'] == 1
-        self.msg_if.pub_warn("Got NEPI In Container: " + str(self.in_container))
+        self.msg_if.pub_debug("Got NEPI In Container: " + str(self.in_container))
 
         self.manages_time = self.nepi_config['NEPI_MANAGES_TIME'] == 1
-        self.msg_if.pub_warn("Got NEPI Manages Time: " + str(self.manages_time))
+        self.msg_if.pub_debug("Got NEPI Manages Time: " + str(self.manages_time))
   
         self.nepi_config_path = self.nepi_config['NEPI_CONFIG']
     
         
-        self.msg_if.pub_warn("Waiting for Config Mgr")
+        self.msg_if.pub_debug("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()
         ##############################
         # Initialize Class Variables
-        self.msg_if.pub_warn("Setting Timezone to: " + str(FACTORY_TIMEZONE))
+        self.msg_if.pub_debug("Setting Timezone to: " + str(FACTORY_TIMEZONE))
         self.set_timezone(FACTORY_TIMEZONE)
 
         self.initCb(do_updates = False)
@@ -340,7 +340,7 @@ class time_sync_mgr(object):
                 os.remove(link_name)
                 os.symlink(target, link_name)
             else:
-                self.msg_if.pub_warn("Unable to create symlink")
+                self.msg_if.pub_debug("Unable to create symlink")
                 return False
         
         return True
@@ -398,7 +398,7 @@ class time_sync_mgr(object):
                 self.status_msg.last_pps = float(pps_string.split('#')[0])
             else:
                 self.status_msg.last_pps = 0.0
-                self.msg_if.pub_warn("Unable to parse /sys/class/pps/pps0/assert")
+                self.msg_if.pub_debug("Unable to parse /sys/class/pps/pps0/assert")
         else: # Failed to find the assert file - just return no PPS
             self.status_msg.last_pps = 0.0
 
@@ -431,9 +431,9 @@ class time_sync_mgr(object):
         ntp_status = [] # List of lists
         try:
             chronyc_sources = subprocess.check_output(['sudo',"chronyc", "sources"], text=True).splitlines()
-            #self.msg_if.pub_warn("Chrony returned status: " + str(chronyc_sources))
+            #self.msg_if.pub_debug("Chrony returned status: " + str(chronyc_sources))
         except Exception as e:
-            #self.msg_if.pub_warn("Failed to get Chrony status: " + str(e))
+            #self.msg_if.pub_debug("Failed to get Chrony status: " + str(e))
             return ntp_status
         
         for line in chronyc_sources[1:]:
@@ -459,7 +459,7 @@ class time_sync_mgr(object):
 
     def set_time(self,msg):
         # TODO: Bounds checking?
-        #self.msg_if.pub_warn("Got time update msg: " + str(msg), throttle_s = 5.0)
+        #self.msg_if.pub_debug("Got time update msg: " + str(msg), throttle_s = 5.0)
         update_time = msg.update_time
         if update_time == True and self.manages_time == True:
             self.msg_if.pub_info("Setting time from set_time topic: " + str(msg.secs) + '.' + str(msg.nsecs))
@@ -471,7 +471,7 @@ class time_sync_mgr(object):
                 new_date = subprocess.check_output(["date"], text=True)
                 self.msg_if.pub_info("Updated date: " + str(new_date))
             except Exception as e:
-                self.msg_if.pub_warn("Failed to update time: " + str(e))
+                self.msg_if.pub_debug("Failed to update time: " + str(e))
 
 
         update_timezone = msg.update_timezone
@@ -492,7 +492,7 @@ class time_sync_mgr(object):
     def set_timezone(self,timezone):
         if self.timezone != timezone:
             try:
-                self.msg_if.pub_warn("Updating timezone: " + str(timezone))
+                self.msg_if.pub_info("Updating timezone: " + str(timezone))
                 os.environ["TZ"] = timezone
                 time.tzset()
                 self.timezone = timezone
@@ -577,9 +577,9 @@ class time_sync_mgr(object):
         self.status_msg.time_str = dt_str.split(',')[1]
         
              
-        #self.msg_if.pub_warn("Returning Time Status response: " + str(self.status_msg))
+        #self.msg_if.pub_debug("Returning Time Status response: " + str(self.status_msg))
 
-        #self.msg_if.pub_warn("Handle time: " + str(nepi_utils.get_time() - start_time))
+        #self.msg_if.pub_debug("Handle time: " + str(nepi_utils.get_time() - start_time))
 
         # Last set time (cheater clock sync method)
         self.status_msg.last_set_time = self.last_set_time
@@ -603,7 +603,7 @@ class time_sync_mgr(object):
     def publish_status(self):
         status_msg = self.get_status_msg()
         if self.node_if is not None:
-            #self.msg_if.pub_warn("Publishing Status Msg: " + str(status_msg))
+            #self.msg_if.pub_debug("Publishing Status Msg: " + str(status_msg))
             self.node_if.publish_pub('status_pub', status_msg)
     
 

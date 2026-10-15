@@ -130,7 +130,7 @@ class NepiDriversMgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_warn("Starting IF Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes")
 
 
         ##############################
@@ -398,7 +398,7 @@ class NepiDriversMgr(object):
 
       
         drvs_ordered_list = nepi_drvs.getDriversOrderedList(drvs_dict)
-        self.msg_if.pub_warn("Init ordered drvs: " + str(drvs_ordered_list))
+        self.msg_if.pub_info("Init ordered drvs: " + str(drvs_ordered_list))
         drvs_dict = nepi_drvs.refreshDriversDict(self.drivers_param_folder,drvs_dict)
 
         for driver_name in active_drivers:
@@ -410,7 +410,7 @@ class NepiDriversMgr(object):
         self.msg_if.pub_debug("Refresh ordered drvs: " + str(drvs_ordered_list))
 
         drivers_active_list = self.getActiveDrivers()
-        self.msg_if.pub_warn("Init active drvs: " + str(drivers_active_list))
+        self.msg_if.pub_info("Init active drvs: " + str(drivers_active_list))
 
         # print_drv='NPX_MICROSTRAIN_AHAR'
         # if print_drv in drvs_dict.keys():
@@ -597,7 +597,7 @@ class NepiDriversMgr(object):
               if success:
                 self.drvs_dict[driver_name]['running'] = False
                 self.drvs_dict[driver_name]['msg'] = "Discovery process stopped"
-                self.msg_if.pub_warn("Killed driver node " + str(node_name) + " for driver: " + str(driver_name))
+                self.msg_if.pub_info("Killed driver node " + str(node_name) + " for driver: " + str(driver_name))
               else:
                 self.msg_if.pub_warn("Failed to kill driver node " + str(node_name) + " for driver: " + str(driver_name))
           if driver_name in self.discovery_node_dict.keys():
@@ -606,8 +606,8 @@ class NepiDriversMgr(object):
 
       if process == "CALL":
         if driver_name in self.discovery_classes_dict.keys():
-          self.msg_if.pub_warn("Disabling driver: " + str(driver_name))
-          self.msg_if.pub_warn("Killing all devices for driver: " + str(driver_name) + " active paths list " + str(self.active_paths_list))
+          self.msg_if.pub_debug("Disabling driver: " + str(driver_name))
+          self.msg_if.pub_info("Killing all devices for driver: " + str(driver_name) + " active paths list " + str(self.active_paths_list))
           try:
             self.active_paths_list = self.discovery_classes_dict[driver_name].killAllDevices(self.active_paths_list)
             self.msg_if.pub_debug("Got updated active paths list " + str(self.active_paths_list))
@@ -675,7 +675,7 @@ class NepiDriversMgr(object):
 
                 #Try and launch node
                 self.msg_if.pub_info("")
-                self.msg_if.pub_warn("Launching discovery process: " + discovery_node_name + " with drv_dict " + str(drv_dict))
+                self.msg_if.pub_info("Launching discovery process: " + discovery_node_name + " with drv_dict " + str(drv_dict))
                 [success, msg, sub_process] = nepi_drvs.launchDriverNode(discovery_file, discovery_node_name)
                 if success:
                   self.msg_if.pub_debug("Discovery node: " + discovery_node_name  + " launched with msg: " + msg)
@@ -741,7 +741,7 @@ class NepiDriversMgr(object):
               self.msg_if.pub_debug("Deleting driver discovery class for : " + driver_name)
               del self.discovery_classes_dict[driver_name]
               discovery_module = discovery_file.split('.')[0]
-              self.msg_if.pub_warn("Removing Module : " + discovery_module)
+              self.msg_if.pub_debug("Removing Module : " + discovery_module)
               del sys.modules[discovery_module]
             # if retry == False:
             #     self.failed_class_import_list.append(driver_name)
@@ -759,7 +759,7 @@ class NepiDriversMgr(object):
             if running == True:
               self.drvs_dict[driver_name]['msg'] = "Application running"
               if was_running == False:
-                self.msg_if.pub_warn("Driver Running: " + node_name)
+                self.msg_if.pub_info("Driver Running: " + node_name)
                 self.publish_status()
             elif running == False:
               if was_running == True:
