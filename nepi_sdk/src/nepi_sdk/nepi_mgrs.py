@@ -75,9 +75,9 @@ def getManagersDict(search_path):
                       new_dict['order'] = -1
                       new_dict['active'] = False
                       new_dict['msg'] = ""
-                      #logger.log_warn("Got mgrs dict: " + str(new_dict))
+                      #logger.log_debug("Got mgrs dict: " + str(new_dict))
 
-                      #logger.log_warn("Got manager dict from file: " + str(new_dict))
+                      #logger.log_debug("Got manager dict from file: " + str(new_dict))
 
                       mgrs_dict[mgr_name] = new_dict
                     except Exception as e:
@@ -91,14 +91,14 @@ def getManagersDict(search_path):
     return mgrs_dict
 
 def printDict(mgrs_dict):
-  logger.log_warn('')
-  logger.log_warn('*******************')
-  logger.log_warn('Printing Drv Manager Dictionary')
+  logger.log_debug('')
+  logger.log_debug('*******************')
+  logger.log_debug('Printing Drv Manager Dictionary')
   for manager_name in mgrs_dict.keys():
     mgr_dict = mgrs_dict[manager_name]
-    logger.log_warn('')
-    logger.log_warn(manager_name)
-    logger.log_warn(str(mgr_dict))
+    logger.log_debug('')
+    logger.log_debug(manager_name)
+    logger.log_debug(str(mgr_dict))
 
 
 def refreshManagersDict(search_path,mgrs_dict):
@@ -106,20 +106,20 @@ def refreshManagersDict(search_path,mgrs_dict):
   if search_path[-1] == "/":
       search_path = search_path[:-1]
   get_mgrs_dict = getManagersDict(search_path)
-  #logger.log_warn('Updating Drvs Dict: ' + str(mgrs_dict))
-  #logger.log_warn('From Get Dict: ' + str(get_mgrs_dict))
+  #logger.log_debug('Updating Drvs Dict: ' + str(mgrs_dict))
+  #logger.log_debug('From Get Dict: ' + str(get_mgrs_dict))
   for manager_name in get_mgrs_dict.keys():
     if manager_name not in mgrs_dict.keys():
       get_mgrs_dict[manager_name]['active'] = False
     else:
-      #.log_warn('')
-      #logger.log_warn('Updating mgr: ' + manager_name)
-      #logger.log_warn('Updating mgr: ' + str(mgrs_dict[manager_name]))
+      #.log_debug('')
+      #logger.log_debug('Updating mgr: ' + manager_name)
+      #logger.log_debug('Updating mgr: ' + str(mgrs_dict[manager_name]))
       active = mgrs_dict[manager_name]['active']
-      #logger.log_warn("Refresh updating mgr : " + str(manager_name) + " to active state: " + str(active))
+      #logger.log_debug("Refresh updating mgr : " + str(manager_name) + " to active state: " + str(active))
       get_mgrs_dict[manager_name]['active'] = active
       get_mgrs_dict[manager_name]['order'] = mgrs_dict[manager_name]['order']
-  #logger.log_warn('Updated to: ' + str(get_mgrs_dict))
+  #logger.log_debug('Updated to: ' + str(get_mgrs_dict))
   return get_mgrs_dict
 
 
@@ -272,7 +272,7 @@ def installManagerPkg(pkg_name,mgrs_dict,install_from_path,managers_path):
       pkg_files = pkg.namelist()
 
     except Exception as e:
-      logger.log_warn("" + str(e))
+      logger.log_debug("" + str(e))
       success = False
     if success:
       # Create a list of files
@@ -287,7 +287,7 @@ def installManagerPkg(pkg_name,mgrs_dict,install_from_path,managers_path):
             os.remove(file)
           except Exception as e:
             success = False
-            logger.log_warn(str(e))
+            logger.log_debug(str(e))
       if success:
         # Unzip the package to the Manager path
         with zipfile.ZipFile(pkg_path,"r") as zip_ref:
@@ -357,7 +357,7 @@ def removeManager(manager_name,mgrs_dict,managers_path,backup_path = None):
             try:
               zip.close()
             except Exception as e:
-              logger.log_warn(str(e))
+              logger.log_debug(str(e))
         for file in file_list:
           if os.path.exists(file) == True:
             try:
@@ -376,7 +376,7 @@ def launchManagerNode(file_name, manager_node_name, etc_file = None):
   sub_process = None
   msg = 'Success'
   success = False
-  logger.log_warn("Launching Manager Node: " + str(manager_node_name) )
+  logger.log_info("Launching Manager Node: " + str(manager_node_name) )
   if etc_file is not None:
     etc_file_path = os.path.join(MANAGERS_ETC_FOLDER, etc_file)
     if os.path.exists(etc_file_path):
@@ -391,7 +391,7 @@ def launchManagerNode(file_name, manager_node_name, etc_file = None):
     success = True
   except Exception as e:
     msg = str("Failed to launch node with exception: " + manager_node_name + " " + str(e))
-    logger.log_warn(msg)
+    logger.log_debug(msg)
   if success: 
     if sub_process.poll() is not None:
       msg = ("Failed to start " + manager_node_name + " via " + " ".join(x for x in manager_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
