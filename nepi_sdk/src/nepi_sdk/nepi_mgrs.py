@@ -35,8 +35,7 @@ from serial.tools import list_ports
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 #######################
 ### Manager Utility Functions

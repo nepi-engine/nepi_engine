@@ -94,27 +94,27 @@ class NepiAppsMgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        self.msg_if.pub_warn("Starting IF Initialization Processes")
 
         ##############################
         # Get for System Folders
-        self.msg_if.pub_info("Waiting for system folders")
+        self.msg_if.pub_debug("Waiting for system folders")
         system_folders = nepi_system.get_system_folders()
-        self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+        self.msg_if.pub_debug("Got system folders: " + str(system_folders))
 
         self.apps_param_folder = system_folders['apps_param']
-        self.msg_if.pub_info("Using APPS Params Folder: " + str(self.apps_param_folder))
+        self.msg_if.pub_debug("Using APPS Params Folder: " + str(self.apps_param_folder))
 
         self.apps_config_folder = system_folders['etc']
-        self.msg_if.pub_info("Using APPS Config Folder: " + str(self.apps_config_folder))
+        self.msg_if.pub_debug("Using APPS Config Folder: " + str(self.apps_config_folder))
 
         self.apps_install_folder = system_folders['apps_install']
-        self.msg_if.pub_info("Using APPS Install Folder: " + str(self.apps_install_folder))
+        self.msg_if.pub_debug("Using APPS Install Folder: " + str(self.apps_install_folder))
 
-        self.msg_if.pub_warn("Waiting for Config Mgr")
+        self.msg_if.pub_debug("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()
 
-        # self.msg_if.pub_info("Waiting for driver manager to start")
+        # self.msg_if.pub_debug("Waiting for driver manager to start")
         # active_drivers = nepi_system.get_active_drivers()
         # nepi_sdk.sleep(5) # Some extra time for drivers to load
           
@@ -256,7 +256,7 @@ class NepiAppsMgr(object):
 
         #########################################################
         ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_warn("Initialization Complete")
         #Set up node shutdown
         nepi_sdk.on_shutdown(self.cleanup_actions)
         # Spin forever (until object is detected)
@@ -304,8 +304,8 @@ class NepiAppsMgr(object):
 
   def initCb(self,do_updates = False):
 
-      self.msg_if.pub_warn("Initing apps dict keys: " + str(self.apps_dict.keys()))
-      self.msg_if.pub_info("Initing active apps: " + str(self.getActiveApps()))
+      self.msg_if.pub_debug("Initing apps dict keys: " + str(self.apps_dict.keys()))
+      self.msg_if.pub_debug("Initing active apps: " + str(self.getActiveApps()))
 
       self.apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
       self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
@@ -318,8 +318,8 @@ class NepiAppsMgr(object):
             pass
           self.refresh()
           
-          self.msg_if.pub_warn("Init apps dict keys: " + str(self.apps_dict.keys()))
-          self.msg_if.pub_info("Init active apps: " + str(self.getActiveApps()))
+          self.msg_if.pub_debug("Init apps dict keys: " + str(self.apps_dict.keys()))
+          self.msg_if.pub_debug("Init active apps: " + str(self.getActiveApps()))
           self.publish_status()
 
   def resetCb(self,do_updates = True):
@@ -344,13 +344,13 @@ class NepiAppsMgr(object):
   def checkAndUpdateCb(self,timer):
     ###############################
     ## First update Database
-    #self.msg_if.pub_warn("Entering Updater with apps dict keys: " + str(self.apps_dict.keys()))
-    #self.msg_if.pub_info("Entering Updater with active apps: " + str(self.getActiveApps()))
+    #self.msg_if.pub_debug("Entering Updater with apps dict keys: " + str(self.apps_dict.keys()))
+    #self.msg_if.pub_debug("Entering Updater with active apps: " + str(self.getActiveApps()))
     apps_files = nepi_apps.getAppInfoFilesList(self.apps_param_folder)
     self.apps_install_files = nepi_apps.getAppPackagesList(self.apps_install_folder)
     need_update = self.apps_files != apps_files
     if need_update:
-      self.msg_if.pub_info("Need to Update App Database")
+      self.msg_if.pub_debug("Need to Update App Database")
       self.initCb(do_updates = True)
     apps_dict = copy.deepcopy(self.apps_dict)
     apps_ordered_list = nepi_apps.getAppsOrderedList(apps_dict)
@@ -366,7 +366,7 @@ class NepiAppsMgr(object):
     node_list = []
     for i in range(len(active_node_list)):
       node_list.append(active_node_list[i].split("/")[-1])
-    #self.msg_if.pub_warn("Found nodes: " + str(node_list))
+    #self.msg_if.pub_debug("Found nodes: " + str(node_list))
     ################################    
     ## Check and purge disabled app proccess that might be running
     # First check on running nodes
@@ -400,9 +400,9 @@ class NepiAppsMgr(object):
         was_running = app_dict['running']
 
       if app_name in apps_active_list and app_name not in self.apps_active_dict.keys():
-        #self.msg_if.pub_warn("Launching app: " + str(app_name) )
+        self.msg_if.pub_warn("Launching app: " + str(app_name) )
 
-        #self.msg_if.pub_warn(app_dict)
+        #self.msg_if.pub_debug(app_dict)
         app_pkg_name = app_dict['pkg_name']
         app_group_name = app_dict['group_name']
         app_file_name = app_dict['app_file']
@@ -427,15 +427,15 @@ class NepiAppsMgr(object):
             try:
               nepi_sdk.load_params_from_file(config_file_path, params_namespace)
             except Exception as e:
-              self.msg_if.pub_warn("Could not get params from config file: " + config_file_path + " " + str(e))
+              self.msg_if.pub_debug("Could not get params from config file: " + config_file_path + " " + str(e))
           else:
             pass
-            #self.msg_if.pub_warn("Could not find config file at: " + config_file_path + " starting with factory settings")
+            #self.msg_if.pub_debug("Could not find config file at: " + config_file_path + " starting with factory settings")
           
           #Try and launch node
-          self.msg_if.pub_info("")
-          self.msg_if.pub_info("Launching application node: " + app_node_name)
-          #self.msg_if.pub_info("Launching application node: " + app_node_name + " with App Dict: " + str(app_dict))
+          self.msg_if.pub_warn("")
+          self.msg_if.pub_warn("Launching application node: " + app_node_name)
+          #self.msg_if.pub_debug("Launching application node: " + app_node_name + " with App Dict: " + str(app_dict))
           [success, msg, sub_process] = nepi_sdk.launch_node(app_pkg_name, app_file_name, app_node_name)
           if success == True:
             apps_dict[app_name]['running'] = False
@@ -450,10 +450,10 @@ class NepiAppsMgr(object):
             apps_dict[app_name]['running'] = False
             apps_dict[app_name]['msg'] = "Application failed to start"
             if restart == False:
-              self.msg_if.pub_warn("Node not started: " + app_node_name  + " - Will not restart")
+              self.msg_if.pub_debug("Node not started: " + app_node_name  + " - Will not restart")
               self.failed_app_list.append(app_name)
             else:
-              self.msg_if.pub_warn("Node not running: " + app_node_name  + " - Will attempt restart")
+              self.msg_if.pub_debug("Node not running: " + app_node_name  + " - Will attempt restart")
 
       # Check for running apps
       app_dict = apps_dict[app_name]
@@ -464,7 +464,7 @@ class NepiAppsMgr(object):
       if running == True:
         self.apps_dict[app_name]['msg'] = "Application running"
         if was_running == False:
-          self.msg_if.pub_warn("App Running: " + app_node_name)
+          self.msg_if.pub_info("App Running: " + app_node_name)
       elif running == False:
         if was_running == True and app_name in self.apps_active_dict.keys(): 
           self.apps_dict[app_name]['msg'] = "Application stopped running"
@@ -475,8 +475,8 @@ class NepiAppsMgr(object):
     
 
 
-    #self.msg_if.pub_warn("Ending Updater with apps dict keys: " + str(self.apps_dict.keys()))
-    #self.msg_if.pub_info("Ending Updater with active apps: " + str(self.getActiveApps()))
+    #self.msg_if.pub_debug("Ending Updater with apps dict keys: " + str(self.apps_dict.keys()))
+    #self.msg_if.pub_debug("Ending Updater with active apps: " + str(self.getActiveApps()))
 
     # Publish Status
     self.publish_status()
@@ -489,7 +489,7 @@ class NepiAppsMgr(object):
   ## Apps Mgr Callbacks
 
   def enableAllCb(self,msg):
-    self.msg_if.pub_info("Got enable all msg: " + str(msg))
+    self.msg_if.pub_debug("Got enable all msg: " + str(msg))
     apps_dict = copy.deepcopy(self.apps_dict)
     apps_dict = nepi_apps.activateAllApps(apps_dict)
     self.apps_dict = apps_dict
@@ -498,7 +498,7 @@ class NepiAppsMgr(object):
       self.node_if.set_param("apps_dict",apps_dict)
 
   def disableAllCb(self,msg):
-    self.msg_if.pub_info("Got disable all msg: " + str(msg))
+    self.msg_if.pub_debug("Got disable all msg: " + str(msg))
     apps_dict = copy.deepcopy(self.apps_dict)
     apps_dict = nepi_apps.disableAllApps(apps_dict)
     self.apps_dict = apps_dict
@@ -509,7 +509,7 @@ class NepiAppsMgr(object):
 
 
   def updateBoolCb(self,msg):
-    self.msg_if.pub_info("Got update app state msg: " + str(msg))
+    self.msg_if.pub_debug("Got update app state msg: " + str(msg))
     app_name = msg.name
     state = msg.value
     if app_name in self.apps_dict.keys():
@@ -522,7 +522,7 @@ class NepiAppsMgr(object):
 
 
   def updateOrderCb(self,msg):
-    self.msg_if.pub_info("Got update app order msg: " + str(msg))
+    self.msg_if.pub_debug("Got update app order msg: " + str(msg))
     app_name = msg.name
     move_cmd = msg.move_cmd
     moveFunction = self.getOrderUpdateFunction(move_cmd)
@@ -535,7 +535,7 @@ class NepiAppsMgr(object):
       self.node_if.set_param("apps_dict",apps_dict)
 
   def enableRestartCb(self,msg):
-    self.msg_if.pub_info("Got enable restart msg: " + str(msg))
+    self.msg_if.pub_debug("Got enable restart msg: " + str(msg))
     self.restart_enabled = msg.data
     self.publish_status()
     if self.node_if is not None:
@@ -561,7 +561,7 @@ class NepiAppsMgr(object):
 
 
   def installAppPkgCb(self,msg):
-    self.msg_if.pub_info("Got install app package msg: " + str(msg))
+    self.msg_if.pub_debug("Got install app package msg: " + str(msg))
     pkg_name = msg.data
     apps_dict = copy.deepcopy(self.apps_dict)
     if pkg_name in self.apps_install_files:
@@ -573,7 +573,7 @@ class NepiAppsMgr(object):
 
 
   def removeAppCb(self,msg):
-    self.msg_if.pub_info("Got remove app package msg: " + str(msg))
+    self.msg_if.pub_debug("Got remove app package msg: " + str(msg))
     app_name = msg.data
     apps_dict = copy.deepcopy(self.apps_dict)
     backup_folder = None
@@ -589,7 +589,7 @@ class NepiAppsMgr(object):
 
 
   def enableBackupCb(self,msg):
-    self.msg_if.pub_info("Got enable backup msg: " + str(msg))
+    self.msg_if.pub_debug("Got enable backup msg: " + str(msg))
     self.backup_enabled = msg.data
     self.publish_status()
     if self.node_if is not None:
@@ -600,14 +600,14 @@ class NepiAppsMgr(object):
   # ln = sys._getframe().f_lineno ; 
   def printND(self):
     apps_dict = copy.deepcopy(self.apps_dict)
-    self.msg_if.pub_info('')
-    self.msg_if.pub_info('*******************')
-    self.msg_if.pub_info('Printing Apps Dictionary')
+    self.msg_if.pub_debug('')
+    self.msg_if.pub_debug('*******************')
+    self.msg_if.pub_debug('Printing Apps Dictionary')
     for app_name in apps_dict.keys():
       app_dict = apps_dict[app_name]
-      self.msg_if.pub_info('')
-      self.msg_if.pub_info(app_name)
-      self.msg_if.pub_info(str(app_dict))
+      self.msg_if.pub_debug('')
+      self.msg_if.pub_debug(app_name)
+      self.msg_if.pub_debug(str(app_dict))
 
 
 
@@ -618,7 +618,7 @@ class NepiAppsMgr(object):
     if app_name in apps_dict.keys() and app_name != 'NONE':
       app_dict = apps_dict[app_name]
       try:
-        #self.msg_if.pub_warn(app_dict)
+        #self.msg_if.pub_debug(app_dict)
         status_app_msg.pkg_name = app_dict['pkg_name']
         status_app_msg.display_name = app_dict['display_name']
         status_app_msg.group_name = app_dict['group_name']
@@ -644,7 +644,7 @@ class NepiAppsMgr(object):
         status_app_msg.license_type = app_dict['license_type']
         status_app_msg.license_link = app_dict['license_link']
       except Exception as e:
-        self.msg_if.pub_info("Failed to create app status message: " + str(e))
+        self.msg_if.pub_debug("Failed to create app status message: " + str(e))
     return status_app_msg
 
 
@@ -707,7 +707,7 @@ class NepiAppsMgr(object):
     if self.node_if is not None:
       if self.status_published == False:
         self.status_published = True
-        #self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg))
+        #self.msg_if.pub_debug("Publishing Status Msg: " + str(self.status_msg))
 
       self.node_if.publish_pub('status_pub', self.status_msg)
       if last_status_msg != self.status_msg:
@@ -721,7 +721,7 @@ class NepiAppsMgr(object):
   # Node Cleanup Function
   
   def cleanup_actions(self):
-    self.msg_if.pub_info("Shutting down: Executing script cleanup actions")
+    self.msg_if.pub_debug("Shutting down: Executing script cleanup actions")
 
 
 #########################################

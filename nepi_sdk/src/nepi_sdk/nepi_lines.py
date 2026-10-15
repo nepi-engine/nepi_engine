@@ -40,8 +40,7 @@ from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_img 
 
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 BLANK_LINE_DICT = dict()
 BLANK_LINE_DICT['x'] = []

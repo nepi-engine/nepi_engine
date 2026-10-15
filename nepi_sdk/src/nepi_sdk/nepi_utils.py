@@ -46,7 +46,8 @@ import ipaddress
 from pathlib import Path
 
 from nepi_sdk import nepi_sdk
-logger = nepi_sdk.logger( )
+logger = nepi_sdk.sdk_logger
+
 
 
 

@@ -32,8 +32,7 @@ from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, Sys
 
 from nepi_sdk.nepi_sdk import find_topics_by_msg
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 #########################
 ### System States Helper Functions

@@ -18,6 +18,7 @@
 #
 
 import os
+import sys
 import copy
 import threading
 import inspect
@@ -63,22 +64,42 @@ class MsgIF(logger):
 
     
     def pub_info(self, *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+          caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_info(*args, **kwargs)
+        super().log_info(*args, **kwargs, caller_str = caller_str)
     
     def pub_warn(self,  *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+          caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_warn(*args, **kwargs)
+        super().log_warn(*args, **kwargs, caller_str = caller_str)
     
     def pub_error(self,  *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+           caller_str = None        
         # Dynamically forward all arguments to the superclass method
-        super().log_error(*args, **kwargs)
+        super().log_error(*args, **kwargs, caller_str = caller_str)
     
     def pub_fatal(self, *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+           caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_fatal(*args, **kwargs)
+        super().log_fatal(*args, **kwargs, caller_str = caller_str)
       
 
     def pub_debug(self,  *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+           caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_debug(*args, **kwargs)
+        super().log_debug(*args, **kwargs, caller_str = caller_str)

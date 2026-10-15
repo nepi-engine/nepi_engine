@@ -28,8 +28,7 @@ import getpass
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
   
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 
 #***************************
@@ -49,13 +48,13 @@ def getAppsDict(search_path):
         for f in os.listdir(search_path):
           if f.endswith(".yaml") and f.find("params") != -1: 
               file_path = os.path.join(search_path,f)
-              #logger.log_warn("Loading app dict from file: " + str(file_path))
+              #logger.log_debug("Loading app dict from file: " + str(file_path))
               try:
                 new_apps_dict = nepi_utils.read_yaml_2_dict(file_path)
                 new_dict = new_apps_dict['APP_DICT']
                 if 'RUI_DICT' in new_apps_dict.keys():
                   new_dict['RUI_DICT'] = new_apps_dict['RUI_DICT']
-                logger.log_warn("Got app dict: " + str(new_dict))
+                logger.log_debug("Got app dict: " + str(new_dict))
                 app_name = new_dict['pkg_name']
                 new_dict['order'] = -1
                 new_dict['subprocess'] = ""
@@ -68,12 +67,12 @@ def getAppsDict(search_path):
                   new_dict['license_type'] = "Not Provided"
                 if 'license_link' not in new_dict.keys():
                   new_dict['license_link'] = ""
-                #logger.log_warn("Adding dict: " + str(new_dict) + " with app_name: " + str(app_name))
+                #logger.log_debug("Adding dict: " + str(new_dict) + " with app_name: " + str(app_name))
                 apps_dict[app_name] = new_dict   
               except Exception as e:
-                logger.log_warn("Failed to import param file: " + file_path + " " + str(e))
+                logger.log_debug("Failed to import param file: " + file_path + " " + str(e))
     else:
-        logger.log_warn("App path does not exist: " + search_path)
+        logger.log_debug("App path does not exist: " + search_path)
     # Check for node file
 
     purge_list = []
@@ -83,33 +82,33 @@ def getAppsDict(search_path):
         app_file = apps_dict[app_name]['app_file']
         app_file_path = os.path.join(NEPI_PKG_FOLDER ,pkg_name, app_file)
         if os.path.exists(app_file_path) == False:
-          logger.log_warn("Could not find app file: " + app_file_path)
+          logger.log_debug("Could not find app file: " + app_file_path)
           purge_list.append(app_name)
         else:
           apps_dict[app_name]['app_path'] = NEPI_PKG_FOLDER + pkg_name
       except Exception as e:
         purge_list.append(app_name)
-        logger.log_warn("Failed to import param file: " + file_path + " " + str(e))
+        logger.log_debug("Failed to import param file: " + file_path + " " + str(e))
     for app_name in purge_list:
       del apps_dict[app_name]
     apps_dict = setFactoryAppOrder(apps_dict)
-    #logger.log_warn("Returning imported apps dict: " + str(apps_dict))
+    #logger.log_debug("Returning imported apps dict: " + str(apps_dict))
     return apps_dict
 
 
 # ln = sys._getframe().f_lineno ; self.printND(apps_dict,ln)
 def printDict(apps_dict):
-  logger.log_warn('')
-  logger.log_warn('*******************')
+  logger.log_debug('')
+  logger.log_debug('*******************')
   # if line_num is not None:
-  #   logger.log_warn('' + str(line_num))
-  logger.log_warn('Printing Nex App Dictionary')
+  #   logger.log_debug('' + str(line_num))
+  logger.log_debug('Printing Nex App Dictionary')
 
   for app_name in apps_dict.keys():
     apps_dict = apps_dict[app_name]
-    logger.log_warn('')
-    logger.log_warn('' + app_name)
-    logger.log_warn(str(apps_dict))
+    logger.log_debug('')
+    logger.log_debug('' + app_name)
+    logger.log_debug(str(apps_dict))
 
 
 def refreshAppsDict(apps_path,apps_dict):
@@ -126,7 +125,7 @@ def refreshAppsDict(apps_path,apps_dict):
 
 def initAppsActiveOrder(active_list,apps_dict):
   rvs_list = list(reversed(active_list))
-  #logger.log_warn("got rvs_list: " + str(rvs_list))
+  #logger.log_debug("got rvs_list: " + str(rvs_list))
   # First set all to inactive and no order (-1)
   for name in apps_dict.keys():
     apps_dict[name]['active'] = False
@@ -232,7 +231,7 @@ def getAppsOrderedList(apps_dict):
 
 def getAppsActiveList(apps_dict):
   ordered_name_list = getAppsOrderedList(apps_dict)
-  #logger.log_warn("ordered list: " + str(ordered_name_list))
+  #logger.log_debug("ordered list: " + str(ordered_name_list))
   active_list =[]
   for app_name in ordered_name_list:
     active = apps_dict[app_name]['active']
@@ -294,14 +293,14 @@ def disableAllApps(apps_dict):
 
 def activateApp(app_name,apps_dict):
     if app_name not in apps_dict.keys():
-      logger.log_warn("App for activate request does not exist: " + app_name)
+      logger.log_debug("App for activate request does not exist: " + app_name)
       return apps_dict
     apps_dict[app_name]['active'] = True
     return apps_dict
 
 def disableApp(app_name,apps_dict):
     if app_name not in apps_dict.keys():
-      logger.log_warn("App for removal request does not exist: " + app_name)
+      logger.log_debug("App for removal request does not exist: " + app_name)
       return apps_dict
     apps_dict[app_name]['active'] = False
     return apps_dict
@@ -310,14 +309,14 @@ def disableApp(app_name,apps_dict):
 def installAppPkg(pkg_name,apps_dict,install_from_path,install_to_path):
     success = True
     if os.path.exists(install_from_path) == False:
-      logger.log_warn("Install package source folder does not exist: " + install_from_path)
+      logger.log_debug("Install package source folder does not exist: " + install_from_path)
       return False, apps_dict
     if os.path.exists(install_to_path) == False:
-      logger.log_warn("Install package destination folder does not exist: " + install_to_path)
+      logger.log_debug("Install package destination folder does not exist: " + install_to_path)
       return False, apps_dict
     pkg_list = getAppPackagesList(install_from_path)
     if pkg_name not in pkg_list:
-      logger.log_warn("Install package not found in install folder: " + pkg_name + " " + install_from_path)
+      logger.log_debug("Install package not found in install folder: " + pkg_name + " " + install_from_path)
       return False, apps_dict
     os_user = getpass.getuser()
     os.system('chown -R ' + 'nepi:nepi' + ' ' + install_from_path)
@@ -344,7 +343,7 @@ RUI_MENU_NAME = "AI Targeting"
             os.remove(file)
           except Exception as e:
             success = False
-            logger.log_warn(str(e))
+            logger.log_debug(str(e))
       if success:
         # Unzip the package to the App path
         with zipfile.ZipFile(pkg_path,"r") as zip_ref:
@@ -362,7 +361,7 @@ RUI_MENU_NAME = "AI Targeting"
 def removeApp(app_name,apps_dict,backup_path = None):
     success = True
     if app_name not in apps_dict.keys():
-      logger.log_warn("App removal request does not exist: " +  app_name)
+      logger.log_debug("App removal request does not exist: " +  app_name)
       return False, apps_dict
     apps_dict = apps_dict[app_name]
 
@@ -399,23 +398,23 @@ def removeApp(app_name,apps_dict,backup_path = None):
           zip.close()
           zip = None
         except Exception as e:
-          logger.log_warn("Failed to backup App: " + str(e))
+          logger.log_debug("Failed to backup App: " + str(e))
           if os.path.exists(zip_file) == True:
             try:
               zip.close()
             except Exception as e:
-              logger.log_warn(str(e))
+              logger.log_debug(str(e))
             try:
               os.remove(file_path)
             except Exception as e:
-              logger.log_warn(str(e))
+              logger.log_debug(str(e))
         for file_path in App_file_list:
           if os.path.exists(file_path) == True:
             try:
               os.remove(file_path)
             except Exception as e:
               success = False
-              logger.log_warn("Failed to remove App file: " + file_path + " " + str(e))
+              logger.log_debug("Failed to remove App file: " + file_path + " " + str(e))
 
     if success:
       del apps_dict[app_name]

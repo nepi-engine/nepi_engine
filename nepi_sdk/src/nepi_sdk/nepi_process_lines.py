@@ -35,8 +35,7 @@ from sensor_msgs.msg import Image
 from nepi_interfaces.msg import ImageStatus
 
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 
 ########################

@@ -80,22 +80,22 @@ class config_mgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        self.msg_if.pub_warn("Starting IF Initialization Processes")
 
         ##############################
         # Wait for System Manager
-        #self.msg_if.pub_info("Waiting for 10 secs")
+        #self.msg_if.pub_debug("Waiting for 10 secs")
         #time.sleep(10)
-        self.msg_if.pub_info("Waiting for system folders")
+        self.msg_if.pub_debug("Waiting for system folders")
         folders = nepi_system.get_system_folders()
-        #self.msg_if.pub_warn("Got system folders: " + str(folders))
+        #self.msg_if.pub_debug("Got system folders: " + str(folders))
         for folder in self.config_folders.keys():
             if folder in folders.keys():
                 self.config_folders[folder] = folders[folder]
         self.FACTORY_CFG_PATH = self.config_folders['factory_cfg']
         self.SYSTEM_CFG_PATH = self.config_folders['system_cfg']
         self.USER_CFG_PATH = self.config_folders['user_cfg']
-        self.msg_if.pub_warn("Using config folders: " + str(self.config_folders))
+        self.msg_if.pub_debug("Using config folders: " + str(self.config_folders))
 
 
         ##############################
@@ -229,7 +229,7 @@ class config_mgr(object):
         # Restore configurations
         success = self.sync_nepi_config()
         if success == True:
-            self.msg_if.pub_warn("NEPI config files restored")
+            self.msg_if.pub_debug("NEPI config files restored")
         
         nepi_sdk.start_timer_process(1, self.statusPubCb)
         ################
@@ -242,7 +242,7 @@ class config_mgr(object):
         #########################################################
         ## Initiation Complete
 
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_warn("Initialization Complete")
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################
@@ -254,7 +254,7 @@ class config_mgr(object):
       if self.node_if is not None:
 
         if do_updates == True:
-            self.msg_if.pub_warn("Setting config folders param to: " + str(self.config_folders))
+            self.msg_if.pub_debug("Setting config folders param to: " + str(self.config_folders))
             nepi_system.set_config_folders(self.config_folders)
             nepi_sdk.set_param('config_folders',self.config_folders)
         self.publish_status()
@@ -292,11 +292,11 @@ class config_mgr(object):
 
             node_name = clean_namespace_parts[0]
             node_name_all = node_name.rsplit('_',1)[0] + '_ALL'
-            #self.msg_if.pub_warn("Got clean all node_name for namespace: " + namespace + " : " + str(node_name_all))
+            #self.msg_if.pub_debug("Got clean all node_name for namespace: " + namespace + " : " + str(node_name_all))
             clean_namespace_parts[0] = node_name_all
 
             all_namespace = '/'.join(clean_namespace_parts)
-            #self.msg_if.pub_warn("Got clean all node_name namespace for namespace: " + namespace + " : " + str(all_namespace))
+            #self.msg_if.pub_debug("Got clean all node_name namespace for namespace: " + namespace + " : " + str(all_namespace))
             namespace = all_namespace
             
         if len(namespace) > 0:
@@ -320,33 +320,33 @@ class config_mgr(object):
 
     def update_from_file(self,file_pathname, namespace):
         if os.path.exists(file_pathname) == False:
-            self.msg_if.pub_warn("Could not find params file for namespace: " + namespace  + " at " + file_pathname )
+            self.msg_if.pub_debug("Could not find params file for namespace: " + namespace  + " at " + file_pathname )
             return False
         else:
             if os.path.getsize(file_pathname) == 0:
-                self.msg_if.pub_warn("Params file is empty for namespace: " + namespace  + " at " + file_pathname )
+                self.msg_if.pub_debug("Params file is empty for namespace: " + namespace  + " at " + file_pathname )
                 return False
-            self.msg_if.pub_warn("Loading Params for namespace: " + namespace  + " from file " + file_pathname )
+            self.msg_if.pub_debug("Loading Params for namespace: " + namespace  + " from file " + file_pathname )
             params_dict = None
             try:
                 params_dict = nepi_sdk.load_params_from_file(file_pathname, namespace)
-                self.msg_if.pub_warn("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()))
+                self.msg_if.pub_debug("Got Params for namespace: " + namespace  + " from file " + file_pathname  + " : " + str(params_dict.keys()))
             except Exception as e:
-                self.msg_if.pub_warn("Unable to load parameters from file " + file_pathname + " " + str(e))
+                self.msg_if.pub_debug("Unable to load parameters from file " + file_pathname + " " + str(e))
                 return False
-            self.msg_if.pub_warn("Updated Params for namespace: " + namespace )
+            self.msg_if.pub_debug("Updated Params for namespace: " + namespace )
         return True
 
     ##################################
 
     def saveParamsCb(self,msg):
         namespace = msg.data
-        #self.msg_if.pub_info("Got Save Params for namespace: " + namespace )
+        #self.msg_if.pub_debug("Got Save Params for namespace: " + namespace )
         self.save_params(namespace)
 
     def saveParamsAllCb(self,msg):
         namespace = msg.data
-        #self.msg_if.pub_info("Got Save Params All for namespace: " + namespace )
+        #self.msg_if.pub_debug("Got Save Params All for namespace: " + namespace )
         self.save_params(namespace, save_all = True)
 
 
@@ -360,11 +360,11 @@ class config_mgr(object):
                 clear_path = os.path.dirname(config_pathname)
                 clear_string = os.path.basename(config_pathname).split('_ALL')[0]
                 success = nepi_utils.delete_files_wildcard(clear_path,clear_string)
-            #self.msg_if.pub_info("Storing Params for namespace: " + namespace  + " in file " + config_pathname )
+            #self.msg_if.pub_debug("Storing Params for namespace: " + namespace  + " in file " + config_pathname )
             # First, write to the user file
             nepi_sdk.save_params_to_file(config_pathname, namespace)
             #nepi_sdk.save_params_to_file(backup_pathname, namespace)
-            #self.msg_if.pub_info("Params saved for namespace: " + namespace  + " in file " + config_pathname )
+            #self.msg_if.pub_debug("Params saved for namespace: " + namespace  + " in file " + config_pathname )
             success = True
         return success
     
@@ -374,7 +374,7 @@ class config_mgr(object):
         alt_namespace = msg.name2
         if alt_namespace == '':
             alt_namespace = namespace
-        self.msg_if.pub_info("Got Delete Params All for namespace: " + str(namespace) + " alt: " + str(alt_namespace) )
+        self.msg_if.pub_debug("Got Delete Params All for namespace: " + str(namespace) + " alt: " + str(alt_namespace) )
         success = self.delete_configs(namespace, alt_namespace)
         if success == True:
             self.reset_params(namespace, alt_namespace)
@@ -402,10 +402,10 @@ class config_mgr(object):
                     except Exception as e:
                         print(f"An error occurred: {e}")
 
-                #self.msg_if.pub_warn("Checking for Saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
+                #self.msg_if.pub_debug("Checking for Saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
                 if nepi_system.supports_all_config(source_namespace) == True:
                     source_pathname_all = self.get_config_pathname(source_path, source_namespace, all_config = True)
-                    #self.msg_if.pub_warn("Checking for ALL config for namespace: " + restore_namespace + " params file: " + str(source_pathname_all))
+                    #self.msg_if.pub_debug("Checking for ALL config for namespace: " + restore_namespace + " params file: " + str(source_pathname_all))
                     if source_pathname_all is not None:
                         if os.path.exists(source_pathname_all):
                             try:
@@ -438,7 +438,7 @@ class config_mgr(object):
     def copyConfigsCb(self,msg):
         source_namespace = msg.name
         target_namespace = msg.value
-        #self.msg_if.pub_info("Got Delete Params All for namespace: " + namespace )
+        #self.msg_if.pub_debug("Got Delete Params All for namespace: " + namespace )
         success = self.copy_configs(source_namespace, target_namespace)
 
 
@@ -460,10 +460,10 @@ class config_mgr(object):
                 except Exception as e:
                     print(f"An error occurred: {e}")
 
-            #self.msg_if.pub_warn("Checking for Saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
+            #self.msg_if.pub_debug("Checking for Saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
             if nepi_system.supports_all_config(source_namespace) == True:
                 source_pathname_all = self.get_config_pathname(source_path, source_namespace, all_config = True)
-                #self.msg_if.pub_warn("Checking for ALL config for namespace: " + restore_namespace + " params file: " + str(source_pathname_all))
+                #self.msg_if.pub_debug("Checking for ALL config for namespace: " + restore_namespace + " params file: " + str(source_pathname_all))
                 if source_pathname_all is not None:
                     if os.path.exists(source_pathname_all):
                         try:
@@ -477,7 +477,7 @@ class config_mgr(object):
     def resetParamsCb(self,msg):
         namespace = msg.name
         alt_namespace = msg.name2
-        #self.msg_if.pub_info("Got Reset Params All for namespace: " + namespace )
+        #self.msg_if.pub_debug("Got Reset Params All for namespace: " + namespace )
         self.resetParams(namespace, alt_namespace)
 
 
@@ -493,22 +493,22 @@ class config_mgr(object):
         config_folders = ['user_cfg','system_cfg','factory_cfg']
         success = False
         for folder in config_folders:
-            #self.msg_if.pub_warn("Checking for Saved config for namespace: " + restore_namespace + " folder: " + str(folder))
+            #self.msg_if.pub_debug("Checking for Saved config for namespace: " + restore_namespace + " folder: " + str(folder))
             if folder in self.config_folders.keys():
                 source_path = self.config_folders[folder]
                 source_pathnames = []
                 # Restore config if exits
                 source_pathname = self.get_config_pathname(source_path, restore_namespace)
                 source_pathnames.append(source_pathname)
-                #self.msg_if.pub_warn("Checking for Saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
+                #self.msg_if.pub_debug("Checking for Saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
                 if nepi_system.supports_all_config(source_namespace) == True:
                     source_pathname_all = self.get_config_pathname(source_path, source_namespace, all_config = True)
-                    #self.msg_if.pub_warn("Checking for ALL config for namespace: " + restore_namespace + " params file: " + str(source_pathname_all))
+                    #self.msg_if.pub_debug("Checking for ALL config for namespace: " + restore_namespace + " params file: " + str(source_pathname_all))
                     if source_pathname_all is not None:
                         if os.path.exists(source_pathname_all):
                             source_pathname = source_pathname_all
                             source_pathnames.append(source_pathname)
-                #self.msg_if.pub_warn("Checking for saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
+                #self.msg_if.pub_debug("Checking for saved config for namespace: " + restore_namespace + " params file: " + str(source_pathname))
                 success = False
                 for source_pathname in source_pathnames:
                     if os.path.exists(source_pathname):
@@ -533,15 +533,15 @@ class config_mgr(object):
         source_folder = self.USER_CFG_PATH
         dest_folder = self.SYSTEM_CFG_PATH
         # Copy User Configs to System Configs
-        #self.msg_if.pub_warn("Looking for dest config target path: " + dest_folder )
+        #self.msg_if.pub_debug("Looking for dest config target path: " + dest_folder )
         if os.path.exists(dest_folder) == False:
             os.makedirs(dest_folder)
-        #self.msg_if.pub_warn("Looking for source config target path: " + dest_folder )
+        #self.msg_if.pub_debug("Looking for source config target path: " + dest_folder )
         if os.path.exists(dest_folder) == True and os.path.exists(dest_folder) == True:
-            self.msg_if.pub_warn("Syncing source to target config paths: " + source_folder + " : " + dest_folder )
+            self.msg_if.pub_debug("Syncing source to target config paths: " + source_folder + " : " + dest_folder )
             success = nepi_utils.rsync_folders(source_folder,dest_folder, folders = False)
             if success == True:
-                self.msg_if.pub_warn("Synced source to target config paths: " + source_folder + " : " + dest_folder )
+                self.msg_if.pub_debug("Synced source to target config paths: " + source_folder + " : " + dest_folder )
 
     def resetFactoryCb(self,msg):
         self.save_disabled = True
@@ -556,10 +556,10 @@ class config_mgr(object):
         if os.path.exists(restore_folder) == False:
             os.makedirs(restore_folder)   
         if os.path.exists(clear_folder) == True and os.path.exists(restore_folder) == True:
-            self.msg_if.pub_warn("Syncing source to target config paths: " + restore_folder + " : " + clear_folder )
+            self.msg_if.pub_debug("Syncing source to target config paths: " + restore_folder + " : " + clear_folder )
             success = nepi_utils.rsync_folders(restore_folder,clear_folder, folders = False)
             if success == True:
-                self.msg_if.pub_warn("Synced source to target config paths: " + restore_folder + " : " + clear_folder )
+                self.msg_if.pub_debug("Synced source to target config paths: " + restore_folder + " : " + clear_folder )
 
 
     def clearFactoryCb(self,msg):

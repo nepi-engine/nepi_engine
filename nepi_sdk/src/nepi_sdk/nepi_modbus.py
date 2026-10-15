@@ -29,8 +29,7 @@ from ctypes import c_uint8, c_uint16
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 REBACK_SLEEP_MS = 5
 
