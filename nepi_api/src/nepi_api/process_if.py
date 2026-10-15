@@ -433,7 +433,7 @@ class ProcessIF:
         if success == False:
             self.msg_if.pub_warn("INITIAL PROCESS LOAD FAILED: " + str(self.processes_functions_dict) )
         else:
-            self.msg_if.pub_warn("INITIAL PROCESS LOAD SUCCEEDED: " + str(self.processes_functions_dict) )
+            self.msg_if.pub_info("Initial Process Load Succeeded: " + str(self.processes_functions_dict) )
 
 
 
