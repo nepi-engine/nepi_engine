@@ -110,6 +110,51 @@ MSG_FILTER_FUNCTIONS = MSG_FILTER_FUNCTIONS + ['log','logger','log_msg','log_inf
 MSG_FILTER_FILES = ['log_msg','node_if','connect_node_if','logger','Logger']
 MSG_FILTER_CLASSES = ['logger','MsgIF']
 
+MSG_COLORS = {
+    "WHITE":  "\033[0m",
+   
+    # --- Standard Rainbow Colors ---
+    "RED": "\033[31m",
+    "ORANGE": "\033[38;5;208m",
+    "YELLOW": "\033[33m",
+    "GREEN": "\033[32m",
+    "BLUE": "\033[34m",
+    "INDIGO": "\033[38;5;93m",
+    "VIOLET": "\033[35m",
+    "CYAN": "\033[36m",
+    "MAGENTA": "\033[95m",
+    "PINK": "\033[91m",
+
+    # --- Dark Rainbow Versions ---
+    "DARK_RED": "\033[38;5;88m",
+    "DARK_ORANGE": "\033[38;5;130m",
+    "DARK_YELLOW": "\033[38;5;142m",
+    "DARK_GREEN": "\033[38;5;22m",
+    "DARK_BLUE": "\033[38;5;18m",
+    "DARK_INDIGO": "\033[38;5;54m",
+    "DARK_VIOLET": "\033[38;5;90m",
+    "DARK_CYAN": "\033[38;5;30m",
+    "DARK_MAGENTA": "\033[38;5;89m",
+    "DARK_PINK": "\033[38;5;125m",
+
+    "INFO": "\033[0m",
+    "WARN": "\033[33m",
+    "ERROR": "\033[31m",
+    "FATAL": "\033[31m",
+    "DEBUG": "\033[38;5;130m",
+
+    # --- Utility ---
+    "RESET": "\033[0m"
+}
+
+MSG_DEFAULT_COLORS = {
+  'info': MSG_COLORS['INFO'],
+  'warn': MSG_COLORS['WARN'],
+  'error': MSG_COLORS['ERROR'],
+  'fatal': MSG_COLORS['FATAL'],
+  'debug': MSG_COLORS['DEBUG']
+}
+
 #########################
 ### Shutdown Helper Functions
 
@@ -189,7 +234,9 @@ def get_message_classes():
 ########################################################
 
 
-def log_msg_info(msg, throttle_s = None, debug = False, caller_str = None):
+def log_msg_info(msg, throttle_s = None, color = None, caller_str = None):
+  global DEBUG_ENABLED
+
   msg_str = None
   if msg is not None and not is_shutdown():
     msg_str = str(msg)
@@ -199,7 +246,61 @@ def log_msg_info(msg, throttle_s = None, debug = False, caller_str = None):
     classes_list = get_message_classes()
     if len(classes_list):
       msg_classes = classes_list
-      if debug == False and len(classes_list) > 1:
+      if DEBUG_ENABLED == False and len(classes_list) > 1:
+        msg_classes = [classes_list[0]]
+        if len(classes_list) > 1:
+            msg_classes.append(classes_list[-1].strip())
+      try:
+        log_str = log_str + str('/'.join(msg_classes)) + ": "
+      except Exception as e:
+        rospy.logwarn_throttle(1,'Failed to convert classes to log_name_msg: ' + str(msg_classes) + " : " + str(e))
+    
+    ##########
+    # Add Caller Function
+    if caller_str is None:
+      try:
+        caller_str = str(sys._getframe(1).f_code.co_name)
+      except:
+        pass
+    if caller_str is not None:
+      caller_str = caller_str.strip()
+      if 'log_' not in caller_str and caller_str not in MSG_FILTER_FUNCTIONS:
+          log_str = log_str + caller_str + ": "
+
+    ##########
+    # Add Log Str to Msg Str
+    msg_str = log_str + msg_str
+
+
+    ##########
+    # Log Msg
+    color = MSG_DEFAULT_COLORS['info']
+    if color is not None:
+      if color in MSG_COLORS.keys():
+          color = MSG_COLORS[color]
+
+    log_str = color + msg_str + MSG_COLORS['RESET']
+
+    if throttle_s is None:
+      rospy.loginfo(log_str)
+    else:
+      rospy.loginfo_throttle(throttle_s,log_str)
+  return msg_str
+
+########################################################
+def log_msg_warn(msg, throttle_s = None, color = None, caller_str = None):
+  global DEBUG_ENABLED
+
+  msg_str = None
+  if msg is not None and not is_shutdown():
+    msg_str = str(msg)
+    log_str = ''
+    ##########
+    # Add Classes
+    classes_list = get_message_classes()
+    if len(classes_list):
+      msg_classes = classes_list
+      if DEBUG_ENABLED == False and len(classes_list) > 1:
         msg_classes = [classes_list[0]]
         if len(classes_list) > 1:
             msg_classes.append(classes_list[-1].strip())
@@ -226,15 +327,25 @@ def log_msg_info(msg, throttle_s = None, debug = False, caller_str = None):
 
     ##########
     # Log Msg
+    color = MSG_DEFAULT_COLORS['warn']
+    if color is not None:
+      if color in MSG_COLORS.keys():
+          color = MSG_COLORS[color]
+
+    log_str = color + msg_str + MSG_COLORS['RESET']
+
 
     if throttle_s is None:
-      rospy.loginfo(msg_str)
+      rospy.logwarn(log_str)
     else:
-      rospy.loginfo_throttle(throttle_s,msg_str)
+      rospy.logwarn_throttle(throttle_s,log_str)
   return msg_str
 
+
 ########################################################
-def log_msg_warn(msg, throttle_s = None, debug = False, caller_str = None):
+def log_msg_error(msg, throttle_s = None, color = None, caller_str = None):
+  global DEBUG_ENABLED
+
   msg_str = None
   if msg is not None and not is_shutdown():
     msg_str = str(msg)
@@ -244,7 +355,7 @@ def log_msg_warn(msg, throttle_s = None, debug = False, caller_str = None):
     classes_list = get_message_classes()
     if len(classes_list):
       msg_classes = classes_list
-      if debug == False and len(classes_list) > 1:
+      if DEBUG_ENABLED == False and len(classes_list) > 1:
         msg_classes = [classes_list[0]]
         if len(classes_list) > 1:
             msg_classes.append(classes_list[-1].strip())
@@ -271,16 +382,25 @@ def log_msg_warn(msg, throttle_s = None, debug = False, caller_str = None):
 
     ##########
     # Log Msg
+    color = MSG_DEFAULT_COLORS['error']
+    if color is not None:
+      if color in MSG_COLORS.keys():
+          color = MSG_COLORS[color]
+
+    log_str = color + msg_str + MSG_COLORS['RESET']
+
 
     if throttle_s is None:
-      rospy.logwarn(msg_str)
+      rospy.logerr(log_str)
     else:
-      rospy.logwarn_throttle(throttle_s,msg_str)
+      rospy.logerr_throttle(throttle_s,log_str)
   return msg_str
 
 
 ########################################################
-def log_msg_error(msg, throttle_s = None, debug = False, caller_str = None):
+def log_msg_fatal(msg, throttle_s = None, color = None, caller_str = None):
+  global DEBUG_ENABLED
+
   msg_str = None
   if msg is not None and not is_shutdown():
     msg_str = str(msg)
@@ -290,7 +410,7 @@ def log_msg_error(msg, throttle_s = None, debug = False, caller_str = None):
     classes_list = get_message_classes()
     if len(classes_list):
       msg_classes = classes_list
-      if debug == False and len(classes_list) > 1:
+      if DEBUG_ENABLED == False and len(classes_list) > 1:
         msg_classes = [classes_list[0]]
         if len(classes_list) > 1:
             msg_classes.append(classes_list[-1].strip())
@@ -317,62 +437,23 @@ def log_msg_error(msg, throttle_s = None, debug = False, caller_str = None):
 
     ##########
     # Log Msg
+    color = MSG_DEFAULT_COLORS['fatal']
+    if color is not None:
+      if color in MSG_COLORS.keys():
+          color = MSG_COLORS[color]
+
+    log_str = color + msg_str + MSG_COLORS['RESET']
+
 
     if throttle_s is None:
-      rospy.logerr(msg_str)
+      rospy.logfatal(log_str)
     else:
-      rospy.logerr_throttle(throttle_s,msg_str)
+      rospy.logfatal_throttle(throttle_s,log_str)
   return msg_str
 
 
 ########################################################
-def log_msg_fatal(msg, throttle_s = None, debug = False, caller_str = None):
-  msg_str = None
-  if msg is not None and not is_shutdown():
-    msg_str = str(msg)
-    log_str = ''
-    ##########
-    # Add Classes
-    classes_list = get_message_classes()
-    if len(classes_list):
-      msg_classes = classes_list
-      if debug == False and len(classes_list) > 1:
-        msg_classes = [classes_list[0]]
-        if len(classes_list) > 1:
-            msg_classes.append(classes_list[-1].strip())
-      try:
-        log_str = log_str + str('/'.join(msg_classes)) + ": "
-      except Exception as e:
-        rospy.logwarn_throttle(1,'Failed to convert classes to log_name_msg: ' + str(msg_classes) + " : " + str(e))
-    
-    ##########
-    # Add Caller Function
-    if caller_str is None:
-      try:
-        caller_str = str(sys._getframe(1).f_code.co_name)
-      except:
-        pass
-    if caller_str is not None:
-      caller_str = caller_str.strip()
-      if 'log_' not in caller_str and caller_str not in MSG_FILTER_FUNCTIONS:
-          log_str = log_str + caller_str + ": "
-
-    ##########
-    # Add Log Str to Msg Str
-    msg_str = log_str + msg_str
-
-    ##########
-    # Log Msg
-
-    if throttle_s is None:
-      rospy.logfatal(msg_str)
-    else:
-      rospy.logfatal_throttle(throttle_s,msg_str)
-  return msg_str
-
-
-########################################################
-def log_msg_debug(msg, throttle_s = None, debug = False, caller_str = None):
+def log_msg_debug(msg, throttle_s = None, color = None, caller_str = None):
   global DEBUG_ENABLED
 
   msg_str = None
@@ -384,7 +465,7 @@ def log_msg_debug(msg, throttle_s = None, debug = False, caller_str = None):
     classes_list = get_message_classes()
     if len(classes_list):
       msg_classes = classes_list
-      if debug == False and len(classes_list) > 1:
+      if DEBUG_ENABLED == False and len(classes_list) > 1:
         msg_classes = [classes_list[0]]
         if len(classes_list) > 1:
             msg_classes.append(classes_list[-1].strip())
@@ -411,17 +492,23 @@ def log_msg_debug(msg, throttle_s = None, debug = False, caller_str = None):
 
     ##########
     # Log Msg
-    msg_str = DEBUG_COLOR + msg_str + COLOR_RESET 
+    color = MSG_DEFAULT_COLORS['debug']
+    if color is not None:
+      if color in MSG_COLORS.keys():
+          color = MSG_COLORS[color]
+
+    log_str = color + msg_str + MSG_COLORS['RESET']
+
 
     if throttle_s is None:
-      rospy.loginfo(msg_str)
+      rospy.loginfo(log_str)
     else:
-      rospy.loginfo_throttle(throttle_s,msg_str)
+      rospy.loginfo_throttle(throttle_s,log_str)
   return msg_str
 
 
 ########################################################
-def log_msg(msg, level = "None", throttle_s = None, prefix = "", debug = False, caller_str = None):
+def log_msg(msg, level = "None", throttle_s = None, prefix = "", color = None, caller_str = None):
   #if msg is None:
       #msg = "nepi_sdk log_msg got None msg"
   msg_str = None
@@ -429,15 +516,15 @@ def log_msg(msg, level = "None", throttle_s = None, prefix = "", debug = False, 
     msg_str = prefix + str(msg)
     level = level.lower()
     if level == 'debug':
-      msg_str = log_msg_debug(msg_str, throttle_s = throttle_s, debug = debug, caller_str = caller_str)
+      msg_str = log_msg_debug(msg_str, throttle_s = throttle_s, color = color, caller_str = caller_str)
     elif level == 'warn':
-      msg_str = log_msg_warn(msg_str, throttle_s = throttle_s, debug = debug, caller_str = caller_str)
+      msg_str = log_msg_warn(msg_str, throttle_s = throttle_s, color = color, caller_str = caller_str)
     elif level == 'error':
-      msg_str = log_msg_error(msg_str, throttle_s = throttle_s, debug = debug, caller_str = caller_str)
+      msg_str = log_msg_error(msg_str, throttle_s = throttle_s, color = color, caller_str = caller_str)
     elif level == 'fatal':
-      msg_str = log_msg_fatal(msg_str, throttle_s = throttle_s, debug = debug, caller_str = caller_str)
+      msg_str = log_msg_fatal(msg_str, throttle_s = throttle_s, color = color, caller_str = caller_str)
     else:
-      msg_str = log_msg_info(msg_str, throttle_s = throttle_s, debug = debug, caller_str = caller_str)
+      msg_str = log_msg_info(msg_str, throttle_s = throttle_s, color = color, caller_str = caller_str)
   return msg_str
 
 
@@ -587,18 +674,22 @@ class logger:
     log_name = None
     namespace = None
 
-
+    colors_dict = copy.deepcopy(MSG_DEFAULT_COLORS)
 
     #######################
     ### IF Initialization
-    def __init__(self, namespace = None, ignore_functions = [], ignore_files = []):
+    def __init__(self, namespace = None, ignore_functions = [], ignore_files = [], colors_dict = dict()):
         self.base_namespace = get_base_namespace()
 
         if namespace is not None:
           namespace = get_full_namespace(namespace)
         self.namespace = namespace
 
-
+        for key in colors_dict.keys():
+          color = str(colors_dict[key])
+          if key in self.colors_dict.keys() and color in MSG_COLORS.keys():
+             self.colors_dict = color
+             
         self.ignore_functions = MSG_FILTER_FUNCTIONS + ignore_functions
         self.ignore_files = MSG_FILTER_FILES + ignore_functions
 
@@ -623,7 +714,7 @@ class logger:
     ###############################
     # Class Public Methods
     
-    def log(self, msg, msg_list = [], level = "None",caller_str = None, throttle_s = None, throttle_n = False, throttle_f = -1, round_f = 3):
+    def log(self, msg, msg_list = [], level = "None", color = None, caller_str = None, throttle_s = None, throttle_n = False, throttle_f = -1, round_f = 3):
         
         if (self.debug_enabled == False and level == 'debug'):
             return
@@ -783,11 +874,20 @@ class logger:
 
 
 
-        pub_str = log_msg(str_msg, level = level, debug = self.debug_enabled, caller_str = caller_str)      
+        if color is not None:
+          if color in MSG_COLORS.keys():
+             color = MSG_COLORS[color]
+        
+
+        if color is None:
+           color = self.colors_dict[level]
+
+        pub_str = log_msg(str_msg, level = level, color = color, caller_str = caller_str)      
 
         if pub_str is not None:
           pub_msg = Message()
           pub_msg.level = level
+          pub_msg.color = color
           pub_msg.message = pub_str
 
           if self.msg_pub_sys is not None:
@@ -802,45 +902,45 @@ class logger:
             except:
               pass
     
-    def log_info(self, msg, msg_list = [], caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+    def log_info(self, msg, msg_list = [], color = None, caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
         if caller_str is None:
           try:
             caller_str = str(sys._getframe(1).f_code.co_name).strip()
           except:
             caller_str = None
-        self.log(msg, msg_list = msg_list, level = 'info', caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
+        self.log(msg, msg_list = msg_list, level = 'info', color = color, caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
     
-    def log_warn(self, msg, msg_list = [], caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+    def log_warn(self, msg, msg_list = [], color = None, caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
         if caller_str is None:
           try:
             caller_str = str(sys._getframe(1).f_code.co_name).strip()
           except:
             caller_str = None
-        self.log(msg, msg_list = msg_list, level = 'warn', caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
+        self.log(msg, msg_list = msg_list, level = 'warn', color = color, caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
     
-    def log_error(self, msg, msg_list = [], caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+    def log_error(self, msg, msg_list = [], color = None, caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
         if caller_str is None:
           try:
             caller_str = str(sys._getframe(1).f_code.co_name).strip()
           except:
             caller_str = None
-        self.log(msg, msg_list = msg_list, level = 'error', caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
+        self.log(msg, msg_list = msg_list, level = 'error', color = color, caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
     
-    def log_fatal(self, msg, msg_list = [], caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+    def log_fatal(self, msg, msg_list = [], color = None, caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
         if caller_str is None:
           try:
             caller_str = str(sys._getframe(1).f_code.co_name).strip()
           except:
             caller_str = None
-        self.log(msg, msg_list = msg_list, level = 'fatal', caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
+        self.log(msg, msg_list = msg_list, level = 'fatal', color = color, caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
 
-    def log_debug(self, msg, msg_list = [], caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
+    def log_debug(self, msg, msg_list = [], color = None, caller_str = None, throttle_s = None, throttle_n = True, throttle_f = 3, round_f = 3):
         if caller_str is None:
           try:
             caller_str = str(sys._getframe(1).f_code.co_name).strip()
           except:
             caller_str = None
-        self.log(msg, msg_list = msg_list, level = 'debug', caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
+        self.log(msg, msg_list = msg_list, level = 'debug', color = color, caller_str = caller_str, throttle_s = throttle_s, throttle_n = throttle_n, throttle_f = throttle_f, round_f = round_f)
     
     ###############################
     # Class Private Methods
