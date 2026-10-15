@@ -250,28 +250,28 @@ class IDXDeviceIF:
         self.data_source_description = data_source_description
         self.data_ref_description = data_ref_description
 
-        self.msg_if.pub_warn("Got driver supported data products: " + str(data_products))
-        #self.msg_if.pub_warn("Supported data products: " + str(SUPPORTED_DATA_PRODUCTS))
+        self.msg_if.pub_debug("Got driver supported data products: " + str(data_products))
+        #self.msg_if.pub_debug("Supported data products: " + str(SUPPORTED_DATA_PRODUCTS))
         data_products_list = []
         for data_product in data_products:
-            #self.msg_if.pub_warn("Checking data product: " + str(data_product))
+            #self.msg_if.pub_debug("Checking data product: " + str(data_product))
             if data_product in SUPPORTED_DATA_PRODUCTS:
                 data_products_list.append(data_product)
         self.data_products_list = data_products_list
-        self.msg_if.pub_warn("Enabled data products: " + str(self.data_products_list))
+        self.msg_if.pub_debug("Enabled data products: " + str(self.data_products_list))
         # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
         # TODO: Need one per image output type for thread safety?
 
 
         # Create and update factory controls dictionary
-        self.msg_if.pub_warn("Got Factory Controls: " + str(factoryControls))
+        self.msg_if.pub_debug("Got Factory Controls: " + str(factoryControls))
         if factoryControls is not None:
             controls = list(factoryControls.keys())
             for control in controls:
                 if factoryControls.get(control) != None:
                     self.factory_controls_dict[control] = factoryControls[control]
         
-        self.msg_if.pub_warn("Using Factory Controls: " + str(self.factory_controls_dict))
+        self.msg_if.pub_debug("Using Factory Controls: " + str(self.factory_controls_dict))
         self.auto_adjust_ebabled = self.factory_controls_dict['auto_adjust_ebabled']
         self.brightness_ratio = self.factory_controls_dict['brightness_ratio']
         self.contrast_ratio = self.factory_controls_dict['contrast_ratio']
@@ -282,7 +282,7 @@ class IDXDeviceIF:
 
         self.min_range_m = self.factory_controls_dict['min_range_m']
         self.max_range_m = self.factory_controls_dict['max_range_m']
-        self.msg_if.pub_warn("Set Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
+        self.msg_if.pub_debug("Set Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
         self.width_deg = self.factory_controls_dict['width_deg']
         self.height_deg = self.factory_controls_dict['height_deg']
 
@@ -566,11 +566,11 @@ class IDXDeviceIF:
 
 
         start_delay = nepi_utils.get_time() - self.start_time
-        self.msg_if.pub_warn("" )
-        self.msg_if.pub_warn("##########################" )
-        self.msg_if.pub_warn("Settings IF Initialization Complete: : " + str(start_delay) )
-        self.msg_if.pub_warn("##########################" )
-        self.msg_if.pub_warn("" )
+        self.msg_if.pub_debug("" )
+        self.msg_if.pub_debug("##########################" )
+        self.msg_if.pub_debug("Settings IF Initialization Complete: : " + str(start_delay) )
+        self.msg_if.pub_debug("##########################" )
+        self.msg_if.pub_debug("" )
 
         ##############################
         # Update vals from param server
@@ -590,7 +590,7 @@ class IDXDeviceIF:
             data_status_msg = ImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread" )
+            self.msg_if.pub_debug("Starting " + data_product + " acquisition thread" )
             self.image_thread = threading.Thread(target=self.runImageThread)
             self.image_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -612,7 +612,7 @@ class IDXDeviceIF:
             data_status_msg = ImageStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread" )
+            self.msg_if.pub_debug("Starting " + data_product + " acquisition thread" )
             self.depth_map_thread = threading.Thread(target=self.runDepthMapThread)
             self.depth_map_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -631,7 +631,7 @@ class IDXDeviceIF:
             data_status_msg = PointcloudStatus
 
             success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition thread" )
+            self.msg_if.pub_debug("Starting " + data_product + " acquisition thread" )
             self.pointcloud_thread = threading.Thread(target=self.runPointcloudThread)
             self.pointcloud_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
@@ -791,10 +791,10 @@ class IDXDeviceIF:
         # if self.getNavPoseCb is not None:
         #     ###############################
         #     # Create a NPX Device IF
-        #     self.msg_if.pub_warn("Starting NPX Class Initialization")
+        #     self.msg_if.pub_debug("Starting NPX Class Initialization")
 
         #     if self.getNavPoseCb is not None:
-        #         self.msg_if.pub_warn("Starting NPX Device IF Initialization")
+        #         self.msg_if.pub_debug("Starting NPX Device IF Initialization")
         #         self.npx_if = NPXDeviceIF(device_info = self.device_info_dict,
         #             node_namespace = self.node_namespace,
         #             data_source_description = self.data_source_description,
@@ -811,11 +811,11 @@ class IDXDeviceIF:
         ####################################
         self.ready = True
         start_delay = nepi_utils.get_time() - self.start_time
-        self.msg_if.pub_warn("" )
-        self.msg_if.pub_warn("##########################" )
-        self.msg_if.pub_warn("IF Initialization Complete: " + str(start_delay) )
-        self.msg_if.pub_warn("##########################" )
-        self.msg_if.pub_warn("" )
+        self.msg_if.pub_debug("" )
+        self.msg_if.pub_info("##########################" )
+        self.msg_if.pub_info("IF Initialization Complete: " + str(start_delay) )
+        self.msg_if.pub_info("##########################" )
+        self.msg_if.pub_info("" )
         ####################################
 
         
@@ -874,7 +874,7 @@ class IDXDeviceIF:
             aspect_ratio_deg = self.node_if.get_param('aspect_ratio_deg')
             if aspect_ratio_deg is not None:
                 self.aspect_ratio_deg = round(aspect_ratio_deg,2)
-            self.msg_if.pub_warn("Init degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
+            self.msg_if.pub_debug("Init degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
 
             self.resolution_ratio = self.node_if.get_param('resolution_ratio')
             max_framerate = self.node_if.get_param('max_framerate') 
@@ -884,7 +884,7 @@ class IDXDeviceIF:
             self.brightness_ratio = self.node_if.get_param('brightness_ratio')
             self.contrast_ratio = self.node_if.get_param('contrast_ratio')        
             self.threshold_ratio = self.node_if.get_param('threshold_ratio')  
-            self.msg_if.pub_warn("Starting range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
+            self.msg_if.pub_debug("Starting range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
             start_range_ratio = self.node_if.get_param('start_range_ratio')
             stop_range_ratio = self.node_if.get_param('stop_range_ratio')
             if start_range_ratio is not None and stop_range_ratio is not None:
@@ -895,7 +895,7 @@ class IDXDeviceIF:
                 self.stop_range_ratio = 1
                 self.node_if.set_param('start_range_ratio',self.start_range_ratio)
                 stop_range_ratio = self.node_if.set_param('stop_range_ratio',self.stop_range_ratio)
-            self.msg_if.pub_warn("Updated range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
+            self.msg_if.pub_debug("Updated range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
 
 
             self.pt_mounted = self.node_if.get_param('pt_mounted')
@@ -907,14 +907,14 @@ class IDXDeviceIF:
       self.publish_status()
 
     def resetCb(self,do_updates = True):
-      self.msg_if.pub_warn("Resetting Configs")
+      self.msg_if.pub_debug("Resetting Configs")
       if self.node_if is not None:
         self.node_if.reset_params()
         if self.getFOV is not None:
             try:
                 [self.width_deg,self.height_deg] = self.getFOV()
                 self.aspect_ratio_deg = -999
-                self.msg_if.pub_warn("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
+                self.msg_if.pub_debug("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
                 if self.node_if is not None:
                     self.node_if.set_param('width_deg',self.width_deg)
                     self.node_if.set_param('height_deg',self.height_deg) 
@@ -950,7 +950,7 @@ class IDXDeviceIF:
             try:
                 [self.width_deg,self.height_deg] = self.getFOV()
                 self.aspect_ratio_deg = -999
-                self.msg_if.pub_warn("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
+                self.msg_if.pub_debug("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
                 if self.node_if is not None:
                     self.node_if.set_param('width_deg',self.width_deg)
                     self.node_if.set_param('height_deg',self.height_deg) 
@@ -982,7 +982,7 @@ class IDXDeviceIF:
 
 
     # def ApplyConfigUpdates(self):
-    #     self.msg_if.pub_warn("Apply Auto Updates from current values")
+    #     self.msg_if.pub_debug("Apply Auto Updates from current values")
     #     if (self.setAutoAdjustRatio is not None):
     #         self.setAutoAdjustRatio(self.auto_adjust_ebabled)
     #     if (self.setBrightnessRatio is not None):
@@ -994,10 +994,10 @@ class IDXDeviceIF:
     #     if (self.setResolutionRatio is not None):
     #         self.setResolutionRatio(self.resolution_ratio)
     #     if (self.setMaxFramerate is not None and self.max_framerate is not None):
-    #         self.msg_if.pub_warn("Apply Config Framerate: " + str(self.max_framerate))
+    #         self.msg_if.pub_debug("Apply Config Framerate: " + str(self.max_framerate))
     #         self.setMaxFramerate(self.max_framerate)
     #     if (self.setRangeRatio is not None):
-    #         #self.msg_if.pub_warn("Applying range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
+    #         #self.msg_if.pub_debug("Applying range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
     #         self.setRangeRatio(self.start_range_ratio, self.stop_range_ratio)
 
 
@@ -1032,7 +1032,7 @@ class IDXDeviceIF:
         Args:
             enabled (bool): True to enable data, False to disable.
         """
-        self.msg_if.pub_warn("Setting Saving Disabled to: " + str(enabled))  
+        self.msg_if.pub_debug("Setting Saving Disabled to: " + str(enabled))  
         self.device_disabled = enabled
         self.publish_status()   
 
@@ -1044,7 +1044,7 @@ class IDXDeviceIF:
         if width_deg > 10:
             self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
             self.width_deg = width_deg     
-            self.msg_if.pub_warn("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
+            self.msg_if.pub_debug("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
             self.publish_status(do_updates=False) # Updated inline here   
             if self.node_if is not None:
                 self.node_if.set_param('width_deg', width_deg)
@@ -1058,7 +1058,7 @@ class IDXDeviceIF:
         if height_deg > 10:
             self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
             self.height_deg = height_deg   
-            self.msg_if.pub_warn("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg, ]))
+            self.msg_if.pub_debug("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg, ]))
             self.publish_status(do_updates=False) # Updated inline here   
             if self.node_if is not None:
                 self.node_if.set_param('height_deg', height_deg)
@@ -1178,9 +1178,9 @@ class IDXDeviceIF:
         self.publish_status(do_updates=False) # Updated inline here
 
         if self.setMaxFramerate is not None:
-            #self.msg_if.pub_warn("Sending update framerate ratio to driver: ")
+            #self.msg_if.pub_debug("Sending update framerate ratio to driver: ")
             status, err_str = self.setMaxFramerate(rate)
-            #self.msg_if.pub_warn("Recived Framerate update: " + str(status))
+            #self.msg_if.pub_debug("Recived Framerate update: " + str(status))
 
 
         for data_product in self.data_products_list:
@@ -1249,7 +1249,7 @@ class IDXDeviceIF:
         if last_data_time is not None:
             f_time = (self.last_data_time[data_product] - last_data_time)
             current_fps = float(1) / f_time
-            #self.msg_if.pub_warn("Got " + data_product + " time and fps: " + str(round(f_time,3)) + " : " + str(round(current_fps,2)), throttle_s = 2)
+            #self.msg_if.pub_debug("Got " + data_product + " time and fps: " + str(round(f_time,3)) + " : " + str(round(current_fps,2)), throttle_s = 2)
             self.fps_queue[data_product].pop(0)
             self.fps_queue[data_product].append(current_fps)
             #self.msg_if.pub_debug("fps queue " + str(self.fps_queue[data_product]), throttle_s = 2)
@@ -1280,9 +1280,9 @@ class IDXDeviceIF:
         cv2_img = None
 
         if data_product not in self.data_products_dict.keys():
-            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict" )
+            self.msg_if.pub_debug("Can't start data product acquisition " + data_product + " , not in data product dict" )
         else:
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition" )
+            self.msg_if.pub_debug("Starting " + data_product + " acquisition" )
             acquiring = False
 
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
@@ -1295,7 +1295,7 @@ class IDXDeviceIF:
 
             #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             if data_product == 'color_image':
-                self.msg_if.pub_warn("Creating ColorImageIF for data product: " + data_product)
+                self.msg_if.pub_debug("Creating ColorImageIF for data product: " + data_product)
                 dp_namespace = self.namespace
                 self.color_image_if = ColorImageIF(namespace = dp_namespace,
                             data_source_description = self.data_source_description,
@@ -1323,7 +1323,7 @@ class IDXDeviceIF:
 
             # Get Data Product Dict and Data_IF
 
-            self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
+            self.msg_if.pub_debug("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = self.color_image_if.needs_data_check()
@@ -1355,7 +1355,7 @@ class IDXDeviceIF:
                         
                         width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
                         height_deg = self.height_deg
-                        #self.msg_if.pub_warn("Image Pub degs w,cw,ch,h,ar,cr:: " + str([self.width_deg,width_deg,self.height_deg,height_deg,self.aspect_ratio_deg,cur_aspect_ratio]), throttle_s = 5)
+                        #self.msg_if.pub_debug("Image Pub degs w,cw,ch,h,ar,cr:: " + str([self.width_deg,width_deg,self.height_deg,height_deg,self.aspect_ratio_deg,cur_aspect_ratio]), throttle_s = 5)
                         # Now process and publish image
                         cv2_img = self.color_image_if.publish_cv2_img(cv2_img, encoding = encoding,
                                                         timestamp = timestamp,
@@ -1402,9 +1402,9 @@ class IDXDeviceIF:
         np_depth_map = None
 
         if data_product not in self.data_products_dict.keys():
-            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict" )
+            self.msg_if.pub_debug("Can't start data product acquisition " + data_product + " , not in data product dict" )
         else:
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition" )
+            self.msg_if.pub_debug("Starting " + data_product + " acquisition" )
             acquiring = False
 
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
@@ -1440,19 +1440,19 @@ class IDXDeviceIF:
 
             # Get Data Product Dict and Data_IF
 
-            self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
+            self.msg_if.pub_debug("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = self.depthmap_if.needs_data_check()
                 if get_data == True and self.device_disabled == False:
-                    #self.msg_if.pub_warn("Got Depth Map Needs Data" )
+                    #self.msg_if.pub_debug("Got Depth Map Needs Data" )
 
                     acquiring = True
 
                     status, msg, np_depth_map, timestamp, encoding = dp_get_data()
                     #print('IDX Min Max Depths: ' + str([np.nanmin(np_depth_map),np.nanmax(np_depth_map)]) )
                     if (status is False or np_depth_map is None):
-                        #self.msg_if.pub_warn("No Data Recieved: " + data_product, throttle_s = 5.0)
+                        #self.msg_if.pub_debug("No Data Recieved: " + data_product, throttle_s = 5.0)
                         pass
                     else:                       
                         # Get Image Info and Pub Status if Changed
@@ -1473,11 +1473,11 @@ class IDXDeviceIF:
                         height_deg = self.height_deg
 
                         #Publish Ros Image
-                        #self.msg_if.pub_warn("Got Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
+                        #self.msg_if.pub_debug("Got Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
                         range_m = self.max_range_m - self.min_range_m
                         min_range_m = self.min_range_m + self.start_range_ratio * range_m
                         max_range_m = self.max_range_m - (1-self.stop_range_ratio) * range_m
-                        #self.msg_if.pub_warn("Using Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
+                        #self.msg_if.pub_debug("Using Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
                         np_depth_map = self.depthmap_if.publish_np_depth_map(np_depth_map,
                                                 encoding = encoding,
                                                 width_deg = width_deg,
@@ -1527,9 +1527,9 @@ class IDXDeviceIF:
         o3d_pc = None
 
         if data_product not in self.data_products_dict.keys():
-            self.msg_if.pub_warn("Can't start data product acquisition " + data_product + " , not in data product dict" )
+            self.msg_if.pub_debug("Can't start data product acquisition " + data_product + " , not in data product dict" )
         else:
-            self.msg_if.pub_warn("Starting " + data_product + " acquisition" )
+            self.msg_if.pub_debug("Starting " + data_product + " acquisition" )
             acquiring = False
 
             self.msg_if.pub_debug("Waiting for save_data_if: " + data_product)
@@ -1566,7 +1566,7 @@ class IDXDeviceIF:
         
             # Get Data Product Dict and Data_IF
 
-            self.msg_if.pub_warn("Starting data capture thread for data product: " + data_product)
+            self.msg_if.pub_debug("Starting data capture thread for data product: " + data_product)
             while (not nepi_sdk.is_shutdown()):
                 # Get data if requried
                 get_data = self.pointcloud_if.needs_data_check()
@@ -1574,7 +1574,7 @@ class IDXDeviceIF:
                     acquiring = True
                     status, msg, o3d_pc, timestamp, pc_frame = dp_get_data()
                     if (status is False or o3d_pc is None):
-                        #self.msg_if.pub_warn("No Data Recieved: " + data_product, throttle_s = 5.0)
+                        #self.msg_if.pub_debug("No Data Recieved: " + data_product, throttle_s = 5.0)
                         pass
                     else:
                         range_m = self.max_range_m - self.min_range_m
@@ -1705,7 +1705,7 @@ class IDXDeviceIF:
                 np_dict['altitude_m'] = base_altitude_m
             self.idx_navpose_if.publish_navpose(np_dict, transform = None)
         except Exception as e:
-            self.msg_if.pub_warn("Failed to publish transformed navpose: " + str(e) , throttle_s = 5.0)
+            self.msg_if.pub_debug("Failed to publish transformed navpose: " + str(e) , throttle_s = 5.0)
 
 
     def publish_status(self, do_updates=True):

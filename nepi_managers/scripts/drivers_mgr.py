@@ -367,7 +367,7 @@ class NepiDriversMgr(object):
 
         #########################################################
         ## Initiation Complete
-        self.msg_if.pub_warn("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete")
         #Set up node shutdown
         nepi_sdk.on_shutdown(self.cleanup_actions)
         # Spin forever (until object is detected)
