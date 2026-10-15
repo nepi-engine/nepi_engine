@@ -113,7 +113,7 @@ class SoftwareMgrNode():
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes")
+        self.msg_if.pub_warn("Starting IF Initialization Processes")
 
 
         ###############################
@@ -122,16 +122,16 @@ class SoftwareMgrNode():
 
         ##############################
         # Get for System Folders
-        self.msg_if.pub_info("Waiting for system folders")
+        self.msg_if.pub_debug("Waiting for system folders")
         system_folders = nepi_system.get_system_folders()
-        #self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+        #self.msg_if.pub_debug("Got system folders: " + str(system_folders))
         self.nepi_config = nepi_system.get_nepi_config()
 
-        self.msg_if.pub_warn("Got System Config: " + str(self.nepi_config))
+        self.msg_if.pub_debug("Got System Config: " + str(self.nepi_config))
         if self.nepi_config is None:
             self.nepi_config = dict()
         if len(self.nepi_config.keys()) == 0:
-            self.msg_if.pub_warn("Failed to Read NEPI config file")
+            self.msg_if.pub_debug("Failed to Read NEPI config file")
             nepi_sdk.signal_shutdown("Shutting Down: Failed to Read NEPI config file")
             return
 
@@ -181,43 +181,43 @@ class SoftwareMgrNode():
 
         if self.in_container == True:
             self.nepi_image = nepi_docker
-            self.msg_if.pub_warn("NEPI Running in Container")
+            self.msg_if.pub_debug("NEPI Running in Container")
         else:
             self.nepi_image = nepi_software
-            self.msg_if.pub_warn("Using first stage boot device: " + str(self.first_rootfs))
+            self.msg_if.pub_debug("Using first stage boot device: " + str(self.first_rootfs))
 
         self.config_folder = self.nepi_config['NEPI_CONFIG']
         self.storage_folder = self.nepi_config['NEPI_STORAGE']
         self.data_folder = self.storage_folder + "/data"
 
     
-        self.msg_if.pub_warn("Waiting for Config Mgr")
+        self.msg_if.pub_debug("Waiting for Config Mgr")
         config_folders = nepi_system.get_config_folders()    
 
 
 
         self.status_msg.inactive_rootfs_fw_version = "unknown"
        
-        self.msg_if.pub_warn("Updating Rootfs Scheme")
+        self.msg_if.pub_debug("Updating Rootfs Scheme")
         # Need to identify the rootfs scheme because it is used in init_msgs()
         self.rootfs_ab_scheme = self.nepi_image.identifyRootfsABScheme()
-        self.msg_if.pub_warn("Got Rootfs Scheme: " + self.rootfs_ab_scheme)
+        self.msg_if.pub_debug("Got Rootfs Scheme: " + self.rootfs_ab_scheme)
         
 
 
 
 
 
-        # self.msg_if.pub_warn("Checking User Storage Partition")
+        # self.msg_if.pub_debug("Checking User Storage Partition")
         # # First check that the storage partition is actually mounted
         # if not os.path.ismount(self.storage_folder):
-        #     self.msg_if.pub_warn("NEPI Storage partition is not mounted... attempting to mount")
+        #     self.msg_if.pub_debug("NEPI Storage partition is not mounted... attempting to mount")
         #     ret, msg = self.nepi_image.mountPartition(self.nepi_storage_device, self.storage_folder)
         #     if ret is False:
-        #         self.msg_if.pub_warn("Unable to mount NEPI Storage partition... system may be dysfunctional")
+        #         self.msg_if.pub_debug("Unable to mount NEPI Storage partition... system may be dysfunctional")
         #         #return False # Allow it continue on local storage...
 
-        # self.msg_if.pub_warn("Starting Node IF Setup")    
+        # self.msg_if.pub_debug("Starting Node IF Setup")    
         ##############################
         ### Setup Node
 
@@ -349,7 +349,7 @@ class SoftwareMgrNode():
 
 
 
-        self.msg_if.pub_warn("Completing Initialization Processes") 
+        self.msg_if.pub_debug("Completing Initialization Processes") 
         ########################
         # Complete Initialization
 
@@ -358,18 +358,18 @@ class SoftwareMgrNode():
     
         # Want to update the op_environment (from param server) through the whole system once at
         # start-up, but the only reasonable way to do that is to delay long enough to let all nodes start
-        self.msg_if.pub_warn("Updating From Param Server")
+        self.msg_if.pub_debug("Updating From Param Server")
         self.initConfig()
     
 
 
         # Crate system status pub
-        self.msg_if.pub_warn("Starting System Status Messages")
+        self.msg_if.pub_debug("Starting System Status Messages")
         nepi_sdk.start_timer_process(1.0, self.publishStatusCb)
         # nepi_sdk.start_timer_process(1, self.updateTopicsServicesCb, oneshot = True)
         # nepi_sdk.start_timer_process(1, self.updateSoftwareStatusCb, oneshot = True)
         # nepi_sdk.start_timer_process(5, self.updateDockerCb)
-        self.msg_if.pub_warn("System status ready")
+        self.msg_if.pub_debug("System status ready")
 
         ##################################
         # Setup Save Data IF Class ####################
@@ -507,7 +507,7 @@ class SoftwareMgrNode():
             self.status_msg.sys_img_update_status = 'failed'
             return
         else:
-            self.msg_if.pub_info("Finished flashing new image")
+            self.msg_if.pub_warn("Finished flashing new image")
             self.status_msg.sys_img_update_status = 'complete - needs rootfs switch and reboot'
 
         # Check and repair the newly written filesystem as necessary
@@ -517,7 +517,7 @@ class SoftwareMgrNode():
             self.status_msg.sys_img_update_status = 'failed - fs errors'
             return
         else:
-            self.msg_if.pub_info("New image filesystem checked and repaired (as necessary)")
+            self.msg_if.pub_warn("New image filesystem checked and repaired (as necessary)")
 
         # Do automatic rootfs switch if so configured
         if self.auto_switch_rootfs_on_new_img_install:
@@ -534,7 +534,7 @@ class SoftwareMgrNode():
             if status is False:
                 self.msg_if.pub_warn("Automatic rootfs active/inactive switch failed: " + err_msg)
             else:
-                self.msg_if.pub_info("Executed automatic rootfs A/B switch... on next reboot new image will load")
+                self.msg_if.pub_debug("Executed automatic rootfs A/B switch... on next reboot new image will load")
                 self.status_msg.warnings.flags[WarningFlags.ACTIVE_INACTIVE_ROOTFS_STALE] = True
                 self.status_msg.sys_img_update_status = 'complete - needs reboot'
     
@@ -602,7 +602,7 @@ class SoftwareMgrNode():
             self.msg_if.pub_warn("Failed to save image file: " + err_msg)
             self.status_msg.sys_img_archive_status = 'failed'
         else:
-            self.msg_if.pub_info("Finished saving image file")
+            self.msg_if.pub_warn("Finished saving image file")
             self.status_msg.sys_img_archive_status = 'archive complete'
     
 
@@ -617,7 +617,7 @@ class SoftwareMgrNode():
         full_path = os.path.join(data_folder, save_data_prefix)
         parent_path = os.path.dirname(full_path)
         if not os.path.exists(parent_path):
-            self.msg_if.pub_info("Creating new data subdirectory " + parent_path)
+            self.msg_if.pub_debug("Creating new data subdirectory " + parent_path)
             os.makedirs(parent_path)
             
             # Gather owner and group details for data folder to propagate them
@@ -698,13 +698,13 @@ class SoftwareMgrNode():
                           candidate = line.split()[0] # First token is the device
                           if candidate.startswith('/dev/'):
                               self.nepi_storage_device = candidate
-                              self.msg_if.pub_info('Identified NEPI storage device ' + self.nepi_storage_device + ' from /etc/fstab')
+                              self.msg_if.pub_debug('Identified NEPI storage device ' + self.nepi_storage_device + ' from /etc/fstab')
                               return
                           else:
-                              self.msg_if.pub_warn('Candidate NEPI storage device from /etc/fstab is of unexpected form: ' + candidate)
+                              self.msg_if.pub_debug('Candidate NEPI storage device from /etc/fstab is of unexpected form: ' + candidate)
             
           # If we get here, failed to get the storage device from /etc/fstab
-          self.msg_if.pub_warn('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
+          self.msg_if.pub_debug('Failed to get NEPI storage device from /etc/fstab -- falling back to system_mgr config file')
     
 
 
@@ -713,11 +713,11 @@ class SoftwareMgrNode():
        
     def update_software_status(self):
         if self.init_complete == True:
-            # self.msg_if.pub_warn("Entering Provide Software Update Status")
+            # self.msg_if.pub_debug("Entering Provide Software Update Status")
             self.status_msg.new_sys_img_staging = self.get_friendly_name(self.new_img_staging)
             self.status_msg.new_sys_img_staging_free_mb = self.nepi_image.getPartitionFreeByteCount(self.new_img_staging) / BYTES_PER_MEGABYTE
-            # self.msg_if.pub_warn("Got New Img Staging Name: " + str(self.status_msg.new_sys_img_staging))
-            # self.msg_if.pub_warn("Got Partition Free MB: " + str(self.status_msg.new_sys_img_staging_free_mb))
+            # self.msg_if.pub_debug("Got New Img Staging Name: " + str(self.status_msg.new_sys_img_staging))
+            # self.msg_if.pub_debug("Got Partition Free MB: " + str(self.status_msg.new_sys_img_staging_free_mb))
             # Don't query anything if we are in the middle of installing a new image
             if self.installing_new_image:
                 return self.status_msg
@@ -740,9 +740,9 @@ class SoftwareMgrNode():
 
             (status, err_string, new_img_files, new_img_versions, new_img_filesizes) = self.nepi_image.checkForNewImagesAvailable(
                 self.new_img_staging, self.new_img_staging_removable)
-            #self.msg_if.pub_warn("Availible files List: " + str(new_img_files) + " " + err_string)
+            #self.msg_if.pub_debug("Availible files List: " + str(new_img_files) + " " + err_string)
             if status is False:
-                self.msg_if.pub_warn("Unable to update software status: " + err_string)
+                self.msg_if.pub_debug("Unable to update software status: " + err_string)
                 self.status_msg.new_sys_img = 'query failed'
                 self.status_msg.new_sys_img_version = 'query failed'
                 self.status_msg.new_sys_img_size_mb = 0
@@ -786,7 +786,7 @@ class SoftwareMgrNode():
     def provide_software_status(self, req):
         response = SoftwareStatusQueryResponse()
         response.software_status = self.status_msg
-        #self.msg_if.pub_warn("Returning status query response: " + str(response))
+        #self.msg_if.pub_debug("Returning status query response: " + str(response))
         return response
 
 
@@ -798,7 +798,7 @@ class SoftwareMgrNode():
     def publish_status(self):
         
         if self.node_if is not None:
-            #self.msg_if.pub_warn("Returning status msg: " + str(self.status_msg))
+            #self.msg_if.pub_debug("Returning status msg: " + str(self.status_msg))
             self.node_if.publish_pub('status_pub', self.status_msg)
 
     

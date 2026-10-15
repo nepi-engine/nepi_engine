@@ -32,8 +32,7 @@ from nepi_interfaces.msg import Control, SettingsStatus
 
 
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 
 #########################
@@ -78,7 +77,7 @@ def update_status_msg( status_msg, settings_dict):
   try:
     names = list(settings_dict.keys())
   except Exception as e:
-    logger.log_warn("update_status_msg: could not read control names from controls dict: " +
+    logger.log_debug("update_status_msg: could not read control names from controls dict: " +
                     type(e).__name__ + ": " + str(e))
     names = []
   for name in names:
@@ -125,7 +124,7 @@ def update_status_msg( status_msg, settings_dict):
         setting_msg = nepi_sdk.convert_dict2msg(msg_type,msg_dict)
 
 
-        #logger.log_warn("got Settings Control msg from dict:  " + str([setting_msg,msg_dict,setting_dict]), throttle_s = 10)
+        #logger.log_debug("got Settings Control msg from dict:  " + str([setting_msg,msg_dict,setting_dict]), throttle_s = 10)
         if setting_msg is not None:
           names_list.append(name)
           types_list.append(setting_type)
@@ -134,7 +133,7 @@ def update_status_msg( status_msg, settings_dict):
         # Same silent fall-through as create_controls_dict: a control that made
         # it into the dict but carries a type this list does not know is simply
         # left out of the status message, so the RUI never sees it.
-        logger.log_warn("update_status_msg: left control '" + str(name) +
+        logger.log_debug("update_status_msg: left control '" + str(name) +
                         "' of declared type '" + str(setting_type) +
                         "' out of the status message: type is not one of " + str(nepi_controls.CONTROL_TYPES),
                         throttle_s = 5)
@@ -142,7 +141,7 @@ def update_status_msg( status_msg, settings_dict):
       # Dropped the control from the published status with no log. Throttled,
       # unlike create_controls_dict: this runs on every status publish, not once
       # at registration.
-      logger.log_warn("update_status_msg: left control '" + str(name) +
+      logger.log_debug("update_status_msg: left control '" + str(name) +
                       "' out of the status message: " +
                       type(e).__name__ + ": " + str(e), throttle_s = 5)
     status_msg.controls_name_list = names_list

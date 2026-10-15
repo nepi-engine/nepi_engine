@@ -54,8 +54,7 @@ from cv_bridge import CvBridge
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']

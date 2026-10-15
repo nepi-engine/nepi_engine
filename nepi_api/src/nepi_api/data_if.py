@@ -369,8 +369,8 @@ class NavPoseIF:
         self.save_data_enabled = save_data_enabled
 
         if self.save_data_enabled == True:
-            self.msg_if.pub_info("####################" )
-            self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None) )
+            self.msg_if.pub_debug("####################" )
+            self.msg_if.pub_debug("Got Save Data IF is None: " + str(save_data_if is None) )
             if save_data_if is not None and save_data_if != 'None':
                 self.save_data_if = save_data_if
                 data_products = self.save_data_if.get_data_products()
@@ -404,7 +404,7 @@ class NavPoseIF:
 
             if self.save_data_if is not None:
                 self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-                self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
+                self.msg_if.pub_debug("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
 
 
 
@@ -451,16 +451,16 @@ class NavPoseIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection" )
+            self.msg_if.pub_debug("Waiting for connection" )
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect" )
+                self.msg_if.pub_debug("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected" )
+                self.msg_if.pub_debug("Connected" )
         return self.ready
 
     def get_namespace(self):
@@ -723,7 +723,7 @@ class NavPoseIF:
                 try:
                     data_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to convert navpose data to msg: " + str(e) , throttle_s = 5.0)
+                    self.msg_if.pub_debug("Failed to convert navpose data to msg: " + str(e) , throttle_s = 5.0)
                     success = False
 
                 if data_msg is not None:
@@ -731,7 +731,7 @@ class NavPoseIF:
                         self.node_if.publish_pub(self.node_if_prefix + 'navpose_pub', data_msg)
                         self.navpose_msg = data_msg
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to publish navpose data msg: " + str(e) , throttle_s = 5.0)
+                        self.msg_if.pub_debug("Failed to publish navpose data msg: " + str(e) , throttle_s = 5.0)
                         success = False
 
 
@@ -809,7 +809,7 @@ class NavPoseIF:
 
                 self.node_if.publish_pub(self.node_if_prefix + 'navpose_status_pub', self.status_msg)
             except Exception as e:
-                self.msg_if.pub_warn("Failed to Publish Status msg: " + str(e) , throttle_s = 10.0)
+                self.msg_if.pub_debug("Failed to Publish Status msg: " + str(e) , throttle_s = 10.0)
 
     def init(self, do_updates = False):
         """Initialize or re-initialize interface state and publish status.
@@ -826,7 +826,7 @@ class NavPoseIF:
     def reset(self):
         """Reset the interface to its initialized state."""
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params" )
+            self.msg_if.pub_debug("Reseting params" )
             self.node_if.reset_params()
             nepi_sdk.sleep(1)     
         self.init(do_updates = True)
@@ -834,7 +834,7 @@ class NavPoseIF:
     def factory_reset(self):
         """Reset the interface to factory defaults."""
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params" )
+            self.msg_if.pub_debug("Factory resetting params" )
             self.node_if.factory_reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -848,11 +848,11 @@ class NavPoseIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback " )
+        self.msg_if.pub_debug("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback" )
+        self.msg_if.pub_debug("Got Factory Reset params callback" )
         self.factory_reset()
 
 
@@ -865,7 +865,7 @@ class NavPoseIF:
         else:
             needs_data = has_subs
         self.needs_data = needs_data
-        #self.msg_if.pub_warn("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot]) )
+        #self.msg_if.pub_debug("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot]) )
         nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
 
 
@@ -1237,7 +1237,7 @@ class BaseImageIF:
         all_namespace = nepi_sdk.create_namespace(self.base_namespace, SYSTEM_ALL_TOPIC)
         all_namespace = nepi_sdk.create_namespace(all_namespace, IMAGE_ALL_TOPIC)
         self.all_namespace = all_namespace
-        self.msg_if.pub_warn("Using connect all_namespace: " + str(self.all_namespace) )
+        self.msg_if.pub_debug("Using connect all_namespace: " + str(self.all_namespace) )
 
 
 
@@ -1272,9 +1272,9 @@ class BaseImageIF:
 
 
         self.live_adjustments_disabled = live_adjustments_disabled == True
-        #self.msg_if.pub_warn(self.data_product + " Got Live Adjust Disabled: " + str(self.live_adjustments_disabled ) )
+        #self.msg_if.pub_debug(self.data_product + " Got Live Adjust Disabled: " + str(self.live_adjustments_disabled ) )
         self.aspect_adjustment_disabled = aspect_adjustment_disabled == True
-        #self.msg_if.pub_warn(self.data_product + " Got Aspect Adjust Disabled: " + str(self.aspect_adjustment_disabled ) )
+        #self.msg_if.pub_debug(self.data_product + " Got Aspect Adjust Disabled: " + str(self.aspect_adjustment_disabled ) )
         # Create and update capabilities dictionary
         if caps_dict is not None:
             for cap in self.caps_dict.keys():
@@ -2933,8 +2933,8 @@ class BaseImageIF:
 
 
         ####################
-        self.msg_if.pub_info("####################" )
-        self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None) )
+        self.msg_if.pub_debug("####################" )
+        self.msg_if.pub_debug("Got Save Data IF is None: " + str(save_data_if is None) )
         if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
             data_products = self.save_data_if.get_data_products()
@@ -2973,7 +2973,7 @@ class BaseImageIF:
 
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
+            self.msg_if.pub_debug("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
 
 
         ####################
@@ -2994,15 +2994,15 @@ class BaseImageIF:
             navpose_topic = self.navpose_if.get_namespace()
             navpose_namespace = navpose_topic
             self.status_msg.navpose_topic = navpose_topic
-            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+            self.msg_if.pub_debug("Using navpose namespace: " + str(navpose_topic))
 
         ##############################
         # Start Node Processes
-        self.msg_if.pub_warn("Staring subscribers check process" )
+        self.msg_if.pub_debug("Staring subscribers check process" )
         nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
-        self.msg_if.pub_warn("Staring updater process" )
+        self.msg_if.pub_debug("Staring updater process" )
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
-        self.msg_if.pub_warn("Starting status publisher process" )
+        self.msg_if.pub_debug("Starting status publisher process" )
         nepi_sdk.start_timer_process(1.0, self._publishStatusCb, oneshot = False)
 
 
@@ -3037,16 +3037,16 @@ class BaseImageIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection" )
+            self.msg_if.pub_debug("Waiting for connection" )
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect" )
+                self.msg_if.pub_debug("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected" )
+                self.msg_if.pub_debug("Connected" )
         return self.ready
 
     def get_namespace(self):
@@ -3077,10 +3077,10 @@ class BaseImageIF:
         namespace = nepi_sdk.get_full_namespace(namespace)
         img_ns = nepi_sdk.create_namespace(namespace,self.data_product)
         if img_ns == self.namespace or namespace in self.add_pubs_dict.keys():
-            self.msg_if.pub_warn("Image pub namespace allready registered: " + str(namespace) )
+            self.msg_if.pub_debug("Image pub namespace allready registered: " + str(namespace) )
             return success
         else:
-            self.msg_if.pub_warn("Adding image pub namespace: " + str(self.namespace) )
+            self.msg_if.pub_debug("Adding image pub namespace: " + str(self.namespace) )
             img_pub_dict ={
                     'msg': Image,
                     'namespace': img_ns,
@@ -3120,10 +3120,10 @@ class BaseImageIF:
         namespace = nepi_sdk.get_full_namespace(namespace)
         img_ns = nepi_sdk.create_namespace(namespace,self.data_product)
         if img_ns == self.namespace:
-            self.msg_if.pub_warn("Can't remove base namespace: " + str(namespace) )
+            self.msg_if.pub_debug("Can't remove base namespace: " + str(namespace) )
             return success
         elif namespace in self.add_pubs_dict.keys():
-            self.msg_if.pub_warn("Removing image pub namespace: " + str(self.namespace) )
+            self.msg_if.pub_debug("Removing image pub namespace: " + str(self.namespace) )
             [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
             del self.add_pubs_dict[namespace]
             nepi_sdk.sleep(1)
@@ -3205,11 +3205,11 @@ class BaseImageIF:
             name (str): Name of the callback slot (must be in the callback dict).
             function (callable): Function to call when the event fires.
         """
-        self.msg_if.pub_warn("Got set callback for: " + str(name) )
+        self.msg_if.pub_debug("Got set callback for: " + str(name) )
         if name in self.callback_dict.keys():
-            self.msg_if.pub_warn("Callback set for: " + str(name) )
+            self.msg_if.pub_debug("Callback set for: " + str(name) )
             self.callback_dict[name] = function
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict) )
+        #self.msg_if.pub_debug("Updated callback dict: " + str(self.callback_dict) )
 
 
     def get_options_dict(self):
@@ -3250,7 +3250,7 @@ class BaseImageIF:
         Args:
             name (str): Name of the callback slot to clear.
         """
-        self.msg_if.pub_warn("Got clear callback for: " + str(name) )
+        self.msg_if.pub_debug("Got clear callback for: " + str(name) )
         if name in self.callback_dict.keys():
             self.callback_dict[name] = None
 
@@ -3276,11 +3276,11 @@ class BaseImageIF:
             function (callable): Function to call when the event fires.
         """
         if self.navpose_if is not None:
-            self.msg_if.pub_warn("Got set navpose callback for: " + str(name) )
+            self.msg_if.pub_debug("Got set navpose callback for: " + str(name) )
             if name in self.navpose_if.get_image_callback_options():
-                self.msg_if.pub_warn("navpose Callback set for: " + str(name) )
+                self.msg_if.pub_debug("navpose Callback set for: " + str(name) )
                 self.navpose_if.set_image_callback(name,function)
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict) )
+        #self.msg_if.pub_debug("Updated callback dict: " + str(self.callback_dict) )
 
     def clear_navpose_callback(self,name):
         """Clear the callable for the named nav pose callback slot.
@@ -3291,7 +3291,7 @@ class BaseImageIF:
             name (str): Name of the nav pose callback slot to clear.
         """
         if self.navpose_if is not None:
-            self.msg_if.pub_warn("Got clear navpose callback for: " + str(name) )
+            self.msg_if.pub_debug("Got clear navpose callback for: " + str(name) )
             if name in self.navpose_if.get_image_callback_options():
                self.navpose_if.callback_dict[name] = None
 
@@ -3375,7 +3375,7 @@ class BaseImageIF:
             #self.msg_if.pub_debug("Got Image to Publish" , throttle_s = 5.0)
             success = False
             if cv2_img is None and self.status_msg is not None:
-                self.msg_if.pub_warn("Can't publish None image" )
+                self.msg_if.pub_debug("Can't publish None image" )
                 # Clear the re-entrancy latch before the early return, or this IF
                 # never publishes another frame.
                 self.publishing = False
@@ -3387,12 +3387,12 @@ class BaseImageIF:
         
 
                 self.status_msg.encoding = encoding
-                #self.msg_if.pub_warn("Got timestamp: " + str(timestamp) )
+                #self.msg_if.pub_debug("Got timestamp: " + str(timestamp) )
                 if timestamp == None:
                     timestamp = nepi_utils.get_time()
                 else:
                     timestamp = nepi_sdk.sec_from_timestamp(timestamp)
-                #self.msg_if.pub_warn("Using timestamp: " + str(timestamp) )
+                #self.msg_if.pub_debug("Using timestamp: " + str(timestamp) )
 
 
                 current_time = nepi_utils.get_time()
@@ -3426,7 +3426,7 @@ class BaseImageIF:
 
                 [height,width] = cv2_img.shape[0:2]
                 [self.height_org,self.width_org] = [height,width]
-                #self.msg_if.pub_warn("Got Image size: " + str([height,width]) )
+                #self.msg_if.pub_debug("Got Image size: " + str([height,width]) )
 
 
                 if process_data == True and  cv2_img is not None:
@@ -3457,10 +3457,10 @@ class BaseImageIF:
                         overlay_crosshair_degrees = self.overlays_dict['overlay_crosshair_degrees']
                         overlay_crosshair_text = self.overlays_dict['overlay_crosshair_text']
                         if crosshair_len > 0 and crosshairs_enabled == True:
-                            #self.msg_if.pub_warn("Rendering image overlays: " + str(self.overlays_dict)  , throttle_s = 5)
+                            #self.msg_if.pub_debug("Rendering image overlays: " + str(self.overlays_dict)  , throttle_s = 5)
                             for crosshair_name in crosshairs_dict.keys():
                                 crosshair_dict = crosshairs_dict[crosshair_name]
-                                #self.msg_if.pub_warn("Rendering image with crosshair_dict: " + str(crosshair_dict)  )
+                                #self.msg_if.pub_debug("Rendering image with crosshair_dict: " + str(crosshair_dict)  )
         
 
 
@@ -3474,7 +3474,7 @@ class BaseImageIF:
                                     x_pixel = 0
                                 if x_pixel > self.width_proc:
                                     x_pixel = self.width_proc
-                                #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel])  , throttle_s = 5)
+                                #self.msg_if.pub_debug("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel])  , throttle_s = 5)
 
 
                                 y_deg_offset = round(crosshair_dict['y_deg_offset'] + 0.02, 1)
@@ -3513,8 +3513,8 @@ class BaseImageIF:
                                         pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
                                 [x_pixel,y_pixel] = pixel_adj   
 
-                                #self.msg_if.pub_warn("Rendering crosshair y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel])  , throttle_s = 5)
-                                #self.msg_if.pub_warn("Rendering crosshair pixel,pixel_adj: " + str([pixel,pixel_adj])  , throttle_s = 5)
+                                #self.msg_if.pub_debug("Rendering crosshair y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel])  , throttle_s = 5)
+                                #self.msg_if.pub_debug("Rendering crosshair pixel,pixel_adj: " + str([pixel,pixel_adj])  , throttle_s = 5)
 
 
                                 crosshair_rbg = crosshair_dict['color_rgb']
@@ -3533,7 +3533,7 @@ class BaseImageIF:
                                 crosshairs_size_ratio = self.overlays_dict['crosshairs_size_ratio']
                                 crosshairs_thickness_ratio = self.overlays_dict['crosshairs_thickness_ratio']
                                 crosshairs_text_ratio = self.overlays_dict['crosshairs_text_ratio']
-                                #self.msg_if.pub_warn("Rendering image crosshair: " + str([x_pixel,y_pixel])  , throttle_s = 5)
+                                #self.msg_if.pub_debug("Rendering image crosshair: " + str([x_pixel,y_pixel])  , throttle_s = 5)
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
                                                         x_px = x_pixel , y_px = y_pixel, 
                                                         color_rgb = crosshair_rbg, 
@@ -3555,7 +3555,7 @@ class BaseImageIF:
                             
                             for target_name in targets_dict.keys():
                                 target_dict = targets_dict[target_name]
-                                #self.msg_if.pub_warn("Rendering image with target_dict: " + str(target_dict)  )
+                                #self.msg_if.pub_debug("Rendering image with target_dict: " + str(target_dict)  )
         
 
                                 x_deg_offset = round(target_dict['x_deg_offset'] + 0.02, 1) 
@@ -3564,7 +3564,7 @@ class BaseImageIF:
                                 x_scale = (self.width_proc/self.width_org)
                                 x_offset_pixel = int((x_offset_ratio * self.width_org))
                                 x_pixel = int((self.width_proc/2) + x_offset_pixel)
-                                #self.msg_if.pub_warn("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel])  , throttle_s = 5)
+                                #self.msg_if.pub_debug("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel])  , throttle_s = 5)
 
 
                                 y_deg_offset = round(target_dict['y_deg_offset'] + 0.02, 1)
@@ -3600,7 +3600,7 @@ class BaseImageIF:
                                         pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
                                 [x_pixel,y_pixel] = pixel_adj   
 
-                                #self.msg_if.pub_warn("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel])  , throttle_s = 5)
+                                #self.msg_if.pub_debug("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel])  , throttle_s = 5)
 
 
                                 target_rbg = target_dict['color_rgb']
@@ -3619,7 +3619,7 @@ class BaseImageIF:
                                 targets_size_ratio = self.overlays_dict['targets_size_ratio']
                                 targets_thickness_ratio = self.overlays_dict['targets_thickness_ratio']
                                 targets_text_ratio = self.overlays_dict['targets_text_ratio']
-                                #self.msg_if.pub_warn("Rendering image target: " + str([x_pixel,y_pixel])  )
+                                #self.msg_if.pub_debug("Rendering image target: " + str([x_pixel,y_pixel])  )
                                 cv2_img = nepi_img.overlay_target(cv2_img, 
                                                         x_px = x_pixel , y_px = y_pixel, 
                                                         color_rgb = target_rbg, 
@@ -3692,12 +3692,12 @@ class BaseImageIF:
 
 
                         if self.node_if is not None and self.needs_data == True and cv2_img is not None:
-                            #self.msg_if.pub_warn("Publishing once")
+                            #self.msg_if.pub_debug("Publishing once")
                             #Convert to ros Image message
                             ros_img = nepi_img.cv2img_to_rosimg(cv2_img, encoding=encoding)
                             sec = nepi_sdk.sec_from_timestamp(timestamp)
                             header = nepi_sdk.create_header_msg(time_sec = sec, frame_id = navpose_dict['navpose_frame'])
-                            #self.msg_if.pub_warn("Publishing image with header: " + str(header))
+                            #self.msg_if.pub_debug("Publishing image with header: " + str(header))
                             ros_img.header = header
                             self.node_if.publish_pub(self.node_if_prefix + 'data_pub', ros_img)
 
@@ -3705,11 +3705,11 @@ class BaseImageIF:
                             for namespace in add_pubs:
                                 if namespace in self.add_pubs_dict.keys():
                                     [img_ns,status_ns,nav_ns] =  self.add_pubs_dict[namespace]
-                                    #self.msg_if.pub_warn("Publishing Add Image on namespace: " + str(img_ns) , throttle_s = 5.0)
+                                    #self.msg_if.pub_debug("Publishing Add Image on namespace: " + str(img_ns) , throttle_s = 5.0)
                                     self.node_if.publish_pub(img_ns, ros_img)
                                     
                             if pub_twice == True:
-                                #self.msg_if.pub_warn("Publishing twice: " + str(pub_twice))
+                                #self.msg_if.pub_debug("Publishing twice: " + str(pub_twice))
                                 nepi_sdk.sleep(0.01)
                                 self.node_if.publish_pub(self.node_if_prefix + 'data_pub', ros_img)
                                 for namespace in add_pubs:
@@ -3746,7 +3746,7 @@ class BaseImageIF:
 
    
             except Exception as e:
-                self.msg_if.pub_warn("Failed to publish image: " + str(e) , throttle_s = 5)
+                self.msg_if.pub_debug("Failed to publish image: " + str(e) , throttle_s = 5)
         self.publishing = False
         return cv2_img
         
@@ -3833,9 +3833,9 @@ class BaseImageIF:
             enabled (bool): True to enable auto-adjust, False to disable.
         """
         if enabled:
-            self.msg_if.pub_info("Enabling Auto Adjust" )
+            self.msg_if.pub_debug("Enabling Auto Adjust" )
         else:
-            self.msg_if.pub_info("Disabling Auto Adjust" )
+            self.msg_if.pub_debug("Disabling Auto Adjust" )
         self.controls_dict['auto_adjust_enabled'] = enabled
         self.publish_status()
         self.needs_update()
@@ -3920,9 +3920,9 @@ class BaseImageIF:
                 was_enabled = self.filter_dict[name]['enabled']
                 if was_enabled != enabled:
                     if enabled == True:
-                        self.msg_if.pub_info("Enabling Filter: " + name )
+                        self.msg_if.pub_debug("Enabling Filter: " + name )
                     else:
-                        self.msg_if.pub_info("Disabling Filter: " + name )
+                        self.msg_if.pub_debug("Disabling Filter: " + name )
                     self.filter_dict[name]['enabled'] = enabled
                     self.publish_status()
                     self.needs_update()
@@ -3943,7 +3943,7 @@ class BaseImageIF:
             if ratio > 1.0:
                 ratio = 1.0
             if name in self.filter_dict.keys():
-                self.msg_if.pub_info("Setting Filter Ratio: " + name + " : " + str(ratio) )
+                self.msg_if.pub_debug("Setting Filter Ratio: " + name + " : " + str(ratio) )
                 self.filter_dict[name]['ratio'] = ratio
                 self.publish_status()
                 self.needs_update()
@@ -4096,7 +4096,7 @@ class BaseImageIF:
             yr_min = 1 - len_zoom
             yr_max = 1
 
-        self.msg_if.pub_info("Zoom Image Window: " + str([xr_min, xr_max, yr_min, yr_max]) )
+        self.msg_if.pub_debug("Zoom Image Window: " + str([xr_min, xr_max, yr_min, yr_max]) )
         self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
         self.x_ratio = xr_min + (xr_max - xr_min) / 2
         self.y_ratio = yr_min + (yr_max - yr_min) / 2
@@ -4147,7 +4147,7 @@ class BaseImageIF:
                 yr_min = 1 - yr_len
                 yr_max = 1
 
-            self.msg_if.pub_info("Pixel Image Window: " + str([xr_min, xr_max, yr_min, yr_max]) )
+            self.msg_if.pub_debug("Pixel Image Window: " + str([xr_min, xr_max, yr_min, yr_max]) )
             self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
             self.x_ratio = xr_min + (xr_max - xr_min) / 2
             self.y_ratio = yr_min + (yr_max - yr_min) / 2
@@ -4199,7 +4199,7 @@ class BaseImageIF:
             yr_min = 1 - xr_len
             yr_max = 1
 
-        self.msg_if.pub_info("X Ratio Image Window: " + str([xr_min, xr_max, yr_min, yr_max]) )
+        self.msg_if.pub_debug("X Ratio Image Window: " + str([xr_min, xr_max, yr_min, yr_max]) )
         self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
         self.x_ratio = xr_min + (xr_max - xr_min) / 2
         self.y_ratio = yr_min + (yr_max - yr_min) / 2
@@ -4249,7 +4249,7 @@ class BaseImageIF:
             xr_min = 1 - yr_len
             xr_max = 1
 
-        self.msg_if.pub_info("Y Ratio Image Window: " + str([xr_min, xr_max, yr_min, yr_max]) )
+        self.msg_if.pub_debug("Y Ratio Image Window: " + str([xr_min, xr_max, yr_min, yr_max]) )
         self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
         self.x_ratio = xr_min + (xr_max - xr_min) / 2
         self.y_ratio = yr_min + (yr_max - yr_min) / 2
@@ -4299,7 +4299,7 @@ class BaseImageIF:
                 yr_min = 1 - r_len_max
                 yr_max = 1
 
-            self.msg_if.pub_warn("Window Image Window set to: " + str([xr_min, xr_max, yr_min, yr_max]) )
+            self.msg_if.pub_debug("Window Image Window set to: " + str([xr_min, xr_max, yr_min, yr_max]) )
             self.controls_dict['window_ratios'] = [xr_min, xr_max, yr_min, yr_max]
             self.x_ratio = xr_min + (xr_max - xr_min) / 2
             self.y_ratio = yr_min + (yr_max - yr_min) / 2
@@ -4584,7 +4584,7 @@ class BaseImageIF:
         Args:
             enabled (bool): True to show crosshairs data, False to hide it.
         """
-        self.msg_if.pub_info("Setting Click Crosshair Enable" + str(enabled) )
+        self.msg_if.pub_debug("Setting Click Crosshair Enable" + str(enabled) )
         self.click_text_enabled = False
         self.click_crosshair_enabled = enabled
         self.click_target_enabled = False
@@ -4732,7 +4732,7 @@ class BaseImageIF:
         y_ratio = nepi_utils.check_ratio(y_ratio)
         x_deg = -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
         y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
-        self.msg_if.pub_info("Adding Crosshair ratio to degs: " + str([x_ratio,y_ratio,x_deg,y_deg]) , throttle_s = 5)
+        self.msg_if.pub_debug("Adding Crosshair ratio to degs: " + str([x_ratio,y_ratio,x_deg,y_deg]) , throttle_s = 5)
         self.add_crosshair_degs(x_deg, y_deg, name, color_rgb, msg_str)
 
 
@@ -4756,7 +4756,7 @@ class BaseImageIF:
         crosshair_dict['y_deg_offset'] = round(y_deg, 2)
         crosshair_dict['color_rgb'] = color_rgb
         crosshair_dict['msg_str'] = msg_str
-        #self.msg_if.pub_info("Adding Crosshair: " + str(crosshair_dict) )
+        #self.msg_if.pub_debug("Adding Crosshair: " + str(crosshair_dict) )
         needs_update = True
         if ch_name in self.overlays_dict['crosshairs_dict'].keys():
             if self.overlays_dict['crosshairs_dict'][ch_name] == crosshair_dict:
@@ -4983,7 +4983,7 @@ class BaseImageIF:
         target_dict['y_deg_offset'] = round(y_deg)
         target_dict['color_rgb'] = color_rgb
         target_dict['msg_str'] = msg_str
-        #self.msg_if.pub_info("Adding Target: " + str(target_dict) )
+        #self.msg_if.pub_debug("Adding Target: " + str(target_dict) )
         needs_update = True
         if ch_name in self.overlays_dict['targets_dict'].keys():
             if self.overlays_dict['targets_dict'][ch_name] == target_dict:
@@ -5036,12 +5036,12 @@ class BaseImageIF:
             
 
     def set_live_adjust_rotate_deg(self,deg):
-        #self.msg_if.pub_info("Received Live Adjust Rotate Deg: " + str(deg) )
+        #self.msg_if.pub_debug("Received Live Adjust Rotate Deg: " + str(deg) )
         if abs(deg) > 180:
                 deg = np.sign(deg) * 180
-        #self.msg_if.pub_info("Updated Live Adjust Rotate Deg: " + str(deg) )
+        #self.msg_if.pub_debug("Updated Live Adjust Rotate Deg: " + str(deg) )
         ratio = nepi_utils.check_ratio(0.5 + (deg / 180)/2)
-        #self.msg_if.pub_info("Received Live Adjust Rotate Ratio: " + str(ratio) )
+        #self.msg_if.pub_debug("Received Live Adjust Rotate Ratio: " + str(ratio) )
         if self.live_adjust_dict['live_adjust_enabled'] == True:
             self.live_adjust_dict['live_adjust_rotate_deg'] = deg
 
@@ -5142,7 +5142,7 @@ class BaseImageIF:
 
     def reset_renders(self):
         """Reset all render controls (zoom, pan, window, range, 3-D rotation) to defaults."""
-        self.msg_if.pub_warn("Reseting render values" )
+        self.msg_if.pub_debug("Reseting render values" )
         self.drag_pixel = None
         self.drag_window = None
         self.zoom_ratio = 0
@@ -5209,7 +5209,7 @@ class BaseImageIF:
                 self.status_msg.filter_ratios = filter_ratios
 
                 self.status_msg.aspect_adjustment_disabled = self.aspect_adjustment_disabled
-                #self.msg_if.pub_warn(self.data_product + " Publishing Aspect Adjust Disabled: " + str(self.aspect_adjustment_disabled ) )
+                #self.msg_if.pub_debug(self.data_product + " Publishing Aspect Adjust Disabled: " + str(self.aspect_adjustment_disabled ) )
                 self.status_msg.aspect_adjust_enabled = self.aspect_adjust_enabled and self.aspect_adjustment_disabled == False
                 self.status_msg.aspect_ratio_set = self.aspect_ratio_set
 
@@ -5283,7 +5283,7 @@ class BaseImageIF:
                 live_adjust_y_pixels = math.floor((shift_y_scaler * self.height_deg))
 
                 self.status_msg.live_adjustments_disabled = self.live_adjustments_disabled
-                #self.msg_if.pub_warn(self.data_product + " Publishing Live Adjust Disabled: " + str(self.live_adjustments_disabled ) , throttle_s = 5)
+                #self.msg_if.pub_debug(self.data_product + " Publishing Live Adjust Disabled: " + str(self.live_adjustments_disabled ) , throttle_s = 5)
                 self.status_msg.live_adjust_enabled = live_adjust_enabled
                 self.status_msg.live_adjust_rotate_ratio = live_adjust_rotate_ratio
                 self.status_msg.live_adjust_rotate_deg = live_adjust_rotate_deg
@@ -5315,7 +5315,7 @@ class BaseImageIF:
 
                 ################
                 crosshairs_dict = self.overlays_dict['crosshairs_dict']
-                #self.msg_if.pub_info("Publishing crosshairs_dict: " + str(crosshairs_dict) )
+                #self.msg_if.pub_debug("Publishing crosshairs_dict: " + str(crosshairs_dict) )
                 crosshairs_msg_list = []
                 for crosshair_name in crosshairs_dict.keys():
                     crosshair_msg = ImageCrosshair()
@@ -5329,7 +5329,7 @@ class BaseImageIF:
                         x_scale = (self.width_proc/self.width_org)
                         x_offset_pixel = int((x_offset_ratio * self.width_org))
                         x_pixel = int((self.width_proc/2) + x_offset_pixel)
-                        #self.msg_if.pub_warn("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset])  , throttle_s = 5)
+                        #self.msg_if.pub_debug("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset])  , throttle_s = 5)
 
 
                         y_deg_offset = crosshair_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
@@ -5338,7 +5338,7 @@ class BaseImageIF:
                         y_scale = (self.height_proc/self.height_org)
                         y_offset_pixel = int((y_offset_ratio * self.height_org))
                         y_pixel = int((self.height_proc/2) + y_offset_pixel)
-                        #self.msg_if.pub_warn("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset])  , throttle_s = 5)
+                        #self.msg_if.pub_debug("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset])  , throttle_s = 5)
 
                         crosshair_msg.x_ratio = x_ratio
                         crosshair_msg.x_offset_deg = x_deg_offset
@@ -5381,7 +5381,7 @@ class BaseImageIF:
 
                 ################
                 targets_dict = self.overlays_dict['targets_dict']
-                #self.msg_if.pub_info("Publishing targets_dict: " + str(targets_dict) )
+                #self.msg_if.pub_debug("Publishing targets_dict: " + str(targets_dict) )
                 targets_msg_list = []
                 for target_name in targets_dict.keys():
                     target_msg = ImageTarget()
@@ -5395,7 +5395,7 @@ class BaseImageIF:
                         x_scale = (self.width_proc/self.width_org)
                         x_offset_pixel = int((x_offset_ratio * self.width_org))
                         x_pixel = int((self.width_proc/2) + x_offset_pixel)
-                        #self.msg_if.pub_warn("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset])  , throttle_s = 5)
+                        #self.msg_if.pub_debug("Rendering target x: " + str([x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel,x_deg_offset])  , throttle_s = 5)
 
 
                         y_deg_offset = target_dict['y_deg_offset'] #round( -1 * ((y_ratio - 0.5) * self.height_deg),1)
@@ -5404,7 +5404,7 @@ class BaseImageIF:
                         y_scale = (self.height_proc/self.height_org)
                         y_offset_pixel = int((y_offset_ratio * self.height_org))
                         y_pixel = int((self.height_proc/2) + y_offset_pixel)
-                        #self.msg_if.pub_warn("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset])  , throttle_s = 5)
+                        #self.msg_if.pub_debug("Rendering target y: " + str([y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel,y_deg_offset])  , throttle_s = 5)
 
                         target_msg.x_ratio = x_ratio
                         target_msg.x_offset_deg = x_deg_offset
@@ -5462,10 +5462,10 @@ class BaseImageIF:
                 
                 if self.node_if is not None:
                     # if self.data_product == 'pointcloud_image':
-                    #     self.msg_if.pub_info("Publishing Status Msg: " + str(self.status_msg) , throttle_s = 10)
+                    #     self.msg_if.pub_debug("Publishing Status Msg: " + str(self.status_msg) , throttle_s = 10)
                     self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
             except Exception as e:
-                self.msg_if.pub_info("Failed to Publish Status Msg: " + str(e) , throttle_s = 10)
+                self.msg_if.pub_debug("Failed to Publish Status Msg: " + str(e) , throttle_s = 10)
 
 
 
@@ -5583,7 +5583,7 @@ class BaseImageIF:
     def reset(self):
         """Reset the image interface to its initialized state."""
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params" )
+            self.msg_if.pub_debug("Reseting params" )
             self.node_if.reset_params()
             nepi_sdk.sleep(1)     
         self.init(do_updates = True)
@@ -5591,7 +5591,7 @@ class BaseImageIF:
     def factory_reset(self):
         """Reset the image interface to factory defaults."""
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params" )
+            self.msg_if.pub_debug("Factory resetting params" )
             self.node_if.factory_reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -5604,11 +5604,11 @@ class BaseImageIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback " )
+        self.msg_if.pub_debug("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback" )
+        self.msg_if.pub_debug("Got Factory Reset params callback" )
         self.factory_reset()
 
     def _provideCapabilities(self, _):
@@ -5624,7 +5624,7 @@ class BaseImageIF:
         for topic in found_topics:
             if image_ns == topic:
                 self.status_msg.image_topic = image_ns
-                #self.msg_if.pub_warn("Found depth map topic: " + str(topic) , throttle_s = 5)
+                #self.msg_if.pub_debug("Found depth map topic: " + str(topic) , throttle_s = 5)
             if depth_map_ns == topic:
                 self.status_msg.depth_map_topic = depth_map_ns
             if pointcloud_ns == topic:
@@ -5644,7 +5644,7 @@ class BaseImageIF:
         if needs_data == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.needs_data = needs_data
-        #self.msg_if.pub_warn("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot]) )
+        #self.msg_if.pub_debug("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot]) )
         nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
 
     def _publishStatusCb(self,timer):
@@ -5670,7 +5670,7 @@ class BaseImageIF:
           self.min_range_m = min_m
           self.max_range_m = max_m
         else:
-          self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]) )
+          self.msg_if.pub_debug("Invalid ranges supplied: " + str([min_m,max_m]) )
 
 
 
@@ -5713,12 +5713,12 @@ class BaseImageIF:
         y_min = int(max(0, img_height * yr_min))
         y_max = int(min(img_height, img_height * yr_max))
 
-        #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]) )
+        #self.msg_if.pub_debug("Got Image Window: " + str([x_min,x_max,y_min,y_max]) )
         cv2_img = cv2_img[y_min:y_max, x_min:x_max]
 
         self.x_offset = x_min 
         self.y_offset = y_min
-        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape) )
+        #self.msg_if.pub_debug("Image Render: " + str(cv2_img.shape) )
 
 
 
@@ -5726,9 +5726,9 @@ class BaseImageIF:
         # Show Drag Box if Needed
         drag_window = copy.deepcopy(self.drag_window)
 
-        #self.msg_if.pub_info("Processing drag_window" + str(drag_window) )
+        #self.msg_if.pub_debug("Processing drag_window" + str(drag_window) )
         if drag_window is not None:
-            #self.msg_if.pub_info("Processing drag_window" + str(drag_window) )
+            #self.msg_if.pub_debug("Processing drag_window" + str(drag_window) )
             # Define the rectangle parameters
             x1 = min(drag_window[0], drag_window[1])
             x2 = max(drag_window[0], drag_window[1])
@@ -5769,7 +5769,7 @@ class BaseImageIF:
 
             
             if abs(live_adjust_rotate_deg) > 0.01:
-                #self.msg_if.pub_warn("Live Adjusting Rotate with degrees: " + str([live_adjust_rotate_deg]) , throttle_s = 5)
+                #self.msg_if.pub_debug("Live Adjusting Rotate with degrees: " + str([live_adjust_rotate_deg]) , throttle_s = 5)
                 cv2_img = nepi_img.rotate_degrees(cv2_img,live_adjust_rotate_deg)
         
             ###### Translation Update
@@ -5788,7 +5788,7 @@ class BaseImageIF:
 
 
     def _mouseEventCb(self,msg):
-        #self.msg_if.pub_info("Received mouse event message: " + str(msg) )
+        #self.msg_if.pub_debug("Received mouse event message: " + str(msg) )
 
         width = self.status_msg.width_px
         height = self.status_msg.height_px
@@ -5844,15 +5844,15 @@ class BaseImageIF:
         angles = [pixel_horz_angle_deg,pixel_vert_angle_deg]
 
         
-        # self.msg_if.pub_warn("Got mouse click pixel" )
-        # self.msg_if.pub_warn("Click Pixels: " + str([msg.click.x,msg.click.y]) )
-        # self.msg_if.pub_warn("Pixel Offsets: " + str([self.x_offset,self.y_offset]) )
+        # self.msg_if.pub_debug("Got mouse click pixel" )
+        # self.msg_if.pub_debug("Click Pixels: " + str([msg.click.x,msg.click.y]) )
+        # self.msg_if.pub_debug("Pixel Offsets: " + str([self.x_offset,self.y_offset]) )
         
-        # self.msg_if.pub_warn("Orig H/W: " + str([self.width_org,self.height_org]) )
-        # self.msg_if.pub_warn("Proc H/W: " + str([self.width_proc,self.height_proc]) )
-        # self.msg_if.pub_warn("Pixel Ratios: " + str([x_ratio,y_ratio]) )
-        # self.msg_if.pub_warn("Pixels Offset_Adj: " + str([x_pixel_offset_adj,y_pixel_offset_adj]) )
-        # self.msg_if.pub_warn("Pixel Ratios Adj: " + str([x_ratio_adj,y_ratio_adj])
+        # self.msg_if.pub_debug("Orig H/W: " + str([self.width_org,self.height_org]) )
+        # self.msg_if.pub_debug("Proc H/W: " + str([self.width_proc,self.height_proc]) )
+        # self.msg_if.pub_debug("Pixel Ratios: " + str([x_ratio,y_ratio]) )
+        # self.msg_if.pub_debug("Pixels Offset_Adj: " + str([x_pixel_offset_adj,y_pixel_offset_adj]) )
+        # self.msg_if.pub_debug("Pixel Ratios Adj: " + str([x_ratio_adj,y_ratio_adj])
 
 
 
@@ -5861,7 +5861,7 @@ class BaseImageIF:
             try:
                 self.callback_dict['mouse_event_callback'](msg)
             except Exception as e:
-                self.msg_if.pub_warn("Failed to call mouse mouse_event_callback: " + str(e) )
+                self.msg_if.pub_debug("Failed to call mouse mouse_event_callback: " + str(e) )
 
         if msg.click_event == True:
             
@@ -5869,7 +5869,7 @@ class BaseImageIF:
                     try:
                         self.callback_dict['click_pixel_callback'](pixel,color_bgr,click_count,angles)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to call mouse click_pixel_callback: " + str(e) )
+                        self.msg_if.pub_debug("Failed to call mouse click_pixel_callback: " + str(e) )
             elif self.click_text_enabled == True and click_count == 1:
                             self.set_overlay_text_horz_ratio(x_ratio)
                             self.set_overlay_text_vert_ratio(y_ratio)
@@ -5885,10 +5885,10 @@ class BaseImageIF:
                                 self.add_target_ratios(x_ratio_adj,y_ratio_adj, color_rgb = click_color_rgb, name = click_name)
             else:
                     if click_count == 1:
-                        #self.msg_if.pub_info("Single Click setting pixel value: " + str(pixel) )
+                        #self.msg_if.pub_debug("Single Click setting pixel value: " + str(pixel) )
                         self.set_pixel(pixel,color_bgr)
                     else:
-                        #self.msg_if.pub_info("Double Click resetting render controls" )
+                        #self.msg_if.pub_debug("Double Click resetting render controls" )
                         self.reset_renders()
 
         if msg.drag_event == True:
@@ -5897,15 +5897,15 @@ class BaseImageIF:
             start_color_bgr = (msg.drag_start.b,msg.drag_start.g,msg.drag_start.r,msg.drag_start.a)
             stop_pixel = [int(msg.drag_stop.x), int(msg.drag_stop.y)]
             stop_color_bgr = (msg.drag_stop.b,msg.drag_stop.g,msg.drag_stop.r,msg.drag_stop.a)
-            #self.msg_if.pub_info("Using drag pixel: " + str(pixel) )
+            #self.msg_if.pub_debug("Using drag pixel: " + str(pixel) )
             if self.callback_dict['drag_callback'] is not None:
                 try:
                     self.callback_dict['drag_callback'](start_pixel, start_color_bgr, stop_pixel, stop_color_bgr )
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to call mouse drag_callback: " + str(e) )
+                    self.msg_if.pub_debug("Failed to call mouse drag_callback: " + str(e) )
             else: #if self.zoom_ratio < 0.01:
                     self.drag_window = [start_pixel[0], stop_pixel[0],start_pixel[1], stop_pixel[1]]
-                    self.msg_if.pub_warn("Drag Window Updated: " + str(self.drag_window) , throttle_s = 1)
+                    self.msg_if.pub_debug("Drag Window Updated: " + str(self.drag_window) , throttle_s = 1)
                     self.needs_update()
 
 
@@ -5927,7 +5927,7 @@ class BaseImageIF:
                 try:
                     self.callback_dict['window_callback'](window)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to call mouse window_callback: " + str(e) )
+                    self.msg_if.pub_debug("Failed to call mouse window_callback: " + str(e) )
             else:
                 self.set_window(window)
                 self.needs_update()
@@ -5941,7 +5941,7 @@ class BaseImageIF:
                 try:
                     self.callback_dict['scroll_callback'](scroll_pixel, scroll_color_bgr, scroll_amount)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to call mouse scroll_callback: " + str(e) )
+                    self.msg_if.pub_debug("Failed to call mouse scroll_callback: " + str(e) )
 
 
 
@@ -5951,43 +5951,43 @@ class BaseImageIF:
     # Filter Callbacks
 
     def _setFilterEnableCb(self, msg):
-        self.msg_if.pub_info("Received Enable Enhacement message: " + str(msg) )
+        self.msg_if.pub_debug("Received Enable Enhacement message: " + str(msg) )
         name = msg.name
         enabled = msg.value
         self.set_filter_enable(name,enabled) 
 
     def _setFilterRatioCb(self, msg):
-        self.msg_if.pub_info("Received Ehnacement Ratio update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Ehnacement Ratio update message: " + str(msg) )
         name = msg.name
         ratio = msg.value
         self.set_filter_ratio(name,ratio) 
 
 
     def _setAutoAdjustCb(self, msg):
-        self.msg_if.pub_info("Received Auto Adjust Enable update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Auto Adjust Enable update message: " + str(msg) )
         enabled = msg.data
         self.set_auto_adjust_enable(enabled)
 
     def _setAutoAdjustRatioCb(self, msg):
-        self.msg_if.pub_info("Received Auto Adjust Ratio update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Auto Adjust Ratio update message: " + str(msg) )
         ratio = msg.data
         self.set_auto_adjust_ratio(ratio)
 
     def _setBrightnessCb(self, msg):
-        self.msg_if.pub_info("Received Brightness update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Brightness update message: " + str(msg) )
         ratio = msg.data
         self.set_brightness_ratio(ratio)
 
 
     def _setContrastCb(self, msg):
-        self.msg_if.pub_info("Received Contrast update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Contrast update message: " + str(msg) )
         ratio = msg.data
         self.set_contrast_ratio(ratio)
         
 
 
     def _setThresholdingCb(self, msg):
-        self.msg_if.pub_info("Received Threshold update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Threshold update message: " + str(msg) )
         ratio = msg.data
         self.set_threshold_ratio(ratio)
 
@@ -5997,13 +5997,13 @@ class BaseImageIF:
     # Res and Orientation Callbacks
 
     def _setResolutionRatioCb(self, msg):
-        self.msg_if.pub_info("Received Resolution update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Resolution update message: " + str(msg) )
         ratio = msg.data
         self.set_resolution_ratio(ratio)
 
 
     def _setRotate2dCb(self, msg):
-        self.msg_if.pub_info("Received Rotate 2d Deg update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Rotate 2d Deg update message: " + str(msg) )
         # 90-deg button path: resize-box mode (output box grows to fit).
         self.controls_dict['rotate_2d_keep_size'] = False
         cur_angle = self.controls_dict['rotate_2d_deg']
@@ -6014,24 +6014,24 @@ class BaseImageIF:
         self.set_rotate_2d_deg(new_angle)
 
     def _setRotate2dDegCb(self, msg):
-        self.msg_if.pub_info("Received Set Rotate 2d Deg message: " + str(msg) )
+        self.msg_if.pub_debug("Received Set Rotate 2d Deg message: " + str(msg) )
         # Free Cam path: fixed-box mode (box holds shape, black fill).
         self.controls_dict['rotate_2d_keep_size'] = True
         new_angle = int(msg.data) % 360
         self.set_rotate_2d_deg(new_angle)
 
     def _setRotate2dSwapBoxCb(self, msg):
-        self.msg_if.pub_info("Received Set Rotate 2d Swap Box message: " + str(msg) )
+        self.msg_if.pub_debug("Received Set Rotate 2d Swap Box message: " + str(msg) )
         enable = msg.data
         self.set_rotate_2d_swap_box(enable)
 
     def _setFlipHorzCb(self, msg):
-        self.msg_if.pub_info("Received Flip Horz update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Flip Horz update message: " + str(msg) )
         enable = msg.data
         self.set_flip_horz(enable)
 
     def _setFlipVertCb(self, msg):
-        self.msg_if.pub_info("Received Flip Vert update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Flip Vert update message: " + str(msg) )
         enable = msg.data
         self.set_flip_vert(enable)
 
@@ -6039,36 +6039,36 @@ class BaseImageIF:
     # Render Callbacks
 
     def _setRangeCb(self, msg):
-        self.msg_if.pub_info("Received Range update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Range update message: " + str(msg) )
         start_ratio = msg.start_range
         stop_ratio = msg.stop_range
         self.set_range_ratios(start_ratio,stop_ratio)
       
 
     def _setZoomCb(self, msg):
-        self.msg_if.pub_info("Received Zoom update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Zoom update message: " + str(msg) )
         ratio = msg.data
         self.set_zoom_ratio(ratio)
 
     def _setPanXCb(self, msg):
-        self.msg_if.pub_info("Received Pan Left Right update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Pan Left Right update message: " + str(msg) )
         ratio = msg.data
         self.set_x_ratio(ratio)
 
 
     def _setPanYCb(self, msg):
-        self.msg_if.pub_info("Received Pan Up Down update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Pan Up Down update message: " + str(msg) )
         ratio = msg.data
         self.set_y_ratio(ratio)
 
 
     def _setZoom3DCb(self, msg):
-        self.msg_if.pub_info("Received Zoom 3D update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Zoom 3D update message: " + str(msg) )
         ratio = msg.data
         self.set_zoom_3d_ratio(ratio) 
 
     def _setRotate3DCb(self, msg):
-        self.msg_if.pub_info("Received Rotate 3D update message: " + str(msg) )
+        self.msg_if.pub_debug("Received Rotate 3D update message: " + str(msg) )
         ratio = msg.data
         self.set_rotate_3d_ratio(ratio) 
 
@@ -6077,12 +6077,12 @@ class BaseImageIF:
         self.set_tilt_3d_ratio(ratio)
 
     def render3dControlsCb(self, msg):
-        self.msg_if.pub_info("Received Render 3D Controls Enable message: " + str(msg) )
+        self.msg_if.pub_debug("Received Render 3D Controls Enable message: " + str(msg) )
         enabled = msg.data
         self.render_3d_controls_enabled = enabled
 
         if enabled == True:
-            self.msg_if.pub_info("Enabling 3D render controls (mouse drag/window)" )
+            self.msg_if.pub_debug("Enabling 3D render controls (mouse drag/window)" )
             if hasattr(self, 'render3dDragHandler'):
                 self.set_image_callback('drag_callback', self.render3dDragHandler)
             if hasattr(self, 'render3dWindowHandler'):
@@ -6092,7 +6092,7 @@ class BaseImageIF:
             if hasattr(self, 'render3dClickHandler'):
                 self.set_image_callback('click_pixel_callback', self.render3dClickHandler)
         else:
-            self.msg_if.pub_info("Disabling 3D render controls (mouse drag/window)" )
+            self.msg_if.pub_debug("Disabling 3D render controls (mouse drag/window)" )
             self.clear_image_callback('drag_callback')
             self.clear_image_callback('window_callback')
             self.clear_image_callback('scroll_callback')
@@ -6102,7 +6102,7 @@ class BaseImageIF:
 
 
     def setCamFovCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         new_val = msg.data
         if new_val > 100:
             new_val = 100
@@ -6113,7 +6113,7 @@ class BaseImageIF:
         self.node_if.set_param(self.node_if_prefix +  'cam_fov',new_val)
 
     def setCamViewCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         new_array = []
         new_array.append(msg.x)
         new_array.append(msg.y)
@@ -6123,7 +6123,7 @@ class BaseImageIF:
         self.node_if.set_param(self.node_if_prefix +  'cam_view',new_array)
 
     def setCamPositionCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         new_array = []
         new_array.append(msg.x)
         new_array.append(msg.y)
@@ -6134,7 +6134,7 @@ class BaseImageIF:
 
 
     def setCamRotationCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         new_array = []
         new_array.append(msg.x)
         new_array.append(msg.y)
@@ -6144,7 +6144,7 @@ class BaseImageIF:
         self.node_if.set_param(self.node_if_prefix +  'cam_rot',new_array)
 
     def setRangeRatiosCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         min_ratio = msg.start_range
         max_ratio = msg.stop_range
         if min_ratio < max_ratio and min_ratio >= 0 and max_ratio <= 1:
@@ -6169,13 +6169,13 @@ class BaseImageIF:
         self.needs_update()
 
     def resetRender3dControlsCb(self, msg):
-        self.msg_if.pub_info("Got reset 3D render orientation msg" )
+        self.msg_if.pub_debug("Got reset 3D render orientation msg" )
         self.live_adjust_dict['live_adjust_rotate_deg'] = 0
         if hasattr(self, 'reset_render_3d_orientation'):
             self.reset_render_3d_orientation()
 
     def resetRender3dPositionCb(self, msg):
-        self.msg_if.pub_info("Got reset 3D render position msg" )
+        self.msg_if.pub_debug("Got reset 3D render position msg" )
         self.live_adjust_dict['live_adjust_x_deg'] = 0
         self.live_adjust_dict['live_adjust_y_deg'] = 0
         if hasattr(self, 'reset_render_3d_position'):
@@ -6250,7 +6250,7 @@ class BaseImageIF:
         self.set_click_text(enabled)
 
     def _clickCrosshairEnableCb(self,msg):
-        self.msg_if.pub_info("Got Click Crosshair Enable msg" )
+        self.msg_if.pub_debug("Got Click Crosshair Enable msg" )
         enbled = msg.data
         self.set_click_crosshair(enbled)
 
@@ -6330,7 +6330,7 @@ class BaseImageIF:
 
 
     def _addCrosshairDegreesCb(self,msg):
-        self.msg_if.pub_info("Got Add Crosshair Msg: " + str(msg) )
+        self.msg_if.pub_debug("Got Add Crosshair Msg: " + str(msg) )
         name = msg.name
         if name != '':
             name = 'Crosshair'
@@ -6437,7 +6437,7 @@ class BaseImageIF:
 
 
     def _addTargetDegreesCb(self,msg):
-        self.msg_if.pub_info("Got Add Target Msg: " + str(msg) )
+        self.msg_if.pub_debug("Got Add Target Msg: " + str(msg) )
         name = msg.name
         if name != '':
             name = 'Target'
@@ -6538,7 +6538,7 @@ class BaseImageIF:
         self.reset_settings()
     
     def _resetRendersCb(self,msg):
-        self.msg_if.pub_warn("Received reset renders message" )
+        self.msg_if.pub_debug("Received reset renders message" )
         self.reset_renders()
 
     def _systemStatusCb(self,msg):
@@ -6889,7 +6889,7 @@ class ColorImageIF(BaseImageIF):
         else:
             cv2_img = nepi_img.adjust_auto(cv2_img,auto_ratio)
 
-        #self.msg_if.pub_info("Image Filter: " + str(cv2_img.shape) )
+        #self.msg_if.pub_debug("Image Filter: " + str(cv2_img.shape) )
 
 
         return cv2_img
@@ -7171,8 +7171,8 @@ class DepthMapIF:
 
 
         ####################
-        self.msg_if.pub_info("####################" )
-        self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None) )
+        self.msg_if.pub_debug("####################" )
+        self.msg_if.pub_debug("Got Save Data IF is None: " + str(save_data_if is None) )
         if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
             data_products = self.save_data_if.get_data_products()
@@ -7206,7 +7206,7 @@ class DepthMapIF:
 
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_warn("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
+            self.msg_if.pub_debug("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
 
 
         ####################
@@ -7228,7 +7228,7 @@ class DepthMapIF:
             navpose_topic = self.navpose_if.get_namespace()
             navpose_namespace = navpose_topic
             self.status_msg.navpose_topic = navpose_topic
-            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+            self.msg_if.pub_debug("Using navpose namespace: " + str(navpose_topic))
 
             
 
@@ -7257,7 +7257,7 @@ class DepthMapIF:
                         node_if = None
                         )
 
-        self.msg_if.pub_warn("Staring updater process" )
+        self.msg_if.pub_debug("Staring updater process" )
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
         ##############################
         # Complete Initialization
@@ -7289,16 +7289,16 @@ class DepthMapIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection" )
+            self.msg_if.pub_debug("Waiting for connection" )
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect" )
+                self.msg_if.pub_debug("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected" )
+                self.msg_if.pub_debug("Connected" )
         return self.ready
 
     def get_namespace(self):
@@ -7354,11 +7354,11 @@ class DepthMapIF:
             name (str): Name of the callback slot (must be in the callback dict).
             function (callable): Function to call when the event fires.
         """
-        self.msg_if.pub_warn("Got set callback for: " + str(name) )
+        self.msg_if.pub_debug("Got set callback for: " + str(name) )
         if name in self.callback_dict.keys():
-            self.msg_if.pub_warn("Callback set for: " + str(name) )
+            self.msg_if.pub_debug("Callback set for: " + str(name) )
             self.callback_dict[name] = function
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict) )
+        #self.msg_if.pub_debug("Updated callback dict: " + str(self.callback_dict) )
 
     def clear_depth_map_callback(self,name):
         """Clear (un-register) the callable for the named depth map callback slot.
@@ -7366,7 +7366,7 @@ class DepthMapIF:
         Args:
             name (str): Name of the callback slot to clear.
         """
-        self.msg_if.pub_warn("Got clear callback for: " + str(name) )
+        self.msg_if.pub_debug("Got clear callback for: " + str(name) )
         if name in self.callback_dict.keys():
             self.callback_dict[name] = None
 
@@ -7390,11 +7390,11 @@ class DepthMapIF:
             function (callable): Function to call when the event fires.
         """
         if self.image_if is not None:
-            self.msg_if.pub_warn("Got set image callback for: " + str(name) )
+            self.msg_if.pub_debug("Got set image callback for: " + str(name) )
             if name in self.image_if.get_image_callback_options():
-                self.msg_if.pub_warn("Image Callback set for: " + str(name) )
+                self.msg_if.pub_debug("Image Callback set for: " + str(name) )
                 self.image_if.set_callback(name,function)
-        #self.msg_if.pub_info("Updated callback dict: " + str(self.callback_dict) )
+        #self.msg_if.pub_debug("Updated callback dict: " + str(self.callback_dict) )
 
     def clear_image_callback(self,name):
         """Clear the callable for a named callback slot in the image sub-interface.
@@ -7403,7 +7403,7 @@ class DepthMapIF:
             name (str): Name of the image callback slot to clear.
         """
         if self.image_if is not None:
-            self.msg_if.pub_warn("Got clear image callback for: " + str(name) )
+            self.msg_if.pub_debug("Got clear image callback for: " + str(name) )
             if name in self.image_if.get_image_callback_options():
                self.image_if.callback_dict[name] = None
 
@@ -7509,7 +7509,7 @@ class DepthMapIF:
             self.publishing = True
 
             if np_depth_map is None and self.status_msg is not None:
-                self.msg_if.pub_info("Can't publish None image" )
+                self.msg_if.pub_debug("Can't publish None image" )
                 return np_depth_map
 
 
@@ -7538,13 +7538,13 @@ class DepthMapIF:
 
             self.status_msg.width_deg = width_deg
             self.status_msg.height_deg = height_deg
-            #self.msg_if.pub_info('Pub Depth Got Min Max Depths: ' + str([min_range_m, max_range_m]) )
+            #self.msg_if.pub_debug('Pub Depth Got Min Max Depths: ' + str([min_range_m, max_range_m]) )
             if (min_range_m is not None and max_range_m is not None):
                 self._updateRangesM(min_range_m,max_range_m)
             else:
                 self._updateRangesM(0,1)
 
-            #self.msg_if.pub_info('Pub Depth Adj Min Max Depths: ' + str([self.min_range_m, self.max_range_m]) )
+            #self.msg_if.pub_debug('Pub Depth Adj Min Max Depths: ' + str([self.min_range_m, self.max_range_m]) )
 
             self.status_msg.publishing = True
 
@@ -7557,7 +7557,7 @@ class DepthMapIF:
                     #self.msg_if.pub_debug("Publishing Image with header: " + str(ros_img.header) , throttle_s = 5.0)
                     self.node_if.publish_pub(self.node_if_prefix + 'data_pub', ros_img)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to publish Depth Map: " + str(e) , throttle = 5)
+                    self.msg_if.pub_debug("Failed to publish Depth Map: " + str(e) , throttle = 5)
 
             process_time = round( (nepi_utils.get_time() - start_time) , 3)
             self.status_msg.process_time = process_time
@@ -7662,7 +7662,7 @@ class DepthMapIF:
 
                 self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
             except Exception as e:
-                self.msg_if.pub_warn("Failed to Publish Status msg: " + str(e) , throttle_s = 10.0)
+                self.msg_if.pub_debug("Failed to Publish Status msg: " + str(e) , throttle_s = 10.0)
 
 
     def init(self, do_updates = False):
@@ -7680,7 +7680,7 @@ class DepthMapIF:
     def reset(self):
         """Reset the depth map interface to its initialized state."""
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params" )
+            self.msg_if.pub_debug("Reseting params" )
             self.node_if.reset_params()
             nepi_sdk.sleep(1)     
         self.init(do_updates = True)
@@ -7689,7 +7689,7 @@ class DepthMapIF:
     def factory_reset(self):
         """Reset the depth map interface to factory defaults."""
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params" )
+            self.msg_if.pub_debug("Factory resetting params" )
             self.node_if.factory_reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -7702,11 +7702,11 @@ class DepthMapIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback " )
+        self.msg_if.pub_debug("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback" )
+        self.msg_if.pub_debug("Got Factory Reset params callback" )
         self.factory_reset()
 
     def _updaterCb(self, timer):
@@ -7719,7 +7719,7 @@ class DepthMapIF:
         for topic in found_topics:
             if image_ns == topic:
                 self.status_msg.image_topic = image_ns
-                #self.msg_if.pub_warn("Found depth map topic: " + str(topic) , throttle_s = 5)
+                #self.msg_if.pub_debug("Found depth map topic: " + str(topic) , throttle_s = 5)
             if depth_map_ns == topic:
                 self.status_msg.depth_map_topic = depth_map_ns
             if pointcloud_ns == topic:
@@ -7743,7 +7743,7 @@ class DepthMapIF:
         if needs_data == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.needs_data = needs_data
-        #self.msg_if.pub_warn("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot,img_needs_data]) )
+        #self.msg_if.pub_debug("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot,img_needs_data]) )
         nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
 
 
@@ -7770,7 +7770,7 @@ class DepthMapIF:
           self.min_range_m = min_m
           self.max_range_m = max_m
         else:
-          self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]) )
+          self.msg_if.pub_debug("Invalid ranges supplied: " + str([min_m,max_m]) )
 
 
     def _systemStatusCb(self,msg):
@@ -7937,7 +7937,7 @@ class DepthMapImageIF(BaseImageIF):
             start_range_ratio = self.controls_dict['start_range_ratio']
             stop_range_ratio = self.controls_dict['stop_range_ratio']
 
-            #self.msg_if.pub_info('Pub Img Got Min Max Depths: ' + str([min_range_m, max_range_m]) )
+            #self.msg_if.pub_debug('Pub Img Got Min Max Depths: ' + str([min_range_m, max_range_m]) )
             cv2_img = nepi_img.npDepthMap_to_cv2ColorImg(np_depth_map, min_range_m = min_range_m, max_range_m = max_range_m,min_ratio = start_range_ratio, max_ratio = stop_range_ratio)      
             if cv2_img is not None:
                 self.publish_cv2_img(cv2_img,
@@ -8018,12 +8018,12 @@ class DepthMapImageIF(BaseImageIF):
         y_min = int(max(0, img_height * yr_min))
         y_max = int(min(img_height, img_height * yr_max))
 
-        #self.msg_if.pub_warn("Got Image Window: " + str([x_min,x_max,y_min,y_max]) )
+        #self.msg_if.pub_debug("Got Image Window: " + str([x_min,x_max,y_min,y_max]) )
         cv2_img = cv2_img[y_min:y_max, x_min:x_max]
 
         self.x_offset = x_min 
         self.y_offset = y_min
-        #self.msg_if.pub_info("Image Render: " + str(cv2_img.shape) )
+        #self.msg_if.pub_debug("Image Render: " + str(cv2_img.shape) )
 
 
 
@@ -8031,9 +8031,9 @@ class DepthMapImageIF(BaseImageIF):
         # Show Drag Box if Needed
         drag_window = copy.deepcopy(self.drag_window)
 
-        #self.msg_if.pub_info("Processing drag_window" + str(drag_window) )
+        #self.msg_if.pub_debug("Processing drag_window" + str(drag_window) )
         if drag_window is not None:
-            #self.msg_if.pub_info("Processing drag_window" + str(drag_window) )
+            #self.msg_if.pub_debug("Processing drag_window" + str(drag_window) )
             # Define the rectangle parameters
             x1 = min(drag_window[0], drag_window[1])
             x2 = max(drag_window[0], drag_window[1])
@@ -8076,7 +8076,7 @@ class DepthMapImageIF(BaseImageIF):
         else:
             cv2_img = nepi_img.adjust_auto(cv2_img,auto_ratio)
 
-        #self.msg_if.pub_info("Image Filter: " + str(cv2_img.shape) )
+        #self.msg_if.pub_debug("Image Filter: " + str(cv2_img.shape) )
 
 
 
@@ -8211,15 +8211,16 @@ class PointcloudIF:
 
         ##############################
         # Wait for System Folders
-        self.msg_if.pub_warn("Waiting for system folders")
+        self.msg_if.pub_debug("Waiting for system folders")
+        system_folders = nepi_system.get_system_folders()
         while system_folders is None and nepi_sdk.is_shutdown() == False:
             nepi_sdk.sleep(1)
 
-        self.msg_if.pub_warn("Got system folders: " + str(system_folders))
+        self.msg_if.pub_debug("Got system folders: " + str(system_folders))
 
         if system_folders is not None:
             self.api_lib_folder = system_folders['api_lib']
-        self.msg_if.pub_info("Using SDK Share Folder: " + str(self.api_lib_folder))
+        self.msg_if.pub_debug("Using SDK Share Folder: " + str(self.api_lib_folder))
 
         ##############################
         # Initialize Class Variables
@@ -8544,8 +8545,8 @@ class PointcloudIF:
 
 
         ####################
-        self.msg_if.pub_info("####################" )
-        self.msg_if.pub_info("Got Save Data IF is None: " + str(save_data_if is None) )
+        self.msg_if.pub_debug("####################" )
+        self.msg_if.pub_debug("Got Save Data IF is None: " + str(save_data_if is None) )
         if save_data_if is not None and save_data_if != 'None':
             self.save_data_if = save_data_if
             data_products = self.save_data_if.get_data_products()
@@ -8584,7 +8585,7 @@ class PointcloudIF:
 
         if self.save_data_if is not None:
             self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
+            self.msg_if.pub_debug("Using save_data namespace: " + str(self.status_msg.save_data_topic) )
 
         ####################
         ####################
@@ -8605,16 +8606,16 @@ class PointcloudIF:
             navpose_topic = self.navpose_if.get_namespace()
             navpose_namespace = navpose_topic
             self.status_msg.navpose_topic = navpose_topic
-            self.msg_if.pub_info("Using navpose namespace: " + str(navpose_topic))
+            self.msg_if.pub_debug("Using navpose namespace: " + str(navpose_topic))
 
         ####################
         self.pub_image = pub_image
         if pub_image == True:
-            self.msg_if.pub_warn("Launching Image Pub Node")
+            self.msg_if.pub_debug("Launching Image Pub Node")
             self.launch_image_pub_node()
 
         ####################
-        self.msg_if.pub_warn("Staring updater process" )
+        self.msg_if.pub_debug("Staring updater process" )
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
 
         ##############################
@@ -8643,12 +8644,12 @@ class PointcloudIF:
         # Launch Node
         node_file_path = os.path.join(node_file_folder, node_file_name)
         if self.launch_node_process is not None:
-            self.msg_if.pub_warn("Node Already Launched: " + node_name)
+            self.msg_if.pub_debug("Node Already Launched: " + node_name)
         elif os.path.exists(node_file_path) == False or self.pub_image == False:
-            self.msg_if.pub_warn("Could not find Node File at: " + node_file_path)
+            self.msg_if.pub_debug("Could not find Node File at: " + node_file_path)
         else:
             #Try and launch node
-            self.msg_if.pub_warn("Launching Pointcloud Img Node with settings " + str([pkg_name, node_file_name, node_name]))
+            self.msg_if.pub_debug("Launching Pointcloud Img Node with settings " + str([pkg_name, node_file_name, node_name]))
             self.msg_if.pub_warn("Launching Node: " + node_name)
 
             param_ns = nepi_sdk.create_namespace(node_namespace, 'data_products')
@@ -8665,7 +8666,7 @@ class PointcloudIF:
                 self.launch_node_process = sub_process
                 self.pub_img_node_name = node_name
                 self.pub_img_namepace = node_namespace
-            self.msg_if.pub_warn("Node launch return msg: " + str(msg))
+            self.msg_if.pub_debug("Node launch return msg: " + str(msg))
 
     def kill_image_pub_node(self):
         """Terminate the running pointcloud image publisher node.
@@ -8675,7 +8676,7 @@ class PointcloudIF:
         on success. Logs a warning if the node is not currently running.
         """
         if self.launch_node_process is None:
-            self.msg_if.pub_warn("Node Not Running")
+            self.msg_if.pub_debug("Node Not Running")
         else:
             self.msg_if.pub_warn("Killing Node")
             success = nepi_sdk.kill_node_process(self.pub_img_node_name, self.launch_node_process)
@@ -8683,7 +8684,7 @@ class PointcloudIF:
                 self.launch_node_process = None
                 self.pub_img_node_name = ""
                 self.pub_img_namepace = ""
-                self.msg_if.pub_warn("Node Killed")
+                self.msg_if.pub_debug("Node Killed")
             else:
                 self.msg_if.pub_warn("Failed to Kill Node")
 
@@ -8712,16 +8713,16 @@ class PointcloudIF:
         """
         success = False
         if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection" )
+            self.msg_if.pub_debug("Waiting for connection" )
             timer = 0
             time_start = nepi_utils.get_time()
             while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_utils.get_time() - time_start
             if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect" )
+                self.msg_if.pub_debug("Failed to Connect" )
             else:
-                self.msg_if.pub_info("Connected" )
+                self.msg_if.pub_debug("Connected" )
         return self.ready
 
     def get_namespace(self):
@@ -8790,12 +8791,12 @@ class PointcloudIF:
         """
         needs_data = copy.deepcopy(self.needs_data)
         if needs_data != self.needs_data_last_logged:
-            self.msg_if.pub_warn("Returning: " + self.namespace + " " "needs data: " + str(needs_data) )
+            self.msg_if.pub_debug("Returning: " + self.namespace + " " "needs data: " + str(needs_data) )
             self.needs_data_last_logged = needs_data
         return needs_data
 
     def _setVoxelCb(self,msg):
-        self.msg_if.pub_info("Received set voxel message: " + str(msg) )
+        self.msg_if.pub_debug("Received set voxel message: " + str(msg) )
         self.voxel = [msg.x,msg.y,msg.z]
         if self.callback_dict['voxel_callback'] is not None:
             self.callback_dict['voxel_callback'](self.voxel)
@@ -8851,7 +8852,7 @@ class PointcloudIF:
             self.publishing = True
 
             if o3d_pc is None:
-                self.msg_if.pub_info("Can't publish None image" )
+                self.msg_if.pub_debug("Can't publish None image" )
                 return False
 
             if timestamp == None:
@@ -8913,14 +8914,14 @@ class PointcloudIF:
                 try:
                     o3d_pc = nepi_pc.voxel_down_sampling(o3d_pc, voxel_size_m)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to voxel downsample pointcloud with size: " + str(voxel_size_m) + " " + str(e) , throttle_s = 5.0)
+                    self.msg_if.pub_debug("Failed to voxel downsample pointcloud with size: " + str(voxel_size_m) + " " + str(e) , throttle_s = 5.0)
 
             # k of zero is invalid input to Open3D and k of one returns every point
             if uniform_k_points is not None and uniform_k_points > 1:
                 try:
                     o3d_pc = nepi_pc.uniform_down_sampling(o3d_pc, uniform_k_points)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to uniform downsample pointcloud with k points: " + str(uniform_k_points) + " " + str(e) , throttle_s = 5.0)
+                    self.msg_if.pub_debug("Failed to uniform downsample pointcloud with k points: " + str(uniform_k_points) + " " + str(e) , throttle_s = 5.0)
 
             if outlier_num_neighbors is not None and outlier_num_neighbors > 0:
                 if outlier_std_ratio is None:
@@ -8928,11 +8929,11 @@ class PointcloudIF:
                 try:
                     o3d_pc = nepi_pc.statistical_outlier_removal(o3d_pc, outlier_num_neighbors, outlier_std_ratio)
                 except Exception as e:
-                    self.msg_if.pub_warn("Failed to remove pointcloud outliers with neighbors and std ratio: " + str([outlier_num_neighbors,outlier_std_ratio]) + " " + str(e) , throttle_s = 5.0)
+                    self.msg_if.pub_debug("Failed to remove pointcloud outliers with neighbors and std ratio: " + str([outlier_num_neighbors,outlier_std_ratio]) + " " + str(e) , throttle_s = 5.0)
 
             # Don't let an over-aggressive control setting blank the data product silently
             if o3d_pc is None or len(o3d_pc.points) == 0:
-                #self.msg_if.pub_warn("Process controls returned an empty pointcloud, publishing unprocessed data. Controls: " + str([voxel_size_m,uniform_k_points,outlier_num_neighbors]) , throttle_s = 5.0)
+                #self.msg_if.pub_debug("Process controls returned an empty pointcloud, publishing unprocessed data. Controls: " + str([voxel_size_m,uniform_k_points,outlier_num_neighbors]) , throttle_s = 5.0)
                 o3d_pc = pre_process_pc
 
             self.status_msg.point_count = len(o3d_pc.points)
@@ -9067,7 +9068,7 @@ class PointcloudIF:
 
                 self.node_if.publish_pub(self.node_if_prefix + 'status_pub',self.status_msg)
             except Exception as e:
-                self.msg_if.pub_warn("Failed to Publish Status msg: " + str(e) , throttle_s = 10.0)
+                self.msg_if.pub_debug("Failed to Publish Status msg: " + str(e) , throttle_s = 10.0)
 
 
     def init(self, do_updates = False):
@@ -9085,7 +9086,7 @@ class PointcloudIF:
     def reset(self):
         """Reset the pointcloud interface to its initialized state."""
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Reseting params" )
+            self.msg_if.pub_debug("Reseting params" )
             self.node_if.reset_params()
             nepi_sdk.sleep(1)     
         self.init(do_updates = True)
@@ -9093,7 +9094,7 @@ class PointcloudIF:
     def factory_reset(self):
         """Reset the pointcloud interface to factory defaults."""
         if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_info("Factory resetting params" )
+            self.msg_if.pub_debug("Factory resetting params" )
             self.node_if.factory_reset_params()
             nepi_sdk.sleep(1) 
         self.init(do_updates = True)
@@ -9106,11 +9107,11 @@ class PointcloudIF:
         self.init(do_updates = do_updates)
 
     def _resetCb(self):
-        self.msg_if.pub_warn("Got Reset params callback " )
+        self.msg_if.pub_debug("Got Reset params callback " )
         self.reset()
 
     def _factoryResetCb(self):
-        self.msg_if.pub_warn("Got Factory Reset params callback" )
+        self.msg_if.pub_debug("Got Factory Reset params callback" )
         self.factory_reset()
 
     def _updaterCb(self, timer):
@@ -9123,7 +9124,7 @@ class PointcloudIF:
         for topic in found_topics:
             if image_ns == topic:
                 self.status_msg.image_topic = image_ns
-                #self.msg_if.pub_warn("Found depth map topic: " + str(topic) , throttle_s = 5)
+                #self.msg_if.pub_debug("Found depth map topic: " + str(topic) , throttle_s = 5)
             if depth_map_ns == topic:
                 self.status_msg.depth_map_topic = depth_map_ns
             if pointcloud_ns == topic:
@@ -9148,7 +9149,7 @@ class PointcloudIF:
         if needs_data == False and self.status_msg is not None:
             self.status_msg.publishing = False
         self.needs_data = needs_data
-        #self.msg_if.pub_warn("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot,img_needs_data]) )
+        #self.msg_if.pub_debug("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot,img_needs_data]) )
         nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
 
 
@@ -9175,7 +9176,7 @@ class PointcloudIF:
           self.min_range_m = min_m
           self.max_range_m = max_m
         else:
-          self.msg_if.pub_warn("Invalid ranges supplied: " + str([min_m,max_m]) )
+          self.msg_if.pub_debug("Invalid ranges supplied: " + str([min_m,max_m]) )
 
     def _systemStatusCb(self,msg):
         self.active_topics = msg.active_topics
@@ -9298,25 +9299,25 @@ class PointcloudIF:
             self.publish_status()
 
     def clipEnableCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         new_enable = msg.data
         self.node_if.set_param(self.node_if_prefix +  'clip_enabled', new_enable)
         self.publish_status()
 
     def setClipSelectionCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         sel = msg.data
         if sel in self.clip_options:
             self.node_if.set_param(self.node_if_prefix +  'clip_selection', sel )
         self.publish_status()
 
     def setClipBoxTopicCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         self.bounding_box3d_topic = msg.data
         self.publish_status()
 
     def setRangeMetersCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         range_min_m = msg.start_range
         range_max_m = msg.stop_range
         if range_min_m < range_max_m:
@@ -9325,19 +9326,19 @@ class PointcloudIF:
         self.publish_status()
 
     def setVoxelSizeCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         self.set_voxel_downsample_size(msg.data)
 
     def setUniformPointsCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         self.set_uniform_downsample_k_points(msg.data)
 
     def setOutlierNumCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         self.set_outlier_removal_num_neighbors(msg.data)
 
     def setFrame3dCb(self, msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         frame_3d = msg.data
         frame3d_list = self.frame3d_list
         if frame_3d in frame3d_list:
@@ -9358,7 +9359,7 @@ class PointcloudIF:
             self.publish_status()
 
     def setImageSizeCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         width = msg.image_width
         height = msg.image_height
         if width > 100 and width < 5000 and height > 100 and height < 5000:
@@ -9367,7 +9368,7 @@ class PointcloudIF:
             self.publish_status()
 
     def setImageSizeIndCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         index = msg.data
         if index < len(nepi_img.STANDARD_IMAGE_SIZES):
             size_str = nepi_img.STANDARD_IMAGE_SIZES[index]
@@ -9380,21 +9381,21 @@ class PointcloudIF:
                 self.publish_status()
 
     def setZoomRatioCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         new_val = msg.data
         if new_val >= 0 and new_val <= 1 :
             self.node_if.set_param(self.node_if_prefix +  'zoom_ratio',new_val)
             self.publish_status()
 
     def setRotateRatioCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         new_val = msg.data
         if new_val >= 0 and new_val <= 1 :
             self.node_if.set_param(self.node_if_prefix +  'rotate_ratio',new_val)
             self.publish_status()
 
     def setTiltRatioCb(self,msg):
-        #self.msg_if.pub_info(str(msg))
+        #self.msg_if.pub_debug(str(msg))
         new_val = msg.data
         if new_val >= 0 and new_val <= 1 :
             self.node_if.set_param(self.node_if_prefix +  'tilt_ratio',new_val)
@@ -9749,7 +9750,7 @@ class PointcloudImageIF(BaseImageIF):
     ###############################
 
     def render3dDragHandler(self, start_pixel, start_color_bgr, stop_pixel, stop_color_bgr):
-        #self.msg_if.pub_info("3D render drag handler fired - start: " + str(start_pixel) + " stop: " + str(stop_pixel) )
+        #self.msg_if.pub_debug("3D render drag handler fired - start: " + str(start_pixel) + " stop: " + str(stop_pixel) )
         img_width = self.status_msg.width_px
         img_height = self.status_msg.height_px
         if img_width <= 0 or img_height <= 0:
@@ -9771,11 +9772,11 @@ class PointcloudImageIF(BaseImageIF):
         self.needs_update()
 
     def render3dWindowHandler(self, window = None):
-        self.msg_if.pub_info("3D render window handler fired - window: " + str(window) )
+        self.msg_if.pub_debug("3D render window handler fired - window: " + str(window) )
         self.publish_status()
 
     def render3dScrollHandler(self, scroll_pixel, scroll_color_bgr, scroll_amount):
-        self.msg_if.pub_info("3D render scroll handler fired - amount: " + str(scroll_amount) )
+        self.msg_if.pub_debug("3D render scroll handler fired - amount: " + str(scroll_amount) )
         # scroll_amount is a normalized wheel step (+ = zoom in, - = zoom out); accumulate
         # into the zoom offset applied on top of the status-driven zoom in publish.
         zoom_step = float(scroll_amount) * 0.05
@@ -9785,7 +9786,7 @@ class PointcloudImageIF(BaseImageIF):
         self.needs_update()
 
     def render3dClickHandler(self, pixel, color_bgr, click_count, angles):
-        self.msg_if.pub_info("3D render click handler fired - pixel: " + str(pixel) )
+        self.msg_if.pub_debug("3D render click handler fired - pixel: " + str(pixel) )
         img_width = self.status_msg.width_px
         img_height = self.status_msg.height_px
         if img_width <= 0 or img_height <= 0:

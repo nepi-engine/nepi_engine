@@ -30,8 +30,7 @@ from nepi_sdk import nepi_data
 from nepi_sdk import nepi_controls
 
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 
 ########################
@@ -60,22 +59,22 @@ def get_process_dicts(processes_dict, process_name):
         try:
             data_dict = processes_dict[process_name].get('data_dict', dict())
         except Exception as e:
-            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+            logger.log_debug("Failed to get dict from proccesses dict " + str(e)) 
 
         try:
            controls_dict = processes_dict[process_name].get('controls_dict', dict())
         except Exception as e:
-            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+            logger.log_debug("Failed to get dict from proccesses dict " + str(e)) 
 
         try:
             results_display_dict = processes_dict[process_name].get('results_display_dict', dict())
         except Exception as e:
-            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+            logger.log_debug("Failed to get dict from proccesses dict " + str(e)) 
 
         try:
              states_dict = processes_dict[process_name].get('results_display_dict', dict())
         except Exception as e:
-            logger.log_warn("Failed to get dict from proccesses dict " + str(e)) 
+            logger.log_debug("Failed to get dict from proccesses dict " + str(e)) 
 
         
     return data_dict,controls_dict,results_display_dict,states_dict
@@ -132,12 +131,12 @@ def get_process_image_dicts(process_image_dict):
     try:
         data_dict = process_image_dict.get('data_dict', dict())
     except Exception as e:
-        logger.log_warn("Failed to get dict from proccess dict " + str(e)) 
+        logger.log_debug("Failed to get dict from proccess dict " + str(e)) 
 
     try:
         controls_dict = process_image_dict.get('controls_dict', dict())
     except Exception as e:
-        logger.log_warn("Failed to get dict from process dict " + str(e)) 
+        logger.log_debug("Failed to get dict from process dict " + str(e)) 
 
       
     return data_dict,controls_dict

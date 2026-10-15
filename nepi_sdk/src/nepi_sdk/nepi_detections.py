@@ -36,8 +36,7 @@ from std_msgs.msg import UInt8, Float32, Bool, Empty, String, Header
 from nepi_interfaces.msg import Detection, Detections
 
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 
 ########################

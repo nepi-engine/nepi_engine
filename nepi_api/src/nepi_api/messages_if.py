@@ -18,6 +18,7 @@
 #
 
 import os
+import sys
 import copy
 import threading
 import inspect
@@ -40,7 +41,7 @@ class MsgIF(logger):
 
     #######################
     ### IF Initialization
-    def __init__(self):
+    def __init__(self, colors_dict = dict()):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.node_name = nepi_sdk.get_node_name()
@@ -52,7 +53,8 @@ class MsgIF(logger):
         super().__init__( 
                          namespace = self.node_namespace, 
                          ignore_functions = self.add_functions, 
-                         ignore_files = self.add_files
+                         ignore_files = self.add_files,
+                         colors_dict = colors_dict
                 )
 
 
@@ -63,22 +65,42 @@ class MsgIF(logger):
 
     
     def pub_info(self, *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+          caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_info(*args, **kwargs)
+        super().log_info(*args, **kwargs, caller_str = caller_str)
     
     def pub_warn(self,  *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+          caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_warn(*args, **kwargs)
+        super().log_warn(*args, **kwargs, caller_str = caller_str)
     
     def pub_error(self,  *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+           caller_str = None        
         # Dynamically forward all arguments to the superclass method
-        super().log_error(*args, **kwargs)
+        super().log_error(*args, **kwargs, caller_str = caller_str)
     
     def pub_fatal(self, *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+           caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_fatal(*args, **kwargs)
+        super().log_fatal(*args, **kwargs, caller_str = caller_str)
       
 
     def pub_debug(self,  *args, **kwargs):
+        try:
+          caller_str = str(sys._getframe(1).f_code.co_name).strip()
+        except:
+           caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_debug(*args, **kwargs)
+        super().log_debug(*args, **kwargs, caller_str = caller_str)

@@ -143,12 +143,12 @@ class ConnectNodeIF:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
-        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
+        self.msg_if.pub_debug("Starting " + str(self.class_name) + " Initialization Processes")
 
 
         # Check ID Class
         if connect_id is None:
-            self.msg_if.pub_warn("Connect ID Not Provided") 
+            self.msg_if.pub_debug("Connect ID Not Provided") 
             return 
         self.connect_id = connect_id
 
@@ -156,16 +156,16 @@ class ConnectNodeIF:
 
         # Check Status Msg Type
         if connect_status_msg is None:
-            self.msg_if.pub_warn("Connect Status Msg Type Not Provided") 
+            self.msg_if.pub_debug("Connect Status Msg Type Not Provided") 
             return 
         self.connect_status_msg = connect_status_msg
 
 
         self.connect_name = nepi_utils.get_clean_name(connect_name)
         if self.connect_name is None or self.connect_name == '':
-            self.msg_if.pub_warn("Topic Name Not Valid: " + str(connect_name)) 
+            self.msg_if.pub_debug("Topic Name Not Valid: " + str(connect_name)) 
             return
-        self.msg_if.pub_info("Using Topic Name: " + self.connect_name)
+        self.msg_if.pub_debug("Using Topic Name: " + self.connect_name)
         self.connect_namespace = nepi_sdk.create_namespace(self.node_name,self.connect_name)
 
         
@@ -181,7 +181,7 @@ class ConnectNodeIF:
         self.selected_topic = selected_topic
 
         self.auto_select_enabled = auto_select_enabled
-        self.msg_if.pub_info("Auto select enabled: " + str(self.auto_select_enabled))
+        self.msg_if.pub_debug("Auto select enabled: " + str(self.auto_select_enabled))
 
         self.show_selector = show_selector
         self.show_controls = show_controls
@@ -277,7 +277,7 @@ class ConnectNodeIF:
                 self.node_if.add_param(self.node_if_prefix + 'selected_topic', 'selected_topic', self.connect_namespace, self.selected_topic)
                 nepi_sdk.sleep(1)
             except Exception as e:
-                self.msg_if.pub_info("Failed to register pubs and subs: " + str(e))
+                self.msg_if.pub_debug("Failed to register pubs and subs: " + str(e))
                 return
 
 
@@ -290,7 +290,7 @@ class ConnectNodeIF:
             if persisted is not None and persisted != '' and persisted != "None":
                 selected_topic = persisted
         self.selected_topic = selected_topic
-        self.msg_if.pub_info("Init Selected Topic: " + str(self.selected_topic))
+        self.msg_if.pub_debug("Init Selected Topic: " + str(self.selected_topic))
 
 
         ##############################
@@ -301,7 +301,7 @@ class ConnectNodeIF:
         ##############################
         # Complete Initialization
         self.connect_ready = True
-        self.msg_if.pub_info(str(self.class_name) + " Initialization Complete")
+        self.msg_if.pub_debug(str(self.class_name) + " Initialization Complete")
         ###############################
     
 
@@ -329,16 +329,16 @@ class ConnectNodeIF:
         """
         success = False
         if self.connect_ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_debug("Waiting for connection")
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.connect_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.connect_ready == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_debug("Failed to Connect")
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_debug("Connected")
         return self.connect_ready  
 
     def get_namespace(self):
@@ -404,16 +404,16 @@ class ConnectNodeIF:
             bool: True if connection was established, False if the timeout was reached.
         """
         if self.node_if is not None:
-            self.msg_if.pub_info("Waiting for connection")
+            self.msg_if.pub_debug("Waiting for connection")
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
+                self.msg_if.pub_debug("Failed to Connect")
             else:
-                self.msg_if.pub_info("Connected")
+                self.msg_if.pub_debug("Connected")
         return self.connected
 
 
@@ -455,7 +455,7 @@ class ConnectNodeIF:
             self.connected_topic = 'None'
             success = True
         except Exception as e:
-            self.msg_if.pub_warn("Failed to unregister:  " + str(e))
+            self.msg_if.pub_debug("Failed to unregister:  " + str(e))
         return success
 
 
@@ -605,7 +605,7 @@ class ConnectNodeIF:
         ###########
         if self.node_if is not None:
             if self.status_has_published == False:
-                #self.msg_if.pub_warn("Publishing Status: " + str(status_msg))
+                #self.msg_if.pub_debug("Publishing Status: " + str(status_msg))
                 self.status_has_published = True
             self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
             #self.node_if.save_config()
@@ -639,7 +639,7 @@ class ConnectNodeIF:
     def _announceConnected(self, connect_label):
         if self.selected_topic != self.announced_connected_topic:
             self.announced_connected_topic = self.selected_topic
-            self.msg_if.pub_warn("Connected to " + str(connect_label) + " Status:  " + str(self.selected_topic))
+            self.msg_if.pub_debug("Connected to " + str(connect_label) + " Status:  " + str(self.selected_topic))
         else:
             self.msg_if.pub_debug("Reconnected to " + str(connect_label) + " Status:  " + str(self.selected_topic))
 
@@ -676,7 +676,7 @@ class ConnectNodeIF:
         # empty selection. Clear it, persisted param included, so a config saved
         # before the exclusion existed recovers on its own.
         if self.selected_topic != 'None' and self._isExcludedTopic(self.selected_topic):
-            self.msg_if.pub_warn("Clearing excluded selected_topic: " + str(self.selected_topic))
+            self.msg_if.pub_debug("Clearing excluded selected_topic: " + str(self.selected_topic))
             self.set_selected_topic('None')
 
         selected_topic = copy.deepcopy(self.selected_topic)
@@ -847,7 +847,7 @@ class ConnectNodeConfigsIF:
                 self.save_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send update config: " + str(e) )
+                self.msg_if.pub_debug("Failed send update config: " + str(e) )
         return success
 
 
@@ -859,7 +859,7 @@ class ConnectNodeConfigsIF:
                 self.reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e) )
+                self.msg_if.pub_debug("Failed send config reset: "  + str(e) )
         return success
 
     def factory_reset(self):
@@ -870,7 +870,7 @@ class ConnectNodeConfigsIF:
                 self.factory_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e) )
+                self.msg_if.pub_debug("Failed send config reset: "  + str(e) )
         return success
 
     def system_user_reset(self):
@@ -882,7 +882,7 @@ class ConnectNodeConfigsIF:
                 self.sys_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e) )
+                self.msg_if.pub_debug("Failed send config reset: "  + str(e) )
         return success
 
     def system_factory_reset(self):
@@ -894,7 +894,7 @@ class ConnectNodeConfigsIF:
                 self.sys_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e) )
+                self.msg_if.pub_debug("Failed send config reset: "  + str(e) )
         return success
 
     def system_software_reset(self):
@@ -906,7 +906,7 @@ class ConnectNodeConfigsIF:
                 self.sys_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e) )
+                self.msg_if.pub_debug("Failed send config reset: "  + str(e) )
         return success
 
     def system_hardware_reset(self):
@@ -918,7 +918,7 @@ class ConnectNodeConfigsIF:
                 self.sys_reset_pub.publish(msg)
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed send config reset: "  + str(e) )
+                self.msg_if.pub_debug("Failed send config reset: "  + str(e) )
         return success
 
 
@@ -927,10 +927,10 @@ class ConnectNodeConfigsIF:
     def unregister_save_if(self): 
         success = False
         if self.ready is False or self.namespace is None:
-            self.msg_if.pub_warn("Save Config IF not running" )
+            self.msg_if.pub_debug("Save Config IF not running" )
             success = True
         else:
-            self.msg_if.pub_warn("Killing Save Confg IF for trigger: " + self.namespace )
+            self.msg_if.pub_debug("Killing Save Confg IF for trigger: " + self.namespace )
             try:
                 self.save_pub.unregister()
                 self.reset_pub.unregister()
@@ -1105,7 +1105,7 @@ class ConnectNodeServicesIF:
                     try:
                         service = nepi_sdk.connect_service(srv_namespace, srv_msg)
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to get service connection: " + service_name + " " + str(e) )
+                        self.msg_if.pub_debug("Failed to get service connection: " + service_name + " " + str(e) )
                     self.srvs_dict[service_name]['service'] = service
 
     def _unregisterService(self, service_name):
@@ -1118,7 +1118,7 @@ class ConnectNodeServicesIF:
                     try:
                         srv_dict['service'].shutdown()
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to get unregister service: " + service_name + " " + str(e) )
+                        self.msg_if.pub_debug("Failed to get unregister service: " + service_name + " " + str(e) )
             if purge == True:
                 del self.srvs_dict[service_name]
 
@@ -1218,7 +1218,7 @@ class ConnectNodePublishersIF:
             pub_dict = self.pubs_dict[pub_name]
             if 'pub' in pub_dict.keys():
                 has_subs = pub_dict['pub'].get_num_connections() > 0
-                #self.msg_if.pub_warn("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs) )
+                #self.msg_if.pub_debug("Pub has subscribers: " + pub_dict['namespace'] + "/" + pub_dict['topic'] + " " + str(has_subs) )
         return has_subs
 
     def publish_pub(self,pub_name,pub_msg):
@@ -1232,7 +1232,7 @@ class ConnectNodePublishersIF:
                         success = True
                     except Exception as e:
                         namespace =  pub_dict['namespace']
-                        self.msg_if.pub_warn("Failed to publish msg: " + pub_name + \
+                        self.msg_if.pub_debug("Failed to publish msg: " + pub_name + \
                             " " + str(namespace)  + " " + str(pub_msg) + str(e), throttle_s = 5.0 )   
         return success
                     
@@ -1283,7 +1283,7 @@ class ConnectNodePublishersIF:
                         try:
                             pub = nepi_sdk.create_publisher(pub_namespace, pub_dict['msg'], queue_size = pub_dict['qsize'],  latch = pub_dict['latch'])
                         except Exception as e:
-                            self.msg_if.pub_warn("Failed to create publisher: " + pub_name + " " + str(e) )
+                            self.msg_if.pub_debug("Failed to create publisher: " + pub_name + " " + str(e) )
                         self.pubs_dict[pub_name]['pub'] = pub
 
 
@@ -1298,7 +1298,7 @@ class ConnectNodePublishersIF:
                         try:
                             self.pubs_dict[pub_name]['pub'].unregister()
                         except Exception as e:
-                            self.msg_if.pub_warn("Failed to get unregister pub: " + pub_name + " " + str(e) )
+                            self.msg_if.pub_debug("Failed to get unregister pub: " + pub_name + " " + str(e) )
             if purge == True:
                 del self.pubs_dict[pub_name]
 
@@ -1422,7 +1422,7 @@ class ConnectNodeSubscribersIF:
         with self.subs_lock:
             for sub_name in self.subs_dict.keys():
                 sub_dict = self.subs_dict[sub_name]
-                #self.msg_if.pub_warn("Will try to create sub for: " + sub_name )
+                #self.msg_if.pub_debug("Will try to create sub for: " + sub_name )
                 if 'sub' not in sub_dict.keys() and sub_dict['callback'] is not None and not nepi_sdk.is_shutdown():
                     sub_namespace = nepi_sdk.create_namespace(sub_dict['namespace'],sub_dict['topic'])
                     self.msg_if.pub_debug("Creating sub for: " + sub_name + " with namespace: " + sub_namespace )
@@ -1437,9 +1437,9 @@ class ConnectNodeSubscribersIF:
                             sub = nepi_sdk.create_subscriber(sub_namespace, sub_dict['msg'],sub_dict['callback'], queue_size = sub_dict['qsize'], callback_args=sub_dict['callback_args'])
                         self.subs_dict[sub_name]['sub'] = sub
                         success = True
-                        #self.msg_if.pub_warn("Created sub for: " + sub_name + " with namespace: " + sub_namespace )
+                        #self.msg_if.pub_debug("Created sub for: " + sub_name + " with namespace: " + sub_namespace )
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to create subscriber: " + sub_name + " " + str(e) )
+                        self.msg_if.pub_debug("Failed to create subscriber: " + sub_name + " " + str(e) )
                         self.subs_dict[sub_name]['sub'] = None
 
 
@@ -1453,7 +1453,7 @@ class ConnectNodeSubscribersIF:
                     try:
                         self.subs_dict[sub_name]['sub'].unregister()
                     except Exception as e:
-                        self.msg_if.pub_warn("Failed to get unregister sub: " + sub_name + " " + str(e) )
+                        self.msg_if.pub_debug("Failed to get unregister sub: " + sub_name + " " + str(e) )
             if purge == True:
                 del self.subs_dict[sub_name]
 
@@ -1573,7 +1573,7 @@ class ConnectNodeClassIF:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
-        self.msg_if.pub_info("Starting Connect Node IF Initialization Processes" )
+        self.msg_if.pub_debug("Starting Connect Node IF Initialization Processes" )
 
         ##############################
         # Create Config and Param Classes
@@ -1623,7 +1623,7 @@ class ConnectNodeClassIF:
 
         ###############################
         self.ready = True
-        self.msg_if.pub_info("Node IF Initialization Complete" )
+        self.msg_if.pub_debug("Node IF Initialization Complete" )
         ###############################
 
 

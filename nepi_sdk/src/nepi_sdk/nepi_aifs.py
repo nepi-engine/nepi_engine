@@ -30,8 +30,7 @@ import yaml
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
   
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
  
 #***************************
 # NEPI AI Framework Utility Functions
@@ -57,17 +56,17 @@ def getAIFsDict(params_path, api_path):
                 file_path = os.path.join(params_path,f)
                 new_dict = nepi_utils.read_yaml_2_dict(file_path)
                 framework_name = new_dict['framework_name']
-                #logger.log_warn("Got ais dict: " + str(new_dict))
+                #logger.log_debug("Got ais dict: " + str(new_dict))
                 new_dict['api_path'] = api_path
                 new_dict['active'] = False
                 aifs_dict[framework_name] = new_dict
               except Exception as e:
-                logger.log_warn("Failed to import param file: " + f + " " + str(e))
+                logger.log_debug("Failed to import param file: " + f + " " + str(e))
         else:
-              logger.log_warn("AIF api path does not exist: " +  api_path)
+              logger.log_debug("AIF api path does not exist: " +  api_path)
           # Check for node file   
     else:
-        logger.log_warn("AIF params search path does not exist: " +  params_path)
+        logger.log_debug("AIF params search path does not exist: " +  params_path)
     # Check for node file   
 
     purge_list = []
@@ -77,7 +76,7 @@ def getAIFsDict(params_path, api_path):
       if_file = aifs_dict[aif_name]['if_file_name']
       if_file_path = os.path.join(api_path,if_file)
       if os.path.exists(if_file_path) == False:
-        logger.log_warn("Could not find ai file: " + if_file_path)
+        logger.log_debug("Could not find ai file: " + if_file_path)
         purge = True
       if purge == True:
         purge_list.append(aif_name)
@@ -134,11 +133,11 @@ def importAIFClass(file_name,file_path,module_name,class_name):
             success = True
             msg = 'success'
           except Exception as e:
-            logger.log_warn("Failed to import class with exception: " + class_name + " " + module_name + " " + str(e))
+            logger.log_debug("Failed to import class with exception: " + class_name + " " + module_name + " " + str(e))
         except Exception as e:
-            logger.log_warn("Failed to import module with exception: "  + module_name + " " + str(e))
+            logger.log_debug("Failed to import module with exception: "  + module_name + " " + str(e))
       else:
-        logger.log_warn("Failed to find file in path for module: " + file_name + " " + file_path + " " + module_name)
+        logger.log_debug("Failed to find file in path for module: " + file_name + " " + file_path + " " + module_name)
       return success, msg, module_class
 
 
@@ -164,13 +163,13 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path, strict_check = 
     models_dict = dict()
     base_path = os.path.dirname(models_folder_path)
     if os.path.exists(base_path) == False:
-        logger.log_warn("Failed to find models folder: " + base_path)
+        logger.log_debug("Failed to find models folder: " + base_path)
         return models_dict  
     if os.path.exists(models_folder_path) == False:
-        logger.log_warn("Creating models folder: " + models_folder_path)
+        logger.log_debug("Creating models folder: " + models_folder_path)
         os.makedirs(models_folder_path, exist_ok=True)
     if os.path.exists(models_folder_path) == False:
-        logger.log_warn("Failed to find models folder: " + models_folder_path)
+        logger.log_debug("Failed to find models folder: " + models_folder_path)
         return models_dict
     else:
         cfg_files = glob.glob(os.path.join(models_folder_path,'*.yaml'))
@@ -180,39 +179,39 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path, strict_check = 
             cfg_dict = dict()
             success = False
             try:
-                logger.log_warn("Opening yaml file: " + f) 
+                logger.log_debug("Opening yaml file: " + f) 
                 yaml_stream = open(f, 'r')
                 success = True
-                  #logger.log_warn("Opened yaml file: " + f) 
+                  #logger.log_debug("Opened yaml file: " + f) 
             except Exception as e:
-                logger.log_warn("Failed to open yaml file: " + str(e))
+                logger.log_debug("Failed to open yaml file: " + str(e))
             if success:
                 try:
                     # Validate that it is a proper config file and gather weights file size info for load-time estimates
-                    logger.log_warn("Loading yaml data from file: " + f) 
+                    logger.log_debug("Loading yaml data from file: " + f) 
                     cfg_dict = yaml.load(yaml_stream, Loader=yaml.FullLoader)
                     model_keys = list(cfg_dict.keys())
                     model_key = model_keys[0]
-                      #logger.log_warn("Loaded yaml data from file: " + f) 
+                      #logger.log_debug("Loaded yaml data from file: " + f) 
                 except Exception as e:
-                    logger.log_warn("Failed load yaml data: " + str(e)) 
+                    logger.log_debug("Failed load yaml data: " + str(e)) 
                     success = False 
             try: 
-                  #logger.log_warn("Closing yaml data stream for file: " + f) 
+                  #logger.log_debug("Closing yaml data stream for file: " + f) 
                 yaml_stream.close()
             except Exception as e:
-                logger.log_warn("Failed close yaml file: " + str(e))
+                logger.log_debug("Failed close yaml file: " + str(e))
             
             if success == False:
-                logger.log_warn("File does not appear to be a valid A/I model config file: " + f + "... not adding this model")
+                logger.log_debug("File does not appear to be a valid A/I model config file: " + f + "... not adding this model")
                 continue
-              #logger.log_warn("Import success: " + str(success) + " with cfg_dict " + str(cfg_dict))
+              #logger.log_debug("Import success: " + str(success) + " with cfg_dict " + str(cfg_dict))
 
             param_file = os.path.basename(f)
             file_name = os.path.splitext(param_file)[0]
 
             cfg_dict_keys = cfg_dict[model_key].keys()
-            logger.log_warn("Imported model key names: " + str(cfg_dict_keys))
+            logger.log_debug("Imported model key names: " + str(cfg_dict_keys))
             
             if 'display_name' in cfg_dict_keys:
                 model_name = cfg_dict[model_key]['display_name']['name']
@@ -222,36 +221,36 @@ def loadModelsDict(framework_name, pkg_name, models_folder_path, strict_check = 
 
 
             if ("framework" not in cfg_dict_keys):
-                logger.log_warn("Framework does not specified in model yaml file: " + f + "... not adding this model")
+                logger.log_debug("Framework does not specified in model yaml file: " + f + "... not adding this model")
                 continue
             if ("weight_file" not in cfg_dict_keys):
-                logger.log_warn("File does not appear to be a valid A/I model config file: " + f + "... not adding this model")
+                logger.log_debug("File does not appear to be a valid A/I model config file: " + f + "... not adding this model")
                 continue
             if ("image_size" not in cfg_dict_keys):
-                logger.log_warn("File does not specify a image size: " + f + "... not adding this model")
+                logger.log_debug("File does not specify a image size: " + f + "... not adding this model")
                 continue
             if ("classes" not in cfg_dict_keys):
-                logger.log_warn("File does not specify a classes: " + f + "... not adding this model")
+                logger.log_debug("File does not specify a classes: " + f + "... not adding this model")
                 continue
 
 
             framework = cfg_dict[model_key]["framework"]["name"]
             if strict_check == True:
                 if framework != framework_name:
-                    logger.log_warn("Model " + model_name + " framework " + framework + "... not supported")
+                    logger.log_debug("Model " + model_name + " framework " + framework + "... not supported")
                     continue
             else:
                 if framework_name not in framework:
-                    logger.log_warn("Model " + model_name + " framework " + framework + "... not supported")
+                    logger.log_debug("Model " + model_name + " framework " + framework + "... not supported")
                     continue
             cfg_dict[model_key]["framework"]["name"] = framework_name
 
 
             weight_file = cfg_dict[model_key]["weight_file"]["name"]
             weight_file_path = os.path.join(models_folder_path,weight_file)
-            logger.log_warn("Checking that model weights file exists: " + weight_file_path + " for model name " + model_name)
+            logger.log_debug("Checking that model weights file exists: " + weight_file_path + " for model name " + model_name)
             if not os.path.exists(weight_file_path):
-                logger.log_warn("Model " + model_name + " specifies non-existent weights file " + weight_file_path + "... not adding this model")
+                logger.log_debug("Model " + model_name + " specifies non-existent weights file " + weight_file_path + "... not adding this model")
                 continue
             model_type = cfg_dict[model_key]['type']['name']
 
@@ -294,11 +293,11 @@ def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
             node_name = model_dict['node_name']
 
             if model_type not in node_file_dict.keys():
-                logger.log_warn("Model " + str(model_name) + " specifies non-supported model type " + str(model_type) + "... not adding this model")
+                logger.log_debug("Model " + str(model_name) + " specifies non-supported model type " + str(model_type) + "... not adding this model")
                 return success, node_namespace, node_dict
             else:
                 node_file_name = node_file_dict[model_type]
-            logger.log_warn("Starting launch process for model " + str(model_name) + " type: " + str(model_type) + " node_file: " + str(node_file_name))
+            logger.log_debug("Starting launch process for model " + str(model_name) + " type: " + str(model_type) + " node_file: " + str(node_file_name))
 
             
             node_namespace = os.path.join(launch_namespace,node_name)
@@ -308,7 +307,7 @@ def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
             param_file_path = os.path.join(model_dict['path'],model_dict['param_file'])
             weight_file_path = os.path.join(model_dict['path'],model_dict['weight_file'])
 
-            logger.log_warn("Launching Model Node with with settings " + str([pkg_name, node_file_name, node_name]))
+            logger.log_debug("Launching Model Node with with settings " + str([pkg_name, node_file_name, node_name]))
             ###############################
             # Launch Node
             node_file_path = os.path.join(node_file_folder,node_file_name)
@@ -319,12 +318,12 @@ def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
             else: 
 
                 # Pre Set Node Params
-                logger.log_warn("Updating model param file path param to " + str(param_file_path))
+                logger.log_debug("Updating model param file path param to " + str(param_file_path))
                 param_ns = nepi_sdk.create_namespace(node_namespace,'param_file_path')
                 nepi_sdk.set_param(param_ns,param_file_path)
 
 
-                logger.log_warn("Updating model weight file path param to " + str(param_file_path))
+                logger.log_debug("Updating model weight file path param to " + str(param_file_path))
                 param_ns = nepi_sdk.create_namespace(node_namespace,'weight_file_path')
                 nepi_sdk.set_param(param_ns,weight_file_path)
                     
@@ -343,7 +342,7 @@ def launchModelNode(model_dict, node_file_dict, launch_namespace, node_dict):
 
 def killModelNode(node_name, node_dict):       
     success = False 
-    logger.log_warn("Killing Model Node " + str(node_name))
+    logger.log_debug("Killing Model Node " + str(node_name))
     if node_name in node_dict.keys():
         node_namespace = node_dict[node_name]['node_namespace']
         node_process = node_dict[node_name]['process']
@@ -354,5 +353,5 @@ def killModelNode(node_name, node_dict):
             logger.log_info("Killed model node: " + node_name)
         del node_dict[node_name]
     else:
-       logger.log_warn("Node name not in node dict " + str(node_name))
+       logger.log_debug("Node name not in node dict " + str(node_name))
     return success, node_dict

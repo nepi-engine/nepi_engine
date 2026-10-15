@@ -36,8 +36,7 @@ from serial.tools import list_ports
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 #######################
 ### Driver Utility Functions
@@ -62,13 +61,13 @@ def getDriversDict(search_path):
                     file_path = os.path.join(search_path,f)
                     read_dict = nepi_utils.read_yaml_2_dict(file_path)
                   except Exception as e:
-                    logger.log_warn("Failed to import param file: " + f + " " + str(e))
+                    logger.log_debug("Failed to import param file: " + f + " " + str(e))
                     continue
                   if 'driver' in read_dict.keys():
                     new_dict = read_dict['driver']
                     try:
                       pkg_name = new_dict['pkg_name']
-                      #logger.log_warn("Got drvs dict: " + str(new_dict))
+                      #logger.log_debug("Got drvs dict: " + str(new_dict))
                       new_dict['param_file_name'] = os.path.basename(f)
                       new_dict['path'] = DRIVERS_FOLDER
                       new_dict['order'] = -1
@@ -113,28 +112,28 @@ def getDriversDict(search_path):
                         for i, option in enumerate(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options']):
                           new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'][i] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'][i])
 
-                      #logger.log_warn("Got driver dict from file: " + str(new_dict))
+                      #logger.log_debug("Got driver dict from file: " + str(new_dict))
 
                       drvs_dict[pkg_name] = new_dict
                     except Exception as e:
-                      logger.log_warn("Failed to get driver params from file: " + f + " " + str(e))
+                      logger.log_debug("Failed to get driver params from file: " + f + " " + str(e))
                   else:
-                    logger.log_warn("Driver dict key not found in file: " + f )
+                    logger.log_debug("Driver dict key not found in file: " + f )
     else:
-        logger.log_warn("Driver path does not exist: " +  search_path)
+        logger.log_debug("Driver path does not exist: " +  search_path)
     # Now assign factory orders
     drvs_dict = setFactoryDriverOrder(drvs_dict)
     return drvs_dict
 
 def printDict(drvs_dict):
-  logger.log_warn('')
-  logger.log_warn('*******************')
-  logger.log_warn('Printing Drv Driver Dictionary')
+  logger.log_debug('')
+  logger.log_debug('*******************')
+  logger.log_debug('Printing Drv Driver Dictionary')
   for driver_name in drvs_dict.keys():
     drv_dict = drvs_dict[driver_name]
-    logger.log_warn('')
-    logger.log_warn(driver_name)
-    logger.log_warn(str(drv_dict))
+    logger.log_debug('')
+    logger.log_debug(driver_name)
+    logger.log_debug(str(drv_dict))
 
 
 def refreshDriversDict(drivers_path,drvs_dict):
@@ -142,20 +141,20 @@ def refreshDriversDict(drivers_path,drvs_dict):
   if drivers_path[-1] == "/":
       drivers_path = drivers_path[:-1]
   get_drvs_dict = getDriversDict(drivers_path)
-  #logger.log_warn('Updating Drvs Dict: ' + str(drvs_dict))
-  #logger.log_warn('From Get Dict: ' + str(get_drvs_dict))
+  #logger.log_debug('Updating Drvs Dict: ' + str(drvs_dict))
+  #logger.log_debug('From Get Dict: ' + str(get_drvs_dict))
   for driver_name in get_drvs_dict.keys():
     if driver_name not in drvs_dict.keys():
-      #logger.log_warn("Refresh setting drv : " + str(driver_name) + " to active state: " + str(False))
+      #logger.log_debug("Refresh setting drv : " + str(driver_name) + " to active state: " + str(False))
       get_drvs_dict[driver_name]['active'] = False
     else:
-      #.log_warn('')
-      #logger.log_warn('Updating drv: ' + driver_name)
-      #logger.log_warn('Updating drv: ' + str(drvs_dict[driver_name]))
+      #.log_debug('')
+      #logger.log_debug('Updating drv: ' + driver_name)
+      #logger.log_debug('Updating drv: ' + str(drvs_dict[driver_name]))
       active = False
       if 'active' in drvs_dict[driver_name].keys():
         active = drvs_dict[driver_name]['active']
-      #logger.log_warn("Refresh updating drv : " + str(driver_name) + " to active state: " + str(active))
+      #logger.log_debug("Refresh updating drv : " + str(driver_name) + " to active state: " + str(active))
       get_drvs_dict[driver_name]['active'] = active
       order = -1
       if 'order' in drvs_dict[driver_name].keys():
@@ -169,12 +168,12 @@ def refreshDriversDict(drivers_path,drvs_dict):
           for get_option_name in get_options_dict.keys():
             if get_option_name in options_dict.keys():
               cur_value = options_dict[get_option_name]['value']
-              #logger.log_warn('Using current drv option value: ' + str(driver_name) +":"+ str(get_option_name) +":"+ str(cur_value))
+              #logger.log_debug('Using current drv option value: ' + str(driver_name) +":"+ str(get_option_name) +":"+ str(cur_value))
               get_drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name]['value'] = cur_value
-          #logger.log_warn('Refreshed options ' + str(driver_name) +" : "+ str( get_drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name] ))
+          #logger.log_debug('Refreshed options ' + str(driver_name) +" : "+ str( get_drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][get_option_name] ))
 
 
-  #logger.log_warn('Updated to: ' + str(get_drvs_dict))
+  #logger.log_debug('Updated to: ' + str(get_drvs_dict))
   return get_drvs_dict
 
 def getDriversByType(type,drvs_dict):
@@ -335,14 +334,14 @@ def installDriverPkg(pkg_name,drvs_dict,install_from_path,drivers_path):
       search_path = drivers_path[:-1]
 
     if os.path.exists(install_from_path) == False:
-      logger.log_warn("Install package source folder does not exist: " + install_from_path)
+      logger.log_debug("Install package source folder does not exist: " + install_from_path)
       return False, drvs_dict
     if os.path.exists(drivers_path) == False:
-      logger.log_warn("Install drivers destination folder does not exist: " + drivers_path)
+      logger.log_debug("Install drivers destination folder does not exist: " + drivers_path)
       return False, drvs_dict
     pkg_list = getDriverPackagesList(install_from_path)
     if pkg_name not in pkg_list:
-      logger.log_warn("Install package for not found in install folder: " + pkg_name + " " + install_from_path)
+      logger.log_debug("Install package for not found in install folder: " + pkg_name + " " + install_from_path)
       return False, drvs_dict
     os_user = getpass.getuser()
     os.system('chown -R ' + 'nepi:nepi' + ' ' + install_from_path)
@@ -355,7 +354,7 @@ def installDriverPkg(pkg_name,drvs_dict,install_from_path,drivers_path):
       pkg_files = pkg.namelist()
 
     except Exception as e:
-      logger.log_warn("" + str(e))
+      logger.log_debug("" + str(e))
       success = False
     if success:
       # Create a list of files
@@ -370,7 +369,7 @@ def installDriverPkg(pkg_name,drvs_dict,install_from_path,drivers_path):
             os.remove(file)
           except Exception as e:
             success = False
-            logger.log_warn(str(e))
+            logger.log_debug(str(e))
       if success:
         # Unzip the package to the Driver path
         with zipfile.ZipFile(pkg_path,"r") as zip_ref:
@@ -396,7 +395,7 @@ def installDriverPkg(pkg_name,drvs_dict,install_from_path,drivers_path):
 def removeDriver(driver_name,drvs_dict,drivers_path,backup_path = None):
     success = True   
     if driver_name not in drvs_dict.keys():
-      logger.log_warn("Driver for removal request does not exist: " + driver_name)
+      logger.log_debug("Driver for removal request does not exist: " + driver_name)
       return False, drvs_dict
     drv_dict = drvs_dict[driver_name]
 
@@ -435,19 +434,19 @@ def removeDriver(driver_name,drvs_dict,drivers_path,backup_path = None):
           zip.close()
           zip = None
         except Exception as e:
-          logger.log_warn("Failed to backup driver: " + str(e))
+          logger.log_debug("Failed to backup driver: " + str(e))
           if os.path.exists(zip_file) == True:
             try:
               zip.close()
             except Exception as e:
-              logger.log_warn(str(e))
+              logger.log_debug(str(e))
         for file in file_list:
           if os.path.exists(file) == True:
             try:
               os.remove(file)
             except Exception as e:
               success = False
-              logger.log_warn("Failed to remove driver file: " + file + " " + str(e))
+              logger.log_debug("Failed to remove driver file: " + file + " " + str(e))
 
     if success:
       del drvs_dict[driver_name]
@@ -468,7 +467,7 @@ def launchDriverNode(file_name, driver_node_name, device_path = None):
     success = True
   except Exception as e:
     msg = str("Failed to launch node with exception: " + driver_node_name + " " + str(e))
-    logger.log_warn(msg)
+    logger.log_debug(msg)
   if success: 
     if sub_process.poll() is not None:
       msg = ("Failed to start " + driver_node_name + " via " + " ".join(x for x in device_node_run_cmd) + " (rc =" + str(p.returncode) + ")")
@@ -505,7 +504,7 @@ def importDriverClass(file_name,file_path,module_name,class_name):
       success = False
       msg = "failed"
       file_list = os.listdir(file_path)
-      #logger.log_warn("Looking for driver file: " + str(file_name) + " : " + str(file_list))
+      #logger.log_debug("Looking for driver file: " + str(file_name) + " : " + str(file_list))
       if file_name in file_list:
         sys.path.append(file_path)
         try:
@@ -515,11 +514,11 @@ def importDriverClass(file_name,file_path,module_name,class_name):
             success = True
             msg = 'success'
           except Exception as e:
-            logger.log_warn("Failed to import class from module with exception: " + class_name +" "+ module_name +" "+ str(e))
+            logger.log_debug("Failed to import class from module with exception: " + class_name +" "+ module_name +" "+ str(e))
         except Exception as e:
-            logger.log_warn("Failed to import module with exception: " + module_name +" "+ str(e))
+            logger.log_debug("Failed to import module with exception: " + module_name +" "+ str(e))
       else:
-        logger.log_warn("Failed to find file in path: " + file_name +" "+ file_path)
+        logger.log_debug("Failed to find file in path: " + file_name +" "+ file_path)
       return success, msg, module_class
 
 

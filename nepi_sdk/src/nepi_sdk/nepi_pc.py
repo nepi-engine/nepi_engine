@@ -52,8 +52,7 @@ import cv2
 
 from sensor_msgs.msg import PointCloud2
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 VERBOSITY_LEVELS = ["Debug","Error","Info","Warning"]
 

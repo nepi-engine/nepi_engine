@@ -30,8 +30,7 @@ from nepi_interfaces.msg import Datum, DataStatus
 
 
 
-from nepi_sdk.nepi_sdk import logger as Logger
-logger = Logger( )
+logger = nepi_sdk.sdk_logger
 
 
 #########################
@@ -180,7 +179,7 @@ def create_data_dict(init_dict):
   except Exception as e:
     # Dropped every datum at once, with no log line. Not throttled: this runs
     # once per data value at registration, so a throttle would hide it.
-    logger.log_warn("create_data_dict: could not read datum names from init dict: " +
+    logger.log_debug("create_data_dict: could not read datum names from init dict: " +
                     type(e).__name__ + ": " + str(e))
     names = []
 
@@ -306,7 +305,7 @@ def create_data_dict(init_dict):
         if value is None or isinstance(value, list) == False:
           # Third drop path, and it was the last silent one: no exception to
           # catch, so nothing was logged.
-          logger.log_warn("create_data_dict: dropped datum '" + str(name) +
+          logger.log_debug("create_data_dict: dropped datum '" + str(name) +
                           "' of declared type '" + str(input_type) +
                           "': no default or value to seed it with")
           continue
@@ -349,9 +348,9 @@ def create_data_dict(init_dict):
 
         check_value = copy.deepcopy(value)
         clean_value = get_clean_value(check_dict, check_name, check_value)
-        #logger.log_warn("Got clean value from check value: " + str(name) + ": " + str(clean_value) + ": " + str(check_value))
+        #logger.log_debug("Got clean value from check value: " + str(name) + ": " + str(clean_value) + ": " + str(check_value))
         if clean_value is None:
-          logger.log_warn("create_data_dict: dropped datum '" + str(name) +
+          logger.log_debug("create_data_dict: dropped datum '" + str(name) +
                           "' of declared type '" + str(input_type) +
                           "': value " + str(check_value) + " is not valid for the datum")
           continue
@@ -414,7 +413,7 @@ def create_data_dict(init_dict):
         declared_type = str(init_dict[name]['type'])
       except Exception:
         pass
-      logger.log_warn("create_data_dict: dropped datum '" + str(name) +
+      logger.log_debug("create_data_dict: dropped datum '" + str(name) +
                       "' of declared type '" + declared_type + "': " +
                       type(e).__name__ + ": " + str(e))
     
@@ -580,7 +579,7 @@ def get_value(data_dict, datum_name, index = None):
           datum_type = data_dict[datum_name]['type']
           datum_value = get_clean_value(data_dict, datum_name)
           if datum_value is None:
-              logger.log_warn("Got None Value for datum: " + str([datum_name, data_dict[datum_name]]))
+              logger.log_debug("Got None Value for datum: " + str([datum_name, data_dict[datum_name]]))
               pass
           else:
             if index is None:
@@ -622,7 +621,7 @@ def get_values_dict(data_dict):
       if datum_value is not None:
         data_values_dict[datum_name] = datum_value
       else:
-        #logger.log_warn("Got None Value for datum: " + str(datum_name))
+        #logger.log_debug("Got None Value for datum: " + str(datum_name))
         pass
   return data_values_dict
 
@@ -636,7 +635,7 @@ def get_params_dict(data_dict):
       if datum_value is not None and param == True:
         data_values_dict[datum_name] = datum_value
       else:
-        #logger.log_warn("Got None Value for datum: " + str(datum_name))
+        #logger.log_debug("Got None Value for datum: " + str(datum_name))
         pass
   return data_values_dict
 
@@ -661,15 +660,15 @@ def set_value(data_dict, datum_name, update_value, index = None,  check_valid = 
       # for an Int -- while a caller passing check_valid = False to SKIP the check
       # got it run. drivers_mgr's discovery pass is that caller.
       if check_valid == True:
-        #logger.log_warn("Checking set datum value: " + str(update_value))
+        #logger.log_debug("Checking set datum value: " + str(update_value))
         update_value = get_clean_value(data_dict, datum_name, update_value)
-        #logger.log_warn("Got set datum clean value: " + str(update_value))
+        #logger.log_debug("Got set datum clean value: " + str(update_value))
       if update_value is not None:
         # Stored as a list of strings, the one shape the dict holds: 'length'
         # counts list entries and get_clean_value re-lists whatever it reads, so
         # a scalar written here comes back out one character per entry.
         data_dict[datum_name]['value'] = get_value_list(update_value)
-        # logger.log_warn("Upated datum value: " + str(data_dict[datum_name]['value']))
+        # logger.log_debug("Upated datum value: " + str(data_dict[datum_name]['value']))
   return data_dict
 
 def set_values(data_dict, data_values_dict):
@@ -958,7 +957,7 @@ def update_status_msg( status_msg, data_dict):
   try:
     names = list(data_dict.keys())
   except Exception as e:
-    logger.log_warn("update_status_msg: could not read datum names from data dict: " +
+    logger.log_debug("update_status_msg: could not read datum names from data dict: " +
                     type(e).__name__ + ": " + str(e))
     names = []
   for name in names:
@@ -1008,7 +1007,7 @@ def update_status_msg( status_msg, data_dict):
         # Same silent fall-through as create_data_dict: a datum that made
         # it into the dict but carries a type this list does not know is simply
         # left out of the status message, so the RUI never sees it.
-        logger.log_warn("update_status_msg: left datum '" + str(name) +
+        logger.log_debug("update_status_msg: left datum '" + str(name) +
                         "' of declared type '" + str(datum_type) +
                         "' out of the status message: type is not one of " + str(DATUM_TYPES),
                         throttle_s = 5)
@@ -1016,7 +1015,7 @@ def update_status_msg( status_msg, data_dict):
       # Dropped the datum from the published status with no log. Throttled,
       # unlike create_data_dict: this runs on every status publish, not once
       # at registration.
-      logger.log_warn("update_status_msg: left datum '" + str(name) +
+      logger.log_debug("update_status_msg: left datum '" + str(name) +
                       "' out of the status message: " +
                       type(e).__name__ + ": " + str(e), throttle_s = 5)
   status_msg.data_name_list = names_list
