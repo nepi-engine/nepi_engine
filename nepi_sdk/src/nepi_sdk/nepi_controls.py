@@ -709,6 +709,8 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
         for i in range(control_length):
           cur_value = current_value[i]
           add_value = copy.deepcopy(cur_value)
+          if len(control_value) > i:
+            add_value = control_value[i]
 
           if control_type in STRING_TYPES: ###########################################################
             add_value = str(add_value)
