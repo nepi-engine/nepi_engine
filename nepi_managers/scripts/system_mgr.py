@@ -1022,11 +1022,14 @@ class SystemMgrNode():
         config_dict = copy.deepcopy(self.system_config)
         settings_dict = dict()
         if config_dict is not None:
+            # Plain init dict handed to create_controls_dict, as the drivers do. A bare
+            # BLANK_CONTROL_DICT copy has no 'length' key, which get_clean_value reads,
+            # so every RUI update raised KeyError in SettingsIF and was dropped.
+            init_settings_dict = dict()
             for key in config_dict.keys():
-                setting_dict = copy.deepcopy(nepi_controls.BLANK_CONTROL_DICT)
+                setting_dict = dict()
                 val = config_dict[key]
                 setting_dict['name'] = key
-                setting_dict['param'] = True
                 try:
                     val_int = int(val)
                     setting_dict['type'] = 'Int'
@@ -1035,9 +1038,9 @@ class SystemMgrNode():
                     val_str = str(val)
                     setting_dict['type'] = 'String'
                     setting_dict['default'] = val_str
-                setting_dict['value'] = setting_dict['default']
-                
-                settings_dict[key] = setting_dict
+
+                init_settings_dict[key] = setting_dict
+            settings_dict = nepi_controls.create_controls_dict(init_settings_dict)
             self.settings_initialized = True
         return settings_dict
 
@@ -1058,16 +1061,17 @@ class SystemMgrNode():
                 if nepi_utils.is_valid_ip(setting_value) == False:
                     msg = (self.node_name  + " Setting data" + setting_str + " is Not a valid IP address")
                     self.add_info_string(msg, StampedString.PRI_HIGH)
-                    return success, msg
+                    return success, msg, self.getSettingsFunction()
             if 'NEPI_DEVICE_SN' == setting_name:
                 if nepi_utils.is_valid_serial_number(setting_value) == False:
                     msg = (self.node_name  + " Serial Number" + setting_str + " is Not a valid 6 Diget Number")
                     self.add_info_string(msg, StampedString.PRI_HIGH)
-                    return success, msg
+                    return success, msg, self.getSettingsFunction()
 
             #self.msg_if.pub_debug("Updating Config Setting File with: " + str([setting_name,setting_value]))
             self.system_config[setting_name] = setting_value
-            nepi_system.update_nepi_system_config(setting_name,setting_value)         
+            self.settings_values_dict[setting_name] = setting_value
+            nepi_system.update_nepi_system_config(setting_name,setting_value)
             success = True
             msg = ( self.node_name  + " UPDATED SETTINGS " + setting_str)   
       else:
