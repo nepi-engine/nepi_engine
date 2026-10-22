@@ -933,7 +933,6 @@ class NepiDriversMgr(object):
 
       settings_dict = ()
       if driver_name in self.discovery_settings_dict.keys():
-        settings_dict = copy.deepcopy(self.discovery_settings_dict[driver_name]['settings_dict'])
         drvs_dict = copy.deepcopy(self.drvs_dict)
         if driver_name in drvs_dict.keys():
           drv_dict = drvs_dict[driver_name]
@@ -945,10 +944,14 @@ class NepiDriversMgr(object):
                 success = True
                 msg = 'Success'
                 self.needs_config_save = True
-                settings_dict = nepi_controls.set_value(settings_dict, setting_name, setting_value, check_valid = False)
                 #self.msg_if.pub_debug("Set driver discovery settings with : " + str([setting_name,setting_value]))
               else:
                  self.msg_if.pub_debug("Set Option not in settings dict keys : " + str(setting_name) + " : " + str(options_dict.keys()))
+        # Return every option's current value. SettingsIF replaces its whole dict with
+        # this return, and the stored settings_dict only holds defaults, so returning it
+        # with just this option set showed every other option at its default. SettingsIF
+        # init sets each option in turn at startup, so a saved stream_urls showed blank.
+        settings_dict = self.getSettingsFunction(driver_name)
 
       #self.msg_if.pub_debug("Set Drivers Dict : " + str(self.drvs_dict))
       return success, msg, settings_dict
