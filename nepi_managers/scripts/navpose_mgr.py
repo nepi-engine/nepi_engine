@@ -669,7 +669,15 @@ class NavPoseMgr(object):
  
             if do_updates == True:
 
-                for frame_name in self.navposes_init_frames:
+                # Restore every saved frame, not only the init frames. A saved
+                # frame left out here stays listed in the status, with its
+                # topics, but gets no publishers and no topic subscriptions, so
+                # after a restart it never publishes a solution.
+                frame_names = list(self.navposes_init_frames)
+                for frame_name in navposes_settings_dict.keys():
+                    if frame_name not in frame_names:
+                        frame_names.append(frame_name)
+                for frame_name in frame_names:
                     if frame_name in navposes_settings_dict.keys():
                         navpose_settings_dict = navposes_settings_dict[frame_name]
                     else:

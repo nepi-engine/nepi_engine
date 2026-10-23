@@ -776,11 +776,16 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           pass
 
     if name == 'depth':
-      if msg_type == 'nepi_interfaces/NavPosePosition':
+      # NavPoseDepth is what NavPoseIF publishes on .../depth, and the first type
+      # NAVPOSE_MSG_DICT lists for depth. This branch used to test NavPosePosition,
+      # which has no depth_m, so every depth source fell through and the
+      # navpose_mgr solution never got a depth.
+      if msg_type == 'nepi_interfaces/NavPoseDepth':
         try:
           navpose_dict['has_depth'] = True
-          navpose_dict['time_depth'] = msg.timestamp
+          navpose_dict['time_depth'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
           navpose_dict['depth_m'] = msg.depth_m
+          navpose_dict['depth_m_per_sec'] = msg.depth_m_per_sec
         except:
           pass
       elif msg_type == 'nepi_interfaces/NavPoseAltitude':
