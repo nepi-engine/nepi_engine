@@ -129,7 +129,9 @@ class RBXRobotIF:
     STATUS_UPDATE_RATE_HZ = 2
     UPDATE_NAVPOSE_RATE_HZ = 10
     CHECK_SAVE_DATA_RATE_HZ = 40
-    
+    IMAGE_SUB_BUFF_SIZE = 2**24 # rospy's receive buffer; its 64 KB default holds less than one frame (nepi_sdk.create_subscriber)
+    IMAGE_SOURCE_QUIET_SEC = 1.0 # publish_status republishes the image while the source has been silent this long
+
     # Factory Control Values 
     FACTORY_GOTO_MAX_ERROR_M = 2.0 # Goal reached when all translation move errors are less than this value
     FACTORY_GOTO_MAX_ERROR_DEG = 2.0 # Goal reached when all rotation move errors are less than this value
@@ -184,6 +186,7 @@ class RBXRobotIF:
     rbx_mode_last = None
     rbx_image_blank = np.zeros((350, 700, 3), dtype = np.uint8) # Empty Black Image
     cv2_img = np.zeros((350, 700, 3), dtype = np.uint8) # Empty Black Image
+    cv2_img_time = None # nepi_utils.get_time() of the newest source frame
     rbx_image_source_last = "None"
     init_image_status_overlay = False
 
@@ -1089,6 +1092,9 @@ class RBXRobotIF:
         #Convert image from ros to cv2
         cv2_img = nepi_img.rosimg_to_cv2img(img_msg, "bgr8")
         self.cv2_img = cv2_img
+        self.cv2_img_time = nepi_utils.get_time()
+        # Republish at the source's frame rate, not the 2 Hz status rate
+        self.publishStatusImage(cv2_img)
 
     ##############################
     # RBX Settings Topic Callbacks
@@ -2410,30 +2416,12 @@ class RBXRobotIF:
             # Standard per-motor status on the dedicated motor_status topic
             self.node_if.publish_pub('motor_status_pub', self.get_motors_status_msg())
 
-        # Create ROS Image message
-        cv2_img = copy.deepcopy(self.cv2_img) # Initialize status image
-        # Overlay status info on image
-        if self.rbx_info.image_status_overlay:
-            box_x = 10
-            box_y = 10
-            box_w = 350
-            box_h = 450
-            # Add status box overlay
-            cv2.rectangle(cv2_img, (box_x, box_y), (box_w, box_h), (255, 255, 255), -1)
-            # Overlay Status Text List
-            x=box_x+10 
-            y=box_y+20
-            status_str_msg = self.status_str_msg
-            for text in status_str_msg:
-                self.statusTextOverlay(cv2_img,text,x, y)
-                y = y + 20
-        # Publish new image to ros
-        if not nepi_sdk.is_shutdown():
-            self.image_if.publish_cv2_img(cv2_img)
-            # You can view the enhanced_2D_image topic at 
-            # //192.168.179.103:9091/ in a connected web browser
-        timestamp = nepi_utils.get_time()
-        self.save_data_if.save('image',cv2_img,timestamp = timestamp)
+        # imageSubscriberCb publishes each source frame as it arrives. Here the
+        # image goes out only with no source, or a source silent for
+        # IMAGE_SOURCE_QUIET_SEC, so the status overlay still updates.
+        if (self.rbx_image_sub is None or self.cv2_img_time is None or
+                nepi_utils.get_time() - self.cv2_img_time > self.IMAGE_SOURCE_QUIET_SEC):
+            self.publishStatusImage(self.cv2_img)
 
         ## Update image source topic and subscriber if changed from last time.
         image_source = self.node_if.get_param('image_source')
@@ -2459,7 +2447,9 @@ class RBXRobotIF:
         if image_topic != "":
           if self.rbx_image_sub == None:
             self.msg_if.pub_info("Subscribing to image topic: " + image_topic)
-            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1)
+            self.cv2_img_time = None
+            self.rbx_image_sub = nepi_sdk.create_subscriber(image_topic, Image, self.imageSubscriberCb, queue_size = 1,
+                                                            buff_size = self.IMAGE_SUB_BUFF_SIZE)
             self.node_if.set_param('image_source', image_topic)
         else:
               image_topic = "None"
@@ -2471,6 +2461,37 @@ class RBXRobotIF:
  
  
         
+    def publishStatusImage(self, cv2_img):
+        # Overlay the newest status text on a copy of cv2_img, publish it on
+        # this robot's image topic and hand it to save data. Called from both
+        # the image subscriber and the status timer; ImageIF drops a frame that
+        # arrives while it is still publishing the last one.
+        if self.ready == False:
+            return
+        cv2_img = copy.deepcopy(cv2_img) # Initialize status image
+        # Overlay status info on image
+        if self.rbx_info.image_status_overlay:
+            box_x = 10
+            box_y = 10
+            box_w = 350
+            box_h = 450
+            # Add status box overlay
+            cv2.rectangle(cv2_img, (box_x, box_y), (box_w, box_h), (255, 255, 255), -1)
+            # Overlay Status Text List
+            x=box_x+10
+            y=box_y+20
+            status_str_msg = self.status_str_msg
+            for text in status_str_msg:
+                self.statusTextOverlay(cv2_img,text,x, y)
+                y = y + 20
+        # Publish new image to ros
+        if not nepi_sdk.is_shutdown():
+            self.image_if.publish_cv2_img(cv2_img)
+            # You can view the enhanced_2D_image topic at
+            # //192.168.179.103:9091/ in a connected web browser
+        timestamp = nepi_utils.get_time()
+        self.save_data_if.save('image',cv2_img,timestamp = timestamp)
+
     ## Status Text Overlay Function
     def statusTextOverlay(self,cv_image,status_text,x,y):
         font                   = cv2.FONT_HERSHEY_SIMPLEX
