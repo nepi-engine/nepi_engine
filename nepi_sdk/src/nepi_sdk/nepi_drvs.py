@@ -105,10 +105,18 @@ def getDriversDict(search_path):
                         default_val = options_dict[option_name]['default']
                         new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = default_val
 
-                      # Make sure they are strings
+                      # Make sure they are strings. A Selections option (a
+                      # multi-select) holds a LIST of strings instead: str() of
+                      # its list stored the list's repr, "['a', 'b']", which is
+                      # none of its options, so the option reached the RUI with
+                      # nothing selected and reached the driver garbled.
                       for option_name in options_dict.keys():
-                        new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'])
-                        new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'])
+                        if new_dict['DISCOVERY_DICT']['OPTIONS'][option_name].get('type') == 'Selections':
+                          new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'] = getSelectionsList(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'])
+                          new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = getSelectionsList(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'])
+                        else:
+                          new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'])
+                          new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['value'])
                         for i, option in enumerate(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options']):
                           new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'][i] = str(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['options'][i])
 
@@ -124,6 +132,25 @@ def getDriversDict(search_path):
     # Now assign factory orders
     drvs_dict = setFactoryDriverOrder(drvs_dict)
     return drvs_dict
+
+def getSelectionsList(value):
+  # The value of a Selections (multi-select) driver option as a list of
+  # strings. Also accepts a comma-separated string, which is how a value saved
+  # while the option was a single Selection reads back ('a,b'), and the str()
+  # of a list ("['a', 'b']"), which is what this module stored before, so a
+  # saved value keeps its meaning instead of cleaning to nothing selected.
+  if value is None:
+    return []
+  if isinstance(value, (list, tuple)):
+    items = [str(item) for item in value]
+  else:
+    items = str(value).strip().strip('[]').split(',')
+  values = []
+  for item in items:
+    item = item.strip().strip('\'"').strip()
+    if item != '' and item not in values:
+      values.append(item)
+  return values
 
 def printDict(drvs_dict):
   logger.log_debug('')
