@@ -2933,12 +2933,12 @@ class BaseImageIF(DataProductIF):
                     if is_stabilize == True:
                         self.status_msg.stabilize_disabled = True
                         self.status_msg.stabilize_enabled = True
-                        self.status_msg.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
+                        self.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
                     else:
                         cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
                         self.status_msg.stabilize_disabled = False
                         self.status_msg.stabilize_enabled = self.stabilize_enabled
-                        self.status_msg.stabilize_rotate_deg = stabilize_rotate_deg                               
+                    self.status_msg.stabilize_rotate_deg = self.stabilize_rotate_deg                               
 
                 if self.callback_dict['post_process_callback'] is not None and  cv2_img is not None:
                         try:
