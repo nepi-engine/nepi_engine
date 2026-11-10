@@ -754,13 +754,6 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           pass
 
     if name == 'depth':
-<<<<<<< HEAD
-=======
-      # NavPoseDepth is what NavPoseIF publishes on .../depth, and the first type
-      # NAVPOSE_MSG_DICT lists for depth. This branch used to test NavPosePosition,
-      # which has no depth_m, so every depth source fell through and the
-      # navpose_mgr solution never got a depth.
->>>>>>> 6250095678c1e0e0be48a566240331948ed1e104
       if msg_type == 'nepi_interfaces/NavPoseDepth':
         try:
           navpose_dict['has_depth'] = True

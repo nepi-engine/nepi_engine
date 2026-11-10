@@ -121,7 +121,21 @@ EXAMPLE_CONTROLS_DICT = dict(
     tilt_3d_ratio = 0.5       
     )
 
-
+EXAMPLE_CALLBACK_DICT = dict(
+    needs_update_callback = None,
+    mouse_event_callback = None,
+    click_pixel_callback = None,
+    click_angle_callback = None,
+    drag_callback = None,
+    window_callback = None,
+    scroll_callback = None,
+    frame_updated_callback = None,
+    options_updated_callback = None,
+    get_source_status_callback = None,
+    get_source_navpose_callback = None,
+    pre_process_callback = None,
+    post_process_callback = None
+)
 
 class BaseImageIF(DataProductIF):
 
@@ -258,7 +272,11 @@ class BaseImageIF(DataProductIF):
         window_callback = None,
         scroll_callback = None,
         frame_updated_callback = None,
-        options_updated_callback = None
+        options_updated_callback = None,
+        get_source_status_callback = None,
+        get_source_navpose_callback = None,
+        pre_process_callback = None,
+        post_process_callback = None
     )
 
     BLANK_CROSSHAIR_DICT = dict(
@@ -396,8 +414,15 @@ class BaseImageIF(DataProductIF):
         live_adjust_y_deg = 0,
     )
 
+    stabilize_enabled = False
+    stabilize_angle = 0
+
     stream_compression_enabled = False
     stream_compression_ratio = 0.5
+
+    source_status_dict = None
+    source_navpose_dict = None
+
     
 
     def __init__(self, 
@@ -718,6 +743,11 @@ class BaseImageIF(DataProductIF):
                 'namespace': self.namespace,
                 'factory_val': self.stream_compression_ratio
             },
+            'stabilize_enabled': {
+                'name': 'stabilize_enabled',
+                'namespace': self.namespace,
+                'factory_val': self.stabilize_enabled
+            },   
 
         }
 
@@ -1338,6 +1368,15 @@ class BaseImageIF(DataProductIF):
                 'callback': self._setLiveAdjustTranYDegCb,
                 'callback_args': ()
             },
+            #########################
+            'set_stabilize_enable': {
+                'namespace': self.namespace,
+                'topic': 'set_stabilize_enable',
+                'msg': Bool,
+                'qsize': 5,
+                'callback': self._setStabilizeEnableCb,
+                'callback_args': ()
+            },
             ############################
             'all_overlay_text_enable': {
                 'msg': Bool,
@@ -1763,8 +1802,20 @@ class BaseImageIF(DataProductIF):
                     'callback_args': ()
                 }
 
+
             })
 
+        #########################
+        update_subs_dict.update( {
+            'set_stabilize_enable': {
+            'namespace': self.namespace,
+            'topic': 'set_stabilize_enable',
+            'msg': Bool,
+            'qsize': 5,
+            'callback': self._setStabilizeEnableCb,
+            'callback_args': ()
+            }
+        } )
 
         if self.aspect_adjustment_disabled == False:
             update_subs_dict.update( {
@@ -2120,7 +2171,47 @@ class BaseImageIF(DataProductIF):
 
     def update_status_msg(self, status_msg):
 
-        status_msg.navpose_msg = self.get_navpose_msg()
+
+        source_status_dict = self.source_status_dict
+        if self.callback_dict['get_source_status_callback'] is not None and  source_status_dict is None:
+                try:
+                    source_status_dict = self.callback_dict['get_source_status_callback']()
+                except Exception as e:
+                    self.msg_if.pub_debug("Failed to get_source_status_callback: " + str(e) , throttle_s = 5)
+        if source_status_dict is not None:
+            self.status_msg.source_description = source_status_dict.get('end_description', self.data_source_description)
+            self.status_msg.source_ref_description = source_status_dict.get('end_ref_description', self.data_source_description)
+            
+        if source_status_dict is not None:
+            is_stabilized = source_status_dict.get('stabilize_enabled', False)
+            if is_stabilize == True:
+                self.status_msg.stabilize_disabled = True
+                self.status_msg.stabilize_enabled = True
+                self.status_msg.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
+            else:
+                cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
+                self.status_msg.stabilize_disabled = False
+                self.status_msg.stabilize_enabled = self.stabilize_enabled
+                self.status_msg.stabilize_rotate_deg = self.stab_adjust_rotate_deg      
+        else:
+            cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
+            self.status_msg.stabilize_disabled = False
+            self.status_msg.stabilize_enabled = self.stabilize_enabled
+            self.status_msg.stabilize_rotate_deg = self.stab_adjust_rotate_deg   
+
+        source_navpose_dict = self.source_navpose_dict
+        if self.callback_dict['get_source_navpose_callback'] is not None and source_navpose_dict is None:
+                try:
+                    source_navpose_dict = self.callback_dict['get_source_navpose_callback']()
+                except Exception as e:
+                    self.msg_if.pub_debug("Failed to get_source_navpose_callback: " + str(e) , throttle_s = 5)
+        if source_navpose_dict is not None:
+            navpose_dict = source_navpose_dict
+            status_msg.navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        else:
+            navpose_dict = self.get_navpose_dict()
+            status_msg.navpose_msg = self.get_navpose_msg()
+
 
         status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
         status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
@@ -2697,7 +2788,9 @@ class BaseImageIF(DataProductIF):
                         add_overlay_text_list = [],
                         process_data = True,
                         pub_twice = False,
-                        add_pubs = []
+                        add_pubs = [],
+                        source_status_dict = None,
+                        source_navpose_dict = None,
                         ):
         """Process and publish an OpenCV image to all configured ROS topics.
 
@@ -2736,8 +2829,30 @@ class BaseImageIF(DataProductIF):
         
         cv2_img = copy.deepcopy(cv2_img_org)
 
-        navpose_dict = self.get_navpose_dict()
-        
+
+        self.source_status_dict = source_status_dict
+        if self.callback_dict['get_source_status_callback'] is not None and  source_status_dict is None:
+                try:
+                    source_status_dict = self.callback_dict['get_source_status_callback']()
+                except Exception as e:
+                    self.msg_if.pub_debug("Failed to get_source_status_callback: " + str(e) , throttle_s = 5)
+        if source_status_dict is None:
+            source_status_dict = dict()
+
+        self.source_navpose_dict = source_navpose_dict
+        if self.callback_dict['get_source_navpose_callback'] is not None and  source_navpose_dict is None:
+                try:
+                    source_navpose_dict = self.callback_dict['get_source_navpose_callback']()
+                except Exception as e:
+                    self.msg_if.pub_debug("Failed to get_source_navpose_callback: " + str(e) , throttle_s = 5)
+        if source_navpose_dict is not None:
+            navpose_dict = source_status_dict
+            status_msg.navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
+        else:
+            navpose_dict = self.get_navpose_dict()
+            status_msg.navpose_msg = self.get_navpose_msg()
+
+
 
 
         if self.publishing == False:
@@ -2761,7 +2876,7 @@ class BaseImageIF(DataProductIF):
                 self.status_msg.encoding = encoding
                 #self.msg_if.pub_debug("Got timestamp: " + str(timestamp) )
                 if timestamp == None:
-                    timestamp = nepi_utils.get_time()
+                    timestamp = source_status_dict.get('timestamp',nepi_utils.get_time())
                 else:
                     timestamp = nepi_sdk.sec_from_timestamp(timestamp)
                 #self.msg_if.pub_debug("Using timestamp: " + str(timestamp) )
@@ -2776,8 +2891,8 @@ class BaseImageIF(DataProductIF):
                 start_time = nepi_utils.get_time()   
 
 
-                self.width_deg = width_deg
-                self.height_deg = height_deg
+                self.width_deg = source_status_dict.get('width_deg', width_deg)
+                self.height_deg = source_status_dict.get('height_deg', height_deg)
                 self.status_msg.width_deg = width_deg * (1 - self.zoom_ratio)
                 self.status_msg.height_deg = height_deg * (1 - self.zoom_ratio)
 
@@ -2801,12 +2916,40 @@ class BaseImageIF(DataProductIF):
                 #self.msg_if.pub_debug("Got Image size: " + str([height,width]) )
 
 
+
+                if self.callback_dict['pre_process_callback'] is not None and  cv2_img is not None:
+                        try:
+                            cv2_img_status = nepi_sdk.convert_msg2dict(self.status_msg)
+                            cv2_img = self.callback_dict['pre_process_callback'](cv2_img, cv2_img_status)
+                        except Exception as e:
+                            self.msg_if.pub_debug("Failed to pre_process_callback: " + str(e) , throttle_s = 5)
+
                 if process_data == True and  cv2_img is not None:
                     cv2_img = self.process_cv2_img(cv2_img)
-                if cv2_img is not None:
-                    
-                    cv2_img = self._liveAdjust(cv2_img)                      
 
+                if cv2_img is not None:
+                    cv2_img = self._liveAdjust(cv2_img) 
+
+               if cv2_img is not None:
+                    is_stabilized = source_status_dict.get('stabilize_enabled', False)
+                    if is_stabilize == True:
+                        self.status_msg.stabilize_disabled = True
+                        self.status_msg.stabilize_enabled = True
+                        self.status_msg.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
+                    else:
+                        cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
+                        self.status_msg.stabilize_disabled = False
+                        self.status_msg.stabilize_enabled = self.stabilize_enabled
+                        self.status_msg.stabilize_rotate_deg = self.stab_adjust_rotate_deg                                
+
+                if self.callback_dict['post_process_callback'] is not None and  cv2_img is not None:
+                        try:
+                            cv2_img_status = nepi_sdk.convert_msg2dict(self.status_msg)
+                            cv2_img = self.callback_dict['post_process_callback'](cv2_img, cv2_img_status)
+                        except Exception as e:
+                            self.msg_if.pub_debug("Failed to post_process_callback: " + str(e) , throttle_s = 5)
+
+                if cv2_img is not None:
                     [height,width] = cv2_img.shape[0:2]
                     [self.height_proc,self.width_proc] = [height,width]
 
@@ -2867,22 +3010,27 @@ class BaseImageIF(DataProductIF):
                                 x_ratio_adj = copy.deepcopy(x_ratio)
                                 y_ratio_adj = copy.deepcopy(y_ratio)
 
+                                r_deg = 0
+                                x_deg = 0
+                                y_deg = 0
                                 if self.live_adjust_dict['live_adjust_enabled'] == True:
                                     r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
                                     x_deg = self.live_adjust_dict['live_adjust_x_deg']
                                     y_deg = self.live_adjust_dict['live_adjust_y_deg']
-                                    if r_deg != 0 or x_deg != 0 or y_deg != 0:
-                                        x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
-                                        y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
-                                        deg_adj =  r_deg
-                                        x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
-                                        y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
-                                        [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
-                                        x_pixel_offset_adj = int(x_pixel_offset_adj)
-                                        y_pixel_offset_adj = int(y_pixel_offset_adj)
-                                        x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
-                                        y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
-                                        pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
+                                if self.stabilize_enabled == True:
+                                    r_deg = r_deg + self.stabilize_rotate_deg
+                                if r_deg != 0 or x_deg != 0 or y_deg != 0:
+                                    x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
+                                    y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
+                                    deg_adj =  r_deg
+                                    x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
+                                    y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
+                                    [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
+                                    x_pixel_offset_adj = int(x_pixel_offset_adj)
+                                    y_pixel_offset_adj = int(y_pixel_offset_adj)
+                                    x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
+                                    y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
+                                    pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
                                 [x_pixel,y_pixel] = pixel_adj   
 
                                 #self.msg_if.pub_debug("Rendering crosshair y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel])  , throttle_s = 5)
@@ -2954,22 +3102,28 @@ class BaseImageIF(DataProductIF):
                                 x_ratio_adj = copy.deepcopy(x_ratio)
                                 y_ratio_adj = copy.deepcopy(y_ratio)
 
+
+                                r_deg = 0
+                                x_deg = 0
+                                y_deg = 0
                                 if self.live_adjust_dict['live_adjust_enabled'] == True:
                                     r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
                                     x_deg = self.live_adjust_dict['live_adjust_x_deg']
                                     y_deg = self.live_adjust_dict['live_adjust_y_deg']
-                                    if r_deg != 0 or x_deg != 0 or y_deg != 0:
-                                        x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
-                                        y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
-                                        deg_adj =  r_deg
-                                        x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
-                                        y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
-                                        [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
-                                        x_pixel_offset_adj = int(x_pixel_offset_adj)
-                                        y_pixel_offset_adj = int(y_pixel_offset_adj)
-                                        x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
-                                        y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
-                                        pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
+                                if self.stabilize_enabled == True:
+                                    r_deg = r_deg + self.stabilize_rotate_deg
+                                if r_deg != 0 or x_deg != 0 or y_deg != 0:
+                                    x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
+                                    y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
+                                    deg_adj =  r_deg
+                                    x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
+                                    y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
+                                    [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
+                                    x_pixel_offset_adj = int(x_pixel_offset_adj)
+                                    y_pixel_offset_adj = int(y_pixel_offset_adj)
+                                    x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
+                                    y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
+                                    pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
                                 [x_pixel,y_pixel] = pixel_adj   
 
                                 #self.msg_if.pub_debug("Rendering target y: " + str([y_deg_offset,y_ratio,y_offset_ratio,y_scale,y_offset_pixel,y_pixel])  , throttle_s = 5)
@@ -4409,8 +4563,15 @@ class BaseImageIF(DataProductIF):
         if abs(deg) > self.height_deg:
             deg = np.sign(deg) * self.height_deg
         self.live_adjust_dict['live_adjust_y_deg'] = deg
-       
 
+    #############################
+
+    def set_stabilize_enable(self,enabled):
+        self.stabilize_enabled = enabled
+        if self.node_if is not None:
+            self.node_if.set_param(self.node_if_prefix +  'stabilize_enabled', self.stabilize_enabled)
+
+    #############################
     def reset_filters(self):
         """Reset all filter and adjustment controls to factory defaults."""
         # First reset controls to init dict to capture non param managed settings
@@ -4678,6 +4839,30 @@ class BaseImageIF(DataProductIF):
         return cv2_img
 
 
+    def _stabilizeAdjust(self, cv2_img, navpose_dict):
+        """
+        Rotate an OpenCV image by a based on navpose data.
+        """
+        # Get adjustment in pixels)
+        height, width = cv2_img.shape[:2]
+
+
+        ########### Rotate Adjust
+        stabilize_enabled = self.stabilize_enabled
+        if stabilize_enabled == False:
+            self.stabilize_rotate_deg = 0
+        else:
+            if navpose_dict.get('has_pan_tilt', False)
+                stab_adjust_rotate_deg = -1 * navpose_dict.get('pan_tilt_roll_deg',0)
+            else:
+                stab_adjust_rotate_deg = -1 * navpose_dict.get('roll_deg',0)
+            self.stabilize_rotate_deg = stab_adjust_rotate_deg
+            if abs(stab_adjust_rotate_deg) > 0.01:
+                #self.msg_if.pub_debug("Stabilize Adjusting Rotate with degrees: " + str([stab_adjust_rotate_deg]) , throttle_s = 5)
+                cv2_img = nepi_img.rotate_degrees(cv2_img,stab_adjust_rotate_deg) 
+        
+        return cv2_img
+
 
     def _mouseEventCb(self,msg):
         #self.msg_if.pub_debug("Received mouse event message: " + str(msg) )
@@ -4702,23 +4887,27 @@ class BaseImageIF(DataProductIF):
 
         pixel_adj = copy.deepcopy(pixel)
 
+        r_deg = 0
+        x_deg = 0
+        y_deg = 0
         if self.live_adjust_dict['live_adjust_enabled'] == True:
             r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
             x_deg = self.live_adjust_dict['live_adjust_x_deg']
             y_deg = self.live_adjust_dict['live_adjust_y_deg']
-
-            if r_deg != 0 or x_deg != 0 or y_deg != 0:
-                x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
-                y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
-                deg_adj =  -1 * r_deg
-                x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
-                y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
-                [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
-                x_pixel_offset_adj = int(x_pixel_offset_adj)
-                y_pixel_offset_adj = int(y_pixel_offset_adj)
-                x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
-                y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
-                pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
+        if self.stabilize_enabled == True:
+            r_deg = r_deg + self.stabilize_rotate_deg
+        if r_deg != 0 or x_deg != 0 or y_deg != 0:
+            x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
+            y_ratio_adj = y_ratio_adj + (height / 2) * (y_deg / (self.height_deg / 2)) / height
+            deg_adj =  -1 * r_deg
+            x_pixel_offset_adj =  (x_ratio_adj * width) - (width / 2) 
+            y_pixel_offset_adj =  (y_ratio_adj * height) - (height / 2)
+            [x_pixel_offset_adj,y_pixel_offset_adj] = nepi_utils.rotate_point(x_pixel_offset_adj,y_pixel_offset_adj,deg_adj)
+            x_pixel_offset_adj = int(x_pixel_offset_adj)
+            y_pixel_offset_adj = int(y_pixel_offset_adj)
+            x_ratio_adj = (x_pixel_offset_adj + (width / 2)) / width
+            y_ratio_adj= (y_pixel_offset_adj + (height / 2)) / height
+            pixel_adj = [int(x_ratio_adj * width), int(y_ratio_adj * height)]
         pixel = pixel_adj        
 
         
@@ -5433,6 +5622,11 @@ class BaseImageIF(DataProductIF):
         self.msg_if.pub_debug("Received reset renders message" )
         self.reset_renders()
 
+
+    ########################################
+    def _setStabilizeEnableCb(self,msg):
+        enabled = msg.data
+        self.set_stabilize_enable(enabled)
 
 ##################################################
 # ColorImageIF
