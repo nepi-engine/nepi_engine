@@ -2503,61 +2503,60 @@ class BaseImageIF(DataProductIF):
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
         if self.node_if is not None:
-            self.controls_dict['resolution_ratio'] = self.node_if.get_param(self.node_if_prefix +  'resolution_ratio')
-            self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_enabled')
-            self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_ratio')
-            self.controls_dict['brightness_ratio'] = self.node_if.get_param(self.node_if_prefix +  'brightness_ratio')
-            self.controls_dict['contrast_ratio'] = self.node_if.get_param(self.node_if_prefix +  'contrast_ratio')
-            self.controls_dict['threshold_ratio'] = self.node_if.get_param(self.node_if_prefix +  'threshold_ratio')
+            self.controls_dict['resolution_ratio'] = self.node_if.get_param(self.node_if_prefix +  'resolution_ratio',1)
+            self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_enabled',False)
+            self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_ratio',0.5)
+            self.controls_dict['brightness_ratio'] = self.node_if.get_param(self.node_if_prefix +  'brightness_ratio',0.5)
+            self.controls_dict['contrast_ratio'] = self.node_if.get_param(self.node_if_prefix +  'contrast_ratio',0.5)
+            self.controls_dict['threshold_ratio'] = self.node_if.get_param(self.node_if_prefix +  'threshold_ratio',0.5)
 
-            self.controls_dict['rotate_2d_deg'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_deg')
-            self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_swap_box')
-            self.controls_dict['flip_horz'] = self.node_if.get_param(self.node_if_prefix +  'flip_horz')
-            self.controls_dict['flip_vert'] = self.node_if.get_param(self.node_if_prefix +  'flip_vert')
+            self.controls_dict['rotate_2d_deg'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_deg',0.0)
+            self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_swap_box',False)
+            self.controls_dict['flip_horz'] = self.node_if.get_param(self.node_if_prefix +  'flip_horz', False)
+            self.controls_dict['flip_vert'] = self.node_if.get_param(self.node_if_prefix +  'flip_vert', False)
 
 
             self.controls_dict['window_ratios'] = [0,1,0,1]
             # Read the range window back rather than hardcoding 0/1. Both keys are
             # registered and both write paths persist them, so hardcoding here threw
             # away a correctly saved range window on every restart.
-            self.controls_dict['start_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'start_range_ratio')
-            self.controls_dict['stop_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'stop_range_ratio')
+            self.controls_dict['start_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'start_range_ratio', 0)
+            self.controls_dict['stop_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'stop_range_ratio', 1)
+
+            self.controls_dict['cam_fov'] = self.node_if.get_param(self.node_if_prefix +  'cam_fov', 100)
 
 
-            self.controls_dict['cam_fov'] = self.node_if.get_param(self.node_if_prefix +  'cam_fov')
+            self.controls_dict['cam_view'] =  self.node_if.get_param(self.node_if_prefix +  'cam_view',[0,0,0])
+            self.controls_dict['cam_pos'] =  self.node_if.get_param(self.node_if_prefix +  'cam_pos',[0,0,0])
+            self.controls_dict['cam_rot'] =  self.node_if.get_param(self.node_if_prefix +  'cam_rot',[0,0,0])
 
-
-            self.controls_dict['cam_view'] =  self.node_if.get_param(self.node_if_prefix +  'cam_view')
-            self.controls_dict['cam_pos'] =  self.node_if.get_param(self.node_if_prefix +  'cam_pos')
-            self.controls_dict['cam_rot'] =  self.node_if.get_param(self.node_if_prefix +  'cam_rot')
-
-            self.controls_dict['zoom_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'zoom_3d_ratio')
-            self.controls_dict['rotate_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'rotate_3d_ratio')
-            self.controls_dict['tilt_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'tilt_3d_ratio')
-            self.controls_dict['use_wbg'] = self.node_if.get_param(self.node_if_prefix +  'use_wbg')
+            self.controls_dict['zoom_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'zoom_3d_ratio',0)
+            self.controls_dict['rotate_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'rotate_3d_ratio', 0)
+            self.controls_dict['tilt_3d_ratio'] = self.node_if.get_param(self.node_if_prefix +  'tilt_3d_ratio', 0)
+            self.controls_dict['use_wbg'] = self.node_if.get_param(self.node_if_prefix +  'use_wbg', False)
 
 
 
 
-            self.live_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'live_adjust_enabled')
+            self.live_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'live_adjust_enabled',False)
             self.live_adjust_dict['live_adjust_enabled'] = self.live_adjust_enabled
 
-            aspect_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'aspect_adjust_enabled')
+            aspect_adjust_enabled  = self.node_if.get_param(self.node_if_prefix +  'aspect_adjust_enabled', False)
             self.set_aspect_adjust_enable(aspect_adjust_enabled)
-            aspect_ratio_set = self.node_if.get_param(self.node_if_prefix +  'aspect_ratio_set')
+            aspect_ratio_set = self.node_if.get_param(self.node_if_prefix +  'aspect_ratio_set', 1)
             self.set_aspect_adjust_ratio(aspect_ratio_set)
 
-            self.stream_compression_enabled  = self.node_if.get_param(self.node_if_prefix +  'stream_compression_enabled')
-            self.stream_compression_ratio = self.node_if.get_param(self.node_if_prefix +  'stream_compression_ratio')
+            self.stream_compression_enabled  = self.node_if.get_param(self.node_if_prefix +  'stream_compression_enabled', False)
+            self.stream_compression_ratio = self.node_if.get_param(self.node_if_prefix +  'stream_compression_ratio', 0)
 
 
-            filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict')
+            filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict', dict())
             if filter_dict is not None:
                 self.filter_dict = filter_dict
             else:
                 self.filter_dict = dict()
 
-            overlays_dict = self.node_if.get_param(self.node_if_prefix +  'overlays_dict')
+            overlays_dict = self.node_if.get_param(self.node_if_prefix +  'overlays_dict', None)
             if overlays_dict is not None:
 
                 crosshairs_dict = dict()
