@@ -4852,7 +4852,7 @@ class BaseImageIF(DataProductIF):
         if stabilize_enabled == False:
             self.stabilize_rotate_deg = 0
         else:
-            if navpose_dict.get('has_pan_tilt', False)
+            if navpose_dict.get('has_pan_tilt', False):
                 stab_adjust_rotate_deg = -1 * navpose_dict.get('pan_tilt_roll_deg',0)
             else:
                 stab_adjust_rotate_deg = -1 * navpose_dict.get('roll_deg',0)
