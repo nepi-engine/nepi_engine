@@ -2187,15 +2187,14 @@ class BaseImageIF(DataProductIF):
             if is_stabilize == True:
                 self.status_msg.stabilize_disabled = True
                 self.status_msg.stabilize_enabled = True
-                self.status_msg.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
+                self.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
             else:       
                 self.status_msg.stabilize_disabled = False
-                self.status_msg.stabilize_enabled = self.stabilize_enabled
-                self.status_msg.stabilize_rotate_deg = stabilize_rotate_deg     
+                self.status_msg.stabilize_enabled = self.stabilize_enabled   
         else:       
             self.status_msg.stabilize_disabled = False
             self.status_msg.stabilize_enabled = self.stabilize_enabled
-            self.status_msg.stabilize_rotate_deg = stabilize_rotate_deg  
+        self.status_msg.stabilize_rotate_deg = self.stabilize_rotate_deg  
 
         source_navpose_dict = self.source_navpose_dict
         if self.callback_dict['get_source_navpose_callback'] is not None and source_navpose_dict is None:
