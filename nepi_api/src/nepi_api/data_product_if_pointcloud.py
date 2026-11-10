@@ -595,13 +595,13 @@ class PointcloudIF(DataProductIF):
 
         if self.node_if is not None:
             status_msg.navpose_msg = self.get_navpose_msg()
-            status_msg.clip_enabled = self.node_if.get_param(self.node_if_prefix +  'clip_enabled',self.DEFAULT_CONTROLS_DICT['clip_enabled'])
+            status_msg.clip_enabled = self.node_if.get_param(self.node_if_prefix +  'clip_enabled', self.DEFAULT_CONTROLS_DICT['clip_enabled'])
             status_msg.clip_options = self.clip_options
-            status_msg.clip_selection = self.node_if.get_param(self.node_if_prefix +  'clip_selection',self.DEFAULT_CONTROLS_DICT['clip_selection'])
+            status_msg.clip_selection = self.node_if.get_param(self.node_if_prefix +  'clip_selection', self.DEFAULT_CONTROLS_DICT['clip_selection'])
 
             clip_meters = RangeWindow()
-            clip_meters.start_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_min_m'),self.DEFAULT_CONTROLS_DICT['clip_min_range_m'])
-            clip_meters.stop_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_max_m'),self.DEFAULT_CONTROLS_DICT['clip_max_range_m'])
+            clip_meters.start_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_min_m', self.DEFAULT_CONTROLS_DICT['clip_min_range_m']))
+            clip_meters.stop_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_max_m', self.DEFAULT_CONTROLS_DICT['clip_max_range_m']))
             status_msg.clip_meters = clip_meters
 
             status_msg.clip_target_topic = self.bounding_box3d_topic
