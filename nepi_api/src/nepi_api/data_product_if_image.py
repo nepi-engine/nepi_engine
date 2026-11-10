@@ -4658,6 +4658,7 @@ class BaseImageIF(DataProductIF):
         # self.controls_dict['tilt_3d_ratio'] = 0.5
 
         if self.node_if is not None:
+            pass
             # self.node_if.factory_reset_param('start_range_ratio')
             # self.node_if.factory_reset_param('stop_range_ratio')
 
