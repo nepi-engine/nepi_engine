@@ -2188,13 +2188,11 @@ class BaseImageIF(DataProductIF):
                 self.status_msg.stabilize_disabled = True
                 self.status_msg.stabilize_enabled = True
                 self.status_msg.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
-            else:
-                cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
+            else:       
                 self.status_msg.stabilize_disabled = False
                 self.status_msg.stabilize_enabled = self.stabilize_enabled
                 self.status_msg.stabilize_rotate_deg = self.stab_adjust_rotate_deg      
-        else:
-            cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
+        else:       
             self.status_msg.stabilize_disabled = False
             self.status_msg.stabilize_enabled = self.stabilize_enabled
             self.status_msg.stabilize_rotate_deg = self.stab_adjust_rotate_deg   
