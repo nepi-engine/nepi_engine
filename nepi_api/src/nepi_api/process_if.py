@@ -203,8 +203,8 @@ class ProcessIF(NodeIF):
 
     admin_enabled = False
 
-    process_image_if = None
-    process_image_function = None
+    pre_process_results_image = None
+    post_process_results_image = None
     process_image_controls_if = None
     last_process_image_controls_dict = dict()
     process_image_dict = dict()
@@ -307,8 +307,7 @@ class ProcessIF(NodeIF):
                 process_group = 'PROCESS',
                 process_description = 'Process',
                 process_module = None,
-                process_if_dict = None,  
-                process_image_if = None,            
+                process_if_dict = None,             
                 callback_dict = None,
                 config_dict = None,
                 settings_init_dict = None,
@@ -431,21 +430,6 @@ class ProcessIF(NodeIF):
         if process_if_dict is not None:
             self.process_if_dict = process_if_dict
 
-        self.process_image_if = process_image_if
-        if self.process_image_if is not None:
-            self.process_image_controls_if = self.process_image_if.options_controls_if
-            # self.process_image_controls_if = ControlsIF( name = 'image_options',
-            #                 namespace = None,
-            #                 controls_name = 'image_options',
-            #                 controls_display_name = 'Image Options',
-            #                 controls_description = 'Custom Image Options',
-            #                 controls_init_dict = dict(),
-            #                 save_params = True,
-            #                 controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
-            #                 info_dict = dict(),
-            #                 msg_if = None,
-            #                 node_if = None,)
-            # self.process_image_if.controls_options_topic = self.process_image_controls_if.get_namespace()
         ##############################    
         # Initialize Class Variables
 
@@ -913,10 +897,13 @@ class ProcessIF(NodeIF):
     ##############################
     # IF and Topic Dict Support Methods
 
-
+    def set_process_if_dict(self, if_name, if_instance):
+        self.process_if_dict[if_name] = if_instance
 
     def update_process_if_dict(self, update_dict):
         self.process_if_dict.update(update_dict)
+
+
 
     ##################
     # Data Dict Functions
@@ -1235,8 +1222,8 @@ class ProcessIF(NodeIF):
 
 
 
-    def process_results_image(self, cv2_img, cv2_img_status_dict):
-        if self.process_image_function is None:
+    def pre_process_results_image(self, cv2_img, cv2_img_status_dict, cv2_img_navpose_dict):
+        if self.pre_process_results_image is None:
             results_cv2_img = cv2_img
         else:
             results_cv2_img = copy.deepcopy(cv2_img)
@@ -1247,9 +1234,8 @@ class ProcessIF(NodeIF):
                 except:
                     pass
             try:
-                [results_cv2_img, process_image_dict] = self.process_image_function(results_cv2_img, cv2_img_status_dict,
-                                                               process_image_dict,
-                                                               self.results_dict, self.process_image_if)
+                [results_cv2_img, process_image_dict] = self.pre_process_results_image(results_cv2_img, cv2_img_status_dict, cv2_img_navpose_dict,
+                                                               process_image_dict, self.results_dict, self.process_if_dict)
 
                 
                 try:
@@ -1266,6 +1252,34 @@ class ProcessIF(NodeIF):
         return results_cv2_img
 
 
+    def post_process_results_image(self, cv2_img, cv2_img_status_dict, cv2_img_navpose_dict):
+        if self.post_process_results_image is None:
+            results_cv2_img = cv2_img
+        else:
+            results_cv2_img = copy.deepcopy(cv2_img)
+            process_image_dict = self.process_image_dict
+            if self.process_image_controls_if is not None:
+                try:
+                    process_image_dict['controls_dict'] = nepi_controls.get_values_dict(self.process_image_controls_if.get_controls_dict())
+                except:
+                    pass
+            try:
+                [results_cv2_img, process_image_dict] = self.post_process_results_image(results_cv2_img, cv2_img_status_dict, cv2_img_navpose_dict,
+                                                               process_image_dict, self.results_dict, self.process_if_dict)
+
+                
+                try:
+                    controls_dict = self.process_image_dict['controls_dict'] 
+                    for control_name in controls_dict.keys():
+                        self.process_image_controls_if.set_control_value(control_name, controls_dict[control_name])
+                except:
+                    pass
+
+                self.process_image_dict['data_dict'] = process_image_dict['data_dict']
+                self.process_image_dict['config_dict'] = process_image_dict['config_dict']
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to process results image: " + str(e), throttle_s = 10 )
+        return results_cv2_img
 
     ##################
     # Misc Functions
@@ -1536,9 +1550,14 @@ class ProcessIF(NodeIF):
                     success = self.set_selected_process(self.selected_process, check_updates = False)
 
                     # Update Process Image Data
-                    if success == True and self.process_image_if is not None:
+                    if success == True:
                         try:
-                            self.process_image_function = self.process_module.process_results_image
+                            self.pre_process_results_image = self.process_module.pre_process_results_image
+                        except:
+                            pass
+
+                        try:
+                            self.post_process_results_image = self.process_module.post_process_results_image
                         except:
                             pass
 

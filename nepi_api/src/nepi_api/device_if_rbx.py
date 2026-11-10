@@ -307,8 +307,10 @@ class RBXRobotIF(DeviceIF):
     navpose_if = None
 
     connect_navpose_if = None
-    
 
+    image_if = None
+
+    connect_inmage_if = None
 
 
     status_msg_pub_interval = float(1)/float(STATUS_UPDATE_RATE_HZ)
@@ -331,7 +333,10 @@ class RBXRobotIF(DeviceIF):
     rbx_state_last = None
     rbx_mode_last = None
 
+
     servo_if_dict = dict()
+
+
 
     image_overlay_enabled = True
     image_blank = np.zeros((350, 700, 3), dtype = np.uint8) # Empty Black Image
@@ -843,20 +848,106 @@ class RBXRobotIF(DeviceIF):
         self.add_subs(subs_dict)
         nepi_sdk.sleep(0.1)
 
+
+
         ######################################################
-        # Setup Data IF Classes ####################
+        # Setup Connect Image IF Classes ####################
         self.connect_img_if = ConnectColorImageIF(data_callback = self.imageCb, 
                                                   msg_if = self.msg_if, 
                                                   node_if = self.node_if)
 
+
+
+        ######################################################
+        # Setup RBX Process IF ####################
+        self.rbx_process_callback_dict = dict(
+            process_update_callback = None,
+            settings_updated_callback = None,
+            controls_updated_callback = None,
+        )
+
+
+        self.rbx_process_config_dict = dict(
+            has_sources = False,
+            multi_source_enabled = False,
+            has_auto_select = False,
+            auto_select_enabled = True,
+            selected_sources = [],
+            
+            has_enable = False,
+
+            has_process_rate = True,
+            min_max_process_rates = self.MIN_MAX_PROCESS_RATES,
+            default_process_rate = self.DEFAULT_PROCESS_RATE,
+
+            has_image_rate = False,
+            min_max_image_rates = [1,10],
+            default_image_rate = 10,
+            has_use_last_image = False,
+
+            has_process_pub = True,
+            has_process_enable = True,
+            has_process_reload = False,
+
+            has_results_pub = True,
+
+            has_save_data = True,
+            has_config = True,
+
+            has_image_pub = True,
+
+            has_status_pub = True,
+            throttle_status_sec = 0.1
+        )
+
+    
+        self.process_if = ProcessIF(
+                    process_name = self.rbx_process_name,
+                    process_group = self.rbx_process_name,
+                    process_description = self.rbx_process_name,
+                    process_module = self.rbx_process_module,
+                    callback_dict = self.rbx_process_callback_dict,
+                    config_dict = self.rbx_process_config_dict,
+                    msg_if = self.msg_if,
+                    node_if = self.node_if
+                )
+
+
+
+
+        ######################################################
+        # Setup Image IF Classes ####################
         self.msg_if.pub_info("Starting Image IF Initialization" )
-        self.pub_image_if = ColorImageIF(namespace = self.node_namespace,
+
+
+
+        image_if_callback_dict = dict(
+            needs_update_callback = None,
+            mouse_event_callback = None,
+            click_pixel_callback = None,
+            click_angle_callback = None,
+            drag_callback = None,
+            window_callback = None,
+            scroll_callback = None,
+            frame_updated_callback = None,
+            options_updated_callback = None,
+            get_source_status_callback = self.connect_img_if.get_status_dict,
+            get_source_navpose_callback = self.connect_img_if.get_navpose_dict,
+            pre_process_callback = self.process_if.pre_process_image_function,
+            post_process_callback = self.process_if.post_process_image_function
+        )
+
+        self.image_if = ColorImageIF(namespace = self.node_namespace,
+                        callback_dict = image_if_callback_dict,
                         msg_if = self.msg_if,
                         node_if = self.node_if,                                                  
                         save_data_if = self.save_data_if,
                         navpose_if = self.navpose_if
                         )
-        self.if_dict['pub_image_if'] = self.pub_image_if
+        self.if_dict['image_if'] = self.image_if
+        
+        self.process_if.set_process_if_dict('image_if',self.image_if)
+
         #########################
         # Update Status Msg
         ##############################
@@ -913,60 +1004,6 @@ class RBXRobotIF(DeviceIF):
         ##############################
 
 
-    
-
-        #####################################
-        self.rbx_process_callback_dict = dict(
-            process_update_callback = None,
-            settings_updated_callback = None,
-            controls_updated_callback = None,
-        )
-
-
-        self.rbx_process_config_dict = dict(
-            has_sources = False,
-            multi_source_enabled = False,
-            has_auto_select = False,
-            auto_select_enabled = True,
-            selected_sources = [],
-            
-            has_enable = False,
-
-            has_process_rate = True,
-            min_max_process_rates = self.MIN_MAX_PROCESS_RATES,
-            default_process_rate = self.DEFAULT_PROCESS_RATE,
-
-            has_image_rate = False,
-            min_max_image_rates = [1,10],
-            default_image_rate = 10,
-            has_use_last_image = False,
-
-            has_process_pub = True,
-            has_process_enable = True,
-            has_process_reload = False,
-
-            has_results_pub = True,
-
-            has_save_data = True,
-            has_config = True,
-
-            has_image_pub = True,
-
-            has_status_pub = True,
-            throttle_status_sec = 0.1
-        )
-
-        # WIP-PROCESS 3.4.0: disabled for ardupilot port: processCb replaces process_data_dict with nepi_process_rbx's data dict, whose keys (has_home, has_stop, has_pose, ...) are not the has_go_home/has_go_stop/has_goto_* keys every home/stop/goto callback reads, so after the first process tick those callbacks raise KeyError; process_if stays None so the existing None guards take over
-        # self.process_if = ProcessIF(
-        #             process_name = self.rbx_process_name,
-        #             process_group = self.rbx_process_name,
-        #             process_description = self.rbx_process_name,
-        #             process_module = self.rbx_process_module,
-        #             callback_dict = self.rbx_process_callback_dict,
-        #             config_dict = self.rbx_process_config_dict,
-        #             msg_if = self.msg_if,
-        #             node_if = self.node_if
-        #         )
 
        ####################################
         ## Initiation Complete
@@ -1147,7 +1184,7 @@ class RBXRobotIF(DeviceIF):
         ########
         # IMAGE DATA
         try:
-           pub_image_topic = self.pub_image_if.get_namespace()
+           pub_image_topic = self.image_if.get_namespace()
         except:
            pub_image_topic = ''
         status_msg.pub_image_topic = pub_image_topic
@@ -2454,16 +2491,13 @@ class RBXRobotIF(DeviceIF):
            nepi_sdk.start_timer_process(1, self.processCb, oneshot = True)
            return
         #####################
-        # Setup Process Inputs
+        # Setup Process Input Data
         #####################
         
-        #####################
-        # Motor_Status
-        # motors_msg = self.get_motor_controls_status_msg
-        # motors_status_dict = nepi_sdk.convert_msg2dict(motors_msg)
-        # self.process_data_dict['motors_status_dict'] =  motors_status_dict
+        # RBX DATA
+        self.process_data_dict['rbx_status_dict'] =  self.get_status_dict()
+        self.process_data_dict['rbx_navpose_dict'] =  self.get_navpose_dict()
 
-        #####################
 
         ########
         # Image DATA
@@ -2474,7 +2508,7 @@ class RBXRobotIF(DeviceIF):
             if self.connect_img_if.check_connection() == True:
                 cv2_img = self.connect_img_if.get_data_dict()['color_image']
                 cv2_status = self.connect_img_if.get_status_dict()
-                cv2_navpose_dict = cv2_status['navpose_dict']
+                cv2_navpose_dict = self.connect_img_if.get_navpose_dict()
         except:
             pass
 
@@ -2498,15 +2532,10 @@ class RBXRobotIF(DeviceIF):
                 servo_if_dict[servo_name] = servo_if
             except:
                 pass
-        self.process_if.update_process_if_dict(servo_if_dict)
+        self.process_if.set_process_if_dict('servo_if_dict',servo_if_dict)
         self.process_data_dict['servo_names'] = servo_names
         self.process_data_dict['servo_status_dict'] = servo_status_dict
 
-        ########
-        # NavPose DATA
-        self.process_data_dict['navpose_dict'] =  self.get_navpose_dict()
-
-        
         #################
         ## Apply and Clear Updates
        
@@ -2554,36 +2583,11 @@ class RBXRobotIF(DeviceIF):
            pass
         if img_connected == False:
             try:
-                self.pub_image_if.publish_cv2_img(self.image_blank)
+                self.image_if.publish_cv2_img(self.image_blank)
             except:
                 pass      
 
 
     def imageCb(self,data_dict):
         cv2_img = data_dict['color_image']
-
-        status_dict = dict()
-        timestamp = nepi_utils.get_time()
-        width_deg = 100
-        height_deg = 70      
-        try:
-            status_dict = self.connect_img_if.get_status_dict()
-            timestamp = status_dict['timestamp']
-            width_deg = status_dict['width_deg']
-            height_deg = status_dict['height_deg']
-        except:
-            pass
-
-
-        try:
-            # Only overlay process results when a process is running. With
-            # process_if None, process_results_image raised inside this try and
-            # no image was republished at all.
-            if self.process_if is not None:
-                cv2_img = self.process_if.process_results_image(cv2_img, status_dict)
-            self.pub_image_if.publish_cv2_img(cv2_img,
-                                            timestamp = timestamp,
-                                            width_deg = width_deg,
-                                            height_deg = height_deg  )
-        except:
-           pass
+        self.image_if.publish_cv2_img(cv2_img)

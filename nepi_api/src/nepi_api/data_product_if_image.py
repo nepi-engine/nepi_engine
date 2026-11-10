@@ -2845,13 +2845,14 @@ class BaseImageIF(DataProductIF):
         if source_status_dict is None:
             source_status_dict = dict()
 
-        self.source_navpose_dict = source_navpose_dict
+        
         if self.callback_dict['get_source_navpose_callback'] is not None and  source_navpose_dict is None:
                 try:
                     source_navpose_dict = self.callback_dict['get_source_navpose_callback']()
                 except Exception as e:
                     self.msg_if.pub_debug("Failed to get_source_navpose_callback: " + str(e) , throttle_s = 5)
         if source_navpose_dict is not None:
+            self.source_navpose_dict = source_navpose_dict
             navpose_dict = source_status_dict
         else:
             navpose_dict = self.get_navpose_dict()
@@ -2924,7 +2925,7 @@ class BaseImageIF(DataProductIF):
                 if self.callback_dict['pre_process_callback'] is not None and  cv2_img is not None:
                         try:
                             cv2_img_status = nepi_sdk.convert_msg2dict(self.status_msg)
-                            cv2_img = self.callback_dict['pre_process_callback'](cv2_img, cv2_img_status)
+                            cv2_img = self.callback_dict['pre_process_callback'](cv2_img, cv2_img_status, navpose_dict)
                         except Exception as e:
                             self.msg_if.pub_debug("Failed to pre_process_callback: " + str(e) , throttle_s = 5)
 
@@ -2949,7 +2950,7 @@ class BaseImageIF(DataProductIF):
                 if self.callback_dict['post_process_callback'] is not None and  cv2_img is not None:
                         try:
                             cv2_img_status = nepi_sdk.convert_msg2dict(self.status_msg)
-                            cv2_img = self.callback_dict['post_process_callback'](cv2_img, cv2_img_status)
+                            cv2_img = self.callback_dict['post_process_callback'](cv2_img, cv2_img_status, navpose_dict)
                         except Exception as e:
                             self.msg_if.pub_debug("Failed to post_process_callback: " + str(e) , throttle_s = 5)
 

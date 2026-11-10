@@ -97,16 +97,15 @@ functions_dict = dict()
 REQUIRED_DATA_DICT = dict(
     ###############
     # Provided By Caller
+    rbx_status_dict = dict(),
+    rbx_navpose_dict = None,
+
     servo_names = [],
     servo_status_dict = dict(),
 
     cv2_img = None,
     cv2_img_status = None,
-    cv2_navpose_dict = None,
-
-    navpose_dict = None,
-
-    last_results_time = 0,
+    cv2_img_navpose_dict = None,
 
     ###############
     # Updated By Caller, Then Clears
@@ -149,7 +148,10 @@ REQUIRED_DATA_DICT = dict(
     goto_position_success = None,
     goto_location_success = None,
     goto_velocity_success = None,
-    go_action_success = None # Caller Waits/Blocks for True/False Response   
+    go_action_success = None, # Caller Waits/Blocks for True/False Response   
+
+
+    last_results_time = 0,
     )
 
 
@@ -234,41 +236,86 @@ def rbx_auto_1_process(data_dict, controls_dict, states_dict, results_dict, if_d
 
     ##############
     # Get Data
-   
+    ##############
 
-    navpose_dict = data_dict.get('navpose_dict',None)
-    if navpose_dict is None:
-        navpose_dict = nepi_sdk.convert_msg2dict(NavPose())
+    #####
+    rbx_status_dict = data_dict.get('rbx_status_dict',dict())
 
-
-    
-    if navpose_dict is None:
-        navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
-    if navpose_dict['has_pan_tilt'] == True:
-        if navpose_dict['has_heading'] == True:
-            heading_deg = navpose_dict.get('pan_tilt_heading_deg',-999)
+    rbx_navpose_dict = data_dict.get('rbx_navpose_dict',None)
+    if rbx_navpose_dict is None:
+        rbx_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    if rbx_navpose_dict['has_pan_tilt'] == True:
+        if rbx_navpose_dict['has_heading'] == True:
+            rbx_heading_deg = rbx_navpose_dict.get('pan_tilt_heading_deg',-999)
         else:
-            heading_deg = navpose_dict.get('pan_tilt_yaw_deg',-999)
-        pitch_deg = navpose_dict.get('pan_tilt_pitch_deg',-999) 
-        roll_deg = navpose_dict.get('pan_tilt_roll_deg',-999)
+            rbx_heading_deg = rbx_navpose_dict.get('pan_tilt_yaw_deg',-999)
+        rbx_pitch_deg = rbx_navpose_dict.get('pan_tilt_pitch_deg',-999) 
+        rbx_roll_deg = rbx_navpose_dict.get('pan_tilt_roll_deg',-999)
     else:
-        if navpose_dict['has_heading'] == True:
-            heading_deg = navpose_dict.get('heading_deg',-999)
+        if rbx_navpose_dict['has_heading'] == True:
+            rbx_heading_deg = rbx_navpose_dict.get('heading_deg',-999)
         else:
-            heading_deg = navpose_dict.get('yaw_deg',-999)
-        pitch_deg = navpose_dict.get('pitch_deg',-999) 
-        roll_deg = navpose_dict.get('roll_deg',-999)
+            rbx_heading_deg = rbx_navpose_dict.get('yaw_deg',-999)
+        rbx_pitch_deg = rbx_navpose_dict.get('pitch_deg',-999) 
+        rbx_roll_deg = rbx_navpose_dict.get('roll_deg',-999)
 
-    if int(heading_deg) == -999:
-        heading_deg = 0
+    if int(rbx_heading_deg) == -999:
+        rbx_heading_deg = 0
     
-    if int(pitch_deg) == -999:
-        pitch_deg = 0
+    if int(rbx_pitch_deg) == -999:
+        rbx_pitch_deg = 0
       
-    if int(roll_deg) == -999:
-        roll_deg = 0
+    if int(rbx_roll_deg) == -999:
+        rbx_roll_deg = 0
 
 
+    #####
+    servo_names = data_dict.get('servo_names',[])
+    servo_status_dict = data_dict.get('servo_status_dict',dict())
+
+    ##################
+    # Get Servo IFS
+    servo_if_keys_dict = data_dict.get('servo_if_keys_dict',dict())
+    servo_if_dict = if_dict.get('servo_if_dict',dict())
+    for servo_name in servo_names:
+        if servo_name not in servo_if_dict.keys():
+            servo_if_dict[servo_name] = None
+
+
+    #####
+    cv2_img = data_dict.get('cv2_img',None)
+    cv2_img_status = data_dict.get('cv2_img_status',dict())
+    
+    cv2_img_navpose_dict = data_dict.get('cv2_img_navpose_dict',None)
+    if cv2_img_navpose_dict is None:
+        cv2_img_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+    if cv2_img_navpose_dict['has_pan_tilt'] == True:
+        if cv2_img_navpose_dict['has_heading'] == True:
+            cv2_img_heading_deg = cv2_img_navpose_dict.get('pan_tilt_heading_deg',-999)
+        else:
+            cv2_img_heading_deg = cv2_img_navpose_dict.get('pan_tilt_yaw_deg',-999)
+        cv2_img_pitch_deg = cv2_img_navpose_dict.get('pan_tilt_pitch_deg',-999) 
+        cv2_img_roll_deg = cv2_img_navpose_dict.get('pan_tilt_roll_deg',-999)
+    else:
+        if cv2_img_navpose_dict['has_heading'] == True:
+            cv2_img_heading_deg = cv2_img_navpose_dict.get('heading_deg',-999)
+        else:
+            cv2_img_heading_deg = cv2_img_navpose_dict.get('yaw_deg',-999)
+        cv2_img_pitch_deg = cv2_img_navpose_dict.get('pitch_deg',-999) 
+        cv2_img_roll_deg = cv2_img_navpose_dict.get('roll_deg',-999)
+
+    if int(cv2_img_heading_deg) == -999:
+        cv2_img_heading_deg = 0
+    
+    if int(cv2_img_pitch_deg) == -999:
+        cv2_img_pitch_deg = 0
+      
+    if int(cv2_img_roll_deg) == -999:
+        cv2_img_roll_deg = 0
+
+    #####
+    last_results_time  = data_dict.get('last_results_time',0)
+ 
     ##############
     # Apply Updates
     #############
@@ -290,30 +337,37 @@ def rbx_auto_1_process(data_dict, controls_dict, states_dict, results_dict, if_d
     ######
     # Update Results Dict As Needed
     #####
-    results_dict = update_results(results_dict, navpose_dict)
+    results_dict = update_results(results_dict)
   
-
     ##################
+    # Clean Up
+    ##################
+    data_dict['last_results_time'] = nepi_utils.get_time()
     #logger.log_warn("Process Axisleted: " + str([auto_dict,results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
     return data_dict, controls_dict, states_dict, results_dict
 
+    #########################################################
 
+###########
+# Create Initial Dictionaries
+############
 
 rbx_auto_1_update_dict = dict()
 rbx_auto_1_update_dict['data_dict'] = copy.deepcopy(REQUIRED_DATA_DICT)
 rbx_auto_1_update_dict['data_dict'].update(rbx_auto_1_dict['data_dict'])
+
 rbx_auto_1_update_dict['controls_dict'] = copy.deepcopy(REQUIRED_CONTROLS_DICT)
 rbx_auto_1_update_dict['controls_dict'].update(rbx_auto_1_dict['controls_dict'])
+
 rbx_auto_1_update_dict['results_display_dict'] = copy.deepcopy(REQUIRED_RESULTS_DISPLAY_DICT)
 rbx_auto_1_update_dict['results_display_dict'].update(rbx_auto_1_dict['results_display_dict'])
+
 rbx_auto_1_update_dict['states_dict'] = copy.deepcopy(REQUIRED_STATES_DICT)
 rbx_auto_1_update_dict['states_dict'].update(rbx_auto_1_dict['states_dict'])
 
 processes_dict = nepi_process.update_processes_dict(processes_dict, process_name = 'rbx_auto_1', process_dict = rbx_auto_1_update_dict)
 #logger.log_warn("Updated processes dict: " + str(processes_dict))
 functions_dict['rbx_auto_1'] = rbx_auto_1_process
-
-
 
 
 ########################
@@ -333,11 +387,6 @@ FUNCTIONS_DICT = functions_dict
 process_image_dict = {
 
     'controls_dict': dict(
-        stabilize =  {
-                'type': 'Toggle', 'value': True,
-                # Optional
-                'display_name': 'Stabilize', 'description': 'Stabilize Image.', 'display_hidden': False},
-
         overlay_results =  {
                 'type': 'Toggle', 'value': True,
                 # Optional
@@ -346,7 +395,12 @@ process_image_dict = {
     ),
     
     'data_dict': dict(
-        last_image_time = 0
+        # Provided by Caller
+        rbx_status_dict = dict(),
+        rbx_navpose_dict = None,
+
+        # Updated by Process Image Functions
+        last_image_time = 0,
     ),
 
     'config_dict': dict(
@@ -364,7 +418,7 @@ process_image_dict = {
 }
 
 
-def process_results_image(cv2_img, cv2_img_status, process_image_dict, results_dict, image_if):
+def pre_process_results_image(cv2_img, cv2_img_status, cv2_img_navpose_dict, process_image_dict, results_dict, if_dict):
         ##################
         # Get Image Data
         try:
@@ -381,22 +435,154 @@ def process_results_image(cv2_img, cv2_img_status, process_image_dict, results_d
         # Get Image Data
         if cv2_img_status is None:
             cv2_img_status = dict()
-
         width_deg = cv2_img_status.get('width_deg', 100)
         height_deg = cv2_img_status.get('height_deg', 70)
-        navpose_dict = cv2_img_status.get('navpose_dict', nepi_nav.BLANK_NAVPOSE_DICT)
 
+        if cv2_img_navpose_dict is None:
+            cv2_img_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        if cv2_img_navpose_dict['has_pan_tilt'] == True:
+            if cv2_img_navpose_dict['has_heading'] == True:
+                cv2_img_heading_deg = cv2_img_navpose_dict.get('pan_tilt_heading_deg',-999)
+            else:
+                cv2_img_heading_deg = cv2_img_navpose_dict.get('pan_tilt_yaw_deg',-999)
+            cv2_img_pitch_deg = cv2_img_navpose_dict.get('pan_tilt_pitch_deg',-999) 
+            cv2_img_roll_deg = cv2_img_navpose_dict.get('pan_tilt_roll_deg',-999)
+        else:
+            if cv2_img_navpose_dict['has_heading'] == True:
+                cv2_img_heading_deg = cv2_img_navpose_dict.get('heading_deg',-999)
+            else:
+                cv2_img_heading_deg = cv2_img_navpose_dict.get('yaw_deg',-999)
+            cv2_img_pitch_deg = cv2_img_navpose_dict.get('pitch_deg',-999) 
+            cv2_img_roll_deg = cv2_img_navpose_dict.get('roll_deg',-999)
+
+        if int(cv2_img_heading_deg) == -999:
+            cv2_img_heading_deg = 0
+        
+        if int(cv2_img_pitch_deg) == -999:
+            cv2_img_pitch_deg = 0
+        
+        if int(cv2_img_roll_deg) == -999:
+            cv2_img_roll_deg = 0
+
+        ##################
+        # Get IFs
+        pub_image_if = if_dict.get('image_if', None)
+                        
         ##################
         # Get Process Controls
         controls_dict = process_image_dict.get('controls_dict', dict())
-        stabilize = controls_dict.get('stabilize', True)
         overlay_results = controls_dict.get('overlay_results', True)
 
         ##################
         # Get Process Data
         data_dict = process_image_dict.get('data_dict', dict())       
         last_image_time = copy.deepcopy(data_dict.get('last_image_time', 0))
-        data_dict['last_image_time'] = nepi_utils.get_time()
+        rbx_status_dict = copy.deepcopy(data_dict.get('rbx_status_dict', dict()))
+                                        
+        ##################
+        # Get Process Config
+        config_dict = process_image_dict.get('config_dict', dict())
+        overlay_color = config_dict.get('overlay_color',(0,0,127))
+        overlay_colors = config_dict.get('overlay_colors',[])
+        overlay_font = config_dict.get('overlay_color',nepi_img.OVERLAY_FONT)
+        overlay_font_color = config_dict.get('overlay_color',nepi_img.OVERLAY_FONT_COLOR)
+        overlay_line_type = config_dict.get('overlay_color',nepi_img.OVERLAY_LINE_TYPE)
+        overlay_line_color = config_dict.get('overlay_color',nepi_img.OVERLAY_LINE_COLOR)
+        overlay_labels = config_dict.get('overlay_labels',True)
+        overlay_range_bearing = config_dict.get('overlay_range_bearing',True)
+
+        ##################
+        # Get Results Data
+        if results_dict is None:
+            results_dict = dict()       
+        # targets_list = results_dict.get('targets', [])
+
+        ##################
+        # Pre Process Results Image
+        ################
+
+        
+
+        ##############################################################
+        # Pre Process Results Overlay
+        if overlay_results == True:
+            ## MODIFY cv2_img
+            pass
+        ##############################################################
+
+
+
+
+        ################
+        # Clean Up
+        ################
+        process_image_dict['controls_dict'] = controls_dict
+        process_image_dict['data_dict'] = data_dict
+        process_image_dict['config_dict'] = config_dict
+        return cv2_img_results, process_image_dict
+
+
+    
+def post_process_results_image(cv2_img, cv2_img_status, cv2_img_navpose_dict, process_image_dict, results_dict, if_dict):
+        ##################
+        # Get Image Data
+        try:
+            cv2_img_results = copy.deepcopy(cv2_img)
+
+        except:
+            return cv2_img
+
+        ################
+        # Setup
+        ################
+
+        ##################
+        # Get Image Data
+        if cv2_img_status is None:
+            cv2_img_status = dict()
+        width_deg = cv2_img_status.get('width_deg', 100)
+        height_deg = cv2_img_status.get('height_deg', 70)
+         
+        if cv2_img_navpose_dict is None:
+            cv2_img_navpose_dict = nepi_nav.BLANK_NAVPOSE_DICT
+        if cv2_img_navpose_dict['has_pan_tilt'] == True:
+            if cv2_img_navpose_dict['has_heading'] == True:
+                cv2_img_heading_deg = cv2_img_navpose_dict.get('pan_tilt_heading_deg',-999)
+            else:
+                cv2_img_heading_deg = cv2_img_navpose_dict.get('pan_tilt_yaw_deg',-999)
+            cv2_img_pitch_deg = cv2_img_navpose_dict.get('pan_tilt_pitch_deg',-999) 
+            cv2_img_roll_deg = cv2_img_navpose_dict.get('pan_tilt_roll_deg',-999)
+        else:
+            if cv2_img_navpose_dict['has_heading'] == True:
+                cv2_img_heading_deg = cv2_img_navpose_dict.get('heading_deg',-999)
+            else:
+                cv2_img_heading_deg = cv2_img_navpose_dict.get('yaw_deg',-999)
+            cv2_img_pitch_deg = cv2_img_navpose_dict.get('pitch_deg',-999) 
+            cv2_img_roll_deg = cv2_img_navpose_dict.get('roll_deg',-999)
+
+        if int(cv2_img_heading_deg) == -999:
+            cv2_img_heading_deg = 0
+        
+        if int(cv2_img_pitch_deg) == -999:
+            cv2_img_pitch_deg = 0
+        
+        if int(cv2_img_roll_deg) == -999:
+            cv2_img_roll_deg = 0
+                      
+        ##################
+        # Get IFs
+        pub_image_if = if_dict.get('image_if', None)
+
+        ##################
+        # Get Process Controls
+        controls_dict = process_image_dict.get('controls_dict', dict())
+        overlay_results = controls_dict.get('overlay_results', True)
+
+        ##################
+        # Get Process Data
+        data_dict = process_image_dict.get('data_dict', dict())       
+        last_image_time = copy.deepcopy(data_dict.get('last_image_time', 0))
+        rbx_status_dict = copy.deepcopy(data_dict.get('rbx_status_dict', dict()))
 
         ##################
         # Get Process Config
@@ -417,22 +603,13 @@ def process_results_image(cv2_img, cv2_img_status, process_image_dict, results_d
         # targets_list = results_dict.get('targets', [])
 
         ##################
-        # Process Results Image
+        # Post Process Results Image
         ################
 
-        #################
-        # Process Image Stabilization
-        if stabilize == True and image_if is not None:
-            rotate_deg = -1 * navpose_dict.get('roll_deg', 0)
-            pt_rotate_deg = navpose_dict.get('pan_tilt_roll_deg', 0)
-            if pt_rotate_deg != 0:
-                rotate_deg = -1 * pt_rotate_deg
-            image_if.set_live_adjust_rotate_deg(rotate_deg)
-
-
+        
 
         ##############################################################
-        # Process Results Overlay
+        # Post Process Results Overlay
         if overlay_results == True:
             ## MODIFY cv2_img
             pass
@@ -445,6 +622,7 @@ def process_results_image(cv2_img, cv2_img_status, process_image_dict, results_d
         # Clean Up
         ################
         process_image_dict['controls_dict'] = controls_dict
+        data_dict['last_image_time'] = nepi_utils.get_time()
         process_image_dict['data_dict'] = data_dict
         process_image_dict['config_dict'] = config_dict
         return cv2_img_results, process_image_dict
