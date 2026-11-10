@@ -593,43 +593,42 @@ class PointcloudIF(DataProductIF):
 
     def update_status_msg(self, status_msg):
 
-        status_msg.navpose_msg = self.get_navpose_msg()
-        status_msg.clip_enabled = self.node_if.get_param(self.node_if_prefix +  'clip_enabled')
-        status_msg.clip_options = self.clip_options
-        status_msg.clip_selection = self.node_if.get_param(self.node_if_prefix +  'clip_selection')
+        if self.node_if is not None:
+            status_msg.navpose_msg = self.get_navpose_msg()
+            status_msg.clip_enabled = self.node_if.get_param(self.node_if_prefix +  'clip_enabled',self.DEFAULT_CONTROLS_DICT['clip_enabled'])
+            status_msg.clip_options = self.clip_options
+            status_msg.clip_selection = self.node_if.get_param(self.node_if_prefix +  'clip_selection',self.DEFAULT_CONTROLS_DICT['clip_selection'])
 
-        clip_meters = RangeWindow()
-        clip_meters.start_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_min_m'))
-        clip_meters.stop_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_max_m'))
-        status_msg.clip_meters = clip_meters
+            clip_meters = RangeWindow()
+            clip_meters.start_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_min_m'),self.DEFAULT_CONTROLS_DICT['clip_min_range_m'])
+            clip_meters.stop_range =   float(self.node_if.get_param(self.node_if_prefix +  'range_max_m'),self.DEFAULT_CONTROLS_DICT['clip_max_range_m'])
+            status_msg.clip_meters = clip_meters
 
-        status_msg.clip_target_topic = self.bounding_box3d_topic
+            status_msg.clip_target_topic = self.bounding_box3d_topic
 
 
-        status_msg.voxel_downsample_size_m = self.node_if.get_param(self.node_if_prefix +  'voxel_downsample_size')
-        status_msg.uniform_downsample_points = self.node_if.get_param(self.node_if_prefix +  'uniform_downsample_k_points')
-        status_msg.outlier_k_points = self.node_if.get_param(self.node_if_prefix +  'outlier_removal_num_neighbors')
+            status_msg.voxel_downsample_size_m = self.node_if.get_param(self.node_if_prefix +  'voxel_downsample_size',self.DEFAULT_CONTROLS_DICT['voxel_downsample_size'])
+            status_msg.uniform_downsample_points = self.node_if.get_param(self.node_if_prefix +  'uniform_downsample_k_points',self.DEFAULT_CONTROLS_DICT['uniform_downsample_k_points'])
+            status_msg.outlier_k_points = self.node_if.get_param(self.node_if_prefix +  'outlier_removal_num_neighbors',self.DEFAULT_CONTROLS_DICT['outlier_removal_num_neighbors'])
 
-        status_msg.render_enable = self.node_if.get_param(self.node_if_prefix +  'render_enable')
+            # Degrees use the same conversion the renderer applies to its own
+            # rotate_3d_ratio/tilt_3d_ratio, so the two agree on what 0.5 means.
+            rotate_ratio = self.node_if.get_param(self.node_if_prefix +  'rotate_ratio', 0.5)
+            status_msg.rotate_ratio = rotate_ratio
+            status_msg.rotate_deg = (0.5 - rotate_ratio) * 2 * 180
+            tilt_ratio = self.node_if.get_param(self.node_if_prefix +  'tilt_ratio', 0.5)
+            status_msg.tilt_ratio = tilt_ratio
+            status_msg.tilt_deg = (0.5 - tilt_ratio) * 2 * 180
 
-        # Degrees use the same conversion the renderer applies to its own
-        # rotate_3d_ratio/tilt_3d_ratio, so the two agree on what 0.5 means.
-        rotate_ratio = self.node_if.get_param(self.node_if_prefix +  'rotate_ratio')
-        status_msg.rotate_ratio = rotate_ratio
-        status_msg.rotate_deg = (0.5 - rotate_ratio) * 2 * 180
-        tilt_ratio = self.node_if.get_param(self.node_if_prefix +  'tilt_ratio')
-        status_msg.tilt_ratio = tilt_ratio
-        status_msg.tilt_deg = (0.5 - tilt_ratio) * 2 * 180
+            status_msg.range_min_max_m.start_range = self.min_range_m
+            status_msg.range_min_max_m.stop_range = self.max_range_m
 
-        status_msg.range_min_max_m.start_range = self.min_range_m
-        status_msg.range_min_max_m.stop_range = self.max_range_m
-
-        avg_rate = 0
-        if len(self.time_list) > 0:
-            avg_time = sum(self.time_list) / len(self.time_list)
-            if avg_time > .01:
-                avg_rate = float(1) / avg_time
-        status_msg.avg_pub_rate = avg_rate
+            avg_rate = 0
+            if len(self.time_list) > 0:
+                avg_time = sum(self.time_list) / len(self.time_list)
+                if avg_time > .01:
+                    avg_rate = float(1) / avg_time
+            status_msg.avg_pub_rate = avg_rate
 
         return status_msg
 

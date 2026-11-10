@@ -4582,14 +4582,15 @@ class BaseImageIF(DataProductIF):
         self.node_if.factory_reset_param('threshold_ratio')
         self.node_if.factory_reset_param('filter_dict')
 
-        self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_enabled')
-        self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_ratio')
-        self.controls_dict['brightness_ratio'] = self.node_if.get_param(self.node_if_prefix +  'brightness_ratio')
-        self.controls_dict['contrast_ratio'] = self.node_if.get_param(self.node_if_prefix +  'contrast_ratio')
-        self.controls_dict['threshold_ratio'] = self.node_if.get_param(self.node_if_prefix +  'threshold_ratio')
-        filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict')
-        if filter_dict is not None:
-            self.filter_dict = filter_dict
+        if self.node_if is not None:
+            self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_enabled')
+            self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_ratio')
+            self.controls_dict['brightness_ratio'] = self.node_if.get_param(self.node_if_prefix +  'brightness_ratio')
+            self.controls_dict['contrast_ratio'] = self.node_if.get_param(self.node_if_prefix +  'contrast_ratio')
+            self.controls_dict['threshold_ratio'] = self.node_if.get_param(self.node_if_prefix +  'threshold_ratio')
+            filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict')
+            if filter_dict is not None:
+                self.filter_dict = filter_dict
 
         self.publish_status()  
         self.needs_update()
@@ -4597,8 +4598,9 @@ class BaseImageIF(DataProductIF):
 
     def reset_overlays(self):
         """Reset all overlay settings to factory defaults."""
-        self.node_if.factory_reset_param('overlays_dict')
-        self.overlays_dict = self.node_if.get_param(self.node_if_prefix +  'overlays_dict')
+        if self.node_if is not None:
+            self.node_if.factory_reset_param('overlays_dict')
+            self.overlays_dict = self.node_if.get_param(self.node_if_prefix +  'overlays_dict')
        
         
         self.publish_status()  
@@ -4609,23 +4611,23 @@ class BaseImageIF(DataProductIF):
         """Reset resolution, rotation, and flip settings to factory defaults."""
         # First reset controls to init dict to capture non param managed settings
         self.controls_dict = copy.deepcopy(self.init_controls_dict)
+        if self.node_if is not None:
+            self.node_if.factory_reset_param('resolution_ratio')
+            self.node_if.factory_reset_param('rotate_2d_deg')
+            self.node_if.factory_reset_param('rotate_2d_swap_box')
+            self.node_if.factory_reset_param('flip_horz')
+            self.node_if.factory_reset_param('flip_vert')
 
-        self.node_if.factory_reset_param('resolution_ratio')
-        self.node_if.factory_reset_param('rotate_2d_deg')
-        self.node_if.factory_reset_param('rotate_2d_swap_box')
-        self.node_if.factory_reset_param('flip_horz')
-        self.node_if.factory_reset_param('flip_vert')
 
+            self.controls_dict['resolution_ratio'] = self.node_if.get_param(self.node_if_prefix +  'resolution_ratio')
+            self.controls_dict['rotate_2d_deg'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_deg')
+            self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_swap_box')
+            self.controls_dict['flip_horz'] = self.node_if.get_param(self.node_if_prefix +  'flip_horz')
+            self.controls_dict['flip_vert'] = self.node_if.get_param(self.node_if_prefix +  'flip_vert')
 
-        self.controls_dict['resolution_ratio'] = self.node_if.get_param(self.node_if_prefix +  'resolution_ratio')
-        self.controls_dict['rotate_2d_deg'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_deg')
-        self.controls_dict['rotate_2d_swap_box'] = self.node_if.get_param(self.node_if_prefix +  'rotate_2d_swap_box')
-        self.controls_dict['flip_horz'] = self.node_if.get_param(self.node_if_prefix +  'flip_horz')
-        self.controls_dict['flip_vert'] = self.node_if.get_param(self.node_if_prefix +  'flip_vert')
-
-        filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict')
-        if filter_dict is not None:
-            self.filter_dict = filter_dict
+            filter_dict = self.node_if.get_param(self.node_if_prefix +  'filter_dict')
+            if filter_dict is not None:
+                self.filter_dict = filter_dict
 
         self.publish_status()  
         self.needs_update()
@@ -4655,11 +4657,12 @@ class BaseImageIF(DataProductIF):
         # self.controls_dict['rotate_3d_ratio'] = 0.5
         # self.controls_dict['tilt_3d_ratio'] = 0.5
 
-        # self.node_if.factory_reset_param('start_range_ratio')
-        # self.node_if.factory_reset_param('stop_range_ratio')
+        if self.node_if is not None:
+            # self.node_if.factory_reset_param('start_range_ratio')
+            # self.node_if.factory_reset_param('stop_range_ratio')
 
-        # self.controls_dict['start_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'start_range_ratio')
-        # self.controls_dict['stop_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'stop_range_ratio')
+            # self.controls_dict['start_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'start_range_ratio')
+            # self.controls_dict['stop_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'stop_range_ratio')
 
         self.live_adjust_dict['live_adjust_rotate_deg'] = 0
         self.live_adjust_dict['live_adjust_x_deg'] = 0
