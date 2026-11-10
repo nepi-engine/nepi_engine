@@ -203,7 +203,9 @@ class RBXRobotIF(DeviceIF):
     STATUS_UPDATE_RATE_HZ = 2
     UPDATE_NAVPOSE_RATE_HZ = 10
     CHECK_SAVE_DATA_RATE_HZ = 40
-    
+    IMAGE_SUB_BUFF_SIZE = 2**24 # rospy's receive buffer; its 64 KB default holds less than one frame (nepi_sdk.create_subscriber)
+    IMAGE_SOURCE_QUIET_SEC = 1.0 # publish_status republishes the image while the source has been silent this long
+
     # Factory Control Values 
     FACTORY_GOTO_MAX_ERROR_M = 2.0 # Goal reached when all translation move errors are less than this value
     FACTORY_GOTO_MAX_ERROR_DEG = 2.0 # Goal reached when all rotation move errors are less than this value

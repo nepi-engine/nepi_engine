@@ -933,7 +933,6 @@ class NepiDriversMgr(object):
 
       settings_dict = ()
       if driver_name in self.discovery_settings_dict.keys():
-        settings_dict = copy.deepcopy(self.discovery_settings_dict[driver_name]['settings_dict'])
         drvs_dict = copy.deepcopy(self.drvs_dict)
         if driver_name in drvs_dict.keys():
           drv_dict = drvs_dict[driver_name]
@@ -945,10 +944,14 @@ class NepiDriversMgr(object):
                 success = True
                 msg = 'Success'
                 self.needs_config_save = True
-                settings_dict = nepi_controls.set_value(settings_dict, setting_name, setting_value, check_valid = False)
                 #self.msg_if.pub_debug("Set driver discovery settings with : " + str([setting_name,setting_value]))
               else:
                  self.msg_if.pub_debug("Set Option not in settings dict keys : " + str(setting_name) + " : " + str(options_dict.keys()))
+        # Return every option's current value. SettingsIF replaces its whole dict with
+        # this return, and the stored settings_dict only holds defaults, so returning it
+        # with just this option set showed every other option at its default. SettingsIF
+        # init sets each option in turn at startup, so a saved stream_urls showed blank.
+        settings_dict = self.getSettingsFunction(driver_name)
 
       #self.msg_if.pub_debug("Set Drivers Dict : " + str(self.drvs_dict))
       return success, msg, settings_dict
@@ -995,7 +998,14 @@ class NepiDriversMgr(object):
         if value is None:
           value = option_dict['default']
 
-        
+        # A Selections option holds a list. A value saved before the option
+        # became one is a plain string ('a,b'), which the Selections control
+        # would clean to nothing selected -- and a driver reading nothing
+        # selected stops every node it runs. Normalized here, and stored back
+        # below, so the next config save writes the list form.
+        if option_dict.get('type') == 'Selections':
+          value = nepi_drvs.getSelectionsList(value)
+
         self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][option_name]['options'] = options
         self.drvs_dict[driver_name]['DISCOVERY_DICT']['OPTIONS'][option_name]['value'] = value
         
@@ -1005,7 +1015,7 @@ class NepiDriversMgr(object):
           setting_type = settings_dict[option_name]['type']
           if (setting_type == 'Int' or setting_type == 'Float') and len(options) > 1:
               settings_dict = nepi_controls.set_bounds(settings_dict, option_name, [options[0], options[1]])
-          if setting_type == 'Selection':
+          if setting_type == 'Selection' or setting_type == 'Selections':
               settings_dict = nepi_controls.set_options(settings_dict, option_name, options)
           
           settings_dict = nepi_controls.set_value(settings_dict, option_name, value, check_valid = False)
