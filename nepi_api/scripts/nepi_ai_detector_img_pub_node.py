@@ -47,7 +47,7 @@ from nepi_interfaces.msg import Targets, TargetsStatus
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF
-from nepi_api.data_if import ColorImageIF
+from nepi_api.data_product_if_image import ColorImageIF
 
 
 
@@ -255,7 +255,7 @@ class AiDetectorImgPub:
         factory_data_rates= {}
         for d in self.data_products:
             factory_data_rates[d] = [1.0, 0.0, 100]            
-        self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False, factory_rate_dict = factory_data_rates, namespace = self.process_namespace,
+        self.save_data_if = SaveDataIF(data_products = self.data_products, factory_rate_dict = factory_data_rates, namespace = self.process_namespace,
                         msg_if = self.msg_if,
                             node_if = self.node_if
                         )
@@ -467,7 +467,9 @@ class AiDetectorImgPub:
 
 
         # Create detections image publisher
-        img_if = ColorImageIF(namespace = pub_namespace ,
+        # name sets the last namespace segment (data_product no longer does)
+        img_if = ColorImageIF(name = 'targets_image',
+                        namespace = pub_namespace ,
                         data_product = 'targets_image',
                         data_source_description = 'image',
                         data_ref_description = 'image',

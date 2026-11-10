@@ -41,22 +41,11 @@ logger = nepi_sdk.sdk_logger
 
 
 DATUM_TYPES = ["Trigger", "Triggers", "Bool", "Bools", 
-                 "String", 
+                 "String", "Strings", 
                  "Int","Ints",
                  "Float","Floats",
                   "ColorRGB"]
 
-DISPLAY_OPTIONS_DICT = {
-    "Trigger": [],
-    "Triggers": [],
-    "Bool": [],
-    "Bools": [],
-    "String": [],
-    "Int": [],
-    "Float": [],
-    "Floats": [],
-    "ColorRGB": []
-}
 
 SINGLE_TYPES = ["Trigger","Bool", 
                  "String",
@@ -67,7 +56,7 @@ DOUBLE_TYPES = []
 
 TRIPLE_TYPES = ["ColorRGB"]
 
-LIST_TYPES = ["Triggers", "Bools", 
+LIST_TYPES = ["Triggers", "Bools", "Strings",
                 "Ints", "Floats",
                  "ColorRGB"]
 
@@ -76,7 +65,7 @@ BOUND_TYPES = ["Int","Ints",
                  "Float","Floats",
                   "ColorRGB"]
 
-STRING_TYPES = ["String"]
+STRING_TYPES = ["String","Strings"]
 BOOL_TYPES = ["Bool","Bools"]
 INT_TYPES = ["Int","Ints","ColorRGB"]
 FLOAT_TYPES = ["Float","Floats"]
@@ -86,15 +75,25 @@ BLANK_DATUM_DICT = nepi_sdk.convert_msg2dict(Datum())
 
 BLANK_CNTROLS_DICT = dict()
 
+# Keys create_data_dict stores beside the data. They are not data.
+DATA_META_KEYS = ['data_id','data_name','data_display_name','data_description']
+
 
 
 
 EXAMPLE_INIT_DICT = {
+        'data_id': 'demo_data',
+        'data_name': 'demo_data',
+        'data_display_name': 'DEMO DATA',
+        'data_description': 'Demo Data',
 
         'string': {
             'type': 'String', 'value': 'starting',
             'display_name': 'Demo String', 'description': 'A wall-clock timestamp string.', 'display_hidden': False},
 
+        'strings': {
+            'type': 'Strings', 'value': ['starting','ending'],
+            'display_name': 'Demo Strings', 'description': 'A wall-clock timestamp strings.', 'display_hidden': False},
 
         'color_rgb': {
             'type': 'ColorRBB', 'value': [0,255,0],
@@ -171,11 +170,27 @@ def get_publisher_namespaces(topics_list = None, types_list = None):
     return namespaces_list
 
 
-def create_data_dict(init_dict):
+def create_data_dict(init_dict, id = None, name = None, display_name = None, description = None):
   data_dict = dict()
 
+  if id is None:
+    id = init_dict.get('data_id', 'data')
+  data_dict['data_id'] =  copy.deepcopy(id)
+  
+  if name is None:
+    name = init_dict.get('data_name', 'data')
+  data_dict['data_name'] =  copy.deepcopy(name)
+
+  if display_name is None:
+    display_name = init_dict.get('data_display_name', name)
+  data_dict['data_display_name'] = copy.deepcopy(display_name)
+
+  if description is None:
+    description = init_dict.get('data_description', name)
+  data_dict['data_description'] = copy.deepcopy(description)
+
   try:
-    names = list(init_dict.keys())
+    names = [name for name in init_dict.keys() if name not in DATA_META_KEYS]
   except Exception as e:
     # Dropped every datum at once, with no log line. Not throttled: this runs
     # once per data value at registration, so a throttle would hide it.
@@ -187,6 +202,8 @@ def create_data_dict(init_dict):
     try:
       init_datum_dict = init_dict[name]
       input_type = init_datum_dict['type']
+      if input_type == 'None':
+        continue
       if input_type == 'Discrete':
         input_type = 'Selection'
       if input_type in DATUM_TYPES:
@@ -198,8 +215,8 @@ def create_data_dict(init_dict):
         datum_dict['length'] = 0
         datum_dict['min_bound'] = -999
         datum_dict['max_bound'] = -999
-        datum_dict['display_name'] = name
-        datum_dict['display_labels'] = []
+        datum_dict['display_name'] = name.replace('_',' ').capitalize()
+        datum_dict['value_names'] = []
         datum_dict['display_round'] = 2
         datum_dict['display_row'] = False
 
@@ -313,26 +330,35 @@ def create_data_dict(init_dict):
         datum_dict['value'] = value
         datum_dict['length'] = len(value)
 
-
+        #############
+        # Clean Display Name
+        #############
+        if datum_dict['display_name'] is None or datum_dict['display_name'] == 'None':
+          datum_dict['display_name'] = ''
+        if datum_type in LIST_TYPES and datum_dict['display_name'] == '':
+          if isinstance(value, list):
+              pass
+          else:
+              datum_dict['display_name'] = name.replace('_',' ').capitalize()
 
 
         #############
         # Clean Labels
-        display_labels = datum_dict['display_labels']
+        value_names = datum_dict['value_names']
         if input_type == 'ColorRGB':
-              display_labels = ['R','G','B']
+              value_names = ['R','G','B']
 
         elif input_type in SINGLE_TYPES:
-              display_labels = [datum_dict['display_name']]
+              value_names = [datum_dict['display_name']]
         else:
           for i, entry in enumerate(value):
-            if len(display_labels) <= i:
-              display_labels.append(datum_dict['display_name'] +'_' + str(i))
+            if len(value_names) <= i:
+              value_names.append(datum_dict['display_name'] +' ' + str(i))
 
-        display_labels = [str(item) for item in display_labels]
+        value_names = [str(item) for item in value_names]
 
 
-        datum_dict['display_labels'] = display_labels
+        datum_dict['value_names'] = value_names
 
 
         #############
@@ -373,17 +399,7 @@ def create_data_dict(init_dict):
         #############
         datum_dict['display_row'] = cleanDisplayRow(datum_dict['display_row'])
 
-        #############
-        # Clean Display Options
-        #############
-        display_options = datum_dict['display_options']
-        if display_options is None:
-          display_options = []
-        else:
-          if isinstance(display_options, list) == False:
-              display_options = [str(display_options)]
-        datum_dict['display_options'] = display_options
-
+    
         #############
         # Clean Display Name
         #############
@@ -441,14 +457,22 @@ def get_clean_value(data_dict, datum_name, datum_value = None):
   # If datum_value is None or any datum_value is invalid, current valid values are returned
   valid = False
   value = None
+  fallback_value = []
+  fallback_len = 1
+  if isinstance(datum_value, list) == True:
+        fallback_len = len(datum_value)
   datum_name = nepi_utils.get_clean_name(datum_name)
   if datum_name != '' and datum_name in data_dict.keys():
       datum_dict = data_dict[datum_name]
       current_value = datum_dict['value']
       datum_type = datum_dict['type']
-      datum_length = datum_dict['length']
-      min_bound = datum_dict['min_bound']
-      max_bound = datum_dict['max_bound']
+      datum_length = datum_dict.get('length', fallback_len)
+      min_bound = datum_dict.get('min_bound', -999)
+      max_bound = datum_dict.get('max_bound', -999)
+    
+      delta_bound = datum_dict.get('delta_bound', -999)
+      dir_bound = datum_dict.get('dir_bound', -999)
+      round_f = datum_dict.get('round', 9)
 
       if datum_value is None:
         try:
@@ -511,6 +535,7 @@ def get_clean_value(data_dict, datum_name, datum_value = None):
           elif datum_type in INT_TYPES:  ###########################################################
             try:
               add_value = int(float(add_value))
+              
               if int(float(min_bound)) != -999 and add_value < min_bound:
                 add_value = min_bound
               if int(float(max_bound)) != -999 and add_value > max_bound:
@@ -522,7 +547,7 @@ def get_clean_value(data_dict, datum_name, datum_value = None):
           elif datum_type in FLOAT_TYPES: ###########################################################
 
             try:
-              add_value  = float(add_value)
+              add_value  = round(float(add_value), round_f)
               # Named round_to, not round: binding the name `round` shadowed the
               # builtin, so round(add_value, round) raised "'int' object is not
               # callable" on the very next line. The except below swallowed it and
@@ -605,7 +630,7 @@ def get_value(data_dict, datum_name, index = None):
       except:
         value = None
 
-    # No Trigger transform here, matching nepi_controls.get_value: this
+    # No Trigger transform here, matching nepi_data.get_value: this
     # accessor returns the value as it is STORED, so a read written straight
     # back is a no-op for every type. The seconds-since view belongs to the
     # reporting path and already lives there, computed from the raw value in
@@ -617,6 +642,8 @@ def get_values_dict(data_dict):
   data_values_dict = dict()
   if data_dict is not None:
     for datum_name in data_dict.keys():
+      if datum_name in DATA_META_KEYS:
+        continue
       datum_value = get_value(data_dict, datum_name)
       if datum_value is not None:
         data_values_dict[datum_name] = datum_value
@@ -630,6 +657,8 @@ def get_params_dict(data_dict):
   data_values_dict = dict()
   if data_dict is not None:
     for datum_name in data_dict.keys():
+      if datum_name in DATA_META_KEYS:
+        continue
       datum_value = get_value(data_dict, datum_name)
       param = data_dict[datum_name].get('param',True)
       if datum_value is not None and param == True:
@@ -684,31 +713,31 @@ def reset_value(data_dict, datum_name):
   return data_dict
 
 def reset_values(data_dict):
-    datum_names = list(data_dict.keys())
+    datum_names = [name for name in data_dict.keys() if name not in DATA_META_KEYS]
     for datum_name in datum_names:
       data_dict = reset_value(data_dict, datum_name)
     return data_dict
 
 
-def get_display_labels(data_dict, datum_name):
-  display_labels = []
+def get_value_names(data_dict, datum_name):
+  value_names = []
   if datum_name in data_dict.keys():
-      display_labels = data_dict[datum_name].get('display_labels',[])
-  return display_labels
+      value_names = data_dict[datum_name].get('value_names',[])
+  return value_names
 
 
-def set_display_labels(data_dict, datum_name, display_labels):
-  display_labels = [str(item) for item in display_labels]
+def set_value_names(data_dict, datum_name, value_names):
+  value_names = [str(item) for item in value_names]
   if datum_name in data_dict.keys():
-      data_dict[datum_name]['display_labels'] = display_labels
+      data_dict[datum_name]['value_names'] = value_names
   return data_dict
 
 
 def get_bounds(data_dict, datum_name):
   bounds = [-999,-999]
   if datum_name in data_dict.keys():
-      min_bound = data_dict[datum_name]['min_bound']
-      max_bound = data_dict[datum_name]['max_bound']
+      min_bound = data_dict[datum_name].get('min_bound', -999)
+      max_bound = data_dict[datum_name].get('max_bound', -999)
       bounds = [min_bound, max_bound]
   return bounds
 
@@ -720,9 +749,10 @@ def set_min_bound(data_dict, datum_name, min_bound = None):
   if datum_name in data_dict.keys():
       input_type = data_dict[datum_name]['type']
       max_bound = data_dict[datum_name]['max_bound']
+      round_f = data_dict[datum_name].get('round', 9)
       if input_type in FLOAT_TYPES:
         try:
-          min_bound = float(min_bound)
+          min_bound = round(float(min_bound), round_f)
         except:
           pass
      
@@ -744,10 +774,11 @@ def set_max_bound(data_dict, datum_name, max_bound = None):
     max_bound = -999
   if datum_name in data_dict.keys():
       input_type = data_dict[datum_name]['type']
-      min_bound = data_dict[datum_name]['min_bound']
+      min_bound = data_dict[datum_name].get('min_bound', -999)
+      round_f = data_dict[datum_name].get('round', 9)
       if input_type in FLOAT_TYPES:
         try:
-          max_bound = float(max_bound)
+          max_bound = round(float(max_bound), round_f)
         except:
           pass
      
@@ -928,26 +959,26 @@ def move_datum_down(data_dict, datum_name):
 ############################################################
 # Status Msg Functions
 
-def create_status_msg( name = '', display_name = '', description = ''):
+def convert_data_dict2msg(data_dict, id = None, name = None, display_name = None, description = None):
   status_msg = DataStatus()
-  name = nepi_utils.get_clean_name(str(name))
-  status_msg.name= name
-  if display_name == '':
-    display_name = name
-  status_msg.display_name= str(display_name)
-  if description == '':
-    description = name
-  status_msg.description= str(description)
-  return status_msg
+  
+  if id is None:
+    id = data_dict.get('data_id', 'data')
+  status_msg.id =  copy.deepcopy(id)
+  
+  if name is None:
+    name = data_dict.get('data_name', 'data')
+  status_msg.name =  copy.deepcopy(name)
 
+  if display_name is None:
+    display_name = data_dict.get('data_display_name', name)
+  status_msg.display_name = copy.deepcopy(display_name)
 
-def update_status_msg( status_msg, data_dict):
-  if status_msg is None:
-    status_msg = DataStatus()
+  if description is None:
+    description = data_dict.get('data_description', name)
+  status_msg.description = copy.deepcopy(description)
 
-  data_name = status_msg.name
-  if data_name == '':
-     data_name = 'data_name'
+  
 
 
   names_list = [] 
@@ -955,7 +986,7 @@ def update_status_msg( status_msg, data_dict):
   msgs_list = [] 
 
   try:
-    names = list(data_dict.keys())
+    names = [name for name in data_dict.keys() if name not in DATA_META_KEYS]
   except Exception as e:
     logger.log_debug("update_status_msg: could not read datum names from data dict: " +
                     type(e).__name__ + ": " + str(e))
@@ -999,7 +1030,7 @@ def update_status_msg( status_msg, data_dict):
 
 
         msg_type = 'nepi_interfaces/Datum'
-        datum_msg = nepi_sdk.convert_dict2msg(msg_type,datum_dict,Datum(),data_name)
+        datum_msg = nepi_sdk.convert_dict2msg(msg_type,datum_dict,Datum(),status_msg.name)
         if datum_msg is not None:
           names_list.append(name)
           msgs_list.append(datum_msg)
@@ -1021,3 +1052,27 @@ def update_status_msg( status_msg, data_dict):
   status_msg.data_name_list = names_list
   status_msg.data_msg_list = msgs_list
   return status_msg
+
+
+def convert_datum_msg2dict(msg):
+  # Same shape as a create_data_dict entry: name to the full datum dict,
+  # so msg to dict to msg round-trips through convert_data_dict2msg.
+  datum_dict = dict()
+  msg_dict = nepi_sdk.convert_msg2dict(msg)
+  value = get_value_list(msg_dict['value'])
+  msg_dict['value'] = value
+  msg_dict['default'] = copy.deepcopy(value)
+  msg_dict['length'] = len(value)
+  datum_dict[msg.name] = msg_dict
+  return datum_dict
+
+def convert_data_msg2dict(msg):
+  data_dict = dict()
+  data_dict['data_id'] = msg.id
+  data_dict['data_name'] = msg.name
+  data_dict['data_display_name'] = msg.display_name
+  data_dict['data_description'] = msg.description
+  for datum_msg in msg.data_msg_list:
+    datum_dict = convert_datum_msg2dict(datum_msg)
+    data_dict.update(datum_dict)
+  return data_dict

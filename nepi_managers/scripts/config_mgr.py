@@ -17,7 +17,7 @@
 # - mailto:nepi@numurus.com
 #
 
-# The config_mgr node serves as a bridge between the ROS param server and the filesystem.
+# The ConfigMgr node serves as a bridge between the ROS param server and the filesystem.
 # It provides the rest of the Numurus/ROS node set the ability to save and restore config.
 # files with rudimentary coordination to reduce overloading file system during times of
 # heavy updates.
@@ -55,7 +55,7 @@ SYSTEM_MGR_NODENAME = 'system_mgr'
 
 
 
-class config_mgr(object):
+class ConfigMgr(object):
 
     node_if = None
     config_folders = dict()
@@ -80,7 +80,7 @@ class config_mgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting Initialization Processes")
+        self.msg_if.pub_debug("Starting Initialization Processes", color = 'GREEN')
 
         ##############################
         # Wait for System Manager
@@ -242,7 +242,7 @@ class config_mgr(object):
         #########################################################
         ## Initiation Complete
 
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", color = 'GREEN')
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################
@@ -606,4 +606,4 @@ class config_mgr(object):
             self.node_if.publish_pub('status_pub', Empty())
 
 if __name__ == '__main__':
-    config_mgr()
+    ConfigMgr()

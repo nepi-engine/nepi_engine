@@ -26,7 +26,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_sdk import nepi_sdk
 
 
-from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
 
 
@@ -42,8 +42,6 @@ class ConnectMgrConfigIF:
     #######################
     ### IF Initialization
     def __init__(self, timeout = float('inf'),
-                
-              ,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -58,7 +56,7 @@ class ConnectMgrConfigIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes", 
+        self.msg_if.pub_info("Starting Initialization Processes", color = "GREEN") 
 
 
         ##############################    
@@ -69,7 +67,7 @@ class ConnectMgrConfigIF:
         ##############################
         ### Wait for status to publish
         status_topic = nepi_sdk.create_namespace(self.mgr_namespace,'status')
-        self.msg_if.pub_info("Waiting for status topic: " + status_topic, 
+        self.msg_if.pub_debug("Waiting for status topic: " + status_topic)
         nepi_sdk.wait_for_topic(status_topic)
         
         #############################
@@ -145,7 +143,7 @@ class ConnectMgrConfigIF:
 
         # Create Node Class ####################
 
-        self.node_if = ConnectNodeClassIF(
+        self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -161,7 +159,7 @@ class ConnectMgrConfigIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", 
+        self.msg_if.pub_info("Initialization Complete", color = "GREEN")
         
 
     #######################
@@ -172,22 +170,22 @@ class ConnectMgrConfigIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for ready", 
+        self.msg_if.pub_debug("Waiting for ready")
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
-            self.msg_if.pub_info("Waiting for Config Mgr ready: " + str(self.ready) , throttle_s = 5)
+            self.msg_if.pub_debug("Waiting for Config Mgr ready: " + str(self.ready) , throttle_s = 5)
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect", 
+            self.msg_if.pub_warn("Failed to Connect to Config Mgr") 
         else:
-            self.msg_if.pub_info("ready", 
+            self.msg_if.pub_debug("ready")
         return self.ready
 
     def wait_for_status(self, timeout = float('inf') ):
         self.wait_for_ready()
-        self.msg_if.pub_info("Waiting for Config Mgr status connection", 
+        self.msg_if.pub_debug("Waiting for Config Mgr status connection")
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
@@ -195,9 +193,9 @@ class ConnectMgrConfigIF:
             timer = nepi_sdk.get_time() - time_start
             self.msg_if.pub_info("Waiting for Config Mgr status connection: " + str(self.status_connected) , throttle_s = 5)
         if self.status_connected == False:
-            self.msg_if.pub_info("Failed to connect to status msg", 
+            self.msg_if.pub_warn("Failed to connect to Config Mgr status msg") 
         else:
-            self.msg_if.pub_info("Status Connected", 
+            self.msg_if.pub_info("Status Connected")
         return self.status_connected
 
     def get_status_dict(self):
@@ -206,7 +204,7 @@ class ConnectMgrConfigIF:
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         else:
-            self.msg_if.pub_info("Status Listener Not connected", 
+            self.msg_if.pub_warn("Status Listener Not connected")
         return status_dict
 
     #######################

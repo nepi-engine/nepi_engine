@@ -29,7 +29,8 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_interfaces.msg import MgrSystemStatus, SystemDefs, WarningFlags, StampedString, SaveDataRate
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
-from nepi_api.connect_node_if import ConnectNodeServicesIF, ConnectNodeClassIF
+from nepi_api.node_if import NodeClassIF
+from nepi_api.connect_node_if import ConnectNodeServicesIF
 from nepi_api.messages_if import MsgIF
 
 
@@ -43,8 +44,6 @@ class ConnectMgrSystemServicesIF:
     #######################
     ### IF Initialization
     def __init__(self, timeout = float('inf'),
-                
-              ,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -59,7 +58,7 @@ class ConnectMgrSystemServicesIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes", 
+        self.msg_if.pub_info("Starting Initialization Processes", color = "GREEN")
 
 
         ##############################    
@@ -70,7 +69,7 @@ class ConnectMgrSystemServicesIF:
         ##############################
         ### Wait for status to publish
         status_topic = nepi_sdk.create_namespace(self.base_namespace,'system_status')
-        self.msg_if.pub_debug("Waiting for status topic: " + status_topic, 
+        self.msg_if.pub_debug("Waiting for status topic: " + status_topic)
         nepi_sdk.wait_for_topic(status_topic)
         #############################
         # Connect Node IF Setup
@@ -93,7 +92,6 @@ class ConnectMgrSystemServicesIF:
 
         self.services_if = ConnectNodeServicesIF(
                         services_dict = self.SRVS_DICT,
-                        
                         msg_if = None
         )
 
@@ -105,7 +103,7 @@ class ConnectMgrSystemServicesIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_debug("IF Initialization Complete", 
+        self.msg_if.pub_debug("IF Initialization Complete")
         
 
     #######################
@@ -115,20 +113,20 @@ class ConnectMgrSystemServicesIF:
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
-        self.msg_if.pub_debug("Waiting for connection", 
+        self.msg_if.pub_debug("Waiting for connection")
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_debug("Failed to Connect", 
+            self.msg_if.pub_debug("Failed to Connect")
         else:
-            self.msg_if.pub_debug("ready", 
+            self.msg_if.pub_debug("ready")
         return self.ready
 
     def wait_for_services(self, timeout = float('inf') ):
-        self.msg_if.pub_debug("Waiting for service connection", 
+        self.msg_if.pub_debug("Waiting for service connection")
         timer = 0
         time_start = nepi_sdk.get_time()
         connected = False
@@ -140,9 +138,9 @@ class ConnectMgrSystemServicesIF:
                 connected = (ret is not None)
             timer = nepi_sdk.get_time() - time_start
         if connected == False:
-            self.msg_if.pub_debug("Failed to connect to status msg", 
+            self.msg_if.pub_debug("Failed to connect to status msg")
         else:
-            self.msg_if.pub_debug("Services Connected", 
+            self.msg_if.pub_debug("Services Connected")
         return connected     
 
 
@@ -191,8 +189,6 @@ class ConnectMgrSystemIF:
     #######################
     ### IF Initialization
     def __init__(self, timeout = float('inf'),
-                
-              ,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -207,7 +203,7 @@ class ConnectMgrSystemIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes", 
+        self.msg_if.pub_info("Starting Initialization Processes", color = "GREEN")
 
 
         ##############################    
@@ -264,7 +260,7 @@ class ConnectMgrSystemIF:
 
         # Create Node Class ####################
 
-        self.node_if = ConnectNodeClassIF(
+        self.node_if = NodeClassIF(
                         pubs_dict = self.PUBS_DICT,
                         subs_dict = self.SUBS_DICT,
                         
@@ -280,7 +276,7 @@ class ConnectMgrSystemIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", 
+        self.msg_if.pub_info("IF Initialization Complete", color = "GREEN")
         
 
     #######################
@@ -290,20 +286,20 @@ class ConnectMgrSystemIF:
         return self.ready
 
     def wait_for_ready(self, timeout = float('inf') ):
-        self.msg_if.pub_debug("Waiting for connection", 
+        self.msg_if.pub_debug("Waiting for connection")
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_debug("Failed to Connect", 
+            self.msg_if.pub_debug("Failed to Connect")
         else:
-            self.msg_if.pub_debug("ready", 
+            self.msg_if.pub_debug("ready")
         return self.ready
 
     def wait_for_services(self, timeout = float('inf') ):
-        self.msg_if.pub_debug("Waiting for status connection", 
+        self.msg_if.pub_debug("Waiting for status connection")
         services_connected = self.services_if.wait_for_services_path(timeout = timeout)
         return services_connected
 
@@ -313,16 +309,16 @@ class ConnectMgrSystemIF:
 
 
     def wait_for_status(self, timeout = float('inf') ):
-        self.msg_if.pub_debug("Waiting for status connection", 
+        self.msg_if.pub_debug("Waiting for status connection")
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.status_connected == False:
-            self.msg_if.pub_debug("Failed to connect to status msg", 
+            self.msg_if.pub_debug("Failed to connect to status msg")
         else:
-            self.msg_if.pub_debug("Status Connected", 
+            self.msg_if.pub_debug("Status Connected")
         return self.status_connected
 
     def get_status_dict(self):
@@ -331,7 +327,7 @@ class ConnectMgrSystemIF:
         if self.status_msg is not None:
             status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
         else:
-            self.msg_if.pub_debug("Status Listener Not connected", 
+            self.msg_if.pub_debug("Status Listener Not connected") 
         return status_dict
 
 

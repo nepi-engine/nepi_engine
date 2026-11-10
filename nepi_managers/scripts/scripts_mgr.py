@@ -86,7 +86,7 @@ class ScriptsManager(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
 
 
         ##############################
@@ -254,7 +254,7 @@ class ScriptsManager(object):
 
         ###########################
         ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", color = 'GREEN')
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################

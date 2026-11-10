@@ -130,7 +130,7 @@ class NepiDriversMgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
 
 
         ##############################
@@ -367,7 +367,7 @@ class NepiDriversMgr(object):
 
         #########################################################
         ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", color = 'GREEN')
         #Set up node shutdown
         nepi_sdk.on_shutdown(self.cleanup_actions)
         # Spin forever (until object is detected)

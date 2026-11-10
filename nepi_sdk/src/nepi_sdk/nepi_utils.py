@@ -45,6 +45,8 @@ import ipaddress
 
 from pathlib import Path
 
+
+
 from nepi_sdk import nepi_sdk
 logger = nepi_sdk.sdk_logger
 
@@ -624,7 +626,7 @@ def write_dict_2_yaml(file_path,dict_2_save, defaultFlowStyle=False,sortKeys=Fal
         with open(file_path, "w") as f:
             yaml.dump(dict_2_save, stream=f, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
         success = True
-    except:
+    except Exception as e:
         logger.log_info("Failed to write dict: " + str(dict_2_save) + " to file: " + file_path + " " + str(e))
     return success
 
@@ -636,7 +638,7 @@ def add_dict_2_yaml(file_path, dict_2_add, defaultFlowStyle=False,sortKeys=False
     else:
         dict_2_save = dict_2_add
     if os.path.exists(file_path) == False:
-        success = write_dict_2_yaml(file_path,dict_2_save, default_flow_style=defaultFlowStyle, sort_keys=sortKeys)
+        success = write_dict_2_yaml(file_path,dict_2_save, defaultFlowStyle=defaultFlowStyle, sortKeys=sortKeys)
     else:
         try:
             with open(file_path, 'a') as file:

@@ -59,20 +59,23 @@ class ProcessTrackIF(ProcessIF):
         
         ###############################
 
-        super().__init__(process_name,
-                process_group,
-                process_description,
-                process_module,
-                config_dict,
-                callback_dict,
-                show_dict,
-                
-                
-                msg_if,
-                node_if,
-                save_data_if,
+        super().__init__(process_name = process_name,
+                process_group = process_group,
+                process_description = process_description,
+                process_module = process_module,
+                callback_dict = callback_dict,
+                config_dict = config_dict,
+                show_dict = show_dict,
+                msg_if = msg_if,
+                node_if = node_if,
+                save_data_if = save_data_if,
                 )
 
         self.msg_if.pub_info(str(class_name) + " Initialization Complete")
         ###############################
+
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ProcessTrackIF:
+            self.start()
 

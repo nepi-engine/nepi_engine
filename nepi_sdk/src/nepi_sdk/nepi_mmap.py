@@ -64,7 +64,7 @@ def check_lock_mmap(mmap_id):
 def wait_for_unlock_mmap(mmap_id, timeout = 1):
   locked = True
   unlocked = False
-  start_time = nepi_utils.get_time_now()
+  start_time = nepi_utils.get_time()
   timer = 0
   while locked == True and timer < timeout and not nepi_sdk.is_shutdown():
     locked = check_lock_mmap(mmap_id)

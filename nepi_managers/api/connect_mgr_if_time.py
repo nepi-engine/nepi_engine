@@ -30,7 +30,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 
-from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.messages_if import MsgIF
 
 
@@ -46,8 +46,6 @@ class ConnectMgrTimeSyncIF:
     #######################
     ### IF Initialization
     def __init__(self, time_updated_callback = None, timeout = float('inf'),
-                
-              ,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -62,7 +60,7 @@ class ConnectMgrTimeSyncIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes", 
+        self.msg_if.pub_info("Starting IF Initialization Processes", color = 'GREEN')
 
 
         ##############################    
@@ -73,7 +71,7 @@ class ConnectMgrTimeSyncIF:
         ##############################
         ### Wait for status to publish
         status_topic = nepi_sdk.create_namespace(self.mgr_namespace,'status')
-        self.msg_if.pub_info("Waiting for status topic: " + status_topic, 
+        self.msg_if.pub_debug("Waiting for status topic: " + status_topic)
         nepi_sdk.wait_for_topic(status_topic)
         ##############################
         ### Setup Node
@@ -141,7 +139,7 @@ class ConnectMgrTimeSyncIF:
 
         # Create Node Class ####################
 
-        self.node_if = ConnectNodeClassIF(
+        self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -159,7 +157,9 @@ class ConnectMgrTimeSyncIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", 
+        self.msg_if.pub_info("IF Initialization Complete", color = 'GREEN')
+
+
         
 
     #######################
@@ -170,20 +170,20 @@ class ConnectMgrTimeSyncIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for connection", 
+        self.msg_if.pub_debug("Waiting for connection")
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect", 
+            self.msg_if.pub_warn("Failed to Connect")
         else:
-            self.msg_if.pub_info("ready", 
+            self.msg_if.pub_debug("ready")
         return self.ready
 
     def wait_for_services(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection", 
+        self.msg_if.pub_debug("Waiting for status connection")
         timer = 0
         time_start = nepi_sdk.get_time()
         connected = False
@@ -196,9 +196,9 @@ class ConnectMgrTimeSyncIF:
                 connected = (ret is not None)
             timer = nepi_sdk.get_time() - time_start
         if connected == False:
-            self.msg_if.pub_info("Failed to connect to status msg", 
+            self.msg_if.pub_warn("Failed to connect to status msg")
         else:
-            self.msg_if.pub_info("Status Connected", 
+            self.msg_if.pub_info("Status Connected")
         return connected
 
 
@@ -213,7 +213,7 @@ class ConnectMgrTimeSyncIF:
             self.msg_if.pub_warn("Failed to create service request: " + " " + str(e))
         try:
             response = self.node_if.call_service(service_name, request, verbose = verbose)
-            #self.msg_if.pub_info("Got time status response: " + str(response))
+            #self.msg_if.pub_debug("Got time status response: " + str(response))
         except Exception as e:
             if verbose == True:
                 self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e))
@@ -223,7 +223,7 @@ class ConnectMgrTimeSyncIF:
             self.status_msg = response.time_status
             time_status = response.time_status
             time_dict = nepi_sdk.convert_msg2dict(time_status)
-            #self.msg_if.pub_info("Got time status dict: " + str(time_dict))
+            #self.msg_if.pub_debug("Got time status dict: " + str(time_dict))
         return time_dict    
 
     #######################

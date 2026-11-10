@@ -95,87 +95,119 @@ TRIGGER_TYPES = ['Button','Buttons']
 
 BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(Control())
 
-BLANK_CNTROLS_DICT = dict()
+BLANK_CONTROLS_DICT = dict()
+
+# Keys create_controls_dict stores beside the controls. They are not controls.
+CONTROLS_META_KEYS = ['controls_id','controls_name','controls_display_name','controls_description']
 
 EXAMPLE_INIT_DICT = {
+            'controls_id': 'demo_controls',
+            'controls_name': 'demo_controls',
+            'controls_display_name': 'DEMO CONTROLS',
+            'controls_description': 'Demo Controls',
+
             'menu': {
                 'type': 'Menu', 'default': 1, 'options': ['Off', 'Low', 'High'],
+                # Optional
+                'match_select': True, 'auto_select': False,
                 'display_name': 'Demo Menu', 'description': 'Pick one menu option (index based).', 'display_hidden': False},
 
             'string': {
                 'type': 'String', 'default': 'hello nepi',
+                # Optional
                 'display_name': 'Demo String', 'description': 'Free-form text value.', 'display_hidden': False},
 
 
             'selection': {
                 'type': 'Selection', 'default': 'Bravo', 'options': ['Alpha', 'Bravo', 'Charlie'],
+                # Optional
+                'match_select': True, 'has_auto_select': True, 'auto_select_enabled': False, 
+                'display_options': ['hide_auto_select'],
                 'display_name': 'Demo Selection', 'description': 'Select a single option by name.', 'display_hidden': False},
 
             'selections': {
                 'type': 'Selections', 'default': ['Red', 'Blue'], 'options': ['Red', 'Green', 'Blue'],
+                # Optional
+                'match_select': True, 'has_auto_select': True, 'auto_select_count': 1,
+                'display_options': ['hide_auto_select'],
                 'display_name': 'Demo Selections', 'description': 'Select any number of options.', 'display_hidden': False},
 
             'color_rgb': {
                 'type': 'ColorRGB', 'value': [0,255,0],
+                # Optional
                 'display_name': 'Demo Color RGB', 'description': 'A rbg color.', 'display_hidden': False},
 
 
             'trigger': {
                 'type': 'Button', 'value': True,
+                # Optional
                 'display_name': 'Demo Button', 'description': 'A trigger age secs.', 'display_hidden': False},
 
 
             'trigger_column': {
                 'type': 'Button', 'value': [0,2.1],
+                # Optional
                 'display_name': 'Demo Button', 'description': 'Two  triggers age secs.', 'display_hidden': False},
 
             'triggers_row': {
                 'type': 'Buttons', 'value': [0,2.1],
+                # Optional
                 'display_name': 'Demo Buttons', 'description': 'Two triggers age secs.', 'display_hidden': False, 'display_row': True},
 
             'bool_data': {
                 'type': 'Toggle', 'value': True,
+                # Optional
                 'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False},
 
             'bools_column': {
                 'type': 'Toggles', 'value': [True, False, False],
+                # Optional
                 'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False},
 
             'bools_row': {
                 'type': 'Toggles', 'value': [True, False, False],
+                # Optional
                 'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
 
 
             'int': {
                 'type': 'Int', 'default': 5, 'bounds': [0, 10],
+                # Optional
                 'display_name': 'Demo Int', 'description': 'Integer value within [0, 10].', 'display_bounds': True, 'display_hidden': False},
 
             'ints_column': {
                 'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
+                # Optional
                 'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_bounds': True, 'display_hidden': False},
 
             'ints_row': {
                 'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
+                # Optional
                 'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_bounds': True, 'display_hidden': False, 'display_row': True},
 
             'float': {
                 'type': 'Float', 'default': 2.5, 'bounds': [0.0, 10.0], 'round_value': 2,
+                # Optional
                 'display_name': 'Demo Float', 'description': 'Float value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False},
 
             'floats_column': {
                 'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
+                # Optional
                 'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False},
 
             'floats_row': {
                 'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0, 1, 1], 'round_value': 2,
+                # Optional
                 'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False, 'display_row': True},
 
             'float_slider': {
                 'type': 'FloatSlider', 'default': 50.0, 'bounds': [0.0, 100.0], 'round_value': 1,
+                # Optional
                 'display_name': 'Demo Float Slider', 'description': 'Single-value slider over [0, 100].', 'display_hidden': False},
 
             'range_slider': {
                 'type': 'RangeSlider', 'default': [0.25, 0.75], 'bounds': [0.0, 1.0, 0.1], 'round_value': 2,
+                # Optional
                 'display_name': 'Demo Floats Slider', 'description': 'Dual-value range slider (0.0-1.0 ratio).', 'display_hidden': False},
           }
 
@@ -188,11 +220,27 @@ def get_publisher_namespaces(topics_list = None, types_list = None):
     return namespaces_list
 
 
-def create_controls_dict(init_dict):
+def create_controls_dict(init_dict, id = None, name = None, display_name = None, description = None):
   controls_dict = dict()
+  
+  if id is None:
+    id = init_dict.get('controls_id', 'controls')
+  controls_dict['controls_id'] =  copy.deepcopy(id)
+  
+  if name is None:
+    name = init_dict.get('controls_name', 'controls')
+  controls_dict['controls_name'] =  copy.deepcopy(name)
+
+  if display_name is None:
+    display_name = init_dict.get('controls_display_name', name)
+  controls_dict['controls_display_name'] = copy.deepcopy(display_name)
+
+  if description is None:
+    description = init_dict.get('controls_description', name)
+  controls_dict['controls_description'] = copy.deepcopy(description)
 
   try:
-    names = list(init_dict.keys())
+    names = [name for name in init_dict.keys() if name not in CONTROLS_META_KEYS]
   except Exception as e:
     # Dropped every control at once, with no log line. Not throttled: this runs
     # once per controls value at registration, so a throttle would hide it.
@@ -204,6 +252,8 @@ def create_controls_dict(init_dict):
     try:
       init_control_dict = init_dict[name]
       input_type = init_control_dict['type']
+      if input_type == 'None':
+        continue
       if input_type == 'Discrete':
         input_type = 'Selection'
       if input_type not in CONTROL_TYPES:
@@ -215,13 +265,13 @@ def create_controls_dict(init_dict):
         control_dict['param'] = True
         control_dict['round'] = 6
         control_dict['default'] = []
-        control_dict['length'] = 0
+        control_dict['length'] = 1
         control_dict['min_bound'] = -999.0
         control_dict['max_bound'] =  -999.0
         control_dict['delta_bound'] =  -999.0
         control_dict['dir_bound'] =  -999.0
-        control_dict['display_name'] = name
-        control_dict['display_labels'] = name
+        control_dict['display_name'] = name.replace('_',' ').capitalize()
+        control_dict['value_names'] = name
         control_dict['display_round'] = 2
         control_dict['display_row'] = False
         control_dict['display_bounds'] = False
@@ -284,6 +334,53 @@ def create_controls_dict(init_dict):
           if input_type == 'ColorRGB':
                 min_bound = 0
                 max_bound = 255
+          elif input_type == 'Selection' or input_type == 'Selections':
+
+            # Match Select Setting
+            try:
+              min_bound = int(float(init_control_dict['min_bound']))
+            except:
+              min_bound = -999
+              try:
+                match_select = init_control_dict['match_select']
+                if match_select == True:
+                  min_bound = -1 # Match Required
+              except:
+                pass
+
+            ## Has Auto Select Setting
+            try:
+              max_bound = int(float(init_control_dict['max_bound']))
+            except:
+              max_bound = -999
+              try:
+                has_auto_select = init_control_dict['has_auto_select']
+                if has_auto_select == True:
+                  max_bound = 1 # Auto_Select_Count
+              except:
+                pass                
+
+              ## Auto Select Setting
+              # -999 is Auto Select Disabled
+              try:
+                delta_bound = int(float(init_control_dict['delta_bound']))
+              except:
+                delta_bound = -999
+                if input_type == 'Selection':
+                  try:
+                    auto_select_enabled = init_control_dict['auto_select_enabled']
+                    if auto_select_enabled == True:
+                      delta_bound = 1
+                  except:
+                    pass        
+                if input_type == 'Selections':
+                  try:
+                    delta_bound = int(float(init_control_dict['auto_select_count']))
+                  except:
+                    pass
+              dir_bound = delta_bound # auto_select last value               
+
+
           elif input_type in FLOAT_TYPES:
             try:
               min_bound = float(control_dict['min_bound'])
@@ -336,7 +433,7 @@ def create_controls_dict(init_dict):
         control_dict['min_bound'] = round(float(min_bound),round_f)
         control_dict['max_bound'] = round(float(max_bound),round_f)
         control_dict['delta_bound'] = round(float(delta_bound),round_f)
-        if dir_bound == 0:
+        if dir_bound == 0 and input_type != 'Selection' and input_type != 'Selections':
           dir_bound = -999.0
         if int(float(dir_bound)) == -999.0:
           dir_bound = -999.0
@@ -400,7 +497,7 @@ def create_controls_dict(init_dict):
           if isinstance(value, list):
               pass
           else:
-              control_dict['display_name'] = name
+              control_dict['display_name'] = name.replace('_',' ').capitalize()
 
 
         #############
@@ -444,9 +541,9 @@ def create_controls_dict(init_dict):
         options = control_dict['options']
         if isinstance(options, list) == False:
           options = []
-        display_labels = control_dict['display_labels']
-        if isinstance(display_labels, list) == False:
-          display_labels = []
+        value_names = control_dict['value_names']
+        if isinstance(value_names, list) == False:
+          value_names = []
 
         # Membership test, not equality against the name of the list. As an
         # equality test this branch never ran, so Menu/Selection/Selections
@@ -457,38 +554,38 @@ def create_controls_dict(init_dict):
         # camera's resolution/framerate/exposure_auto/power_line_frequency and
         # drivers_mgr's protocol/baud_rate out of their settings dicts.
         if input_type in OPTION_TYPES:
-            if len(options) == 0 and len(display_labels) > 0:
-              options = display_labels
-            # From the local `options`, which carries the display_labels
+            if len(options) == 0 and len(value_names) > 0:
+              options = value_names
+            # From the local `options`, which carries the value_names
             # fallback above; re-reading control_dict['options'] discarded it.
             options = [str(item) for item in options]
-            display_labels = []
+            value_names = []
         else:
-            if len(display_labels) == 0 and len(options) > 0:
-              display_labels = options
+            if len(value_names) == 0 and len(options) > 0:
+              value_names = options
             options = [] 
 
             if input_type == 'ColorRGB':
-                  display_labels = ['R','G','B']
+                  value_names = ['R','G','B']
 
             elif input_type == 'RangeSlider':
                   default_labels = ['start','stop']
-                  for i, label in enumerate(display_labels):
+                  for i, label in enumerate(value_names):
                     default_labels[i] = label
-                  display_labels = default_labels
+                  value_names = default_labels
 
             elif input_type in SINGLE_TYPES:
-                  display_labels = [control_dict['display_name']]
+                  value_names = [control_dict['display_name']]
             else:
               for i, entry in enumerate(value):
-                if len(display_labels) <= i:
-                  display_labels.append(control_dict['display_name'] + '_' + str(i))
+                if len(value_names) <= i:
+                  value_names.append(control_dict['display_name'] + ' ' + str(i))
 
-            display_labels = [str(item) for item in display_labels]
+            value_names = [str(item) for item in value_names]
             options = []
 
         control_dict['options'] = options
-        control_dict['display_labels'] = display_labels
+        control_dict['value_names'] = value_names
 
 
         #############
@@ -583,9 +680,14 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
 
   # If control_name not in controls_dict keys, None is returned
   # If control_value is None or any control_value is invalid, current valid values are returned
-  valid = False
+
   value = None
   fallback_value = []
+  fallback_options = [control_value]
+  fallback_len = 1
+  if isinstance(control_value, list) == True:
+        fallback_options = control_value
+        fallback_len = len(control_value)
   control_name = nepi_utils.get_clean_name(control_name)
   if control_name != '' and control_name in controls_dict.keys():
       control_dict = controls_dict[control_name]
@@ -594,13 +696,13 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
       # if debug == True:
       #   logger.log_debug("Checking control value update: " + str([control_name,control_value,current_value]), throttle_s = 5)
       control_type = control_dict['type']
-      control_length = control_dict['length']
-      options = control_dict['options']
-      min_bound = control_dict['min_bound']
-      max_bound = control_dict['max_bound']
-      delta_bound = control_dict['delta_bound']
-      dir_bound = control_dict['dir_bound']
-      round_f = controls_dict[control_name]['round']
+      control_length = control_dict.get('length', fallback_len)
+      options = control_dict.get('options', fallback_options)
+      min_bound = control_dict.get('min_bound', -999)
+      max_bound = control_dict.get('max_bound', -999)
+      delta_bound = control_dict.get('delta_bound', -999)
+      dir_bound = control_dict.get('dir_bound', -999)
+      round_f = controls_dict[control_name].get('round', 9)
 
       add_value = None
       if control_value is None:
@@ -652,31 +754,61 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
           # through to options[0] -- meaning a Selection could only ever hold
           # its first option, and IndexError'd outright when the option list
           # was empty, dropping the control at registration.
-          selection = None
+          value = None
+          match_select = int(float(min_bound)) != -999
+          auto_select = int(float(max_bound)) != -999 and int(float(delta_bound)) != -999
           try:
-            selection = str(control_value[0])
+            value = str(control_value[0])
           except Exception as e:
-            selection = None
-          if selection is not None and selection in options:
-            value = [selection]
-          elif len(current_value) > 0 and str(current_value[0]) in options:
-            value = [str(current_value[0])]
-          elif len(options) > 0:
-            value = [str(options[0])]
-          else:
-            # No options to choose from: there is no valid value, and
-            # returning None is how the caller is told so.
             value = None
 
+          # Do Base Check
+          # Same rule as Selections: a value in options is kept, and a value
+          # not in options is kept only when match_select is off.
+          if value is not None and (value in options or match_select == False):
+            base_value = value
+          else:
+            base_value = None
+
+          # Do Auto Select
+          if base_value is None and auto_select == True and len(options) > 0:
+            select_value = options[0]
+          else:
+            select_value = base_value
+
+          # Clean Up
+          if select_value is not None:
+            value = [select_value]
+          else:
+            value = ['None']
+
         elif control_type == "Selections": ###########################################################
-            values = []
+            match_select = int(float(min_bound)) != -999
+            auto_select_count = int(float(delta_bound))
+            auto_select = int(float(max_bound)) != -999 and auto_select_count >= 0
+            if auto_select_count < 0:
+              auto_select_count = 1
+
+            # Do Base Check
+            match_value = []
             for item in control_value:
               item = str(item)
-              if item in options:
-                values.append(item)
-            # An empty list is a legitimate value here (nothing selected), which is
-            # why this assigns unconditionally rather than guarding on len().
-            value = values
+              if item in options or match_select == False:
+                match_value.append(item)
+
+            # Do Auto Select
+            auto_value = match_value
+            if auto_select == True:
+              for option in options:
+                if (auto_select_count == 0 or len(auto_value) < auto_select_count):
+                  if option not in auto_value:
+                    auto_value.append(option)
+              
+            # Clean Up
+            if len(auto_value) == 0:
+              value = []
+            else:
+              value = auto_value
 
 
 
@@ -709,6 +841,8 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
         for i in range(control_length):
           cur_value = current_value[i]
           add_value = copy.deepcopy(cur_value)
+          if len(control_value) > i:
+            add_value = control_value[i]
 
           if control_type in STRING_TYPES: ###########################################################
             add_value = str(add_value)
@@ -752,7 +886,7 @@ def get_clean_value(controls_dict, control_name, control_value = None, debug = F
               # callable" on the very next line. The except below swallowed it and
               # handed back cur_value, so EVERY Float update silently reverted to
               # the value already held.
-              round_to = control_dict['round']
+              round_to = control_dict.get('round', 9)
               if round_to >= 0:
                 add_value = round(add_value,round_to)
               # Clamps to min_bound. This assigned max_bound, so a value below the
@@ -882,6 +1016,8 @@ def get_values_dict(controls_dict):
   controls_values_dict = dict()
   if controls_dict is not None:
     for control_name in controls_dict.keys():
+      if control_name in CONTROLS_META_KEYS:
+        continue
       control_value = get_value(controls_dict, control_name)
       if control_value is not None:
         controls_values_dict[control_name] = control_value
@@ -895,6 +1031,8 @@ def get_params_dict(controls_dict):
   controls_values_dict = dict()
   if controls_dict is not None:
     for control_name in controls_dict.keys():
+      if control_name in CONTROLS_META_KEYS:
+        continue
       control_value = get_value(controls_dict, control_name)
       param = controls_dict[control_name].get('param',True)
       if control_value is not None and param == True:
@@ -907,6 +1045,7 @@ def get_params_dict(controls_dict):
 def set_value(controls_dict, control_name, update_value, index = None,  check_valid = True, debug = False):
   if control_name in controls_dict.keys():
       cur_val = controls_dict[control_name]['value']
+      control_type = controls_dict[control_name]['type']
       if index is not None:
         try:
           index = int(index)
@@ -934,6 +1073,10 @@ def set_value(controls_dict, control_name, update_value, index = None,  check_va
       # got it run. drivers_mgr's discovery pass is that caller.
       if check_valid == True and cur_val != update_value:
         update_value = get_clean_value(controls_dict, control_name, update_value, debug = debug)
+        if control_type == 'Selection' or control_type == 'Selections':
+          last_setting = controls_dict[control_name]['delta_bound']
+          controls_dict[control_name]['dir_bound'] = copy.deepcopy(last_setting) # capture last auto select setting
+          controls_dict[control_name]['delta_bound'] = -999 # disable auto_select
         # if debug == True:
         #   logger.log_debug("Set Val Got Clean Value: " + str([control_name,update_value]), throttle_s = 5, throttle_n = True)    
       if update_value is not None:
@@ -969,23 +1112,23 @@ def reset_value(controls_dict, control_name):
   return controls_dict
 
 def reset_values(controls_dict):
-    control_names = list(controls_dict.keys())
+    control_names = [name for name in controls_dict.keys() if name not in CONTROLS_META_KEYS]
     for control_name in control_names:
       controls_dict = reset_value(controls_dict, control_name)
     return controls_dict
 
 
-def get_display_labels(controls_dict, control_name):
-  display_labels = []
+def get_value_names(controls_dict, control_name):
+  value_names = []
   if control_name in controls_dict.keys():
-      display_labels = controls_dict[control_name].get('display_labels',[])
-  return display_labels
+      value_names = controls_dict[control_name].get('value_names',[])
+  return value_names
 
 
-def set_display_labels(controls_dict, control_name, display_labels):
-  display_labels = [str(item) for item in display_labels]
+def set_value_names(controls_dict, control_name, value_names):
+  value_names = [str(item) for item in value_names]
   if control_name in controls_dict.keys():
-      controls_dict[control_name]['display_labels'] = display_labels
+      controls_dict[control_name]['value_names'] = value_names
   return controls_dict
 
 
@@ -1010,8 +1153,8 @@ def set_options(controls_dict, control_name, options):
 def get_bounds(controls_dict, control_name):
   bounds = [-999.0,-999.0]
   if control_name in controls_dict.keys():
-      min_bound = controls_dict[control_name]['min_bound']
-      max_bound = controls_dict[control_name]['max_bound']
+      min_bound = controls_dict[control_name].get('min_bound', -999)
+      max_bound = controls_dict[control_name].get('max_bound', -999)
       bounds = [min_bound, max_bound]
   return bounds
 
@@ -1021,10 +1164,10 @@ def set_min_bound(controls_dict, control_name, min_bound = None, debug = False):
   if min_bound is None:
     min_bound = -999.0
   if control_name in controls_dict.keys():
-      cur_val = controls_dict[control_name]['min_bound']
+      cur_val = controls_dict[control_name].get('min_bound', -999)
       input_type = controls_dict[control_name]['type']
-      max_bound = controls_dict[control_name]['max_bound']
-      round_f = controls_dict[control_name]['round']
+      max_bound = controls_dict[control_name].get('max_bound', -999)
+      round_f = controls_dict[control_name].get('round', 9)
 
       try:
         min_bound = round(float(min_bound),round_f)
@@ -1048,10 +1191,10 @@ def set_max_bound(controls_dict, control_name, max_bound = None, debug = False):
   if max_bound is None:
     max_bound = -999.0
   if control_name in controls_dict.keys():
-      cur_val = controls_dict[control_name]['max_bound']
+      cur_val = controls_dict[control_name].get('max_bound', -999)
       input_type = controls_dict[control_name]['type']
-      min_bound = controls_dict[control_name]['min_bound']
-      round_f = controls_dict[control_name]['round']
+      min_bound = controls_dict[control_name].get('min_bound', -999)
+      round_f = controls_dict[control_name].get('round', 9)
       
       try:
         max_bound = round(float(max_bound),round_f)
@@ -1255,33 +1398,33 @@ def move_control_down(controls_dict, control_name):
 ############################################################
 # Status Msg Functions
 
-def create_status_msg( name = '', display_name = '', description = ''):
+def convert_controls_dict2msg(controls_dict, id = None, name = None, display_name = None, description = None):
   status_msg = ControlsStatus()
-  name = nepi_utils.get_clean_name(str(name))
-  status_msg.name= name
-  if display_name == '':
-    display_name = name
-  status_msg.display_name= str(display_name)
-  if description == '':
-    description = name
-  status_msg.description= str(description)
-  return status_msg
+  
+  if id is None:
+    id = controls_dict.get('controls_id', 'controls')
+  status_msg.id =  copy.deepcopy(id)
+  
+  if name is None:
+    name = controls_dict.get('controls_name', 'controls')
+  status_msg.name =  copy.deepcopy(name)
+
+  if display_name is None:
+    display_name = controls_dict.get('controls_display_name', name)
+  status_msg.display_name = copy.deepcopy(display_name)
+
+  if description is None:
+    description = controls_dict.get('controls_description', name)
+  status_msg.description = copy.deepcopy(description)
 
 
-def update_status_msg( status_msg, controls_dict):
-  if status_msg is None:
-    status_msg = ControlsStatus()
-
-  controls_name = status_msg.name
-  if controls_name == '':
-     controls_name = 'control'
 
   names_list = [] 
   types_list = [] 
   msgs_list = [] 
 
   try:
-    names = list(controls_dict.keys())
+    names = [name for name in controls_dict.keys() if name not in CONTROLS_META_KEYS]
   except Exception as e:
     logger.log_warn("update_status_msg: could not read control names from controls dict: " +
                     type(e).__name__ + ": " + str(e))
@@ -1338,7 +1481,7 @@ def update_status_msg( status_msg, controls_dict):
           control_msg.display_hidden = control_dict['display_hidden']
           control_msg.display_name = control_dict['display_name']
           control_msg.display_options = control_dict['display_options']
-          control_msg.display_labels = control_dict['display_labels']
+          control_msg.value_names = control_dict['value_names']
           control_msg.display_round = control_dict['display_round']
           control_msg.display_row = cleanDisplayRow(control_dict.get('display_row',False))
           control_msg.display_bounds = control_dict['display_bounds']
@@ -1420,9 +1563,23 @@ def apply_update_msg( controls_dict, msg, debug = False):
       if index is not None: 
  
         value = value[0]
+        # get_value returns the NATIVE value: a scalar for the single-value
+        # types, a tuple for ColorRGB, None if the read failed. len() raised on
+        # the scalar and item assignment on the tuple, so every indexed edit the
+        # RUI sends (text, int, float and per-component boxes) died here. List
+        # it first -- list(), not get_value_list(), set_value re-cleans and
+        # re-lists whatever it is handed. None stays None, so it falls to the
+        # out-of-range branch below and the control is left unchanged.
         values = get_value(controls_dict, name)
-        values_len = len(values)
-        if values_len > index:
+        if values is not None:
+          if isinstance(values, (list, tuple)):
+            values = list(values)
+          else:
+            values = [values]
+        values_len = len(values) if values is not None else 0
+        # index >= 0 as well: the same bounds test get_value and set_value use,
+        # and without it a negative index on a failed (None) read still indexed.
+        if index >= 0 and values_len > index:
           values[index] = value
           update_value = values
         else:
@@ -1434,6 +1591,9 @@ def apply_update_msg( controls_dict, msg, debug = False):
     if debug == True:
       logger.log_debug("Setting Update Msg value: " + str([name, update_value])) 
 
+    # Bound before the branch: a rejected update skips it, and the debug log
+    # below then read an unassigned name (NameError, debug runs only).
+    updated_value = None
     if update_value is not None:
       controls_dict = set_value(controls_dict, name, update_value, debug = debug)
       updated_value = get_value(controls_dict, name)
@@ -1448,6 +1608,30 @@ def apply_update_msg( controls_dict, msg, debug = False):
   if max_bound != '':
     controls_dict = set_max_bound(controls_dict, name, max_bound = max_bound, debug = debug)
 
+  delta_bound = msg.delta_bound
+  if delta_bound != '':
+    try:
+      new_value = float(delta_bound)
+      input_type = controls_dict[name]['type']
+      if input_type == 'Selection' or input_type == 'Selections':
+        last_value = controls_dict[name]['delta_bound']
+        controls_dict[name]['dir_bound'] = last_value
+      controls_dict[name]['delta_bound'] = new_value
+    except:
+      pass
+
+  dir_bound = msg.dir_bound
+  if dir_bound != '':
+    try:
+      new_value = float(dir_bound)
+      last_value = controls_dict[name]['dir_bound']
+      input_type = controls_dict[name]['type']
+      if input_type != 'Selection' and input_type != 'Selections':
+        controls_dict[name]['dir_bound'] = new_value
+    except:
+      pass
+
+    
   # Same guard, and this one was doing real damage: the RUI never sends options
   # on a value change, so msg.options arrived as [], which is != [''] -- every
   # update from the RUI wiped the control's option list. The value was applied
@@ -1459,4 +1643,29 @@ def apply_update_msg( controls_dict, msg, debug = False):
   if len(options) > 0 and options != ['']:
     controls_dict = set_options(controls_dict, name, options)
 
+  return controls_dict
+
+
+
+def convert_control_msg2dict(msg):
+  # Same shape as a create_controls_dict entry: name to the full control dict,
+  # so msg to dict to msg round-trips through convert_controls_dict2msg.
+  control_dict = dict()
+  msg_dict = nepi_sdk.convert_msg2dict(msg)
+  value = get_value_list(msg_dict['value'])
+  msg_dict['value'] = value
+  msg_dict['default'] = copy.deepcopy(value)
+  msg_dict['length'] = len(value)
+  control_dict[msg.name] = msg_dict
+  return control_dict
+
+def convert_controls_msg2dict(msg):
+  controls_dict = dict()
+  controls_dict['controls_id'] = msg.id
+  controls_dict['controls_name'] = msg.name
+  controls_dict['controls_display_name'] = msg.display_name
+  controls_dict['controls_description'] = msg.description
+  for control_msg in msg.controls_msg_list:
+    control_dict = convert_control_msg2dict(control_msg)
+    controls_dict.update(control_dict)
   return controls_dict

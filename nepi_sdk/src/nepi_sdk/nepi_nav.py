@@ -155,7 +155,7 @@ BLANK_HEADING_DATA_DICT = {
 
 BLANK_POSITION_DATA_DICT = {
     'time_position': 0.0,
-    # Position should be provided in Meters ENU (x,y,z) with x forward, y left, and z up
+    # Position should be provided in Meters ENU (x,y,z) with x east, y north, and z up
     'x_m': 0.0,
     'y_m': 0.0,
     'z_m': 0.0,
@@ -167,7 +167,9 @@ BLANK_POSITION_DATA_DICT = {
 
 BLANK_ORIENTATION_DATA_DICT = {
     'time_orientation': 0.0,
-    # Orientation should be provided in Degrees ENU
+    # Orientation should be provided in Degrees ENU. roll_deg and pitch_deg are
+    # always REP-103 FLU body angles (roll about x forward, pitch about y left),
+    # whatever frame_nav says; only yaw and position change between ENU and NED.
     'roll_deg': 0.0,
     'pitch_deg': 0.0,
     'yaw_deg': 0.0,
@@ -253,7 +255,10 @@ BLANK_NAVPOSE_DICT = {
 
     'has_orientation': False,
     'time_orientation': 0.0,
-    # Orientation should be provided in Degrees in specified 3d frame
+    # Orientation should be provided in Degrees in specified 3d frame.
+    # roll_deg and pitch_deg are always REP-103 FLU body angles (roll about x
+    # forward, pitch about y left), whatever frame_nav says; only yaw_deg and
+    # the x/y/z position change between ENU and NED.
     'roll_deg': 0.0,
     'pitch_deg': 0.0,
     'yaw_deg': 0.0,
@@ -291,35 +296,6 @@ BLANK_NAVPOSE_DICT = {
 }
 
 
-
-BLANK_TRANSFORM_DICT = {
-    'source_ref_description': '',
-    'end_ref_descriptions': '',
-
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 0.0,
-    'y_m': 0.0,
-    'z_m': 0.0,
-
-    'x_invert': False,
-    'y_invert': False,
-    'z_invert': False,
-  
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 0.0,
-    'pitch_deg': 0.0,
-    'yaw_deg': 0.0,
-
-    'roll_invert': False,
-    'pitch_invert': False,
-    'yaw_invert': False,
-
-    'heading_deg': 0.0,
-    'heading_invert': False
-
-}
-
-
 BLANK_NAVPOSE_TRACK_DICT = {
     # altitude in 'WGS84' frame
     # depth in 'DEPTH' frame
@@ -333,6 +309,8 @@ BLANK_NAVPOSE_TRACK_DICT = {
     'yaw_deg': 0.0,
     'altitude_m': 0.0,
     'depth_m': 0.0,
+    'has_pan_tilt': False,
+    'time_pan_tilt': 0.0,
     'pan_deg': 0.0,
     'tilt_deg': 0.0
 }
@@ -776,7 +754,7 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           pass
 
     if name == 'depth':
-      if msg_type == 'nepi_interfaces/NavPosePosition':
+      if msg_type == 'nepi_interfaces/NavPoseDepth':
         try:
           navpose_dict['has_depth'] = True
           navpose_dict['time_depth'] = msg.timestamp
@@ -837,72 +815,56 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
 #######################
 # Transpose Functions
 
+BLANK_TRANSFORM_DICT = {
+    'source_ref_description': '',
+    'end_ref_description': '',
 
-def check_tranform_dict(transform_dict):
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+
+    'x_invert': False,
+    'y_invert': False,
+    'z_invert': False,
+  
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+
+    'roll_invert': False,
+    'pitch_invert': False,
+    'yaw_invert': False,
+
+    'heading_deg': 0.0,
+    'heading_invert': False,
+
+
+    'x_m_offset': 0.0,
+    'y_m_offset': 0.0,
+    'z_m_offset': 0.0,
+    'roll_deg_offset': 0.0,
+    'pitch_deg_offset': 0.0,
+    'yaw_deg_offset': 0.0,
+    'heading_deg_offset': 0.0,
+
+}
+
+
+BLANK_TRANSFORM_LIST = [0,0,0,0,0,0,0]
+
+
+def check_transform_dict(transform_dict):
   for key in BLANK_TRANSFORM_DICT.keys():
     if key not in transform_dict.keys():
       transform_dict[key] = BLANK_TRANSFORM_DICT[key]
   return transform_dict
 
-def convert_transform_dict2msg(transform_dict):
-  transform_dict = check_tranform_dict(transform_dict)
-  transform_msg = Transform()
-  if transform_dict is not None:
-    try:
-      transform_msg.source_ref_description = transform_dict['source_ref_description']
-      transform_msg.end_ref_description = transform_dict['end_ref_description']
 
-      transform_msg.heading_deg = transform_dict['heading_deg'] 
-      transform_msg.heading_invert = transform_dict['heading_invert']
-
-      transform_msg.roll_deg = transform_dict['roll_deg']
-      transform_msg.pitch_deg = transform_dict['pitch_deg'] 
-      transform_msg.yaw_deg = transform_dict['yaw_deg']
-
-      transform_msg.roll_invert = transform_dict['roll_invert']
-      transform_msg.pitch_invert = transform_dict['pitch_invert'] 
-      transform_msg.yaw_invert = transform_dict['yaw_invert']
-
-      transform_msg.x_m = transform_dict['x_m'] 
-      transform_msg.y_m = transform_dict['y_m']
-      transform_msg.z_m = transform_dict['z_m']
-
-      transform_msg.x_invert = transform_dict['x_invert'] 
-      transform_msg.y_invert = transform_dict['y_invert']
-      transform_msg.z_invert = transform_dict['z_invert']
-
-    
-    except Exception as e:
-      logger.log_warn("Failed to convert Transform Data dict: " + str(e), throttle_s = 5.0)
-  return transform_msg
-
-
-def convert_transform_list2msg(transform_list, source_ref_description = '', end_ref_description = ''):
-  # transform_list = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
-  transform_msg = Transform()
-  if transform_list is not None:
-    try:
-      transform_msg.source_ref_description = source_ref_description
-      transform_msg.end_ref_description = end_ref_description
-
-      transform_msg.x_m = float(transform_list[0])
-      transform_msg.y_m = float(transform_list[1])
-      transform_msg.z_m = float(transform_list[2])
-
-      transform_msg.roll_deg = float(transform_list[3])
-      transform_msg.pitch_deg = float(transform_list[4])
-      transform_msg.yaw_deg = float(transform_list[5])
-
-      transform_msg.heading_deg = float(transform_list[6])
-    except Exception as e:
-      logger.log_warn("Failed to convert Transform Data list: " + str(e), throttle_s = 5.0)
-  return transform_msg
-
-
-def convert_transform_list2dict(transform_list):
+def update_transform_dict_from_list(transform_dict, transform_list = None, offset_list = None):
   # transform_list = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
   # Descriptions are left blank so an all-zero list stays == BLANK_TRANSFORM_DICT (identity no-op)
-  transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
   if transform_list is not None:
     try:
       transform_dict['x_m'] = float(transform_list[0])
@@ -915,17 +877,127 @@ def convert_transform_list2dict(transform_list):
 
       transform_dict['heading_deg'] = float(transform_list[6])
     except Exception as e:
-      logger.log_warn("Failed to convert Transform Data list to dict: " + str(e), throttle_s = 5.0)
+      logger.log_warn("Failed to update Transform Data dict from list: " + str(e), throttle_s = 5.0)
+
+
+  if offset_list is not None:
+    try:
+      transform_dict['x_m_offset'] = float(offset_list[0])
+      transform_dict['y_m_offset'] = float(offset_list[1])
+      transform_dict['z_m_offset'] = float(offset_list[2])
+
+      transform_dict['roll_deg_offset'] = float(offset_list[3])
+      transform_dict['pitch_deg_offset'] = float(offset_list[4])
+      transform_dict['yaw_deg_offset'] = float(offset_list[5])
+
+      transform_dict['heading_deg_offset'] = float(offset_list[6])
+    except Exception as e:
+      logger.log_warn("Failed to update Transform Data dict from list: " + str(e), throttle_s = 5.0)
   return transform_dict
 
 
-def convert_transform_msg2dict(transform_msg):
-  transform_dict = None
+def clear_transforms(transform_dict):
+    try:
+      transform_dict['x_m'] = 0
+      transform_dict['y_m'] = 0
+      transform_dict['z_m'] = 0
+
+      transform_dict['roll_deg'] = 0
+      transform_dict['pitch_deg'] = 0
+      transform_dict['yaw_deg'] = 0
+      transform_dict['heading_deg'] = 0
+    except Exception as e:
+      transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
+    return transform_dict
+
+
+def clear_offsets(transform_dict):
+    try:
+      transform_dict['x_m_offset'] = 0
+      transform_dict['y_m_offset'] = 0
+      transform_dict['z_m_offset'] = 0
+
+      transform_dict['roll_deg_offset'] = 0
+      transform_dict['pitch_deg_offset'] = 0
+      transform_dict['yaw_deg_offset'] = 0
+      transform_dict['heading_deg_offset'] = 0
+    except Exception as e:
+      transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
+    return transform_dict
+
+def convert_transform_dict2list(transform_dict):
+
+    transform_list = copy.deepcopy(BLANK_TRANSFORM_LIST)
+    try:
+      transform_list[0] = transform_dict['x_m'] + transform_dict['x_m_offset']
+      transform_list[1] = transform_dict['y_m'] + transform_dict['y_m_offset']
+      transform_list[2] = transform_dict['z_m'] + transform_dict['z_m_offset']
+
+      transform_list[3] = transform_dict['roll_deg'] + transform_dict['roll_deg_offset']
+      transform_list[4] = transform_dict['pitch_deg'] + transform_dict['pitch_deg_offset']
+      transform_list[5] = transform_dict['yaw_deg'] + transform_dict['yaw_deg_offset']
+      transform_list[6] = transform_dict['heading_deg'] + transform_dict['heading_deg_offset']
+    except Exception as e:
+      logger.log_warn("Failed to convert Transform Data dict to list: " + str(e), throttle_s = 5.0)
+    return transform_list
+
+def convert_transform_dict2msg(transform_dict):
+  transform_dict = check_transform_dict(transform_dict)
+  transform_msg = Transform()
+  if transform_dict is not None:
+    try:
+      transform_msg.source_ref_description = transform_dict['source_ref_description']
+      transform_msg.end_ref_description = transform_dict['end_ref_description']
+
+      transform_msg.x_m = transform_dict['x_m'] 
+      transform_msg.y_m = transform_dict['y_m']
+      transform_msg.z_m = transform_dict['z_m']
+
+      transform_msg.x_invert = transform_dict['x_invert'] 
+      transform_msg.y_invert = transform_dict['y_invert']
+      transform_msg.z_invert = transform_dict['z_invert']
+
+      transform_msg.roll_deg = transform_dict['roll_deg']
+      transform_msg.pitch_deg = transform_dict['pitch_deg'] 
+      transform_msg.yaw_deg = transform_dict['yaw_deg']
+
+      transform_msg.roll_invert = transform_dict['roll_invert']
+      transform_msg.pitch_invert = transform_dict['pitch_invert'] 
+      transform_msg.yaw_invert = transform_dict['yaw_invert']
+
+
+      transform_msg.heading_deg = transform_dict['heading_deg'] 
+      transform_msg.heading_invert = transform_dict['heading_invert']
+
+
+      transform_msg.x_m_offset = transform_dict.get('x_m_offset',0)
+      transform_msg.y_m_offset = transform_dict.get('y_m_offset',0)
+      transform_msg.z_m_offset = transform_dict.get('z_m_offset',0)
+      transform_msg.roll_deg_offset = transform_dict.get('roll_deg_offset',0)
+      transform_msg.pitch_deg_offset = transform_dict.get('pitch_deg_offset',0)
+      transform_msg.yaw_deg_offset = transform_dict.get('yaw_deg_offset',0)
+      transform_msg.heading_deg_offset = transform_dict.get('heading_deg_offset',0)
+
+    except Exception as e:
+      logger.log_warn("Failed to convert Transform Data dict: " + str(e), throttle_s = 5.0)
+  return transform_msg
+
+def convert_transform_msg2list(transform_msg):
+  transform_list = copy.deepcopy(BLANK_TRANSFORM_LIST)
   try:
-    transform_dict = nepi_sdk.convert_msg2dict(transform_msg)
+    msg_dict = nepi_sdk.convert_msg2dict(transform_msg)
+    transform_list[0] = msg_dict['x_m'] + msg_dict['x_m_offset']
+    transform_list[1] = msg_dict['y_m'] + msg_dict['y_m_offset']
+    transform_list[2] = msg_dict['z_m'] + msg_dict['z_m_offset']
+
+    transform_list[3] = msg_dict['roll_deg'] + msg_dict['roll_deg_offset']
+    transform_list[4] = msg_dict['pitch_deg'] + msg_dict['pitch_deg_offset']
+    transform_list[5] = msg_dict['yaw_deg'] + msg_dict['yaw_deg_offset']
+    transform_list[6] = msg_dict['heading_deg'] + msg_dict['heading_deg_offset']
+  
   except Exception as e:
-    logger.log_warn("Failed to convert Transform Msg to dict: " + str(e), throttle_s = 5.0)
-  return transform_dict
+    logger.log_warn("Failed to convert Transform Msg to list: " + str(e), throttle_s = 5.0)
+  return transform_list
 
 def transform_object_pose(current_pose, rpy_rotation, units='deg'):
     """
@@ -973,8 +1045,14 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
     success = False
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
   elif transform_dict != BLANK_TRANSFORM_DICT:
-      [x,y,z] = [transform_dict['x_m'],transform_dict['y_m'],transform_dict['z_m']]
-      [ar,ap,ay] = [transform_dict['roll_deg'],transform_dict['pitch_deg'],transform_dict['yaw_deg']]
+      [x,y,z] = [transform_dict['x_m'] + transform_dict.get('x_m_offset',0),
+                  transform_dict['y_m'] + transform_dict.get('y_m_offset',0),
+                  transform_dict['z_m'] + transform_dict.get('z_m_offset',0)
+                ]
+      [ar,ap,ay] = [transform_dict['roll_deg'] + transform_dict.get('roll_deg_offset',0),
+                    transform_dict['pitch_deg'] + transform_dict.get('pitch_deg_offset',0),
+                    transform_dict['yaw_deg'] + transform_dict.get('yaw_deg_offset',0)
+                    ]
 
       try:
 
@@ -1109,6 +1187,7 @@ def convert_navpose_amsl2wgs84(npdata_dict):
     npdata_dict['latitude'] = geopoint_out.latitude
     npdata_dict['longitude'] = geopoint_out.longitude
     npdata_dict['altitude_m'] = geopoint_out.altitude
+    npdata_dict['frame_altitude'] = 'WGS84'
   return npdata_dict
 
 def convert_navpose_wgs842amsl(npdata_dict):
@@ -1121,10 +1200,17 @@ def convert_navpose_wgs842amsl(npdata_dict):
     npdata_dict['latitude'] = geopoint_out.latitude
     npdata_dict['longitude'] = geopoint_out.longitude
     npdata_dict['altitude_m'] = geopoint_out.altitude
-  return npdata_dict  
+    npdata_dict['frame_altitude'] = 'AMSL'
+  return npdata_dict
 
 
   
+### NavPose roll_deg and pitch_deg are always REP-103 FLU body angles (roll
+### about x forward, pitch about y left), whatever frame_nav says. Only yaw and
+### position change between ENU and NED, so both converters below pass roll and
+### pitch through unchanged. Each converter tags the dict's frame_nav with the
+### frame it converted to. Linear velocity takes the position's transform; the
+### roll and pitch rates pass through and the yaw rate changes sign.
 def convert_navpose_enu2ned(npdata_dict):
   rpy_enu_d = [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']]
   yaw_ned_d = convert_yaw_enu2ned(rpy_enu_d[2])
@@ -1134,25 +1220,42 @@ def convert_navpose_enu2ned(npdata_dict):
   point_ned= [npdata_dict['y_m'], npdata_dict['x_m'], - npdata_dict['z_m']]
   [npdata_dict['x_m'], npdata_dict['y_m'], npdata_dict['z_m']] = point_ned
 
+  if 'x_m_per_sec' in npdata_dict:
+    vel_ned = [npdata_dict['y_m_per_sec'], npdata_dict['x_m_per_sec'], - npdata_dict['z_m_per_sec']]
+    [npdata_dict['x_m_per_sec'], npdata_dict['y_m_per_sec'], npdata_dict['z_m_per_sec']] = vel_ned
+  if 'yaw_deg_per_sec' in npdata_dict:
+    npdata_dict['yaw_deg_per_sec'] = - npdata_dict['yaw_deg_per_sec']
+
+  npdata_dict['frame_nav'] = 'NED'
   return npdata_dict
 
-def convert_navpose_ned2edu(npdata_dict):
+def convert_navpose_ned2enu(npdata_dict):
   rpy_ned_d = [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']]
   yaw_enu_d = convert_yaw_ned2enu(rpy_ned_d[2])
-  rpy_enu_d = [rpy_enu_d[0],rpy_enu_d[1],yaw_enu_d]
-  [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']] = rpy_ned_d
+  rpy_enu_d = [rpy_ned_d[0],rpy_ned_d[1],yaw_enu_d]
+  [npdata_dict['roll_deg'], npdata_dict['pitch_deg'], npdata_dict['yaw_deg']] = rpy_enu_d
 
   point_enu = [npdata_dict['y_m'], npdata_dict['x_m'], - npdata_dict['z_m']]
   [npdata_dict['x_m'], npdata_dict['y_m'], npdata_dict['z_m']] = point_enu
 
+  if 'x_m_per_sec' in npdata_dict:
+    vel_enu = [npdata_dict['y_m_per_sec'], npdata_dict['x_m_per_sec'], - npdata_dict['z_m_per_sec']]
+    [npdata_dict['x_m_per_sec'], npdata_dict['y_m_per_sec'], npdata_dict['z_m_per_sec']] = vel_enu
+  if 'yaw_deg_per_sec' in npdata_dict:
+    npdata_dict['yaw_deg_per_sec'] = - npdata_dict['yaw_deg_per_sec']
+
+  npdata_dict['frame_nav'] = 'ENU'
   return npdata_dict
 
 
 
-def convert_navpose_dict2msg(npdata_dict):
+def convert_navpose_dict2msg(npdata_dict, timestamp = None):
+  if timestamp is None:
+    timestamp = nepi_utils.get_time()
   npdata_msg = None
   if npdata_dict is None:
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
+
   else:
 
     blank_dict = BLANK_NAVPOSE_DICT
@@ -1161,8 +1264,7 @@ def convert_navpose_dict2msg(npdata_dict):
         npdata_dict[entry] = blank_dict[entry]
     try:
       np_msg = NavPose()
-      np_msg.header.stamp = nepi_sdk.get_msg_stamp()
-
+      np_msg.timestamp = timestamp
       np_msg.navpose_frame = npdata_dict['navpose_frame']
       np_msg.navpose_description = npdata_dict['navpose_description']
       np_msg.frame_nav = npdata_dict['frame_nav']
@@ -1234,6 +1336,7 @@ def convert_navpose_msg2dict(np_msg):
     return None
   try:
     npdata_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
+    npdata_dict['timestamp'] = np_msg.timestamp
     npdata_dict['navpose_frame'] = np_msg.navpose_frame
     npdata_dict['navpose_description'] = np_msg.navpose_description
     npdata_dict['frame_nav'] = np_msg.frame_nav
@@ -1386,7 +1489,8 @@ def get_navpose_location_amsl_geo(navpose_response):
       return location_amsl_geo
   geoid_height = get_navpose_geoid_height(navpose_response)
   fix_wgs84 = navpose_msg.fix
-  location_amsl_geo =  [fix_wgs84.latitude,fix_wgs84.longitude,(fix_wgs84.altitude + geoid_height)]
+  # AMSL = ellipsoid height - N (N = geoid height above the ellipsoid)
+  location_amsl_geo =  [fix_wgs84.latitude,fix_wgs84.longitude,(fix_wgs84.altitude - geoid_height)]
   return location_amsl_geo
 
 def get_navpose_geoid_height(navpose_response):
@@ -1411,7 +1515,7 @@ def get_navpose_track_msg_from_dict(navpose_dict):
         if key in navpose_dict.keys():
             track[key] = navpose_dict[key]
     track_msg = NavPoseTrack()
-    nepi_sdk.log_msg_debug("Got NavPoseTrack msg: " + str(track_msg), throttle_s = 5.0)
+    logger.log_debug("Got NavPoseTrack msg: " + str(track_msg), throttle_s = 5.0)
     timestamp = nepi_utils.get_time() 
     track_msg.timestamp = timestamp
     track_msg.date_time = nepi_utils.get_datetime_str_from_timestamp(timestamp)
@@ -1440,12 +1544,14 @@ def get_navpose_geoid_height_at_geopoint(geopoint):
   return geoid_height
   
 
+### The geoid height N (pygeodesy GeoidKarney) is the geoid's height above the
+### WGS84 ellipsoid, so ellipsoid height h = AMSL + N and AMSL = h - N.
 def convert_amsl_to_wgs84(geopoint_in):
   geoid_height = get_navpose_geoid_height_at_geopoint(geopoint_in)
   geopoint_out = GeoPoint()
   geopoint_out.latitude = geopoint_in.latitude
   geopoint_out.longitude = geopoint_in.longitude
-  geopoint_out.altitude = geopoint_in.altitude - geoid_height
+  geopoint_out.altitude = geopoint_in.altitude + geoid_height
   return geopoint_out
   
 def convert_wgs84_to_amsl(geopoint_in):
@@ -1453,7 +1559,7 @@ def convert_wgs84_to_amsl(geopoint_in):
   geopoint_out = GeoPoint()
   geopoint_out.latitude = geopoint_in.latitude
   geopoint_out.longitude = geopoint_in.longitude
-  geopoint_out.altitude = geopoint_in.altitude + geoid_height
+  geopoint_out.altitude = geopoint_in.altitude - geoid_height
   return geopoint_out
 
 
@@ -1472,8 +1578,12 @@ def convert_rpy2quat(rpy_attitude_deg):
   roll_rad = math.radians(rpy_attitude_deg[0])
   pitch_rad = math.radians(rpy_attitude_deg[1]) 
   yaw_rad = math.radians(rpy_attitude_deg[2])
-  #xyzw_attitude = tf.transformations.quaternion_from_euler(roll_rad,pitch_rad,yaw_rad,axes="sxyz")
-  xyzw_attitude = tf.transformations.quaternion_from_euler(pitch_rad, yaw_rad, roll_rad, axes="ryzx")
+  # Static xyz (sxyz), the same convention convert_quat2rpy reads back with
+  # euler_from_quaternion's default. The "ryzx" (pitch, yaw, roll) form used
+  # before only agreed with it when at most one angle was non-zero, so a
+  # combined roll/pitch/yaw target read back as a different attitude.
+  xyzw_attitude = tf.transformations.quaternion_from_euler(roll_rad,pitch_rad,yaw_rad,axes="sxyz")
+  #xyzw_attitude = tf.transformations.quaternion_from_euler(pitch_rad, yaw_rad, roll_rad, axes="ryzx")
   return xyzw_attitude
 
 ### Function to Convert Yaw NED to Yaw ENU
@@ -1497,10 +1607,16 @@ def convert_yaw_enu2ned(yaw_enu_deg):
 
 ### Function to Convert Yaw from Body to ENU Frame
 def convert_yaw_body2enu(yaw_body_deg,cur_heading_deg):
-  cur_yaw_enu_deg = - cur_heading_deg
-  if cur_yaw_enu_deg > 180: # Convert to +-180
-    cur_yaw_enu_deg = cur_yaw_enu_deg - 360
+  # cur_heading_deg is a compass heading (0 = north, clockwise positive), whose
+  # ENU yaw is 90 - heading. Body yaw is counter-clockwise positive, the same
+  # sense as ENU yaw, so it adds. Heading 0, body yaw 0 gives 90 (north);
+  # heading 90, body yaw 10 gives 10. The old -heading form was off by 90 deg.
+  cur_yaw_enu_deg = 90 - cur_heading_deg
   yaw_enu_deg =  cur_yaw_enu_deg + yaw_body_deg
+  # Wrap to (-180, 180]
+  yaw_enu_deg = float(yaw_enu_deg) % 360.0
+  if yaw_enu_deg > 180.0:
+    yaw_enu_deg = yaw_enu_deg - 360.0
   return yaw_enu_deg
 
 ### Function to Convert Point from Body to ENU Frame
@@ -1515,7 +1631,9 @@ def convert_point_body2enu(point_body_m,yaw_enu_deg):
   
 ### Function to Convert from ENU Frame to Point from Body
 def convert_point_enu2body(point_enu_m,yaw_enu_deg):
-  point_bearing_body_deg = yaw_enu_deg + math.degrees(math.atan2(point_enu_m[1],point_enu_m[0]))
+  # Inverse of convert_point_body2enu: rotate by -yaw. Adding yaw here made a
+  # body2enu/enu2body round trip rotate the point by 2*yaw.
+  point_bearing_body_deg = math.degrees(math.atan2(point_enu_m[1],point_enu_m[0])) - yaw_enu_deg
   point_bearing_body_rad = math.radians(point_bearing_body_deg)
   xy_enu_m = math.sqrt(point_enu_m[0]**2 + point_enu_m[1]**2)
   x_body_m = xy_enu_m * math.cos(point_bearing_body_rad)
@@ -1548,6 +1666,8 @@ def get_geopoint_at_body_point(cur_geopoint_geo, cur_bearing_enu_deg, point_body
   # cur_geopoint_geo is list [Lat,Long,Alt] with Alt passed through
   earth_radius_km = 6378.137
   earth_circ_m = np.float64(2 * math.pi * earth_radius_km*1000)
+  # Work on a copy so the caller's point list is not modified below
+  point_body_m = list(point_body_m)
   # Calculate bearing in NED frame
   point_body_m[1] = - point_body_m[1] # adjust for y = right frame from body y left frame.
   cur_bearing_ned_deg = convert_yaw_enu2ned(cur_bearing_enu_deg)
@@ -1708,13 +1828,13 @@ def rotate_enu_angles(rpy_vector, angle_deg, axis='z'):
 
 
 
-def update_transform_from_pantilt(transform, pan_deg, tilt_deg):
-    xo = transform['x_m']
-    yo = transform['y_m']
-    zo = transform['z_m']
-    aro = 0 # transform['roll_deg']
-    apo = 0 # transform['pitch_deg']
-    ayo = 0 # transform['yaw_deg']
+def update_transform_from_pantilt(transform_dict, pan_deg, tilt_deg):
+    xo = transform_dict['x_m'] + transform_dict.get('x_m_offset',0)
+    yo = transform_dict['y_m'] + transform_dict.get('y_m_offset',0)
+    zo = transform_dict['z_m'] + transform_dict.get('z_m_offset',0)
+    aro = 0 # transform_dict['roll_deg']
+    apo = 0 # transform_dict['pitch_deg']
+    ayo = 0 # transform_dict['yaw_deg']
 
     [x,y,z,ar,ap,ay] = [xo,yo,zo,aro,apo,ayo]
 
@@ -1733,14 +1853,14 @@ def update_transform_from_pantilt(transform, pan_deg, tilt_deg):
     ayp = ayp + pan_deg
     [ar,ap,ay] = [arp,app,ayp]
 
-    new_transform = dict(transform)
-    new_transform['x_m'] = x
-    new_transform['y_m'] = y
-    new_transform['z_m'] = z
-    new_transform['roll_deg'] = ar
-    new_transform['pitch_deg'] = ap
-    new_transform['yaw_deg'] = ay
-    return new_transform
+    new_transform_dict = dict(transform_dict)
+    new_transform_dict['x_m'] = x
+    new_transform_dict['y_m'] = y
+    new_transform_dict['z_m'] = z
+    new_transform_dict['roll_deg'] = ar
+    new_transform_dict['pitch_deg'] = ap
+    new_transform_dict['yaw_deg'] = ay
+    return new_transform_dict
 
 # # Example Usage:
 # # Current: 10m forward, 0 deg rotation

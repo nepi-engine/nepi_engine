@@ -1,0 +1,1406 @@
+#!/usr/bin/env python
+#
+# Copyright (c) 2024 Numurus <https://www.numurus.com>.
+#
+# This file is part of nepi engine (nepi_engine) repo
+# (see https://github.com/nepi-engine/nepi_engine)
+#
+# License: NEPI Engine repo source-code and NEPI Images that use this source-code
+# are licensed under the "Numurus Software License", 
+# which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
+#
+# Redistributions in source code must retain this top-level comment block.
+# Plagiarizing this software to sidestep the license obligations is illegal.
+#
+# Contact Information:
+# ====================
+# - mailto:nepi@numurus.com
+#
+
+
+import os
+import copy
+
+from nepi_sdk import nepi_sdk
+from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_controls
+
+from std_msgs.msg import Empty, Int8, UInt32, Int32, Bool, String, Float32, Float64
+
+from nepi_interfaces.msg import ServoControl, ServoStatus
+
+
+logger = nepi_sdk.sdk_logger
+
+
+#########################
+### Servo Helper Functions
+
+
+
+BLANK_CONTROL_DICT = nepi_sdk.convert_msg2dict(ServoControl())
+BLANK_STATUS_DICT = nepi_sdk.convert_msg2dict(ServoStatus())
+
+EXAMPLE_INIT_DICT = {
+            'menu': {
+                'type': 'Menu', 'default': 1, 'options': ['Off', 'Low', 'High'],
+                'display_name': 'Demo Menu', 'description': 'Pick one menu option (index based).', 'display_hidden': False},
+
+            'string': {
+                'type': 'String', 'default': 'hello nepi',
+                'display_name': 'Demo String', 'description': 'Free-form text value.', 'display_hidden': False},
+
+
+            'selection': {
+                'type': 'Selection', 'default': 'Bravo', 'options': ['Alpha', 'Bravo', 'Charlie'],
+                'display_name': 'Demo Selection', 'description': 'Select a single option by name.', 'display_hidden': False},
+
+            'selections': {
+                'type': 'Selections', 'default': ['Red', 'Blue'], 'options': ['Red', 'Green', 'Blue'],
+                'display_name': 'Demo Selections', 'description': 'Select any number of options.', 'display_hidden': False},
+
+            'color_rgb': {
+                'type': 'ColorRGB', 'value': [0,255,0],
+                'display_name': 'Demo Color RGB', 'description': 'A rbg color.', 'display_hidden': False},
+
+
+            'trigger': {
+                'type': 'Button', 'value': True,
+                'display_name': 'Demo Button', 'description': 'A trigger age secs.', 'display_hidden': False},
+
+
+            'trigger_column': {
+                'type': 'Button', 'value': [0,2.1],
+                'display_name': 'Demo Button', 'description': 'Two  triggers age secs.', 'display_hidden': False},
+
+            'triggers_row': {
+                'type': 'Buttons', 'value': [0,2.1],
+                'display_name': 'Demo Buttons', 'description': 'Two triggers age secs.', 'display_hidden': False, 'display_row': True},
+
+            'bool_data': {
+                'type': 'Toggle', 'value': True,
+                'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False},
+
+            'bools_column': {
+                'type': 'Toggles', 'value': [True, False, False],
+                'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False},
+
+            'bools_row': {
+                'type': 'Toggles', 'value': [True, False, False],
+                'display_name': 'Demo Toggle', 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
+
+
+            'int': {
+                'type': 'Int', 'default': 5, 'bounds': [0, 10],
+                'display_name': 'Demo Int', 'description': 'Integer value within [0, 10].', 'display_bounds': True, 'display_hidden': False},
+
+            'ints_column': {
+                'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
+                'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_bounds': True, 'display_hidden': False},
+
+            'ints_row': {
+                'type': 'Ints', 'default': [1,2,3], 'bounds': [0, 10],
+                'display_name': 'Demo Ints', 'description': 'Ints value within [0, 10].', 'display_bounds': True, 'display_hidden': False, 'display_row': True},
+
+            'float': {
+                'type': 'Float', 'default': 2.5, 'bounds': [0.0, 10.0], 'round_value': 2,
+                'display_name': 'Demo Float', 'description': 'Float value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False},
+
+            'floats_column': {
+                'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0], 'round_value': 2,
+                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False},
+
+            'floats_row': {
+                'type': 'Floats', 'default': [1,5,2.5,3.5], 'bounds': [0.0, 10.0, 1, 1], 'round_value': 2,
+                'display_name': 'Demo Floats', 'description': 'Floats value within [0.0, 10.0].', 'display_bounds': True, 'display_hidden': False, 'display_row': True},
+
+            'float_slider': {
+                'type': 'FloatSlider', 'default': 50.0, 'bounds': [0.0, 100.0], 'round_value': 1,
+                'display_name': 'Demo Float Slider', 'description': 'Single-value slider over [0, 100].', 'display_hidden': False},
+
+            'range_slider': {
+                'type': 'RangeSlider', 'default': [0.25, 0.75], 'bounds': [0.0, 1.0, 0.1], 'round_value': 2,
+                'display_name': 'Demo Floats Slider', 'description': 'Dual-value range slider (0.0-1.0 ratio).', 'display_hidden': False},
+          }
+
+
+def get_publisher_namespaces(topics_list = None, types_list = None):
+    topics_list = nepi_sdk.find_topics_by_msg('ServoStatus', topics_list = topics_list, types_list = types_list)
+    namespaces_list = []
+    for topic in topics_list:
+        namespaces_list.append(os.path.dirname(topic.replace('/status','')))
+    return namespaces_list
+
+
+def create_servo_dict(init_dict):
+  servo_dict = dict()
+
+  try:
+    names = list(init_dict.keys())
+  except Exception as e:
+    # Dropped every control at once, with no log line. Not throttled: this runs
+    # once per servo value at registration, so a throttle would hide it.
+    logger.log_warn("create_servo_dict: could not read control names from init dict: " +
+                    type(e).__name__ + ": " + str(e))
+    names = []
+
+  for i, name in enumerate(names):
+    try:
+      init_control_dict = init_dict[name]
+      input_type = init_control_dict['type']
+      if input_type == 'Discrete':
+        input_type = 'Selection'
+      if input_type not in CONTROL_TYPES:
+        logger.log_warn("create_servo_dict: dropped control not in control_types " + str(name) + " : " + str(input_type))
+      else:
+        control_dict = copy.deepcopy(BLANK_CONTROL_DICT)
+        control_dict['type'] = input_type
+        control_dict['description'] = name
+        control_dict['param'] = True
+        control_dict['round'] = 6
+        control_dict['default'] = []
+        control_dict['length'] = 0
+        control_dict['min_bound'] = -999.0
+        control_dict['max_bound'] =  -999.0
+        control_dict['delta_bound'] =  -999.0
+        control_dict['dir_bound'] =  -999.0
+        control_dict['display_name'] = name
+        control_dict['value_names'] = name
+        control_dict['display_round'] = 2
+        control_dict['display_row'] = False
+        control_dict['display_bounds'] = False
+        for key in control_dict.keys():
+          if key in init_control_dict.keys():
+            control_dict[key] = init_control_dict[key]
+
+        #############
+        # Clean Name
+        control_dict['name'] = nepi_utils.get_clean_name(name)
+        if  control_dict['name'] == '':
+           control_dict['name'] = 'control' + str(i)
+
+
+        #############
+        # Control Type
+        # Read the TYPE here, not the name. This read 'name', which did two
+        # things. It corrupted the name field: a name containing 'Trigger'
+        # became 'Button' while the dict KEY kept the original spelling, so
+        # the RUI displayed and published the mangled name and the update
+        # never matched its own key. And it left control_type holding a NAME
+        # for the two reads below -- the DISPLAY_OPTIONS_DICT lookup and the
+        # LIST_TYPES test -- so neither ever matched and the list-type
+        # display_name fallback never fired.
+        # The type is already normalized ('Discrete' -> 'Selection') and
+        # validated against CONTROL_TYPES above, so nothing more is needed
+        # here. 'Trigger' is not in CONTROL_TYPES and never reached this line.
+        control_type = control_dict['type']
+
+
+        #############
+        # Clean Rounds
+        #############
+        if control_dict['round'] < 0 or control_dict['round'] > 6:
+          control_dict['round'] = 6
+        if control_dict['display_round'] < 0:
+          control_dict['display_round'] = 0
+        if control_dict['display_round'] > 6:
+          control_dict['display_round'] = 6
+        round_f = control_dict['round']
+
+
+        #############
+        # Clean Bounds
+        #############
+        # Clean Bounds
+        min_bound = -999.0
+        max_bound = -999.0
+        delta_bound = -999.0
+        dir_bound = -999.0
+
+
+        # Membership test, not equality against the name of the list. As an
+        # equality test this was never true, so min_bound/max_bound stayed at
+        # the -999.0 sentinel for every Int and Float control and a device's
+        # reported bounds (v4l2 hands them over as init_control_dict['bounds'])
+        # were discarded.
+        if input_type in BOUND_TYPES:
+          delta_bound = -999.0
+          if input_type == 'ColorRGB':
+                min_bound = 0
+                max_bound = 255
+          elif input_type in FLOAT_TYPES:
+            try:
+              min_bound = float(control_dict['min_bound'])
+            except:
+              pass
+            try:
+              max_bound = float(control_dict['max_bound'])
+            except:
+              pass
+            try:
+              delta_bound = float(control_dict['delta_bound'])
+            except:
+              pass
+            try:
+              dir_bound = float(control_dict['dir_bound'])
+            except:
+              pass
+            try:
+              min_bound = float(init_control_dict['bounds'][0])
+              max_bound = float(init_control_dict['bounds'][1])
+              delta_bound = float(init_control_dict['bounds'][2])
+              dir_bound = float(init_control_dict['bounds'][3])
+            except:
+              pass
+          elif input_type in INT_TYPES:
+            try:
+              min_bound = int(float(control_dict['min_bound']))
+            except:
+              pass
+            try:
+              max_bound = int(float(control_dict['max_bound']))
+            except:
+              pass
+            try:
+              delta_bound = int(control_dict['delta_bound'])
+            except:
+              pass
+            try:
+              dir_bound = float(control_dict['dir_bound'])
+            except:
+              pass
+            try:
+              min_bound = int(float(init_control_dict['bounds'][0]))
+              max_bound = int(float(init_control_dict['bounds'][1]))
+              delta_bound = int(float(init_control_dict['bounds'][2]))
+              dir_bound = int(float(init_control_dict['bounds'][3]))
+            except:
+              pass
+
+        control_dict['min_bound'] = round(float(min_bound),round_f)
+        control_dict['max_bound'] = round(float(max_bound),round_f)
+        control_dict['delta_bound'] = round(float(delta_bound),round_f)
+        if dir_bound == 0:
+          dir_bound = -999.0
+        if int(float(dir_bound)) == -999.0:
+          dir_bound = -999.0
+        control_dict['dir_bound'] = round(float(dir_bound),round_f)
+
+        #############
+        # Clean Value
+        value = None
+        # Membership in the list, not a substring test against its name. As a
+        # substring test this was never true, so a Button never got its [0]
+        # seed: it fell through to the default branch, came out length 0, and
+        # was dropped as invalid below.
+        if input_type in TRIGGER_TYPES:
+          value = [0]
+        else:
+          value  = control_dict['default']
+          if value == []:
+            value = control_dict['value']
+
+        if value is not None:
+          if isinstance(value, list) == False:
+              values = [str(value)]
+          else:
+            values = [str(item) for item in value]
+          value = values
+        if value is None or isinstance(value, list) == False:
+          # Third drop path, and it was the last silent one: no exception to
+          # catch, so nothing was logged.
+          logger.log_warn("create_servo_dict: dropped control '" + str(name) +
+                          "' of declared type '" + str(input_type) +
+                          "': no default or value to seed it with")
+          continue
+
+        control_dict['value'] = value
+        control_dict['length'] = len(value)
+
+
+        #############
+        # Clean Display Row
+        #############
+        control_dict['display_row'] = cleanDisplayRow(control_dict['display_row'])
+
+        #############
+        # Clean Display Options
+        #############
+     
+        display_options = control_dict['display_options']
+        if display_options is None:
+          display_options = []
+        else:
+          if isinstance(display_options, list) == False:
+              display_options = [str(display_options)]
+        control_dict['display_options'] = display_options
+
+        #############
+        # Clean Display Name
+        #############
+        if control_dict['display_name'] is None or control_dict['display_name'] == 'None':
+          control_dict['display_name'] = ''
+        if control_type in LIST_TYPES and control_dict['display_name'] == '':
+          if isinstance(value, list):
+              pass
+          else:
+              control_dict['display_name'] = name
+
+
+        #############
+        # Clean Row Grouping
+        #############
+        # Both fields come straight off the init dict through the copy loop
+        # above, so a wrong type here reaches convert_dict2msg, which returns
+        # None and drops the control with no error. Coerce instead: a group is
+        # a string, a width is a non-negative int, and the defaults ('' and 0)
+        # are what every control carried before these fields existed.
+        #
+        # PRESENCE-GUARDED, and that guard is load bearing. BLANK_CONTROL_DICT
+        # is built from Control(), so these keys exist only where nepi_interfaces
+        # has been rebuilt with them. Reading them unguarded raised KeyError on a
+        # node running new SDK code against an older generated message, and the
+        # per-control except below swallowed it -- dropping EVERY control of
+        # EVERY set, which reads as a control panel that renders its headings
+        # and nothing underneath. Skipping instead means such a node registers
+        # its servo exactly as it did before, just without row grouping.
+        # Adding the keys here regardless would not help: convert_dict2msg
+        # rejects a dict carrying fields the message does not declare.
+        if 'display_group' in control_dict:
+          display_group = control_dict['display_group']
+          if display_group is None or display_group == 'None':
+            display_group = ''
+          control_dict['display_group'] = str(display_group)
+
+        if 'display_width' in control_dict:
+          display_width = control_dict['display_width']
+          try:
+            display_width = int(float(display_width))
+          except Exception:
+            display_width = 0
+          if display_width < 0:
+            display_width = 0
+          control_dict['display_width'] = display_width
+
+
+        #############
+        # Clean Options and Labels
+        options = control_dict['options']
+        if isinstance(options, list) == False:
+          options = []
+        value_names = control_dict['value_names']
+        if isinstance(value_names, list) == False:
+          value_names = []
+
+        # Membership test, not equality against the name of the list. As an
+        # equality test this branch never ran, so Menu/Selection/Selections
+        # took the else path -- which CLEARS options, at both of its ends. An
+        # option type then reached get_clean_value with an empty option list,
+        # where the Selection branch indexes options[0] and raised IndexError,
+        # so the control was dropped at registration. This is what took the
+        # camera's resolution/framerate/exposure_auto/power_line_frequency and
+        # drivers_mgr's protocol/baud_rate out of their settings dicts.
+        if input_type in OPTION_TYPES:
+            if len(options) == 0 and len(value_names) > 0:
+              options = value_names
+            # From the local `options`, which carries the value_names
+            # fallback above; re-reading control_dict['options'] discarded it.
+            options = [str(item) for item in options]
+            value_names = []
+        else:
+            if len(value_names) == 0 and len(options) > 0:
+              value_names = options
+            options = [] 
+
+            if input_type == 'ColorRGB':
+                  value_names = ['R','G','B']
+
+            elif input_type == 'RangeSlider':
+                  default_labels = ['start','stop']
+                  for i, label in enumerate(value_names):
+                    default_labels[i] = label
+                  value_names = default_labels
+
+            elif input_type in SINGLE_TYPES:
+                  value_names = [control_dict['display_name']]
+            else:
+              for i, entry in enumerate(value):
+                if len(value_names) <= i:
+                  value_names.append(control_dict['display_name'] + '_' + str(i))
+
+            value_names = [str(item) for item in value_names]
+            options = []
+
+        control_dict['options'] = options
+        control_dict['value_names'] = value_names
+
+
+        #############
+        # Check Valid Value
+        #############
+
+        check_dict = dict()
+        # Keyed by the cleaned name, which is what get_clean_value looks up --
+        # it cleans the name before indexing, so a raw key it could not find
+        # came back None and the control was dropped for no stated reason.
+        check_name = control_dict['name']
+        check_dict[check_name] = copy.deepcopy(control_dict)
+
+        check_value = copy.deepcopy(value)
+        if len(check_value) == 0 and input_type not in OPTION_TYPES:
+          logger.log_warn("create_servo_dict: dropped control returned empty init value for type" + str(name) + " : " + str(input_type))
+          continue
+        if isinstance(check_value, list) == False:
+          check_value = [check_value]
+        if input_type in SINGLE_TYPES:
+          check_value = check_value[0]
+        elif input_type in DOUBLE_TYPES:
+          check_value = [check_value[0],check_value[1]]
+        elif input_type in TRIPLE_TYPES:
+          check_value = [check_value[0],check_value[1],check_value[2]]
+        clean_value = get_clean_value(check_dict, check_name, check_value, debug = True)
+        # logger.log_debug("Got clean value from check value: " + str([name, clean_value, check_value]))
+        if clean_value is None:
+          logger.log_warn("create_servo_dict: dropped control returned None clean value " + str(name) + " : " + str(clean_value))
+          continue
+
+        # Store the LIST form of the cleaned value. This took len() of
+        # get_clean_value's return, which is the NATIVE form: len(3) and
+        # len(True) raise TypeError, so every Int and Toggle was dropped, and a
+        # String's length became its character count -- len('/dev/ttyUSB0') is
+        # 12 against a one-entry value list -- which is what walked
+        # get_clean_value's range(control_length) off the end of current_value
+        # and killed drivers_mgr from its set_value call.
+        value = get_value_list(clean_value)
+        control_dict['value'] = value
+        control_dict['default'] = value
+        control_dict['length'] = len(value)
+
+
+
+
+        #############
+        # Add to dict
+        servo_dict[name] = control_dict
+    except Exception as e:
+      # A failing control is still skipped and the loop still continues, exactly
+      # as before -- the only change is that the failure is now audible. This
+      # bare except:pass is why every other defect in this file went unnoticed:
+      # a control that raised here vanished from the dict with no error, no log
+      # line, and no absence anyone could see except in the RUI.
+      #
+      # Not throttled. A servo value registers all of its servo in one pass,
+      # so a throttle window would report the first failure and swallow the rest
+      # -- which is the behavior being fixed.
+      declared_type = '<unreadable>'
+      try:
+        declared_type = str(init_dict[name]['type'])
+      except Exception:
+        pass
+      logger.log_warn("create_servo_dict: dropped control '" + str(name) +
+                      "' of declared type '" + declared_type + "': " +
+                      type(e).__name__ + ": " + str(e))
+    
+  return servo_dict
+
+##################
+# Servo Functions
+
+def get_value_list(value):
+  # The servo dict stores every value as a list of strings: 'length' counts
+  # list entries, and get_clean_value re-lists whatever it is handed, so a
+  # scalar stored in 'value' gets iterated one character at a time. Anything
+  # coming back from get_clean_value -- which returns the NATIVE form, a scalar
+  # for the single-value types -- has to come back through here before it is
+  # stored.
+  if value is None:
+    return None
+  # Tuples count as sequences here: get_value returns a TUPLE for ColorRGB, and
+  # str() of one stored the whole "(0, 255, 0)" as a single entry, which then
+  # failed every length check downstream.
+  if isinstance(value, (list, tuple)) == False:
+    return [str(value)]
+  return [str(item) for item in value]
+
+
+def get_clean_value(servo_dict, control_name, control_value = None, debug = False):
+
+  # If control_name not in servo_dict keys, None is returned
+  # If control_value is None or any control_value is invalid, current valid values are returned
+  valid = False
+  value = None
+  fallback_value = []
+  control_name = nepi_utils.get_clean_name(control_name)
+  if control_name != '' and control_name in servo_dict.keys():
+      control_dict = servo_dict[control_name]
+      
+      current_value = control_dict['value']
+      # if debug == True:
+      #   logger.log_debug("Checking control value update: " + str([control_name,control_value,current_value]), throttle_s = 5)
+      control_type = control_dict['type']
+      control_length = control_dict['length']
+      options = control_dict['options']
+      min_bound = control_dict['min_bound']
+      max_bound = control_dict['max_bound']
+      delta_bound = control_dict['delta_bound']
+      dir_bound = control_dict['dir_bound']
+      round_f = servo_dict[control_name]['round']
+
+      add_value = None
+      if control_value is None:
+        try:
+          control_value = copy.deepcopy(current_value)
+        except:
+          pass
+      if control_value is None:
+        return value
+
+      # Callers hand this the NATIVE value -- set_value from a driver, the
+      # ServoIF/SettingsIF wrappers, apply_update_msg. Iterating that
+      # directly raised TypeError on an int (SettingsIF.init died here on
+      # drivers_mgr's stored settings) and, worse, silently split a bare string
+      # into one entry per CHARACTER, which is where the mismatched lengths and
+      # the walk off the end of current_value came from.
+      control_value = get_value_list(control_value)
+
+      if isinstance(options, list) == False:
+        options = []
+
+      # 'Selections' is a multi-select: how many options are chosen is the value,
+      # so its length legitimately differs from the registered one. Every other
+      # type has a fixed arity and a mismatch means a malformed update.
+      if control_type != 'Selections' and len(control_value) != control_length:
+        return value
+
+
+
+      if control_type in OPTION_TYPES: ###########################################################
+
+        if control_type == "Menu": ###########################################################
+          # The value of a Menu is an INDEX into options. int() of the whole
+          # list raised every time, so this only ever reached its own except
+          # branch and returned the current value -- a Menu could not be set.
+          index = None
+          try:
+            index = int(float(control_value[0]))
+          except Exception as e:
+            index = None
+          if index is not None and index >= 0 and index < len(options):
+            value = [str(index)]
+          else:
+            value = copy.deepcopy(current_value)
+
+        elif control_type == "Selection": ###########################################################
+          # The value of a Selection is one option. str() of the whole list
+          # produced "['1920:1080']", which is never in options, so this fell
+          # through to options[0] -- meaning a Selection could only ever hold
+          # its first option, and IndexError'd outright when the option list
+          # was empty, dropping the control at registration.
+          selection = None
+          try:
+            selection = str(control_value[0])
+          except Exception as e:
+            selection = None
+          if selection is not None and selection in options:
+            value = [selection]
+          elif len(current_value) > 0 and str(current_value[0]) in options:
+            value = [str(current_value[0])]
+          elif len(options) > 0:
+            value = [str(options[0])]
+          else:
+            # No options to choose from: there is no valid value, and
+            # returning None is how the caller is told so.
+            value = None
+
+        elif control_type == "Selections": ###########################################################
+            values = []
+            for item in control_value:
+              item = str(item)
+              if item in options:
+                values.append(item)
+            # An empty list is a legitimate value here (nothing selected), which is
+            # why this assigns unconditionally rather than guarding on len().
+            value = values
+
+
+
+      elif control_type == "ColorRGB": ###########################################################      
+        if len(current_value) != 3:
+          current_value = [255,255,255]
+        new_value = []
+        try:
+          control_value = list(control_value)
+          for i, val in enumerate(control_value):
+            try:
+              val = int(val)
+              if 0 <= val <= 255:
+                new_value.append(val)
+            except:
+              pass
+        except Exception as e:
+            control_value = []
+
+        if len(new_value) == 3:
+          value = new_value
+        else:
+          value = current_value
+
+
+      else:
+        values = []
+
+
+        for i in range(control_length):
+          cur_value = current_value[i]
+          add_value = copy.deepcopy(cur_value)
+
+          if control_type in STRING_TYPES: ###########################################################
+            add_value = str(add_value)
+
+
+          elif control_type in BOOL_TYPES: ###########################################################
+              try:
+                  add_value  = (add_value == True or add_value == 'True' or add_value == 'true')
+              except Exception as e:
+                  pass
+
+          elif control_type in INT_TYPES:  ###########################################################
+            try:
+              add_value = int(float(add_value))
+              cur_value = int(float(cur_value))
+              fallback_value.append(cur_value)
+              # Do Bounds Check if Needed
+              if int(float(min_bound)) != -999 and add_value < min_bound:
+                if debug == True:
+                  logger.log_debug("Check min_bound failed: " + str([control_name, add_value, min_bound]), throttle_s = 5, throttle_n = True)
+                add_value = min_bound
+
+              if int(float(max_bound)) != -999 and add_value > max_bound:
+                if debug == True:
+                  logger.log_debug("Check max_bound failed: " + str([control_name, add_value, max_bound]), throttle_s = 5, throttle_n = True)
+                add_value = max_bound
+
+            except Exception as e:
+              if debug == True:
+                 logger.log_debug("Failed to set new value: " + str([control_name,add_value]) + " : " + str(e), throttle_s = 5, throttle_n = True)
+              add_value = cur_value
+
+          elif control_type in FLOAT_TYPES: ###########################################################
+
+            try:
+              add_value  = round(float(add_value), round_f)
+              cur_value = float(cur_value)
+              fallback_value.append(cur_value)
+              # Named round_to, not round: binding the name `round` shadowed the
+              # builtin, so round(add_value, round) raised "'int' object is not
+              # callable" on the very next line. The except below swallowed it and
+              # handed back cur_value, so EVERY Float update silently reverted to
+              # the value already held.
+              round_to = control_dict['round']
+              if round_to >= 0:
+                add_value = round(add_value,round_to)
+              # Clamps to min_bound. This assigned max_bound, so a value below the
+              # minimum came back as the MAXIMUM.
+
+              # Do Bounds Check if Needed
+              if int(float(min_bound)) != -999 and add_value < min_bound:
+                if debug == True:
+                  logger.log_debug("Check min_bound failed: " + str([control_name, add_value, min_bound]), throttle_s = 5, throttle_n = True)
+                add_value = min_bound
+
+              if int(float(max_bound)) != -999 and add_value > max_bound:
+                if debug == True:
+                  logger.log_debug("Check max_bound failed: " + str([control_name, add_value, max_bound]), throttle_s = 5, throttle_n = True)
+                add_value = max_bound
+
+            except Exception as e:
+              if debug == True:
+                logger.log_debug("Failed to set new value: " + str([control_name,add_value]) + " : " + str(e), throttle_s = 5, throttle_n = True)
+              add_value = cur_value
+
+          elif control_type in TRIGGER_TYPES: ###########################################################
+              # The stored value is the time the control last fired; get_value
+              # reports seconds since, and reads <= 0 as "never fired". A press
+              # arrives from the RUI as the non-numeric 'TRIGGER' sentinel, and
+              # that is what the current time gets stamped onto. float() of the
+              # whole control_value list raised TypeError on every path into
+              # here -- including the [0] seed create_servo_dict checks at
+              # registration -- so a Button could only ever hold 0.
+              try:
+                add_value = float(add_value)
+              except:
+                add_value = nepi_utils.get_time()
+
+          values.append(add_value)
+        value = values
+
+  if control_type in INT_TYPES or control_type in FLOAT_TYPES:  ###########################################################
+         
+      # Do Bounds Check if Needed
+      if len(value) == 2 and int(float(dir_bound)) != -999:
+        
+        if (value[1] - value[0] ) > 0 and dir_bound < 0:
+            if debug == True:
+              logger.log_debug("Check dir_bound failed: " + str([control_name, value, dir_bound]), throttle_s = 5, throttle_n = True)
+            value = fallback_value
+        elif (value[0] - value[1] ) > 0 and dir_bound > 0:
+          value = fallback_value
+
+      if len(value) == 2 and int(float(delta_bound)) != -999:
+        if abs((value[1] - value[0] )) < delta_bound:
+          if debug == True:
+            logger.log_debug("Check delta_bound failed: " + str([control_name, value, delta_bound]), throttle_s = 5, throttle_n = True)
+          value = fallback_value
+
+
+  clean_value = None
+  if value is not None:
+    if len(value) > 0 or control_type in OPTION_TYPES:
+      if control_type in SINGLE_TYPES and len(value) > 0:
+          clean_value = value[0]
+      elif control_type in DOUBLE_TYPES and len(value) > 1:
+          clean_value = [value[0],value[1]]
+      elif control_type in TRIPLE_TYPES and len(value) > 2:
+          clean_value = [value[0],value[1],value[2]]
+      else:
+          clean_value = value
+
+  # if debug == True:
+  #   logger.log_debug("Returning Clean Value: " + str([control_name, clean_value]), throttle_s = 5, throttle_n = True)       
+  return clean_value
+
+
+def get_value(servo_dict, control_name, index = None):
+  value = None
+  control_type = None
+  if servo_dict is not None:
+    if control_name in servo_dict.keys():
+        try:
+          control_type = servo_dict[control_name]['type']
+          control_value = get_clean_value(servo_dict, control_name)
+          if control_value is None:
+              pass
+          else:
+            if index is None:
+              value = control_value
+            else:
+              try:
+                index = int(index)
+                # index >= 0 and index < len(...), the same bounds test the Menu
+                # branch of get_clean_value uses. Written > 0, reading component
+                # 0 returned None -- ColorRGB's red, and the first entry of every
+                # Ints/Floats/Toggles control.
+                if index >= 0:
+                  if isinstance(control_value, (list, tuple)):
+                    if len(control_value) > index:
+                      value = control_value[index]
+              except:
+                value = None
+
+        except:
+          pass
+
+    ###################
+    # Special Types Support
+    # Only the whole value is a color triple. Ungated, an indexed read of one
+    # channel got tuple()'d too, so component 0 of 99 came back as ('9','9').
+    if value is not None and control_type == 'ColorRGB' and index is None:
+      try:
+        value = tuple(value)
+      except:
+        value = None
+
+    # No Button transform here. This accessor returns the value as it is
+    # STORED, so that set_value(name, get_value(name)) is a no-op for every
+    # type -- which is what _updateControlCb, _updateSettingCb and
+    # save_params_dict/init all assume. A Button stores the time it last
+    # fired, and reporting seconds-since here made it the one type where a
+    # read written straight back replaced the trigger time with an age a few
+    # milliseconds from zero. The seconds-since view belongs to the reporting
+    # path and already lives there, computed from the raw value in
+    # update_status_msg -- which is where the RUI reads it from.
+
+  return value
+
+def get_values_dict(servo_dict):
+  servo_values_dict = dict()
+  if servo_dict is not None:
+    for control_name in servo_dict.keys():
+      control_value = get_value(servo_dict, control_name)
+      if control_value is not None:
+        servo_values_dict[control_name] = control_value
+      else:
+        #logger.log_warn("Got None Value for control: " + str(control_name))
+        pass
+  return servo_values_dict
+
+
+def get_params_dict(servo_dict):
+  servo_values_dict = dict()
+  if servo_dict is not None:
+    for control_name in servo_dict.keys():
+      control_value = get_value(servo_dict, control_name)
+      param = servo_dict[control_name].get('param',True)
+      if control_value is not None and param == True:
+        servo_values_dict[control_name] = control_value
+      else:
+        #logger.log_warn("Got None Value for control: " + str(control_name))
+        pass
+  return servo_values_dict
+
+def set_value(servo_dict, control_name, update_value, index = None,  check_valid = True, debug = False):
+  if control_name in servo_dict.keys():
+      cur_val = servo_dict[control_name]['value']
+      if index is not None:
+        try:
+          index = int(index)
+          # Same bounds test as get_value. Written > 0, index 0 never merged:
+          # the single component replaced the whole value instead.
+          if index >= 0:
+            control_value = get_value(servo_dict,control_name)
+            # get_value hands back a TUPLE for ColorRGB, which a list-only test
+            # skipped -- the one type that is always addressed by index.
+            if isinstance(control_value, (list, tuple)):
+              control_value = list(control_value)
+              if len(control_value) > index:
+                control_value[index] = update_value
+                update_value = control_value
+                  
+        except:
+          pass
+        # if debug == True:
+        #   logger.log_debug("Set index Value for control: " + str([control_name, update_value]), throttle_s = 5, throttle_n = True)  
+      # logger.log_warn("Attempting Updated Value From,To: " + str([control_name,cur_val,update_value]))
+      # Validate when asked to validate. The test was inverted, so the default
+      # path (check_valid = True) wrote the raw wire value straight into the dict
+      # -- handing a driver's setSettingFunction ['False'] for a Toggle and ['5']
+      # for an Int -- while a caller passing check_valid = False to SKIP the check
+      # got it run. drivers_mgr's discovery pass is that caller.
+      if check_valid == True and cur_val != update_value:
+        update_value = get_clean_value(servo_dict, control_name, update_value, debug = debug)
+        # if debug == True:
+        #   logger.log_debug("Set Val Got Clean Value: " + str([control_name,update_value]), throttle_s = 5, throttle_n = True)    
+      if update_value is not None:
+        # Stored as a list of strings, the one shape the dict holds: 'length'
+        # counts list entries and get_clean_value re-lists whatever it reads, so
+        # a scalar written here comes back out one character per entry.
+        clean_list = get_value_list(update_value)
+        # if debug == True:
+        #   logger.log_debug("Set Val Got Clean List: " + str([control_name,clean_list]), throttle_s = 5, throttle_n = True)  
+        servo_dict[control_name]['value'] = clean_list
+  return servo_dict
+
+def sets_values(servo_dict, servo_values_dict):
+  servo_values_dict = dict()
+  for control_name in servo_values_dict.keys():
+     control_value = servo_values_dict[control_name]
+     servo_dict = set_value(servo_dict, control_name, control_value)
+  return servo_dict
+
+
+def reset_value(servo_dict, control_name):
+  # A control entry missing 'default' (or control_name missing from
+  # servo_dict entirely) raised KeyError here, uncaught all the way up
+  # through SettingsIF/NodeConfigsIF's own reset_config() -- confirmed live
+  # crashing every RBXRobotIF-based node on its first settings reset, before
+  # Settings IF init ever completed. Same "log and continue" shape as every
+  # other drop path in this file: skip only this one control.
+  try:
+    servo_dict[control_name]['value'] = servo_dict[control_name]['default']
+  except (KeyError, TypeError) as e:
+    logger.log_warn("reset_value: left control '" + str(control_name) +
+                    "' unreset: " + type(e).__name__ + ": " + str(e))
+  return servo_dict
+
+def reset_values(servo_dict):
+    control_names = list(servo_dict.keys())
+    for control_name in control_names:
+      servo_dict = reset_value(servo_dict, control_name)
+    return servo_dict
+
+
+def get_value_names(servo_dict, control_name):
+  value_names = []
+  if control_name in servo_dict.keys():
+      value_names = servo_dict[control_name].get('value_names',[])
+  return value_names
+
+
+def set_value_names(servo_dict, control_name, value_names):
+  value_names = [str(item) for item in value_names]
+  if control_name in servo_dict.keys():
+      servo_dict[control_name]['value_names'] = value_names
+  return servo_dict
+
+
+def get_options(servo_dict, control_name):
+  # Read 'options' before, a key Control.msg does not define and
+  # BLANK_CONTROL_DICT therefore never carries -- so this raised KeyError for
+  # every control. The field is 'options'.
+  options = []
+  if control_name in servo_dict.keys():
+      options = servo_dict[control_name].get('options',[])
+  return options
+
+def set_options(servo_dict, control_name, options):
+  options = [str(item) for item in options]
+  if control_name in servo_dict.keys():
+      servo_dict[control_name]['options'] = options
+  return servo_dict
+
+
+
+
+def get_bounds(servo_dict, control_name):
+  bounds = [-999.0,-999.0]
+  if control_name in servo_dict.keys():
+      min_bound = servo_dict[control_name]['min_bound']
+      max_bound = servo_dict[control_name]['max_bound']
+      bounds = [min_bound, max_bound]
+  return bounds
+
+
+
+def set_min_bound(servo_dict, control_name, min_bound = None, debug = False):
+  if min_bound is None:
+    min_bound = -999.0
+  if control_name in servo_dict.keys():
+      cur_val = servo_dict[control_name]['min_bound']
+      input_type = servo_dict[control_name]['type']
+      max_bound = servo_dict[control_name]['max_bound']
+      round_f = servo_dict[control_name]['round']
+
+      try:
+        min_bound = round(float(min_bound),round_f)
+      except:
+        return servo_dict
+     
+
+      if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
+        servo_dict[control_name]['min_bound'] = float(min_bound)
+
+      if cur_val != min_bound:
+        clean_val = get_clean_value(servo_dict, control_name, debug = debug)
+        servo_dict = set_value(servo_dict,control_name,clean_val)
+  return servo_dict
+
+def clear_min_bound(servo_dict, control_name):
+  servo_dict = set_min_bound(servo_dict, control_name)
+  return servo_dict
+
+def set_max_bound(servo_dict, control_name, max_bound = None, debug = False):
+  if max_bound is None:
+    max_bound = -999.0
+  if control_name in servo_dict.keys():
+      cur_val = servo_dict[control_name]['max_bound']
+      input_type = servo_dict[control_name]['type']
+      min_bound = servo_dict[control_name]['min_bound']
+      round_f = servo_dict[control_name]['round']
+      
+      try:
+        max_bound = round(float(max_bound),round_f)
+      except:
+        return servo_dict
+     
+
+      if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
+        servo_dict[control_name]['max_bound'] = float(max_bound)
+      if cur_val != max_bound:
+        clean_val = get_clean_value(servo_dict, control_name, debug = debug)
+        servo_dict = set_value(servo_dict,control_name,clean_val)
+  return servo_dict
+
+def clear_max_bound(servo_dict, control_name):
+  servo_dict = set_max_bound(servo_dict, control_name)
+  return servo_dict
+
+def set_bounds(servo_dict, control_name, bounds = [-999.0,-999.0], debug = False):
+  if len(bounds) == 2:
+    [min_bound,max_bound] = bounds
+    if min_bound is None:
+      min_bound = -999.0
+    if max_bound is None:
+      max_bound = -999.0
+    try:
+      if int(float(min_bound)) == -999 or int(float(max_bound)) == -999 or min_bound <  max_bound:
+
+        if control_name in servo_dict.keys():
+            servo_dict = set_min_bound(servo_dict, control_name, min_bound, debug = debug)
+            servo_dict = set_max_bound(servo_dict, control_name, max_bound, debug = debug)
+
+
+    except:
+      pass
+
+  return servo_dict
+
+
+
+
+##################
+# Display Functions
+
+def get_display_name(servo_dict, control_name):
+  display_name = ''
+  if control_name in servo_dict.keys():
+      display_name = servo_dict[control_name]['display_name']
+  return display_name
+
+def set_display_name(servo_dict, control_name, display_name):
+  display_name = str(display_name)
+  if control_name in servo_dict.keys():
+      servo_dict[control_name]['display_name'] = display_name
+  return servo_dict
+
+
+def get_description(servo_dict, control_name):
+  description = ''
+  if control_name in servo_dict.keys():
+      description = servo_dict[control_name]['description']
+  return description
+
+def set_description(servo_dict, control_name, description):
+  description = str(description)
+  if control_name in servo_dict.keys():
+      servo_dict[control_name]['description'] = description
+  return servo_dict
+
+def get_hidden(servo_dict, control_name):
+  display_hidden = False
+  if control_name in servo_dict.keys():
+      display_hidden = (servo_dict[control_name]['display_hidden'] == True)
+  return display_hidden
+
+def set_hidden(servo_dict, control_name, display_hidden):
+  # str() here wrote the strings 'True'/'False' into Control.display_hidden, a toggle
+  # field. convert_dict2msg then rejected the dict and the control vanished
+  # from the status message instead of being display_hidden in it.
+  display_hidden = (display_hidden == True)
+  if control_name in servo_dict.keys():
+      servo_dict[control_name]['display_hidden'] = display_hidden
+  return servo_dict
+
+def get_disabled(servo_dict, control_name):
+  # Control.msg spells the field display_disabled, so that is the dict key: the
+  # dict is built from convert_msg2dict(Control()) and update_status_msg copies
+  # only keys the msg carries. Read under 'disabled' this was a KeyError on
+  # every control, and written under 'disabled' it never reached the RUI.
+  disabled = False
+  if control_name in servo_dict.keys():
+      disabled = (servo_dict[control_name].get('display_disabled',False) == True)
+  return disabled
+
+def set_disabled(servo_dict, control_name, disabled):
+  # str() here wrote the strings 'True'/'False' into Control.display_disabled, a
+  # bool field. convert_dict2msg then rejected the dict and the control vanished
+  # from the status message instead of being disabled in it.
+  disabled = (disabled == True)
+  if control_name in servo_dict.keys():
+      servo_dict[control_name]['display_disabled'] = disabled
+  return servo_dict
+
+
+def cleanDisplayRow(display_row):
+  # Control.msg declares display_row a bool, so anything reaching the message
+  # has to be one. The string spellings are accepted because params yaml files
+  # and hand written init dicts write booleans as 'True'/'true' -- the same
+  # test get_clean_value applies to the BOOL_TYPES values.
+  return (display_row == True or display_row == 'True' or display_row == 'true')
+
+def get_display_row(servo_dict, control_name):
+  """Return True if the control's value widgets should render side by side in one row."""
+  # .get rather than [], as in get_disabled: a servo dict built before this
+  # field existed does not carry the key, and a missing key means the stacked
+  # column layout, not an error.
+  display_row = False
+  if control_name in servo_dict.keys():
+      display_row = cleanDisplayRow(servo_dict[control_name].get('display_row',False))
+  return display_row
+
+def set_display_row(servo_dict, control_name, display_row):
+  """Set whether the control's value widgets render side by side in one row."""
+  display_row = cleanDisplayRow(display_row)
+  if control_name in servo_dict.keys():
+      servo_dict[control_name]['display_row'] = display_row
+  return servo_dict
+
+
+def get_display_order(servo_dict, control_name):
+  order = -1
+  if control_name in servo_dict.keys():
+      ordered_list = list(servo_dict.keys())
+      order = ordered_list.index(control_name)
+  return order
+
+def set_display_order(servo_dict, control_name, update_order = 0):
+  update_servo_dict = copy.deepcopy(servo_dict)
+  cur_ordered_list = list(servo_dict.keys())
+  num_servo = len(cur_ordered_list)
+  cur_order = -1
+  if control_name in cur_ordered_list:
+    cur_order = cur_ordered_list.index(control_name)
+    if cur_order != -1 and update_order >= 0 and update_order < num_servo:
+      update_ordered_list = list(servo_dict.keys())
+      update_ordered_list.remove(control_name)
+      num_servo = len(update_ordered_list)
+      if update_order == num_servo:
+        update_ordered_list.append(control_name)
+      else:
+          update_ordered_list.insert(update_order, control_name)
+      update_servo_dict = {key: servo_dict[key] for key in update_ordered_list}
+  return update_servo_dict
+
+
+
+def move_control_top(servo_dict, control_name):
+  update_servo_dict = copy.deepcopy(servo_dict)
+  cur_ordered_list = list(servo_dict.keys())
+  num_servo = len(cur_ordered_list)
+  if control_name in cur_ordered_list:
+    cur_order = cur_ordered_list.index(control_name)
+    update_order = 0
+    if cur_order != update_order and update_order >= 0 and update_order < num_servo:
+      update_servo_dict = set_display_order(servo_dict, control_name, update_order)
+  return update_servo_dict
+
+def move_control_bottom(servo_dict, control_name):
+  update_servo_dict = copy.deepcopy(servo_dict)
+  cur_ordered_list = list(servo_dict.keys())
+  num_servo = len(cur_ordered_list)
+  if control_name in cur_ordered_list:
+    cur_order = cur_ordered_list.index(control_name)
+    update_order = num_servo - 1
+    if cur_order != update_order and update_order >= 0 and update_order < num_servo:
+      update_servo_dict = set_display_order(servo_dict, control_name, update_order)
+  return update_servo_dict
+
+def move_control_up(servo_dict, control_name):
+  update_servo_dict = copy.deepcopy(servo_dict)
+  cur_ordered_list = list(servo_dict.keys())
+  num_servo = len(cur_ordered_list)
+  if control_name in cur_ordered_list:
+    cur_order = cur_ordered_list.index(control_name)
+    update_order = cur_order + 1
+    if cur_order != -1 and update_order >= 0 and update_order < num_servo:
+      update_servo_dict = set_display_order(servo_dict, control_name, update_order)
+  return update_servo_dict
+
+def move_control_down(servo_dict, control_name):
+  update_servo_dict = copy.deepcopy(servo_dict)
+  cur_ordered_list = list(servo_dict.keys())
+  num_servo = len(cur_ordered_list)
+  if control_name in cur_ordered_list:
+    cur_order = cur_ordered_list.index(control_name)
+    update_order = cur_order - 1
+    if cur_order != -1 and update_order >= 0 and update_order < num_servo:
+      update_servo_dict = set_display_order(servo_dict, control_name, update_order)
+  return update_servo_dict
+
+############################################################
+# Status Msg Functions
+
+def create_status_msg( name = '', display_name = '', description = ''):
+  status_msg = ServoStatus()
+  name = nepi_utils.get_clean_name(str(name))
+  status_msg.name= name
+  if display_name == '':
+    display_name = name
+  status_msg.display_name= str(display_name)
+  if description == '':
+    description = name
+  status_msg.description= str(description)
+  return status_msg
+
+
+def update_status_msg( status_msg, servo_dict):
+  if status_msg is None:
+    status_msg = ServoStatus()
+
+  servo_name = status_msg.name
+  if servo_name == '':
+     servo_name = 'control'
+
+  names_list = [] 
+  types_list = [] 
+  msgs_list = [] 
+
+  try:
+    names = list(servo_dict.keys())
+  except Exception as e:
+    logger.log_warn("update_status_msg: could not read control names from servo dict: " +
+                    type(e).__name__ + ": " + str(e))
+    names = []
+  for i, name in enumerate(names):
+    try:
+      control_dict = servo_dict[name]
+      control_type = control_dict['type']
+      if control_type in CONTROL_TYPES:
+
+        # Convert value to a string list for the Control msg. This used to write
+        # msg_value/msg_default BACK into the live servo dict, and for the
+        # single-value types [str(value)] wrapped a value that was already a
+        # one-entry list -- so every status publish re-wrapped it and the dict
+        # ended up holding the string "['0']" in place of '0'. The dict the
+        # device reads from is not this function's to edit.
+        msg_value = get_value_list(control_dict['value'])
+
+        if control_type in TRIGGER_TYPES:
+          # A Button holds the time it was last fired; the status reports seconds
+          # since, or -999 for never. Comparing the list itself to 0 raised
+          # TypeError and left every Button out of the published status.
+          fired_at = 0
+          try:
+            fired_at = float(msg_value[0])
+          except Exception as e:
+            fired_at = 0
+          if fired_at <= 0:
+            msg_value = [str(-999)]
+          else:
+            msg_value = [str(nepi_utils.get_time() - fired_at)]
+
+
+        control_msg = Control()
+
+
+        try:
+          control_msg.name = control_dict['name']
+          control_msg.description = control_dict['description']
+          control_msg.type = control_dict['type']
+          control_msg.param = control_dict['param']
+          control_msg.options = control_dict['options']
+          control_msg.round = control_dict['round']
+
+          control_msg.min_bound = float(control_dict['min_bound'])
+          control_msg.max_bound = float(control_dict['max_bound'])
+          control_msg.delta_bound = float(control_dict['delta_bound'])
+          control_msg.dir_bound = float(control_dict['dir_bound'])
+
+          control_msg.value = control_dict['value']
+
+
+          control_msg.display_disabled = control_dict['display_disabled']
+          control_msg.display_hidden = control_dict['display_hidden']
+          control_msg.display_name = control_dict['display_name']
+          control_msg.display_options = control_dict['display_options']
+          control_msg.value_names = control_dict['value_names']
+          control_msg.display_round = control_dict['display_round']
+          control_msg.display_row = cleanDisplayRow(control_dict.get('display_row',False))
+          control_msg.display_bounds = control_dict['display_bounds']
+          control_msg.display_group = control_dict['display_group']
+          control_msg.display_width = control_dict['display_width']
+        except Exception as e:
+          logger.log_warn("Failed to convert dict to msg: " + str(e), throttle_s = 5, throttle_n = True)
+
+
+        # control_dict['display_row'] = cleanDisplayRow(control_dict.get('display_row',False))
+
+        # msg_type = 'nepi_interfaces/Control'
+        # control_msg = nepi_sdk.convert_dict2msg(msg_type,control_dict,Control(),servo_name)
+
+
+        if control_msg is not None:
+          names_list.append(name)
+          msgs_list.append(control_msg)
+      else:
+        # Same silent fall-through as create_servo_dict: a control that made
+        # it into the dict but carries a type this list does not know is simply
+        # left out of the status message, so the RUI never sees it.
+        logger.log_warn("update_status_msg: left control '" + str(name) +
+                        "' of declared type '" + str(control_type) +
+                        "' out of the status message: type is not one of " + str(CONTROL_TYPES),
+                        throttle_s = 5)
+    except Exception as e:
+      # Dropped the control from the published status with no log. Throttled,
+      # unlike create_servo_dict: this runs on every status publish, not once
+      # at registration.
+      logger.log_warn("update_status_msg: left control '" + str(name) +
+                      "' out of the status message: " +
+                      type(e).__name__ + ": " + str(e), throttle_s = 5, throttle_n = True)
+  status_msg.servo_name_list = names_list
+  status_msg.servo_msg_list = msgs_list
+  return status_msg
+
+def apply_update_msg( servo_dict, msg, debug = False):
+  name = msg.name
+
+  if name not in servo_dict.keys():
+    return servo_dict
+
+  control_dict = servo_dict[name]
+  control_type = control_dict['type']
+
+  display_name = msg.display_name
+  if display_name != '':
+    servo_dict[name]['display_name'] = display_name
+
+  description = msg.description
+  if description != '':
+    servo_dict[name]['description'] = description
+
+  index = None
+  try:
+    index = int(float(msg.index))
+  except:
+    pass
+
+  # An UpdateControl carries only the fields the sender is actually changing;
+  # every other field arrives at its ROS default. For the two string[] fields
+  # that default is the EMPTY list, not [''], so testing only against ['']
+  # treated "field omitted" as "set this field to nothing".
+
+  # An index update carries ONE component, not the whole value, so it cannot
+  # be cleaned here: get_clean_value length-checks against the control's
+  # arity and returns None for it. set_value merges the component at index
+  # into the current value and validates the merged list.
+  value = None
+  if msg.value != ['']:
+    value = msg.value
+
+    update_value = None
+    if len(value) > 0:
+      if debug == True:
+          logger.log_debug("Got Value Update Msg with index: " + str([name, value, index]), throttle_s = 5, throttle_n = True)  
+
+      if index is not None: 
+ 
+        value = value[0]
+        values = get_value(servo_dict, name)
+        values_len = len(values)
+        if values_len > index:
+          values[index] = value
+          update_value = values
+        else:
+          if debug == True:
+            logger.log_debug("Index out of range: " + str([name, index, values]), throttle_s = 5, throttle_n = True)      
+      else:
+        update_value = value
+
+    if debug == True:
+      logger.log_debug("Setting Update Msg value: " + str([name, update_value])) 
+
+    if update_value is not None:
+      servo_dict = set_value(servo_dict, name, update_value, debug = debug)
+      updated_value = get_value(servo_dict, name)
+    if debug == True:
+      logger.log_debug("Updated Control Value from Update Msg: " + str([name, update_value, updated_value]), throttle_s = 5, throttle_n = True)  
+
+  min_bound = msg.min_bound
+  if min_bound != '':
+    servo_dict = set_min_bound(servo_dict, name, min_bound = min_bound, debug = debug)
+
+  max_bound = msg.max_bound
+  if max_bound != '':
+    servo_dict = set_max_bound(servo_dict, name, max_bound = max_bound, debug = debug)
+
+  # Same guard, and this one was doing real damage: the RUI never sends options
+  # on a value change, so msg.options arrived as [], which is != [''] -- every
+  # update from the RUI wiped the control's option list. The value was applied
+  # first and the options cleared right after, so a Selection worked exactly
+  # once and then had nothing left to be valid against: get_clean_value returns
+  # None for an option type with no options, so the dropdown stopped taking
+  # changes and the caller read back None.
+  options = list(msg.options)
+  if len(options) > 0 and options != ['']:
+    servo_dict = set_options(servo_dict, name, options)
+
+  return servo_dict

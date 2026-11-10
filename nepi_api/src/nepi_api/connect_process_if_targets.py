@@ -135,6 +135,11 @@ class ConnectProcessIFTargets(ConnectNodeIF):
         self.msg_if.pub_info("IF Initialization Complete")
         ###############################
 
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ConnectProcessIFTargets:
+            self.start()
+
 
     #######################
     # Process Public Methods

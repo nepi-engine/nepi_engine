@@ -40,7 +40,7 @@ from nepi_interfaces.msg import PointcloudStatus
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
 from nepi_api.system_if import SaveDataIF
-from nepi_api.data_if import PointcloudImageIF
+from nepi_api.data_product_if_pointcloud import PointcloudImageIF
 
 
 
@@ -170,7 +170,7 @@ class PointcloudImgPub:
         for d in self.data_products:
             factory_data_rates[d] = [1.0, 0.0, 100]
         save_data_ns = os.path.dirname(self.pointcloud_namespace).split('/idx')[0]
-        self.save_data_if = SaveDataIF(data_products = self.data_products, pub_status = False,
+        self.save_data_if = SaveDataIF(data_products = self.data_products,
                         factory_rate_dict = factory_data_rates, namespace = save_data_ns,
                         msg_if = self.msg_if
                         )
@@ -186,7 +186,6 @@ class PointcloudImgPub:
                         perspective = 'pov',
                         init_overlay_text_list = [],
                         save_data_if = self.save_data_if,
-                        navpose_namespace = self.navpose_namespace,
                         msg_if = self.msg_if
                         )
 

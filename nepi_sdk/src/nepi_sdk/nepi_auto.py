@@ -83,9 +83,9 @@ def launch_scripts(script_list,launch_script_service,get_installed_scripts_servi
   running_scripts = get_running_scripts(get_running_scripts_service)
   if installed_scripts is not None and running_scripts is not None:
     for script2launch in script_list:
-      script_installed = nepi_utils.nepi_utils.val_in_list(script2launch,installed_scripts)
+      script_installed = nepi_utils.val_in_list(script2launch,installed_scripts)
       if script_installed:
-        script_running = nepi_utils.nepi_utils.val_in_list(script2launch,running_scripts)
+        script_running = nepi_utils.val_in_list(script2launch,running_scripts)
         if script_running is False:
             logger.log_info("")
             logger.log_info("Launching script: " + script2launch)
@@ -95,7 +95,7 @@ def launch_scripts(script_list,launch_script_service,get_installed_scripts_servi
               script_running = False
               while script_running is False and not nepi_sdk.is_shutdown():
                 running_scripts = get_running_scripts(get_running_scripts_service)
-                script_running = nepi_utils.nepi_utils.val_in_list(script2launch,running_scripts)
+                script_running = nepi_utils.val_in_list(script2launch,running_scripts)
                 logger.log_info("Waiting for script to launch")
                 time.sleep(.5) # Sleep before checking again
               logger.log_info("Script started successfully")
@@ -117,10 +117,10 @@ def stop_scripts(script_list,stop_script_service,get_installed_scripts_service,g
   running_scripts = get_running_scripts(get_running_scripts_service)
   if installed_scripts is not None and running_scripts is not None:
     for script2stop in script_list:
-      script_running = nepi_utils.nepi_utils.val_in_list(script2stop,running_scripts)
-      script_ignore = nepi_utils.nepi_utils.val_in_list(script2stop,optional_ignore_script_list)
+      script_running = nepi_utils.val_in_list(script2stop,running_scripts)
+      script_ignore = nepi_utils.val_in_list(script2stop,optional_ignore_script_list)
       if script_running is True and script_ignore is False:
-        script_running = nepi_utils.nepi_utils.val_in_list(script2stop,running_scripts)
+        script_running = nepi_utils.val_in_list(script2stop,running_scripts)
         if script_running is True:
             logger.log_info("")
             logger.log_info("Stopping script: " + script2stop)
@@ -157,27 +157,27 @@ def startup_script_initialize(self,NEPI_BASE_NAMESPACE):
   ## Create Class Publishers
   ## Start Class Subscribers
   ## Start Node Processes
-  nepi_sdk.log_msg_info("NEPI_ROS: ")
-  nepi_sdk.log_msg_info("NEPI_ROS: ***********************")
-  nepi_sdk.log_msg_info("NEPI_ROS: Starting Initialization")
+  logger.log_info("NEPI_ROS: ")
+  logger.log_info("NEPI_ROS: ***********************")
+  logger.log_info("NEPI_ROS: Starting Initialization")
   ### Get list of installed scripts
-  nepi_sdk.log_msg_info("NEPI_ROS: Getting list of installed scripts")
-  nepi_sdk.log_msg_info(["Calling service name: " + AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME])
+  logger.log_info("NEPI_ROS: Getting list of installed scripts")
+  logger.log_info(["Calling service name: " + AUTO_GET_INSTALLED_SCRIPTS_SERVICE_NAME])
   while self.scripts_installed_at_start == None and not nepi_sdk.is_shutdown():
       self.scripts_installed_at_start = get_installed_scripts(self.get_installed_scripts_service)
       if self.scripts_installed_at_start == None:
-        nepi_sdk.log_msg_info("NEPI_ROS: Service call failed, waiting 1 second then retrying")
+        logger.log_info("NEPI_ROS: Service call failed, waiting 1 second then retrying")
         time.sleep(1)
   #nepi_sdk.log_msg_info("NEPI_ROS: Scripts installed at start:")
   #nepi_sdk.log_msg_info(self.scripts_installed_at_start)
   ### Get list of running scripts
-  nepi_sdk.log_msg_info("NEPI_ROS: ")
-  nepi_sdk.log_msg_info("NEPI_ROS: Getting list of running scripts at start")
-  nepi_sdk.log_msg_info(["Calling service name: " + AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME])
+  logger.log_info("NEPI_ROS: ")
+  logger.log_info("NEPI_ROS: Getting list of running scripts at start")
+  logger.log_info(["Calling service name: " + AUTO_GET_RUNNING_SCRIPTS_SERVICE_NAME])
   while self.scripts_running_at_start == None and not nepi_sdk.is_shutdown():
       self.scripts_running_at_start = get_running_scripts(self.get_running_scripts_service)
       if self.scripts_running_at_start == None:
-        nepi_sdk.log_msg_info("NEPI_ROS: Service call failed, waiting 1 second then retrying")
+        logger.log_info("NEPI_ROS: Service call failed, waiting 1 second then retrying")
         time.sleep(1)
   #nepi_sdk.log_msg_info("NEPI_ROS: Scripts running at start:")
   #nepi_sdk.log_msg_info(self.scripts_running_at_start)

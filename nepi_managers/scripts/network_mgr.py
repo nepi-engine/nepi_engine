@@ -160,7 +160,7 @@ class NetworkMgr:
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
         
         ##############################
         # Wait for System Info
@@ -449,7 +449,7 @@ class NetworkMgr:
         nepi_sdk.start_timer_process(1, self.publishStatusCb)
         #########################################################
         ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", color = 'GREEN')
         nepi_sdk.spin()
         #########################################################
 

@@ -41,7 +41,7 @@ from nepi_sdk import nepi_docker
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-from nepi_interfaces.msg import MgrSoftwareStatus                           
+from nepi_interfaces.msg import MgrSoftwareStatus, WarningFlags
 from nepi_interfaces.srv import  SoftwareStatusQuery, SoftwareStatusQueryRequest, SoftwareStatusQueryResponse
 
 from nepi_api.messages_if import MsgIF
@@ -54,7 +54,7 @@ BYTES_PER_MEGABYTE = 2**20
 
 NEPI_FOLDER='/opt/nepi'
 
-class SoftwareMgrNode():
+class SoftwareMgr():
     
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
 
@@ -82,6 +82,7 @@ class SoftwareMgrNode():
     selected_new_img="none_detected"
     installing_new_image = False
     new_img_file = ""
+    new_img_files = []
     new_img_version = ""
     new_img_filesize = 0
     install_status = True
@@ -113,7 +114,7 @@ class SoftwareMgrNode():
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
 
 
         ###############################
@@ -349,7 +350,7 @@ class SoftwareMgrNode():
 
 
 
-        self.msg_if.pub_debug("Completing Initialization Processes") 
+        self.msg_if.pub_debug("Completing Initialization Processes", color = 'GREEN') 
         ########################
         # Complete Initialization
 
@@ -749,7 +750,9 @@ class SoftwareMgrNode():
                 self.status_msg.sys_img_update_status = 'query failed'
                 return self.status_msg
 
-            
+            # selectImageCb only accepts a name from the last available-images check
+            self.new_img_files = new_img_files if new_img_files else []
+
             # Update the response
             success = False
             selected_new_img="none_detected"
@@ -785,7 +788,7 @@ class SoftwareMgrNode():
     #### Software
     def provide_software_status(self, req):
         response = SoftwareStatusQueryResponse()
-        response.software_status = self.status_msg
+        response.system_status = self.status_msg
         #self.msg_if.pub_debug("Returning status query response: " + str(response))
         return response
 
@@ -806,4 +809,4 @@ class SoftwareMgrNode():
 
 
 if __name__ == '__main__':
-    SoftwareMgr = SoftwareMgrNode()
+    SoftwareMgr = SoftwareMgr()

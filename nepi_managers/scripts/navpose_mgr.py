@@ -286,7 +286,7 @@ class NavPoseMgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
 
 
         ##############################
@@ -389,9 +389,9 @@ class NavPoseMgr(object):
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
-            'set_sync_tranforms': {
+            'set_sync_transforms': {
                 'namespace': self.node_namespace,
-                'topic': 'set_sync_tranforms',
+                'topic': 'set_sync_transforms',
                 'msg': Bool,
                 'qsize': 1,
                 'callback': self._setSyncTransformsCb, 
@@ -632,7 +632,7 @@ class NavPoseMgr(object):
 
         ##############################
         ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", color = 'GREEN')
         nepi_sdk.spin()
 
 
@@ -831,7 +831,7 @@ class NavPoseMgr(object):
                     transform_dict = connect_dict[comp_name]['init_transform']
                     transform_dict['update_ref_description'] = init_topic
                     transform_dict['end_ref_description'] = frame_name
-                    transform_dict = nepi_nav.check_tranform_dict(transform_dict)
+                    transform_dict = nepi_nav.check_transform_dict(transform_dict)
                     connect_dict[comp_name]['init_transform'] = transform_dict
                     comp_info_msg.init_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
@@ -872,7 +872,7 @@ class NavPoseMgr(object):
                     transform_dict = connect_dict[comp_name]['update_transform']
                     transform_dict['update_ref_description'] = update_topic
                     transform_dict['end_ref_description'] = frame_name
-                    transform_dict = nepi_nav.check_tranform_dict(transform_dict)
+                    transform_dict = nepi_nav.check_transform_dict(transform_dict)
                     connect_dict[comp_name]['update_transform'] = transform_dict
                     comp_info_msg.update_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
@@ -912,7 +912,7 @@ class NavPoseMgr(object):
                     transform_dict = connect_dict[comp_name]['offset_transform']
                     transform_dict['update_ref_description'] = offset_topic
                     transform_dict['end_ref_description'] = frame_name
-                    transform_dict = nepi_nav.check_tranform_dict(transform_dict)
+                    transform_dict = nepi_nav.check_transform_dict(transform_dict)
                     connect_dict[comp_name]['offset_transform'] = transform_dict
                     comp_info_msg.offset_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
@@ -958,7 +958,7 @@ class NavPoseMgr(object):
                     transform_dict = connect_dict[comp_name]['reset_transform']
                     transform_dict['update_ref_description'] = reset_topic
                     transform_dict['end_ref_description'] = frame_name
-                    transform_dict = nepi_nav.check_tranform_dict(transform_dict)
+                    transform_dict = nepi_nav.check_transform_dict(transform_dict)
                     connect_dict[comp_name]['reset_transform'] = transform_dict
                     comp_info_msg.reset_topic_transform = nepi_nav.convert_transform_dict2msg(transform_dict)
 
@@ -2002,7 +2002,7 @@ class NavPoseMgr(object):
         frame_name = msg.name
         comp_name = msg.name2
         type_name = msg.name3
-        transform_dict = nepi_nav.convert_transform_msg2dict(msg.transform)
+        transform_dict = nepi_nav.check_transform_dict(nepi_sdk.convert_msg2dict(msg.transform))
         self.setFrameCompTransform(frame_name, comp_name, type_name, transform_dict)
 
     def _clearFrameCompTransformCb(self,msg):

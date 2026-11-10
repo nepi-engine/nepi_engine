@@ -24,6 +24,7 @@ import threading
 
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
+from nepi_sdk import nepi_dict
 
 
 from std_msgs.msg import String, Empty
@@ -34,6 +35,7 @@ from std_srvs.srv import EmptyRequest as EmptySrvRequest
 from std_srvs.srv import EmptyResponse as EmptySrvResponse
 
 from nepi_interfaces.msg import MgrSystemStatus, ConnectIFStatus
+from nepi_interfaces.srv import ConnectNodeIFStatusQuery, ConnectNodeIFStatusQueryRequest, ConnectNodeIFStatusQueryResponse
 
 from nepi_interfaces.msg import Reset
 
@@ -43,10 +45,11 @@ from nepi_api.messages_if import MsgIF
 # params (e.g. the connect selected_topic) via the config manager, exactly the
 # way NodeClassIF does. node_if.py does not import this module, so there is no
 # circular import.
-from nepi_api.node_if import NodeConfigsIF, NodeParamsIF
+from nepi_api.node_if import NodeIF, NodeConfigsIF, NodeParamsIF
 
 
 
+logger = nepi_sdk.sdk_logger
 
 
 
@@ -68,20 +71,31 @@ CONNECTED_TIMEOUT = 2
 # 'ai', and would silently change these labels if a config domain were added.
 IF_NAMESPACE_TOKENS = ['idx','ptx','lsx','npx','rbx','motors','ai']
 
-class ConnectNodeIF:
-    
+class ConnectNodeIF(NodeIF):
+  
+    #########################
+    ## NODE IF Required
+    ## Class Variables Updated by NodeIF Init Class
+    #########################
+
+    STATUS_MSG = ConnectIFStatus()
+    DATA_MSG = None
+
+    ID = 'connect'
+
+    IF_DICT = dict()
+
+    #########################
+    ## CUSTOM
+    #########################
     msg_if = None
     node_if = None
-    node_if_shared = False
     connect_if = None
-    connect_ready = False
-    namespace = '~'
 
-    active_nodes = []
-    active_topics = []
-    active_topic_types =  []
-    active_services =  []  
-    
+    ready = False
+
+
+
     connect_namespace = ''
     connect_id = None
     connect_status_msg = None
@@ -114,6 +128,9 @@ class ConnectNodeIF:
 
     status_has_published = False
 
+
+    topic_dict =  dict()       
+       
     #######################
     ### IF Initialization
     def __init__(self, 
@@ -130,25 +147,16 @@ class ConnectNodeIF:
                 msg_if = None,
                 node_if = None
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
-
-        
-        if msg_if is None:
-            self.msg_if = MsgIF()
-        else:
-            self.msg_if = msg_if
-        self.msg_if.pub_debug("Starting " + str(self.class_name) + " Initialization Processes")
-
+  
+   
+        ##############################
+        # Update Class Variables
+        ##############################
 
         # Check ID Class
         if connect_id is None:
-            self.msg_if.pub_debug("Connect ID Not Provided") 
+            logger.log_debug("Connect ID Not Provided") 
             return 
         self.connect_id = connect_id
 
@@ -156,17 +164,19 @@ class ConnectNodeIF:
 
         # Check Status Msg Type
         if connect_status_msg is None:
-            self.msg_if.pub_debug("Connect Status Msg Type Not Provided") 
+            logger.log_debug("Connect Status Msg Type Not Provided") 
             return 
         self.connect_status_msg = connect_status_msg
 
 
         self.connect_name = nepi_utils.get_clean_name(connect_name)
         if self.connect_name is None or self.connect_name == '':
-            self.msg_if.pub_debug("Topic Name Not Valid: " + str(connect_name)) 
+            logger.log_debug("Topic Name Not Valid: " + str(connect_name)) 
             return
-        self.msg_if.pub_debug("Using Topic Name: " + self.connect_name)
-        self.connect_namespace = nepi_sdk.create_namespace(self.node_name,self.connect_name)
+        logger.log_debug("Using Topic Name: " + self.connect_name)
+        node_name = nepi_sdk.get_node_name()
+        node_namespace = nepi_sdk.get_node_namespace()
+        self.connect_namespace = nepi_sdk.create_namespace(node_namespace,self.connect_name)
 
         
         ##############################    
@@ -181,7 +191,7 @@ class ConnectNodeIF:
         self.selected_topic = selected_topic
 
         self.auto_select_enabled = auto_select_enabled
-        self.msg_if.pub_debug("Auto select enabled: " + str(self.auto_select_enabled))
+        logger.log_debug("Auto select enabled: " + str(self.auto_select_enabled))
 
         self.show_selector = show_selector
         self.show_controls = show_controls
@@ -200,46 +210,110 @@ class ConnectNodeIF:
                 if exclude_namespace != '':
                     self.exclude_namespaces_list.append(exclude_namespace)
 
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
-        ##############################   
-        ## Node Setup
+        status_msg = ConnectIFStatus()
+        sub_type = connect_id.replace('connect_','')
+        topic_name = 'connect_' + connect_id.replace('connect_','')
+        topic_display = str(topic_name).replace('_',' ').capitalize()
+        self.topic_dict = nepi_dict.get_blank_topic_dict()
+        self.topic_dict['name'] = topic_name
+        self.topic_dict['display_name'] = topic_display
+        self.topic_dict['type'] = 'connect'
+        self.topic_dict['sub_type'] = sub_type
+        self.topic_dict['group'] = node_name
+        self.topic_dict['sub_group'] = ''
+        self.topic_dict['status_msg_type'] = status_msg.__class__.__name__
+        self.topic_dict['data_msg_type'] = ''
+        self.topic_dict['topic'] = self.connect_namespace
+        self.topic_dict['topic_name'] = topic_display
 
-        # Configs Config Dict ####################
-        CFGS_DICT = {
-                'namespace': self.connect_namespace
-        }
 
-        # Params Config Dict ####################
-        # Persist the selected topic under the connect namespace so the
-        # selection survives node restarts (via the config manager). Passing a
-        # params_dict is what enables config management on ConnectNodeClassIF.
-        CONNECT_PARAMS_DICT = {
-            self.node_if_prefix + 'selected_topic': {
+        ##############################  
+        # Setup NodeIF Updates
+        ##############################  
+
+        #######################
+        # Sync System IF inputs to if_dict
+
+        self.msg_if = msg_if
+        self.IF_DICT['msg_if'] = msg_if
+        self.node_if = node_if
+        self.IF_DICT['node_if'] = node_if
+
+
+        ##################
+        if_info_dict = dict(
+            type = 'connect'
+        )
+        update_info_dict = dict()
+        ##################        
+        update_caps_dict = dict()
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = dict()
+        ##################
+        update_callback_dict = dict()
+
+        ###########
+        # NODE IF SETUP
+
+        # Call the parent class constructor. Named by connect_name, so the IF sits at
+        # <node>/<connect_name>, where topic_dict points and the RUI connect panels
+        # listen, and two connects of one type in a node (pan/tilt) don't collide.
+        super().__init__(id = self.ID,
+                name = self.connect_name,
+                namespace = None,
+                status_msg = self.STATUS_MSG,
+                data_msg = self.DATA_MSG,
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict, 
+                if_dict = self.IF_DICT
+                )
+
+        # NodeIF's own ready flag. Not self.wait_for_ready(): every connect subclass
+        # overrides it to wait on its self.ready, which it sets only after this returns.
+        ready = super().get_ready_state()
+
+
+       #######################
+        # Add Services
+        #######################
+       
+        params_dict = {
+            'selected_topic': {
                 'namespace': self.connect_namespace,
                 'factory_val': self.selected_topic
             }
         }
 
 
-        # Publishers Config Dict ####################
-        self.connect_node_pubs_dict = {
-            self.node_if_prefix + 'status_pub': {
-                'namespace': self.connect_namespace,
-                'topic': 'status',
-                'msg': ConnectIFStatus,
-                'qsize': 1,
-                'latch': True
-            }
-        }
+        #######################
+        # Add Services
+        #######################
+        services_dict = {}
 
 
+        #######################
+        # Add Pubs 
+        #######################
+        pubs_dict = {}
 
 
-        # Subscribers Config Dict ####################
-        self.connect_node_subs_dict = {
-            self.node_if_prefix + 'select_topic': {
+        #######################
+        # Add Subs 
+        #######################
+        subs_dict =  {
+            'select_topic': {
                 'namespace': self.connect_namespace,
                 'topic': 'select_topic',
                 'msg': String,
@@ -247,38 +321,19 @@ class ConnectNodeIF:
                 'callback': self._selectTopicCb, 
                 'callback_args': ()
             },
-            self.node_if_prefix + 'system_status': {
-                'msg': MgrSystemStatus,
-                'namespace': self.base_namespace,
-                'topic': 'status',
-                'qsize': 5,
-                'callback': self._systemStatusCb
-            },
         }
 
 
-        if node_if is None:
-            self.node_if = ConnectNodeClassIF(
-                            configs_dict = CFGS_DICT,
-                            params_dict = CONNECT_PARAMS_DICT,
-                            services_dict = None,
-                            pubs_dict = self.connect_node_pubs_dict,
-                            subs_dict = self.connect_node_subs_dict,
-                            msg_if = self.msg_if
-            )
-            self.node_if.wait_for_ready()
-        else:
-            self.node_if_shared = True
-            try:
-                self.node_if = node_if
-                self.node_if.register_pubs(self.connect_node_pubs_dict)
-                self.node_if.register_subs(self.connect_node_subs_dict)
-                # Register the persisted selection param on the shared node_if too.
-                self.node_if.add_param(self.node_if_prefix + 'selected_topic', 'selected_topic', self.connect_namespace, self.selected_topic)
-                nepi_sdk.sleep(1)
-            except Exception as e:
-                self.msg_if.pub_debug("Failed to register pubs and subs: " + str(e))
-                return
+
+        #########################
+        self.add_params(params_dict)
+        self.add_services(services_dict)
+        self.add_pubs(pubs_dict)
+        self.add_subs(subs_dict)
+        nepi_sdk.sleep(0.1)
+
+        ######################################################
+
 
 
         # Restore any persisted selection. When no explicit topic was requested
@@ -296,14 +351,112 @@ class ConnectNodeIF:
         ##############################
         # Start updater process
         nepi_sdk.start_timer_process(1.0, self._updaterCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
+
 
         ##############################
         # Complete Initialization
         self.connect_ready = True
-        self.msg_if.pub_debug(str(self.class_name) + " Initialization Complete")
+
+        self.ready = True
+        self.msg_if.pub_debug("IF Initialization Complete" )
         ###############################
-    
+
+
+    ###############################
+    # NodeIF Class Override Methods
+    ###############################
+
+    def update_status_msg(self, status_msg):
+        available_topics = copy.deepcopy(self.available_topics)
+        selected_topic = copy.deepcopy(self.selected_topic)
+        status_msg = ConnectIFStatus()
+
+        status_msg.name = self.connect_name
+        status_msg.id = self.connect_id
+
+        status_msg.status_msg_type = self.connect_status_msg
+
+        status_msg.available_topics = available_topics
+        # Path names, not node names: a selector must distinguish one device's
+        # data products from each other. Device connect classes see no change --
+        # their topics reduce to the node name either way. See
+        # get_available_path_names().
+        available_names = self.get_available_path_names(available_topics)
+        status_msg.available_names = available_names
+
+        selected_name = 'None'
+        if selected_topic not in available_topics:
+            # Auto-select fills an EMPTY selection only. A selection that IS set but
+            # not yet discovered must be left alone: available_topics is populated
+            # incrementally as sibling device nodes come up, so grabbing
+            # available_topics[0] here silently repointed a restored selection at
+            # whichever device happened to appear first. On a two-axis node that
+            # landed both axes on the same servo -- ptx_servos_node restored pan
+            # channel 0 and tilt channel 1 from config, then this method moved tilt
+            # to channel 0 before channel 1 was discovered, and the node adopted the
+            # wrong topic on its next updateConnectsHandler cycle. Nothing rewrote
+            # the param when that happened, so the config file still held the
+            # operator's real choice while the live selection had already moved on,
+            # which is why the selection looked like it never saved.
+            if selected_topic == 'None' and len(available_topics) > 0 and self.auto_select_enabled == True:
+                selected_topic = available_topics[0]
+                self.selected_topic = selected_topic
+
+        if selected_topic in available_topics:
+            selected_ind = available_topics.index(selected_topic)
+            selected_name = available_names[selected_ind]
+        elif selected_topic != 'None':
+            # Selected but not discovered yet. Report the selection with a derived
+            # label rather than 'None' so the status does not read as unselected
+            # while discovery catches up.
+            selected_names = self.get_available_path_names([selected_topic])
+            if len(selected_names) > 0:
+                selected_name = selected_names[0]
+
+        status_msg.selected_topic = selected_topic
+        status_msg.selected_name = selected_name
+
+        status_msg.connecting = self.connecting
+        status_msg.connected = self.connected
+        connected_topic = self.connected_topic
+        if connected_topic is None:
+            connected_topic = 'None'
+        status_msg.connected_topic = connected_topic
+
+        connect_msg = "Not Selected"
+        if self.selected_topic != "None":
+            connect_msg = "Selected"
+            if self.connecting == True:
+                connect_msg = "Connecting"
+            if self.connected == True:
+                connect_msg = "Connected"
+        status_msg.connect_msg = connect_msg
+
+
+        status_msg.show_selector = self.show_selector
+        status_msg.show_controls = self.show_controls
+        status_msg.show_data = self.show_data
+
+
+        return status_msg
+
+    def publish_status(self):
+        # Every connect subclass overrides get_status_msg() to return the CONNECTED
+        # source's status, so NodeIF.publish_status() would publish that msg on this
+        # IF's ConnectIFStatus topic. Publish the ConnectIFStatus built above instead.
+        pub_status_msg = self.update_status_msg(None)
+        if self.node_if is not None:
+            self.status_has_published = True
+            self.node_if.publish_pub(self.node_if_prefix + 'status_pub', pub_status_msg)
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+    ###############################
+    # Class Private Methods
+    ###############################
+
 
     #######################
     # Class Public Methods
@@ -341,14 +494,8 @@ class ConnectNodeIF:
                 self.msg_if.pub_debug("Connected")
         return self.connect_ready  
 
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected PTX device.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.connect_namespace
-    
+    def get_topic_dict(self):
+        return self.topic_dict
 
     def get_available_topics(self):
         return self.available_topics
@@ -525,91 +672,6 @@ class ConnectNodeIF:
             available_names.append(name)
         return available_names
 
-    def _publishStatusCb(self,timer):
-        self.publish_status()
-
-
-    def publish_status(self):
-
-        available_topics = copy.deepcopy(self.available_topics)
-        selected_topic = copy.deepcopy(self.selected_topic)
-        status_msg = ConnectIFStatus()
-
-        status_msg.name = self.connect_name
-        status_msg.id = self.connect_id
-
-        status_msg.status_msg_type = self.connect_status_msg
-
-        status_msg.available_topics = available_topics
-        # Path names, not node names: a selector must distinguish one device's
-        # data products from each other. Device connect classes see no change --
-        # their topics reduce to the node name either way. See
-        # get_available_path_names().
-        available_names = self.get_available_path_names(available_topics)
-        status_msg.available_names = available_names
-
-        selected_name = 'None'
-        if selected_topic not in available_topics:
-            # Auto-select fills an EMPTY selection only. A selection that IS set but
-            # not yet discovered must be left alone: available_topics is populated
-            # incrementally as sibling device nodes come up, so grabbing
-            # available_topics[0] here silently repointed a restored selection at
-            # whichever device happened to appear first. On a two-axis node that
-            # landed both axes on the same servo -- ptx_servos_node restored pan
-            # channel 0 and tilt channel 1 from config, then this method moved tilt
-            # to channel 0 before channel 1 was discovered, and the node adopted the
-            # wrong topic on its next updateConnectsHandler cycle. Nothing rewrote
-            # the param when that happened, so the config file still held the
-            # operator's real choice while the live selection had already moved on,
-            # which is why the selection looked like it never saved.
-            if selected_topic == 'None' and len(available_topics) > 0 and self.auto_select_enabled == True:
-                selected_topic = available_topics[0]
-                self.selected_topic = selected_topic
-
-        if selected_topic in available_topics:
-            selected_ind = available_topics.index(selected_topic)
-            selected_name = available_names[selected_ind]
-        elif selected_topic != 'None':
-            # Selected but not discovered yet. Report the selection with a derived
-            # label rather than 'None' so the status does not read as unselected
-            # while discovery catches up.
-            selected_names = self.get_available_path_names([selected_topic])
-            if len(selected_names) > 0:
-                selected_name = selected_names[0]
-
-        status_msg.selected_topic = selected_topic
-        status_msg.selected_name = selected_name
-
-        status_msg.connecting = self.connecting
-        status_msg.connected = self.connected
-        connected_topic = self.connected_topic
-        if connected_topic is None:
-            connected_topic = 'None'
-        status_msg.connected_topic = connected_topic
-
-        connect_msg = "Not Selected"
-        if self.selected_topic != "None":
-            connect_msg = "Selected"
-            if self.connecting == True:
-                connect_msg = "Connecting"
-            if self.connected == True:
-                connect_msg = "Connected"
-        status_msg.connect_msg = connect_msg
-
-
-        status_msg.show_selector = self.show_selector
-        status_msg.show_controls = self.show_controls
-        status_msg.show_data = self.show_data
-
-
-        ###########
-        if self.node_if is not None:
-            if self.status_has_published == False:
-                #self.msg_if.pub_debug("Publishing Status: " + str(status_msg))
-                self.status_has_published = True
-            self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
-            #self.node_if.save_config()
-
 
 
 
@@ -643,16 +705,6 @@ class ConnectNodeIF:
         else:
             self.msg_if.pub_debug("Reconnected to " + str(connect_label) + " Status:  " + str(self.selected_topic))
 
-
-    # ROS callback for the system status msg. Populates the active topic/type
-    # lists that discovery searches. NOTE: this MUST NOT share a name with the
-    # discovery timer below -- a duplicate name silently shadows this method, so
-    # active_topics never gets populated and discovery finds nothing.
-    def _systemStatusCb(self,msg):
-            self.active_nodes = msg.active_nodes
-            self.active_topics = msg.active_topics
-            self.active_topic_types = msg.active_topic_types
-            self.active_services = msg.active_services
 
 
     # True when topic is an exclude_namespaces_list namespace or sits below one.
@@ -1759,7 +1811,7 @@ class ConnectNodeClassIF:
     def publish_pub(self,pub_name, pub_msg):
         success = False
         if self.pubs_if is not None and not nepi_sdk.is_shutdown():
-            succes = self.pubs_if.publish_pub(pub_name, pub_msg)   
+            success = self.pubs_if.publish_pub(pub_name, pub_msg)
         return success
 
 

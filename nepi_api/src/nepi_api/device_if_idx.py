@@ -39,24 +39,18 @@ from sensor_msgs.msg import Image, PointCloud2
 
 from nepi_interfaces.msg import DeviceIDXStatus, RangeWindow
 
-from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryResponse, DeviceInfoQueryRequest
 
-from nepi_interfaces.srv import IDXCapabilitiesQuery, IDXCapabilitiesQueryRequest, IDXCapabilitiesQueryResponse
+
+from nepi_interfaces.srv import DeviceIDXStatusQuery, DeviceIDXStatusQueryRequest, DeviceIDXStatusQueryResponse
 from nepi_interfaces.msg import ImageStatus, PointcloudStatus, NavPose
 
 
-from nepi_api.messages_if import MsgIF
-from nepi_api.node_if import NodeClassIF
-from nepi_api.system_if import SettingsIF, SaveDataIF, Transform3DIF
-from nepi_api.device_if_npx import NPXDeviceIF
 
-from nepi_api.data_if import ColorImageIF, DepthMapIF, PointcloudIF, NavPoseIF
-#from nepi_api.connect_data_if import ConnectNavPosesIF
+from nepi_api.data_product_if_image import ColorImageIF
+from nepi_api.data_product_if_depth_map import DepthMapIF
+from nepi_api.data_product_if_pointcloud import PointcloudIF
 
-
-
-
-
+from nepi_api.device_if import DeviceIF
 
 
 SUPPORTED_DATA_PRODUCTS = ['color_image','bw_image',
@@ -64,8 +58,29 @@ SUPPORTED_DATA_PRODUCTS = ['color_image','bw_image',
 
 PERSPECTIVE_OPTIONS = ['pov','top']
 
-#Factory Control Values 
-DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
+
+
+
+
+
+class IDXDeviceIF(DeviceIF):
+
+    #########################
+    ## DATA PRODUCT IF Required
+    ## Class Variables Updated by DataProductIF Init Class
+    #########################
+
+    STATUS_MSG = DeviceIDXStatus()
+    DATA_MSG = None
+
+    ID = 'idx'
+    DESCRIPTION = 'Imaging Device'
+
+    DATA_SOURCE_DESCRIPTION = 'Sensor'
+    DATA_REF_DESCRIPTION = 'Sensor Lense Center'
+
+    #Factory Control Values 
+    FACTORY_CONTROLS_DICT = dict( controls_enable = True,
     auto_adjust_ebabled = False,
     brightness_ratio = 0.5,
     contrast_ratio =  0.5,
@@ -82,10 +97,73 @@ DEFAULT_CONTROLS_DICT = dict( controls_enable = True,
     rotate_ratio = 0.5,
     )
 
+    #########################
+    ## Managed by NodeIF
+    #########################
+
+    # id = ''
+    # name = ''
+    # namespace = '~'
+
+    # status_msg = None
+    # data_msg = None
+
+    # msg_if = None
+    # node_if = None
+    # settings_if = None
+    # save_data_if = None
+    # transform_if = None
+    # navpose_if = None    
+    
+    # callback_dict = dict()
+
+    # active_topics = []
+    # active_topic_types = []
+    # active_services = []
+
+    # caps_dict = dict()
+
+    #########################
+    ## Managed by DataProductIF
+    #########################
+    # SYSTEM_IF_DICT = dict()
+
+    # data_source_description = 'sensor'
+    # data_ref_description = 'sensor'
+
+    # device_name = ''
+    # path = ''
+    # serial_num = ''
+    # hw_version = ''
+    # sw_version = ''
+
+    # factory_controls_dict = dict()
 
 
+    # msg_if = None
+    # node_if = None
+    # settings_if = None
+    # save_data_if = None
+    # transform_if = None
+    # navpose_if = None
 
-class IDXDeviceIF:
+    # color_image_if = None
+    # depthmap_if = None
+    # pointcloud_if = None
+
+    #########################
+    ## CUSTOM
+    #########################
+    ready = False
+    
+    color_image_if = None
+    depthmap_if = None
+    pointcloud_if = None
+
+    image_topic = ""
+    depth_map_topic = ""
+    pointcloud_topic = ""
+
     # Default Global Values
     BAD_NAME_CHAR_LIST = [" ","/","'","-","$","#"]
     UPDATE_NAVPOSE_RATE_HZ = 10
@@ -93,29 +171,10 @@ class IDXDeviceIF:
     DEFUALT_IMG_WIDTH_DEG = 100
     DEFUALT_IMG_HEIGHT_DEG = 70
 
-    # Define class variables
-    namespace = '~'
-    ready = False
-
-    status_msg = DeviceIDXStatus()
-    info_report = DeviceInfoQueryResponse()
-
-    node_if = None
-    settings_if = None
-    navpose_if = None
-    save_data_if = None
-
-    color_image_if = None
-    depthmap_if = None
-    pointcloud_if = None
-
     # Per-camera 3D mount transform (metadata: where the camera is located/oriented)
-    transform_if = None
-    transform_topic = ''
-    npx_navpose_topic = ''
+
 
     # Transformed-navpose publisher (reference frame navpose + mount transform applied)
-    idx_navpose_if = None
     ref_navpose_sub = None
     ref_navpose_frame = None
 
@@ -125,11 +184,7 @@ class IDXDeviceIF:
     navpose_update_rate = 10
     max_navpose_update_rate = 10
 
-
-
-    device_name = ''
-
-    factory_controls_dict = copy.deepcopy(DEFAULT_CONTROLS_DICT)
+    
 
     auto_adjust_controls = []
     auto_adjust_ebabled = False
@@ -166,9 +221,6 @@ class IDXDeviceIF:
     aspect_ratio_deg = -999
 
     
-
-    npx_if = None
-    
     fps_queue = dict()
     current_fps = dict()
     last_data_time = dict()
@@ -177,8 +229,6 @@ class IDXDeviceIF:
     depth_map_thread = None
     pointcloud_thread = None
 
-    data_source_description = 'imaging_sensor'
-    data_ref_description = 'sensor'
 
     device_disabled = False
 
@@ -186,90 +236,135 @@ class IDXDeviceIF:
 
     #######################
     ### IF Initialization
-    def __init__(self, device_info, 
-                 getSettingsFunction=None, setSettingFunction=None, 
-                 factoryControls = None, 
-                 data_source_description = 'imaging_sensor',
-                 data_ref_description = 'sensor',
-                 getFOV=None, perspective = 'pov',
-                 get_rtsp_url = None,
-                 setResolutionRatio=None, setMaxFramerate=None,
-                 setContrastRatio=None, setBrightnessRatio=None, 
-                 setThresholdingRatio=None, setRangeRatio=None, 
-                 setAutoAdjustRatio=None, autoAdjustControls=[],
-                 getFramerate=None,
-                 getColorImage=None, stopColorImageAcquisition=None, 
-                 getDepthMap=None, stopDepthMapAcquisition=None, 
-                 getPointcloud=None, stopPointcloudAcquisition=None, 
-                 getNavPoseCb = None,
-                 navpose_update_rate = 10,
-                 data_products =  [],
-                msg_if = None
+    def __init__(self, 
+                device_info, 
+                getSettingsFunction=None, setSettingFunction=None, 
+                factoryControls = None, 
+                data_source_description = None,
+                data_ref_description = None,
+                getFOV=None, perspective = 'pov',
+                get_rtsp_url = None,
+                setResolutionRatio=None, setMaxFramerate=None,
+                setContrastRatio=None, setBrightnessRatio=None, 
+                setThresholdingRatio=None, setRangeRatio=None, 
+                setAutoAdjustRatio=None, autoAdjustControls=[],
+                getFramerate=None,
+                getColorImage=None, stopColorImageAcquisition=None, 
+                getDepthMap=None, stopDepthMapAcquisition=None, 
+                getPointcloud=None, stopPointcloudAcquisition=None, 
+                data_products =  [],
+                msg_if = None,
+                node_if = None,
+                settings_if = None,
+                save_data_if = None,
+                connect_navpose_if = None,
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,'idx')
 
-        self.start_time = nepi_utils.get_time()
-        ##############################  
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IDX IF Initialization Processes" )
-        self.msg_if.pub_info("Using Namespace: " + str(self.namespace) )
+        ##############################
+        # Instance Copies of Class State
+        ##############################
+        self.caps_dict = copy.deepcopy(self.caps_dict)
+        self.data_products_dict = copy.deepcopy(self.data_products_dict)
+        self.fps_queue = copy.deepcopy(self.fps_queue)
+        self.current_fps = copy.deepcopy(self.current_fps)
+        self.last_data_time = copy.deepcopy(self.last_data_time)
 
-        ############################# 
-        # Initialize Class Variables
-        self.device_name = device_info["device_name"]
-        self.path = device_info["path"]
-        self.serial_num = device_info["serial_number"]
-        self.hw_version = device_info["hw_version"]
-        self.sw_version = device_info["sw_version"]
-        
-        self.status_msg.device_name = self.device_name
-        self.status_msg.device_path = self.path
-        self.status_msg.device_node_name = self.node_name
-        self.status_msg.serial_num = self.serial_num
-        self.status_msg.hw_version = self.hw_version
-        self.status_msg.sw_version = self.sw_version
 
-        self.info_report.device_name = self.device_name
-        self.info_report.device_path = self.path
-        self.info_report.node_name = self.node_name
-        self.info_report.node_namespace = self.node_namespace
-        self.info_report.serial_num = self.serial_num
-        self.info_report.hw_version = self.hw_version
-        self.info_report.sw_version = self.sw_version
-        self.info_report.type = 'IDX'
+        ##############################
+        # Update Class Variables
+        ##############################
 
-        self.data_source_description = data_source_description
-        self.data_ref_description = data_ref_description
-
-        self.msg_if.pub_debug("Got driver supported data products: " + str(data_products))
-        #self.msg_if.pub_debug("Supported data products: " + str(SUPPORTED_DATA_PRODUCTS))
         data_products_list = []
         for data_product in data_products:
             #self.msg_if.pub_debug("Checking data product: " + str(data_product))
             if data_product in SUPPORTED_DATA_PRODUCTS:
                 data_products_list.append(data_product)
         self.data_products_list = data_products_list
-        self.msg_if.pub_debug("Enabled data products: " + str(self.data_products_list))
-        # Create the CV bridge. Do this early so it can be used in the threading run() methods below 
-        # TODO: Need one per image output type for thread safety?
 
 
-        # Create and update factory controls dictionary
-        self.msg_if.pub_debug("Got Factory Controls: " + str(factoryControls))
-        if factoryControls is not None:
-            controls = list(factoryControls.keys())
-            for control in controls:
-                if factoryControls.get(control) != None:
-                    self.factory_controls_dict[control] = factoryControls[control]
+
+
+        ## Set None Capabilities Variables
+
+        self.setMaxFramerate = setMaxFramerate
+        if self.setMaxFramerate is not None:
+            self.caps_dict['has_framerate'] = True
+        
+        self.getFramerate = getFramerate
+
+        self.setRangeRatio = setRangeRatio
+        if self.setRangeRatio is not None:
+            self.caps_dict['has_range'] = True
+
+
+        self.setAutoAdjustRatio = setAutoAdjustRatio
+        if self.setAutoAdjustRatio is not None:
+            self.caps_dict['has_auto_adjust'] = True
+        self.auto_adjust_controls = autoAdjustControls
+
+        self.setBrightnessRatio = setBrightnessRatio
+        if self.setBrightnessRatio is not None:
+            self.caps_dict['has_brightness'] = True
+
+        self.setContrastRatio = setContrastRatio
+        if self.setContrastRatio is not None:
+            self.caps_dict['has_contrast'] = True
+
+        self.setThresholdingRatio = setThresholdingRatio       
+        if self.setThresholdingRatio is not None:
+            self.caps_dict['has_threshold'] = True
+
+        self.setResolutionRatio = setResolutionRatio
+        if self.setResolutionRatio is not None:
+            self.caps_dict['has_resolution'] = True
+
+
+        ##############################  
+        # Setup NodeIF Updates
+        ##############################  
+
+        ##################
+        update_info_dict = dict()
+        ##################        
+        update_caps_dict = self.caps_dict
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = dict()
+        ##################
+        update_callback_dict = dict()
+
+        ###########
+        # NODE IF SETUP
+
+        # Call the parent class constructor
+        super().__init__(                
+                device_info = device_info, 
+                getSettingsFunction=getSettingsFunction,
+                setSettingFunction=setSettingFunction, 
+                factoryControls = factoryControls, 
+                data_source_description = data_source_description,
+                data_ref_description = data_ref_description,
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict,              
+                msg_if = msg_if,
+                node_if = node_if,
+                settings_if = settings_if,
+                save_data_if = save_data_if,
+                connect_navpose_if = connect_navpose_if
+                )
+
+        ready = self.wait_for_ready()
+        ######################################################
         
         self.msg_if.pub_debug("Using Factory Controls: " + str(self.factory_controls_dict))
         self.auto_adjust_ebabled = self.factory_controls_dict['auto_adjust_ebabled']
@@ -304,74 +399,16 @@ class IDXDeviceIF:
 
         self.get_rtsp_url = get_rtsp_url
 
-        self.getNavPoseCb = getNavPoseCb
-        if navpose_update_rate is not None:
-            self.max_navpose_update_rate  = copy.deepcopy(navpose_update_rate) 
-            if navpose_update_rate < 1:
-                navpose_update_rate = 1
-            if navpose_update_rate > 10:
-                navpose_update_rate = 10
-            self.navpose_update_rate = navpose_update_rate
-            
-
-        ## Set None Capabilities Variables
-
-        self.setMaxFramerate = setMaxFramerate
-        if self.setMaxFramerate is not None:
-            self.status_msg.has_framerate = True
-        
-        self.getFramerate = getFramerate
-
-        self.setRangeRatio = setRangeRatio
-        if self.setRangeRatio is not None:
-            self.status_msg.has_range = True
+          
 
 
-        self.setAutoAdjustRatio = setAutoAdjustRatio
-        if self.setAutoAdjustRatio is not None:
-            self.status_msg.has_auto_adjust = True
-        self.auto_adjust_controls = autoAdjustControls
-
-        self.setBrightnessRatio = setBrightnessRatio
-        if self.setBrightnessRatio is not None:
-            self.status_msg.has_brightness = True
-
-        self.setContrastRatio = setContrastRatio
-        if self.setContrastRatio is not None:
-            self.status_msg.has_contrast = True
-
-        self.setThresholdingRatio = setThresholdingRatio       
-        if self.setThresholdingRatio is not None:
-            self.status_msg.has_threshold = True
-
-        self.setResolutionRatio = setResolutionRatio
-        if self.setResolutionRatio is not None:
-            self.status_msg.has_resolution = True
-
-
-     
-
-        ##################################################
-        ### Node Class Setup
-
-        self.msg_if.pub_debug("Starting Node IF Initialization" )
-        alt_namespace = None
-        if self.device_name != self.node_name:
-            alt_namespace = self.node_namespace.replace(self.node_name,self.device_name)
-        # Configs Config Dict ####################
-        self.CONFIGS_DICT = {
-                'init_callback': self.initCb,
-                'reset_callback': self.resetCb,
-                'factory_reset_callback': self.factoryResetCb,
-                'init_configs': True,
-                'namespace':  self.namespace,
-                'alt_namespace': alt_namespace
-        }
-
+        #######################
+        # Update NodeIF NodeClass
+        #######################
 
 
         # Params Config Dict ####################
-        self.PARAMS_DICT = {
+        params_dict = {
             'width_deg': {
                 'namespace': self.namespace,
                 'factory_val': self.width_deg
@@ -425,39 +462,25 @@ class IDXDeviceIF:
 
         # Services Config Dict ####################
 
-        self.SRVS_DICT = {
-            'device_info_query': {
+        services_dict = {
+
+            'status_query': {
                 'namespace': self.namespace,
-                'topic': 'device_info_query',
-                'srv': DeviceInfoQuery,
-                'req': DeviceInfoQueryRequest(),
-                'resp': DeviceInfoQueryResponse(),
-                'callback': self.info_query_callback
-            },
-            'capabilities_query': {
-                'namespace': self.namespace,
-                'topic': 'capabilities_query',
-                'srv': IDXCapabilitiesQuery,
-                'req': IDXCapabilitiesQueryRequest(),
-                'resp': IDXCapabilitiesQueryResponse(),
-                'callback': self.capabilities_query_callback
+                'topic': 'status_query',
+                'srv': DeviceIDXStatusQuery,
+                'req': DeviceIDXStatusQueryRequest(),
+                'resp': DeviceIDXStatusQueryResponse(),
+                'callback': self.status_query_callback
             }
         }
 
 
-        self.PUBS_DICT = {
-            'status_pub': {
-                'namespace': self.namespace,
-                'topic': 'status',
-                'msg': DeviceIDXStatus,
-                'qsize': 1,
-                'latch': True
-            }
-        }
+        # Status publishes through the NodeIF status pub, like LSX and NPX
+        pubs_dict = {}
                             
 
         # Subscribers Config Dict ####################
-        self.SUBS_DICT = {
+        subs_dict = {
             'disable': {
                 'namespace': self.namespace,
                 'msg': Bool,
@@ -549,33 +572,30 @@ class IDXDeviceIF:
             
         }
 
+        #######################
+        self.add_params(params_dict)
+        self.add_services(services_dict)
+        self.add_pubs(pubs_dict)
+        self.add_subs(subs_dict)
+        nepi_sdk.sleep(0.1)
+
+        ######################################################
 
 
-        # Create Node Class ####################
-        self.node_if = NodeClassIF(
-                        configs_dict = self.CONFIGS_DICT,
-                        params_dict = self.PARAMS_DICT,
-                        services_dict = self.SRVS_DICT,
-                        pubs_dict = self.PUBS_DICT,
-                        subs_dict = self.SUBS_DICT,
-                        
-                        msg_if = self.msg_if
-                        )
-
-        nepi_sdk.sleep(2)
-
-
-        start_delay = nepi_utils.get_time() - self.start_time
-        self.msg_if.pub_debug("" )
-        self.msg_if.pub_debug("##########################" )
-        self.msg_if.pub_debug("Settings IF Initialization Complete: : " + str(start_delay) )
-        self.msg_if.pub_debug("##########################" )
-        self.msg_if.pub_debug("" )
+        #########################
+        # Update Status Msg
+        ##############################
+        self.status_msg.device_name = self.device_name
+        self.status_msg.device_path = self.path
+        self.status_msg.device_node_name = self.node_name
+        self.status_msg.serial_num = self.serial_num
+        self.status_msg.hw_version = self.hw_version
+        self.status_msg.sw_version = self.sw_version
 
         ##############################
-        # Update vals from param server
-        self.initCb(do_updates = True)
-        # self.publish_status()
+        # Start Node Processes
+        ##############################
+
 
 
         # Start the data producers
@@ -589,17 +609,17 @@ class IDXDeviceIF:
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self._addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_debug("Starting " + data_product + " acquisition thread" )
             self.image_thread = threading.Thread(target=self.runImageThread)
             self.image_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.status_msg.has_color_image = True
+            self.caps_dict['has_color_image'] = True
         else:
-            self.status_msg.has_color_image = False
+            self.caps_dict['has_color_image'] = False
         
-        self.status_msg.has_depth_map = False
-        self.status_msg.has_pointcloud = False
+        self.caps_dict['has_depth_map'] = False
+        self.caps_dict['has_pointcloud'] = False
 
         if (getDepthMap is not None and 'depth_map' in self.data_products_list):
             self.getDepthMap = getDepthMap
@@ -611,14 +631,14 @@ class IDXDeviceIF:
             data_msg = Image
             data_status_msg = ImageStatus
 
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self._addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_debug("Starting " + data_product + " acquisition thread" )
             self.depth_map_thread = threading.Thread(target=self.runDepthMapThread)
             self.depth_map_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.status_msg.has_depth_map = True
+            self.caps_dict['has_depth_map'] = True
         else:
-            self.status_msg.has_depth_map = False
+            self.caps_dict['has_depth_map'] = False
 
         if (getPointcloud is not None and 'pointcloud' in self.data_products_list):
             self.getPointcloud = getPointcloud
@@ -630,141 +650,17 @@ class IDXDeviceIF:
             data_msg = PointCloud2
             data_status_msg = PointcloudStatus
 
-            success = self.addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
+            success = self._addDataProduct2Dict(data_product,start_data_function,stop_data_function,data_msg,data_status_msg)
             self.msg_if.pub_debug("Starting " + data_product + " acquisition thread" )
             self.pointcloud_thread = threading.Thread(target=self.runPointcloudThread)
             self.pointcloud_thread.daemon = True # Daemon threads are automatically killed on shutdown
 
-            self.status_msg.has_pointcloud = True
+            self.caps_dict['has_pointcloud'] = True
         else:
-            self.status_msg.has_pointcloud = False
-
-
-
-        ###############################
-        # Setup Settings IF Class ####################
-        self.getSettingsFunction = getSettingsFunction
-        self.setSettingFunction = setSettingFunction
-        if self.getSettingsFunction is not None and self.setSettingFunction is not None:
-            self.msg_if.pub_debug("Starting Settings IF Initialization" )
-            settings_ns = self.namespace
-
-            self.settings_if = SettingsIF(namespace = settings_ns,
-                            getSettingsFunction=self.getSettingsFunction, 
-                            setSettingFunction=self.setSettingFunction, 
-                            
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                            )
-
-
-        ##################################
-        # Setup Save Data IF Class ####################
-        self.msg_if.pub_debug("Starting Save Data IF Initialization" )     
-
-        factory_filename_dict = {
-            'prefix': "", 
-            'add_timestamp': True, 
-            'add_ms': True,
-            'add_us': False,
-            'suffix': "",
-            'add_node_name': True
-            }
-
-        sd_namespace = self.node_namespace
-        self.save_data_if = SaveDataIF(
-                                factory_filename_dict = factory_filename_dict,
-                                namespace = sd_namespace,
-                                
-                                msg_if = self.msg_if,
-                                node_if = self.node_if
-                                )
+            self.caps_dict['has_pointcloud'] = False
 
 
         
-        ####################
-        # # Setup NavPose IF Class
-        # self.msg_if.pub_info("Starting NavPose IF Initialization")
-        # np_namespace = self.node_namespace
-        # self.navpose_if = ConnectNavPosesIF(namespace = np_namespace,  
-        #                             save_data_if = self.save_data_if,
-        #                         
-        #                         msg_if = self.msg_if,
-        #                        node_if = self.node_if)
-        
-
-        #####################
-        # Update Status Message
-        nepi_sdk.sleep(1)
-        if self.settings_if is not None:
-            self.status_msg.settings_topic = self.settings_if.get_namespace()
-            self.msg_if.pub_info("Using settings namespace: " + str(self.status_msg.settings_topic))
-        if self.save_data_if is not None:
-            ready = self.save_data_if.wait_for_ready()
-            self.status_msg.save_data_topic = self.save_data_if.get_namespace()
-            self.msg_if.pub_info("Using save_data namespace: " + str(self.status_msg.save_data_topic))
-        if self.navpose_if is not None:
-            self.status_msg.navpose_topic = self.navpose_if.get_namespace()
-            self.msg_if.pub_info("Using navpose namespace: " + str(self.status_msg.navpose_topic))
-
-        # The camera's navpose is published by the NPX device at <node>/npx/navpose.
-        # Compute it deterministically so the image data products can advertise it in
-        # ImageStatus.navpose_topic (the NPX device is created after the data threads start).
-        self.npx_navpose_topic = ''
-        if self.getNavPoseCb is not None:
-            self.npx_navpose_topic = nepi_sdk.create_namespace(
-                nepi_sdk.create_namespace(self.node_namespace, 'npx'), 'navpose')
-
-        # Per-camera 3D mount transform: where this camera is located/oriented, as
-        # metadata for downstream consumers. Stored, published and persisted here; it is
-        # not applied to any navpose stream. The reference frame the transform is defined
-        # relative to is carried as its source_ref_description. Created before the data
-        # threads so the image data products can advertise its namespace in ImageStatus.
-        self.transform_if = Transform3DIF(namespace = self.namespace,
-                                source_ref_description = 'base_frame',
-                                end_ref_description = self.node_name,
-                                get_3d_transform_function = None,
-                                
-                                msg_if = self.msg_if,
-                                node_if = self.node_if
-                                )
-        self.transform_topic = self.transform_if.get_namespace()
-        self.msg_if.pub_info("Using transform namespace: " + str(self.transform_topic))
-
-        # Transformed-navpose publisher: subscribes to the selected reference frame's
-        # navpose, applies this camera's mount transform, and republishes the result at
-        # <node>/idx/navpose so the UI can show the camera's pose with the transform applied.
-        # Only the aggregate <node>/idx/navpose topic is published; the per-component
-        # sub-topics (location/heading/orientation/position/altitude/depth/pan_tilt) are
-        # disabled so the navpose_mgr does not discover this camera as a selectable navpose
-        # source (it scans the ROS graph for those component message types).
-        self.idx_navpose_if = NavPoseIF(namespace = self.namespace,
-                                data_source_description = self.data_source_description,
-                                data_ref_description = self.data_ref_description,
-                                pub_navpose = True,
-                                pub_location = False,
-                                pub_heading = False,
-                                pub_orientation = False,
-                                pub_position = False,
-                                pub_altitude = False,
-                                pub_depth = False,
-                                pub_pan_tilt = False,
-                                save_data_if = None,
-                                save_data_enabled = False,
-                                transform_namespace = self.transform_topic,                                
-                                msg_if = self.msg_if,
-                                node_if = self.node_if)
-                            # msg_if = self.msg_if,
-                            # node_if = self.node_if
-                            # )
-        # Manages the reference-frame subscription and republishes on each navpose
-        nepi_sdk.start_timer_process(2.0, self._updateTransformedNavPoseCb, oneshot = True)
-
-        ##################################
-        # Start Node Processes
-        #nepi_sdk.start_timer_process(1, self._updaterCb, oneshot = True)
-
-
         ############################
         # Start Data Get Threads
 
@@ -786,120 +682,176 @@ class IDXDeviceIF:
 
         nepi_sdk.sleep(1)
 
-        nepi_sdk.start_timer_process(1, self.publishStatusCb)
 
-        # if self.getNavPoseCb is not None:
-        #     ###############################
-        #     # Create a NPX Device IF
-        #     self.msg_if.pub_debug("Starting NPX Class Initialization")
-
-        #     if self.getNavPoseCb is not None:
-        #         self.msg_if.pub_debug("Starting NPX Device IF Initialization")
-        #         self.npx_if = NPXDeviceIF(device_info = self.device_info_dict,
-        #             node_namespace = self.node_namespace,
-        #             data_source_description = self.data_source_description,
-        #             data_ref_description = self.data_ref_description,
-        #             getNavPoseCb = self.getNavPoseCb,
-        #             max_navpose_update_rate = self.navpose_update_rate,
-        #                     msg_if = self.msg_if)
-        #                     # msg_if = self.msg_if,
-        #                     # node_if = self.node_if
-        #                     # )
-
-
+   
     
         ####################################
         self.ready = True
         start_delay = nepi_utils.get_time() - self.start_time
-        self.msg_if.pub_debug("" )
-        self.msg_if.pub_info("##########################" )
-        self.msg_if.pub_info("IF Initialization Complete: " + str(start_delay) )
-        self.msg_if.pub_info("##########################" )
-        self.msg_if.pub_info("" )
+        self.msg_if.pub_info("Initialization time: " + str(start_delay) )
+        self.msg_if.pub_info("Initialization Complete: "+ ": " + self.node_name, color = 'GREEN' )
         ####################################
 
-        
-
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is IDXDeviceIF:
+            self.start()
 
 
     ###############################
-    # Class Methods
+    # NodeIF Class Override Methods
+    ###############################
 
+    def update_status_msg(self, status_msg):
+        """Builds and publishes the DeviceIDXStatus message on the status topic.
 
-    def get_ready_state(self):
-        """Returns whether the IDX device interface has finished initializing.
-
-        Returns:
-            bool: True if the interface is fully initialized and ready, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Blocks until the device interface is ready or the timeout expires.
-
-        Polls the ready flag at 0.1-second intervals. Logs connection status
-        on completion or timeout.
+        Populates all fields of the status message from current instance state,
+        including device identity, FOV angles, resolution, framerate, image
+        control ratios, range-window settings, and per-data-product FPS. When
+        ``do_updates`` is True, also queries the RTSP URL callback (if
+        registered) and includes the result in the message.
 
         Args:
-            timeout (float, optional): Maximum number of seconds to wait.
-                Defaults to float('inf') (wait indefinitely).
-
-        Returns:
-            bool: True if the interface became ready within the timeout,
-                False if the timeout elapsed before ready was set.
+            do_updates (bool, optional): When True, perform live queries (e.g.
+                RTSP URL) before publishing. Set to False when the caller has
+                already updated state inline and a lightweight publish is
+                sufficient. Defaults to True.
         """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect" )
+        status_msg.device_name = self.device_name
+
+        status_msg.device_disabled = self.device_disabled
+
+        #############################################
+
+
+        # aspect_ratio_deg = self.width_px / self.height_px
+        # if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
+        #     self.aspect_ratio_deg  = round(self.width_px / self.height_px, 2)
+        
+        cur_aspect_ratio = self.width_px / self.height_px
+        if cur_aspect_ratio < 0.5 or cur_aspect_ratio > 2.5:
+            cur_aspect_ratio = 1        
+
+        width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
+        height_deg = self.height_deg
+
+        status_msg.width_deg = int(width_deg)
+        status_msg.height_deg = int(height_deg)
+        status_msg.aspect_ratio_deg = round(cur_aspect_ratio,2)
+
+        status_msg.perspective = self.perspective
+        
+        status_msg.resolution_ratio = self.resolution_ratio
+        res_str = str(self.width_px) + ":" + str(self.height_px)
+        status_msg.resolution_current = res_str
+
+
+
+        status_msg.max_framerate = self.max_framerate
+        data_products = self.data_products_list
+        framerates = []
+        for dp in data_products:
+            if dp in self.current_fps.keys():
+                framerates.append(self.current_fps[dp])
             else:
-                self.msg_if.pub_info("Connected" )
-        return self.ready   
+                framerates.append(0.0)
+        
+        status_msg.framerates = framerates
 
 
-    def initConfig(self):
-        self.initCb(do_updates = True)
+        status_msg.auto_adjust_enabled = self.auto_adjust_ebabled
+        status_msg.auto_adjust_controls = self.auto_adjust_controls
+        status_msg.contrast_ratio = self.contrast_ratio
+        status_msg.brightness_ratio = self.brightness_ratio
+        status_msg.threshold_ratio = self.threshold_ratio
+        
+        status_msg.range_window_ratios.start_range = self.start_range_ratio
+        status_msg.range_window_ratios.stop_range =  self.stop_range_ratio
+
+        status_msg.min_range_m = self.min_range_m
+        status_msg.max_range_m = self.max_range_m
+
+        delta_range = self.max_range_m - self.min_range_m
+        status_msg.min_range_m_adj = self.min_range_m + delta_range * self.start_range_ratio
+        status_msg.max_range_m_adj = self.min_range_m + delta_range * self.stop_range_ratio
+
+        status_msg.data_products = self.data_products_list
+
+        # Need to move to a seperate updater process
+        # rtsp_url = ""
+        # rtsp_username = ""
+        # rtsp_password = ""
+        # if self.get_rtsp_url is not None:
+        #     [rtsp_url,rtsp_username,rtsp_password] = self.get_rtsp_url()
+        #     if rtsp_url is None:
+        #         rtsp_url = ""
+        # status_msg.rtsp_url = rtsp_url
+        # status_msg.rtsp_username = rtsp_username
+        # status_msg.rtsp_password = rtsp_password
+       
+        status_msg.navpose_msg = self.get_navpose_msg()
+
+        ###################
+        # TOPIC UPDATES
+        
+        ########
+        # NAVPOSE DATA
+        try:
+           navpose_topic = self.navpose_if.get_namespace()
+        except:
+           navpose_topic = ''
+        status_msg.navpose_topic = navpose_topic
+
+
+        try:
+           navpose_msg = self.navpose_if.get_navpose_msg()
+           status_msg.navpose_msg = navpose_msg
+        except:
+           pass
+
+        try:
+           connect_navpose_topic = self.connect_navpose_if.get_namespace()
+        except:
+           connect_navpose_topic = ''
+        status_msg.connect_navpose_topic = connect_navpose_topic
+        
+        return status_msg
+
 
 
     def initCb(self,do_updates = False):
       if self.node_if is not None:
-            self.width_deg = self.node_if.get_param('width_deg')
-            self.height_deg = self.node_if.get_param('height_deg')  
-            aspect_ratio_deg = self.node_if.get_param('aspect_ratio_deg')
+            self.width_deg = self.node_if.get_param(self.node_if_prefix + 'width_deg')
+            self.height_deg = self.node_if.get_param(self.node_if_prefix + 'height_deg')  
+            aspect_ratio_deg = self.node_if.get_param(self.node_if_prefix + 'aspect_ratio_deg')
             if aspect_ratio_deg is not None:
                 self.aspect_ratio_deg = round(aspect_ratio_deg,2)
             self.msg_if.pub_debug("Init degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
 
-            self.resolution_ratio = self.node_if.get_param('resolution_ratio')
-            max_framerate = self.node_if.get_param('max_framerate') 
+            self.resolution_ratio = self.node_if.get_param(self.node_if_prefix + 'resolution_ratio')
+            max_framerate = self.node_if.get_param(self.node_if_prefix + 'max_framerate') 
             if max_framerate is not None:
                 self.max_framerate = max_framerate
-            self.auto_adjust_ebabled = self.node_if.get_param('auto_adjust_ebabled') 
-            self.brightness_ratio = self.node_if.get_param('brightness_ratio')
-            self.contrast_ratio = self.node_if.get_param('contrast_ratio')        
-            self.threshold_ratio = self.node_if.get_param('threshold_ratio')  
+            self.auto_adjust_ebabled = self.node_if.get_param(self.node_if_prefix + 'auto_adjust_ebabled') 
+            self.brightness_ratio = self.node_if.get_param(self.node_if_prefix + 'brightness_ratio')
+            self.contrast_ratio = self.node_if.get_param(self.node_if_prefix + 'contrast_ratio')        
+            self.threshold_ratio = self.node_if.get_param(self.node_if_prefix + 'threshold_ratio')  
             self.msg_if.pub_debug("Starting range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
-            start_range_ratio = self.node_if.get_param('start_range_ratio')
-            stop_range_ratio = self.node_if.get_param('stop_range_ratio')
+            start_range_ratio = self.node_if.get_param(self.node_if_prefix + 'start_range_ratio')
+            stop_range_ratio = self.node_if.get_param(self.node_if_prefix + 'stop_range_ratio')
             if start_range_ratio is not None and stop_range_ratio is not None:
                 self.start_range_ratio = start_range_ratio
                 self.stop_range_ratio = stop_range_ratio
             else:
                 self.start_range_ratio = 0
                 self.stop_range_ratio = 1
-                self.node_if.set_param('start_range_ratio',self.start_range_ratio)
-                stop_range_ratio = self.node_if.set_param('stop_range_ratio',self.stop_range_ratio)
+                self.node_if.set_param(self.node_if_prefix + 'start_range_ratio',self.start_range_ratio)
+                stop_range_ratio = self.node_if.set_param(self.node_if_prefix + 'stop_range_ratio',self.stop_range_ratio)
             self.msg_if.pub_debug("Updated range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
 
 
-            self.pt_mounted = self.node_if.get_param('pt_mounted')
-            self.pt_topic = self.node_if.get_param('pt_topic')
+            self.pt_mounted = self.node_if.get_param(self.node_if_prefix + 'pt_mounted')
+            self.pt_topic = self.node_if.get_param(self.node_if_prefix + 'pt_topic')
             self.node_if.save_config()
 
       if do_updates == True and self.node_if is not None:
@@ -916,29 +868,11 @@ class IDXDeviceIF:
                 self.aspect_ratio_deg = -999
                 self.msg_if.pub_debug("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
                 if self.node_if is not None:
-                    self.node_if.set_param('width_deg',self.width_deg)
-                    self.node_if.set_param('height_deg',self.height_deg) 
-                    self.node_if.set_param('aspect_ratio_deg',-999)
+                    self.node_if.set_param(self.node_if_prefix + 'width_deg',self.width_deg)
+                    self.node_if.set_param(self.node_if_prefix + 'height_deg',self.height_deg) 
+                    self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',-999)
             except:
                 pass
-      if self.save_data_if is not None:
-          self.save_data_if.reset()
-
-      if self.settings_if is not None:
-          self.settings_if.reset()
-
-      if self.color_image_if is not None:
-          self.color_image_if.reset()
-
-      if self.depthmap_if is not None:
-          self.depth_map_if.reset()
-
-      if self.pointcloud_if is not None:
-          self.pointcloud_if.reset()
-
-      if self.navpose_if is not None:
-          self.navpose_if.reset()
-
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -952,61 +886,58 @@ class IDXDeviceIF:
                 self.aspect_ratio_deg = -999
                 self.msg_if.pub_debug("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
                 if self.node_if is not None:
-                    self.node_if.set_param('width_deg',self.width_deg)
-                    self.node_if.set_param('height_deg',self.height_deg) 
-                    self.node_if.set_param('aspect_ratio_deg',-999)
+                    self.node_if.set_param(self.node_if_prefix + 'width_deg',self.width_deg)
+                    self.node_if.set_param(self.node_if_prefix + 'height_deg',self.height_deg) 
+                    self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',-999)
                     
             except:
                 pass
-      if self.save_data_if is not None:
-          self.save_data_if.factory_reset()
 
-      if self.settings_if is not None:
-          self.settings_if.factory_reset()
-
-      if self.color_image_if is not None:
-          self.color_image_if.factory_reset()
-
-      if self.depthmap_if is not None:
-          self.depth_map_if.factory_reset()
-
-      if self.pointcloud_if is not None:
-          self.pointcloud_if.factory_reset()
-
-      if self.navpose_if is not None:
-          self.navpose_if.factory_reset()
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
 
 
 
-    # def ApplyConfigUpdates(self):
-    #     self.msg_if.pub_debug("Apply Auto Updates from current values")
-    #     if (self.setAutoAdjustRatio is not None):
-    #         self.setAutoAdjustRatio(self.auto_adjust_ebabled)
-    #     if (self.setBrightnessRatio is not None):
-    #         self.setBrightnessRatio(self.brightness_ratio)
-    #     if (self.setContrastRatio is not None):
-    #         self.setContrastRatio(self.contrast_ratio)
-    #     if (self.setThresholdingRatio is not None):
-    #         self.setThresholdingRatio(self.threshold_ratio)
-    #     if (self.setResolutionRatio is not None):
-    #         self.setResolutionRatio(self.resolution_ratio)
-    #     if (self.setMaxFramerate is not None and self.max_framerate is not None):
-    #         self.msg_if.pub_debug("Apply Config Framerate: " + str(self.max_framerate))
-    #         self.setMaxFramerate(self.max_framerate)
-    #     if (self.setRangeRatio is not None):
-    #         #self.msg_if.pub_debug("Applying range ratios:: " + str([self.start_range_ratio,self.stop_range_ratio]))
-    #         self.setRangeRatio(self.start_range_ratio, self.stop_range_ratio)
+    ###############################
+    # Class Methods
+    ###############################        
+ 
+    def runImageThread(self):
+        self.image_thread_proccess('color_image')
+
+    def runDepthMapThread(self):
+        self.depth_map_thread_proccess('depth_map')
+        #pass
+
+    def runPointcloudThread(self):
+        self.pointcloud_thread_proccess('pointcloud')
+
+
+    def status_query_callback(self, _):
+        """Handles a ROS service request for device capabilities.
+
+        Refreshes the data-products list in the status message before
+        returning it. The status reflects which optional capabilities
+        (framerate, range, auto-adjust, brightness, contrast, threshold,
+        resolution, color image, depth map, pointcloud) were provided at
+        construction time.
+
+        Args:
+            _ (DeviceIDXStatusQueryRequest): Unused service request object.
+
+        Returns:
+            DeviceIDXStatusQueryResponse: The current DeviceIDXStatus in
+                device_status.
+        """
+        return DeviceIDXStatusQueryResponse(device_status = self.status_msg)
 
 
 
 
-    def addDataProduct2Dict(self,data_product, start_data_function,stop_data_function,data_msg,data_status_msg):
+    def _addDataProduct2Dict(self,data_product, start_data_function,stop_data_function,data_msg,data_status_msg):
         success = False
         data_product = data_product
-        namespace = os.path.join(self.base_namespace,self.node_name,'idx')
         dp_dict = dict()
         dp_dict['data_product'] = data_product
         dp_dict['image_topic'] = 'None'
@@ -1045,10 +976,10 @@ class IDXDeviceIF:
             self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
             self.width_deg = width_deg     
             self.msg_if.pub_debug("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
-            self.publish_status(do_updates=False) # Updated inline here   
+            self.publish_status() # Updated inline here   
             if self.node_if is not None:
-                self.node_if.set_param('width_deg', width_deg)
-                self.node_if.set_param('aspect_ratio_deg',self.aspect_ratio_deg)                
+                self.node_if.set_param(self.node_if_prefix + 'width_deg', width_deg)
+                self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',self.aspect_ratio_deg)                
 
 
  
@@ -1059,10 +990,10 @@ class IDXDeviceIF:
             self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
             self.height_deg = height_deg   
             self.msg_if.pub_debug("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg, ]))
-            self.publish_status(do_updates=False) # Updated inline here   
+            self.publish_status() # Updated inline here   
             if self.node_if is not None:
-                self.node_if.set_param('height_deg', height_deg)
-                self.node_if.set_param('aspect_ratio_deg',self.aspect_ratio_deg)
+                self.node_if.set_param(self.node_if_prefix + 'height_deg', height_deg)
+                self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',self.aspect_ratio_deg)
             
     def setAutoAdjustEnableCb(self, msg):
         #self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg))
@@ -1078,9 +1009,9 @@ class IDXDeviceIF:
             self.msg_if.pub_info("Disabling IDX Auto Adjust" )
 
         self.auto_adjust_ebabled = enabled       
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status() # Updated inline here
         if self.node_if is not None:
-            self.node_if.set_param('auto_adjust_ebabled', enabled)
+            self.node_if.set_param(self.node_if_prefix + 'auto_adjust_ebabled', enabled)
 
 
 
@@ -1095,13 +1026,13 @@ class IDXDeviceIF:
             ratio = 1.0
 
         self.brightness_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status() # Updated inline here
         if self.setBrightnessRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             status, err_str = self.setBrightnessRatio(ratio)
         if self.node_if is not None:
-            self.node_if.set_param('brightness_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix + 'brightness_ratio', ratio)
 
 
     def setContrastRatioCb(self, msg):
@@ -1113,13 +1044,13 @@ class IDXDeviceIF:
             ratio = 1.0
 
         self.contrast_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status() # Updated inline here
         if self.setContrastRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             status, err_str = self.setContrastRatio(ratio)
         if self.node_if is not None:
-            self.node_if.set_param('contrast_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix + 'contrast_ratio', ratio)
         
 
 
@@ -1133,13 +1064,13 @@ class IDXDeviceIF:
             ratio = 1.0
 
         self.threshold_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status() # Updated inline here
         if self.setThresholdingRatio is not None:
             # Call the parent's method and update ROS param as necessary
             # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
             status, err_str = self.setThresholdingRatio(ratio)
         if self.node_if is not None:
-            self.node_if.set_param('threshold_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix + 'threshold_ratio', ratio)
         
 
     def setResolutionRatioCb(self, msg):
@@ -1152,13 +1083,13 @@ class IDXDeviceIF:
             ratio = 1.0
 
         self.resolution_ratio = ratio
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status() # Updated inline here
         # Call the parent's method and update ROS param as necessary
         # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
         if self.setResolutionRatio is not None:
             status, err_str = self.setResolutionRatio(ratio)
         if self.node_if is not None:
-            self.node_if.set_param('resolution_ratio', ratio)
+            self.node_if.set_param(self.node_if_prefix + 'resolution_ratio', ratio)
         
 
 
@@ -1175,7 +1106,7 @@ class IDXDeviceIF:
         # Call the parent's method and update ROS param as necessary
         # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
         self.max_framerate = rate
-        self.publish_status(do_updates=False) # Updated inline here
+        self.publish_status() # Updated inline here
 
         if self.setMaxFramerate is not None:
             #self.msg_if.pub_debug("Sending update framerate ratio to driver: ")
@@ -1187,7 +1118,7 @@ class IDXDeviceIF:
             self.fps_queue[data_product] = [0 for _ in range(100)]
 
         if self.node_if is not None:
-            self.node_if.set_param('max_framerate', rate)
+            self.node_if.set_param(self.node_if_prefix + 'max_framerate', rate)
 
 
  
@@ -1198,7 +1129,7 @@ class IDXDeviceIF:
         new_stop_range_ratio = msg.stop_range
         if (new_start_range_ratio < 0 or new_stop_range_ratio > 1 or new_stop_range_ratio < new_start_range_ratio):
             self.msg_if.pub_error("Range values out of bounds" )
-            self.publish_status(do_updates=False) # No change
+            self.publish_status() # No change
             return
         else:
             # Call the parent's method and update ROS param as necessary
@@ -1208,24 +1139,24 @@ class IDXDeviceIF:
 
         self.start_range_ratio = new_start_range_ratio
         self.stop_range_ratio = new_stop_range_ratio
-        self.publish_status(do_updates=False) # Updated inline here  
+        self.publish_status() # Updated inline here  
         if self.node_if is not None:
-            self.node_if.set_param('start_range_ratio', new_start_range_ratio)
-            self.node_if.set_param('stop_range_ratio', new_stop_range_ratio)
+            self.node_if.set_param(self.node_if_prefix + 'start_range_ratio', new_start_range_ratio)
+            self.node_if.set_param(self.node_if_prefix + 'stop_range_ratio', new_stop_range_ratio)
      
   
 
     def resetControlsCb(self, msg):
         #self.msg_if.pub_info("Recived reset controls message: " + str(msg))
-        self.node_if.reset_param('controls_enable')
-        self.node_if.reset_param('auto_adjust_ebabled')       
-        self.node_if.reset_param('brightness_ratio')
-        self.node_if.reset_param('contrast_ratio')        
-        self.node_if.reset_param('threshold_ratio')
-        self.node_if.reset_param('resolution_ratio')   
-        self.node_if.reset_param('max_framerate')
-        self.node_if.reset_param('start_range_ratio')
-        self.node_if.reset_param('stop_range_ratio')
+        self.node_if.reset_param(self.node_if_prefix + 'controls_enable')
+        self.node_if.reset_param(self.node_if_prefix + 'auto_adjust_ebabled')       
+        self.node_if.reset_param(self.node_if_prefix + 'brightness_ratio')
+        self.node_if.reset_param(self.node_if_prefix + 'contrast_ratio')        
+        self.node_if.reset_param(self.node_if_prefix + 'threshold_ratio')
+        self.node_if.reset_param(self.node_if_prefix + 'resolution_ratio')   
+        self.node_if.reset_param(self.node_if_prefix + 'max_framerate')
+        self.node_if.reset_param(self.node_if_prefix + 'start_range_ratio')
+        self.node_if.reset_param(self.node_if_prefix + 'stop_range_ratio')
         self.ApplyConfigUpdates()
 
 
@@ -1301,18 +1232,11 @@ class IDXDeviceIF:
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
                             perspective = self.perspective,
-                            # Use the transformed-navpose IF so image overlays show this
-                            # camera's pose (with its mount transform applied), the same
-                            # data published at <node>/idx/navpose. self.navpose_if is None
-                            # in this node, which would leave the overlay showing all zeros.
-                            navpose_if = self.idx_navpose_if,
-                            navpose_namespace = self.npx_navpose_topic,
-                            transform_namespace = self.transform_topic,
-                            save_data_if = self.save_data_if,
-                            
-                            
                             msg_if = self.msg_if,
-                            node_if = self.node_if
+                            node_if = self.node_if,
+                            save_data_if = self.save_data_if,
+                            transform_if = self.transform_if,
+                            navpose_if = self.navpose_if
                             )
                 ready = self.color_image_if.wait_for_ready()
                 self.data_products_dict[data_product]['image_topic'] = self.color_image_if.get_namespace()
@@ -1349,7 +1273,7 @@ class IDXDeviceIF:
                         if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
                             self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
                             if self.node_if is not None:
-                                self.node_if.set_param('aspect_ratio_deg',self.aspect_ratio_deg)
+                                self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',self.aspect_ratio_deg)
 
                         cur_aspect_ratio = round(self.width_px / self.height_px, 2)
                         
@@ -1422,14 +1346,11 @@ class IDXDeviceIF:
                         data_ref_description = self.data_ref_description,
                         pub_image = True,
                         init_overlay_text_list = [],
-                        # Transformed-navpose IF (see ColorImageIF above): drives image
-                        # overlays with this camera's pose; self.navpose_if is None here.
-                        navpose_if = self.idx_navpose_if,
+                        msg_if = self.msg_if,
+                        node_if = self.node_if,
                         save_data_if = self.save_data_if,
-                        
-                        
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
+                        transform_if = self.transform_if,
+                        navpose_if = self.navpose_if
                             )
             ready = self.depthmap_if.wait_for_ready()
             self.data_products_dict[data_product]['image_topic'] = self.depthmap_if.get_namespace()
@@ -1465,7 +1386,7 @@ class IDXDeviceIF:
                         # if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
                         #     self.aspect_ratio_deg  = round(self.width_px / self.height_px, 2)
                         #     if self.node_if is not None:
-                        #         self.node_if.set_param('aspect_ratio_deg',self.aspect_ratio_deg)
+                        #         self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',self.aspect_ratio_deg)
                         cur_aspect_ratio = self.width_px / self.height_px
                         if self.aspect_ratio_deg is not None:
                             self.aspect_ratio_deg = cur_aspect_ratio
@@ -1548,15 +1469,12 @@ class IDXDeviceIF:
                         data_ref_description = self.data_ref_description,
                         pub_image = True,
                         init_overlay_text_list = [],
-                        # Transformed-navpose IF (see ColorImageIF above): drives image
-                        # overlays with this camera's pose; self.navpose_if is None here.
-                        navpose_if = self.idx_navpose_if,
+                        msg_if = self.msg_if,
+                        node_if = self.node_if,
                         save_data_if = self.save_data_if,
-                        
-                        
-                            msg_if = self.msg_if,
-                            node_if = self.node_if
-                            )
+                        transform_if = self.transform_if,
+                        navpose_if = self.navpose_if
+                        )
             ready = self.pointcloud_if.wait_for_ready()
 
             if self.pointcloud_if is None:
@@ -1603,195 +1521,4 @@ class IDXDeviceIF:
 
 
 
-    def runImageThread(self):
-        self.image_thread_proccess('color_image')
 
-    def runDepthMapThread(self):
-        self.depth_map_thread_proccess('depth_map')
-        #pass
-
-    def runPointcloudThread(self):
-        self.pointcloud_thread_proccess('pointcloud')
-
- 
-    ### Info callback
-    def info_query_callback(self, _):
-        """Handles a ROS service request for device information.
-
-        Returns the pre-populated ``DeviceInfoQueryResponse`` containing
-        device name, path, node name, namespace, serial number, hardware
-        version, software version, and device type.
-
-        Args:
-            _ (DeviceInfoQueryRequest): Unused service request object.
-
-        Returns:
-            DeviceInfoQueryResponse: The device information report.
-        """
-        return self.info_report
-
-    def capabilities_query_callback(self, _):
-        """Handles a ROS service request for device capabilities.
-
-        Refreshes the data-products list in the status message before
-        returning it. The status reflects which optional capabilities
-        (framerate, range, auto-adjust, brightness, contrast, threshold,
-        resolution, color image, depth map, pointcloud) were provided at
-        construction time.
-
-        Args:
-            _ (IDXCapabilitiesQueryRequest): Unused service request object.
-
-        Returns:
-            IDXCapabilitiesQueryResponse: The current DeviceIDXStatus in
-                device_status.
-        """
-        self.status_msg.data_products = self.data_products_list
-        return IDXCapabilitiesQueryResponse(device_status = self.status_msg)
-
-    # Function to update and publish status message
-    def publishStatusCb(self,timer):
-        self.publish_status()
-
-
-    def _updateTransformedNavPoseCb(self, timer):
-        # Keep the reference-frame navpose subscription in sync with the selected frame
-        # (the transform's source_ref_description), re-subscribing when it changes.
-        frame = ''
-        if self.transform_if is not None:
-            frame = self.transform_if.get_source_description()
-        if frame != self.ref_navpose_frame:
-            if self.ref_navpose_sub is not None:
-                try:
-                    self.ref_navpose_sub.unregister()
-                except Exception:
-                    pass
-                self.ref_navpose_sub = None
-            self.ref_navpose_frame = frame
-            if frame is not None and frame != '' and frame != 'None':
-                ref_topic = nepi_sdk.create_namespace(
-                    nepi_sdk.create_namespace(
-                        nepi_sdk.create_namespace(self.base_namespace, 'navposes'), frame), 'navpose')
-                self.ref_navpose_sub = nepi_sdk.create_subscriber(ref_topic, NavPose, self._refNavPoseCb)
-                self.msg_if.pub_info("Transformed navpose using reference frame topic: " + str(ref_topic) )
-        nepi_sdk.start_timer_process(1.0, self._updateTransformedNavPoseCb, oneshot = True)
-
-
-    def _refNavPoseCb(self, msg):
-        if self.idx_navpose_if is None:
-            return
-        try:
-            np_dict = nepi_nav.convert_navpose_msg2dict(msg)
-            if self.transform_if is not None:
-                tf_dict = self.transform_if.get_3d_transform_dict()
-                # nepi_nav.transform_navpose_dict's position/altitude branches reference keys
-                # that don't exist (x_deg / altitude_m) and raise; skip them (we set the
-                # camera's local position ourselves) so only location/orientation/heading
-                # get transformed here.
-                base_altitude_m = np_dict.get('altitude_m', 0.0)
-                base_has_altitude = np_dict.get('has_altitude', False)
-                np_dict['has_position'] = False
-                np_dict['has_altitude'] = False
-                np_dict = nepi_nav.transform_navpose_dict(np_dict, tf_dict)
-                # The camera's LOCAL POSITION is its offset from the reference frame origin,
-                # i.e. the mount translation. Expose it in the navpose X/Y/Z position fields.
-                np_dict['has_position'] = True
-                np_dict['time_position'] = nepi_utils.get_time()
-                np_dict['x_m'] = tf_dict['x_m']
-                np_dict['y_m'] = tf_dict['y_m']
-                np_dict['z_m'] = tf_dict['z_m']
-                # Restore altitude passthrough (branch skipped above)
-                np_dict['has_altitude'] = base_has_altitude
-                np_dict['altitude_m'] = base_altitude_m
-            self.idx_navpose_if.publish_navpose(np_dict, transform = None)
-        except Exception as e:
-            self.msg_if.pub_debug("Failed to publish transformed navpose: " + str(e) , throttle_s = 5.0)
-
-
-    def publish_status(self, do_updates=True):
-        """Builds and publishes the DeviceIDXStatus message on the status topic.
-
-        Populates all fields of the status message from current instance state,
-        including device identity, FOV angles, resolution, framerate, image
-        control ratios, range-window settings, and per-data-product FPS. When
-        ``do_updates`` is True, also queries the RTSP URL callback (if
-        registered) and includes the result in the message.
-
-        Args:
-            do_updates (bool, optional): When True, perform live queries (e.g.
-                RTSP URL) before publishing. Set to False when the caller has
-                already updated state inline and a lightweight publish is
-                sufficient. Defaults to True.
-        """
-        self.status_msg.device_name = self.device_name
-
-        self.status_msg.device_disabled = self.device_disabled
-
-        # aspect_ratio_deg = self.width_px / self.height_px
-        # if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
-        #     self.aspect_ratio_deg  = round(self.width_px / self.height_px, 2)
-        
-        cur_aspect_ratio = self.width_px / self.height_px
-        if cur_aspect_ratio < 0.5 or cur_aspect_ratio > 2.5:
-            cur_aspect_ratio = 1        
-
-        width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
-        height_deg = self.height_deg
-
-        self.status_msg.width_deg = int(width_deg)
-        self.status_msg.height_deg = int(height_deg)
-        self.status_msg.aspect_ratio_deg = round(cur_aspect_ratio,2)
-
-        self.status_msg.perspective = self.perspective
-        
-        self.status_msg.resolution_ratio = self.resolution_ratio
-        res_str = str(self.width_px) + ":" + str(self.height_px)
-        self.status_msg.resolution_current = res_str
-
-        self.status_msg.max_framerate = self.max_framerate
-
-        data_products = self.data_products_list
-        framerates = []
-        for dp in data_products:
-            if dp in self.current_fps.keys():
-                framerates.append(self.current_fps[dp])
-            else:
-                framerates.append(0.0)
-        self.status_msg.data_products = data_products
-        self.status_msg.framerates = framerates
-
-
-        self.status_msg.auto_adjust_enabled = self.auto_adjust_ebabled
-        self.status_msg.auto_adjust_controls = self.auto_adjust_controls
-        self.status_msg.contrast_ratio = self.contrast_ratio
-        self.status_msg.brightness_ratio = self.brightness_ratio
-        self.status_msg.threshold_ratio = self.threshold_ratio
-        
-        self.status_msg.range_window_ratios.start_range = self.start_range_ratio
-        self.status_msg.range_window_ratios.stop_range =  self.stop_range_ratio
-
-        self.status_msg.min_range_m = self.min_range_m
-        self.status_msg.max_range_m = self.max_range_m
-
-        delta_range = self.max_range_m - self.min_range_m
-        self.status_msg.min_range_m_adj = self.min_range_m + delta_range * self.start_range_ratio
-        self.status_msg.max_range_m_adj = self.min_range_m + delta_range * self.stop_range_ratio
-
-
-        if do_updates == True:
-           
-            rtsp_url = ""
-            rtsp_username = ""
-            rtsp_password = ""
-            if self.get_rtsp_url is not None:
-                [rtsp_url,rtsp_username,rtsp_password] = self.get_rtsp_url()
-                if rtsp_url is None:
-                    rtsp_url = ""
-            self.status_msg.rtsp_url = rtsp_url
-            self.status_msg.rtsp_username = rtsp_username
-            self.status_msg.rtsp_password = rtsp_password
-
-        #self.msg_if.pub_debug("Created status msg: " + str(self.status_msg), throttle_s = -1)
-        if self.node_if is not None:
-            self.node_if.publish_pub('status_pub',self.status_msg)
-    

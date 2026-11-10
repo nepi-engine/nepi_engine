@@ -136,6 +136,11 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete")
         ###############################
+
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ConnectPTXDeviceIF:
+            self.start()
     
 
     #######################

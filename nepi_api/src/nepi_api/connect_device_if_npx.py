@@ -122,6 +122,11 @@ class ConnectNPXDeviceIF(ConnectNodeIF):
         self.msg_if.pub_info("IF Initialization Complete")
         ###############################
 
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ConnectNPXDeviceIF:
+            self.start()
+
 
     #######################
     # Class Public Methods

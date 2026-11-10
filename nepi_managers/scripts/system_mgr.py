@@ -35,6 +35,7 @@ from nepi_sdk import nepi_system
 from nepi_sdk import nepi_mgrs
 from nepi_sdk import nepi_keys
 from nepi_sdk import nepi_controls
+from nepi_sdk import nepi_dict
 
                  
 #####################
@@ -44,7 +45,7 @@ from nepi_sdk import nepi_states
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 from nepi_interfaces.msg import MgrSystemStatus, WarningFlags, StampedString, StringArray, \
-                                DictString, DictStringEntry, UpdateBool, UpdateString, UpdateStringDict, UpdateOrder
+                                UpdateBool, UpdateString, UpdateStringDict, UpdateOrder
                       
 from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, SystemStatusQueryResponse
 
@@ -53,20 +54,28 @@ from nepi_interfaces.srv import SystemStatusQuery, SystemStatusQueryRequest, Sys
 from nepi_interfaces.msg import SystemState, SystemStates
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
+from nepi_interfaces.srv import NodeIFStatusQuery, NodeIFStatusQueryRequest, NodeIFStatusQueryResponse
+
+
+    
+            
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodeClassIF
+from nepi_api.connect_node_if import ConnectNodeServicesIF
 from nepi_api.system_if import SettingsIF, StatesIF, TriggersIF, SaveDataIF
+
 
 
 BYTES_PER_MEGABYTE = 2**20
 
-
+DEBUG_LEVELS = ['LOW','MED','HIGH']
 
 NEPI_FOLDER='/opt/nepi'
 
-class SystemMgrNode():
+ADMIN_RESTRICTED = False
 
+class SystemMgr():
 
     
     STATUS_PERIOD = 1.0  # TODO: Configurable update period?
@@ -74,6 +83,7 @@ class SystemMgrNode():
     DISK_FULL_MARGIN_MB = 250  # MB TODO: Configurable?
 
     SYS_ETC_PATH = NEPI_FOLDER + "/etc"
+    NEPI_ETC_UPDATE_SCRIPTS_PATH = SYS_ETC_PATH + "/scripts"
     FW_VERSION_PATH = NEPI_FOLDER + "/nepi_engine/etc/fw_version.txt"
 
     STATES_DICT = dict()
@@ -84,6 +94,7 @@ class SystemMgrNode():
                         "ai_training",
                         "data", 
                         "databases", 
+                        "databases/process_modules", 
                         "install",
                         "install/updates",
                         "install/apps",
@@ -186,7 +197,8 @@ class SystemMgrNode():
     current_throttle_ratio = 1.0
 
 
-    admin_enabled = False
+    admin_restricted = ADMIN_RESTRICTED
+    admin_enabled = ADMIN_RESTRICTED == False
     admin_password_valid = False
     admin_mode_set = False
     admin_mode_updated = True
@@ -202,7 +214,10 @@ class SystemMgrNode():
     managers_param_folder = '/opt/nepi/nepi_engine/share/nepi_managers/params'
     
     run_mode = 'deploy'
-    debug_mode_enabled = False
+    debug_enabled = False
+    debug_level = 'LOW'
+    debug_available_options = nepi_sdk.DEBUG_AVAILABLE_OPTIONS
+    debug_options = nepi_sdk.DEBUG_OPTIONS
     debug_namespace = 'ALL'
 
     user_restriction_options = USER_RESTRICTION_OPTIONS
@@ -221,6 +236,12 @@ class SystemMgrNode():
 
     services_name_list = []
     services_type_list = []
+
+    node_if_service_req = NodeIFStatusQueryRequest()
+    node_if_service_dict = dict()
+    node_if_topics_dict = dict()
+    service_dict = dict()
+
 
 
     init_complete = False
@@ -249,7 +270,12 @@ class SystemMgrNode():
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
+        self.msg_if.pub_info("", color = 'GREEN')
+        self.msg_if.pub_info("*********************************", color = 'GREEN')
+        self.msg_if.pub_info("NEPI STARTING", color = 'GREEN')
+        self.msg_if.pub_info("*********************************", color = 'GREEN')
+        self.msg_if.pub_info("", color = 'GREEN')
+  
 
 
         ###############################
@@ -489,9 +515,9 @@ class SystemMgrNode():
 
         # Params Config Dict ####################
         self.PARAMS_DICT = {
-            'admin_enabled': {
+            'admin_restricted': {
                 'namespace': self.node_namespace,
-                'factory_val': self.admin_enabled
+                'factory_val': self.admin_restricted
             },
             'managers_active_list': {
                 'namespace': self.node_namespace,
@@ -568,6 +594,14 @@ class SystemMgrNode():
 
         # Subscribers Config Dict ####################
         self.SUBS_DICT = {
+            'enable_admin_restrict': {
+                'namespace': self.base_namespace,
+                'topic': 'set_admin_restrict',
+                'msg': Bool,
+                'qsize': 10,
+                'callback': self.enableAdminRestrictCb, 
+                'callback_args': ()
+            },
             'enable_admin': {
                 'namespace': self.base_namespace,
                 'topic': 'admin_mode_enable',
@@ -631,6 +665,30 @@ class SystemMgrNode():
                 'msg': Bool,
                 'qsize': 10,
                 'callback': self.enableDebugCb, 
+                'callback_args': ()
+            },
+            'set_debug_level': {
+                'namespace': self.base_namespace,
+                'topic': 'set_debug_level',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.setDebugLevelCb, 
+                'callback_args': ()
+            },
+            'add_debug_option': {
+                'namespace': self.base_namespace,
+                'topic': 'add_debug_option',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.addDebugOptionCb, 
+                'callback_args': ()
+            },
+            'remove_debug_option': {
+                'namespace': self.base_namespace,
+                'topic': 'remove_debug_option',
+                'msg': String,
+                'qsize': 10,
+                'callback': self.removeDebugOptionCb, 
                 'callback_args': ()
             },
             'set_debug_namespace': {
@@ -812,7 +870,7 @@ class SystemMgrNode():
         # Setup States IF
         self.STATES_DICT = {
         }
-        self.states_if = StatesIF(self.getStatesDictCb,
+        self.states_if = StatesIF(get_states_dict_function = self.getStatesDictCb,
                         msg_if = self.msg_if)
         time.sleep(1)
 
@@ -871,7 +929,7 @@ class SystemMgrNode():
         #########################################################
         ## Initiation Complete
         self.ready = True
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", color = 'GREEN')
         nepi_sdk.spin()
 
 
@@ -956,7 +1014,9 @@ class SystemMgrNode():
     
     def initCb(self, do_updates = False):
         if self.node_if is not None:
-            #self.admin_enabled = self.node_if.get_param('admin_enabled')
+            self.admin_restricted = self.node_if.get_param('admin_restricted',False)
+            self.admin_enabled = self.admin_restricted == False
+            self.admin_password_valid = self.admin_enabled
             managers_active_list = self.node_if.get_param('managers_active_list')
             if managers_active_list is None:
                 managers_active_list = []
@@ -1328,7 +1388,35 @@ class SystemMgrNode():
         
         
 
-        
+    def get_node_if_topic_dict(self, namespace):
+        topic_dict = None
+
+        if namespace not in self.node_if_service_dict.keys():
+            srv_namespace = namespace
+            srv_msg = NodeIFStatusQuery
+            self.msg_if.pub_debug("Creating Node IF Status Service connection for: " + namespace )
+            service = None
+            try:
+                service = nepi_sdk.connect_service(srv_namespace, srv_msg)
+            except Exception as e:
+                self.msg_if.pub_debug("Failed to Create Node IF Status Service connection: " + srv_namespace + " " + str(e) )
+            self.node_if_service_dict[namespace] = service
+
+        if namespace in self.node_if_service_dict.keys():
+            service = self.node_if_service_dict[namespace]
+            status_msg = None
+            if service is not None:
+                status_msg = nepi_sdk.call_service(service, self.node_if_service_req, verbose = True )
+            if status_msg is not None:
+                topic_msg = None
+                try:
+                    # Response if_status is the NodeIFStatus, whose if_status is the BaseIFStatus
+                    topic_msg = status_msg.if_status.if_status.node_topic
+                except:
+                    pass
+                if topic_msg is not None:
+                    topic_dict = nepi_sdk.convert_msg2dict(topic_msg)
+        return topic_dict
 
 
 
@@ -1337,7 +1425,7 @@ class SystemMgrNode():
         nodes_list = nepi_sdk.get_node_list()
         for node in nodes_list:
             active_nodes.append(os.path.basename(node))
-    
+
         self.status_msg.active_nodes = active_nodes
         [self.topics_name_list,self.topics_types_list] = nepi_sdk.get_topics_data_list()
         #self.msg_if.pub_debug("Got Topics List: " + str(topics_name_list))
@@ -1349,11 +1437,55 @@ class SystemMgrNode():
         self.status_msg.active_services = self.services_name_list
 
 
+        # Update Node IF Topics
+        purge_services = []
+        for namespace in self.node_if_service_dict.keys():
+            if namespace not in self.services_name_list:
+                purge_services.append(namespace)
+        for namespace in purge_services:
+            if namespace in self.node_if_service_dict.keys():
+                del self.node_if_service_dict[namespace]
+
+        node_if_topics_dict = dict()
+        for namespace in self.services_name_list:
+            if os.path.basename(namespace) == 'node_if_status_query':
+                topic_dict = self.get_node_if_topic_dict(namespace)
+                if topic_dict is not None:
+
+                    t_type = topic_dict['type']
+                    if t_type != '' and t_type not in node_if_topics_dict.keys():
+                        node_if_topics_dict[t_type] = [namespace]
+                    elif t_type != '':
+                        node_if_topics_dict[t_type].append(namespace)
+
+                    s_type = topic_dict['sub_type']
+                    if s_type != '' and s_type not in node_if_topics_dict.keys():
+                        node_if_topics_dict[s_type] = [namespace]
+                    elif s_type != '':
+                        node_if_topics_dict[s_type].append(namespace)
+
+                    t_group = topic_dict['group']
+                    if t_group != '' and t_group not in node_if_topics_dict.keys():
+                        node_if_topics_dict[t_group] = [namespace]
+                    elif t_group != '':
+                        node_if_topics_dict[t_group].append(namespace)
+
+                    s_group = topic_dict['sub_group']
+                    if s_group != '' and s_group not in node_if_topics_dict.keys():
+                        node_if_topics_dict[s_group] = [namespace]
+                    elif s_group != '':
+                        node_if_topics_dict[s_group].append(namespace)
+        self.node_if_topics_dict = node_if_topics_dict
+        self.status_msg.node_if_topics = nepi_dict.convert_values_dict2msg(node_if_topics_dict)
+
+
+
+
         debug_namespace = self.debug_namespace
         if debug_namespace != 'ALL' and debug_namespace != 'NONE':
             check_namespace = debug_namespace + '/messages'
             if check_namespace not in self.topics_name_list:
-                self.debug_mode_enabled = False
+                self.debug_enabled = False
                 self.set_debug_namespace('ALL')
 
 
@@ -1396,7 +1528,7 @@ class SystemMgrNode():
             for namespace in namespaces:
                 topic = os.path.join(namespace,'system_states_query')
                 if topic not in self.service_dict.keys():
-                    service = nepi_sdk.create_service(topic,SystemState)
+                    service = nepi_sdk.connect_service(topic,SystemStatesQuery)
                     if service is not None:
                         self.service_dict[topic] = service
                 elif topic in self.service_dict.keys():
@@ -1410,7 +1542,7 @@ class SystemMgrNode():
                             state = states_msg_list[i].state
                             if state_name not in states_dict.keys() or state == True:
                                 states_dict[state_name] = state
-                    except:
+                    except Exception as e:
                         self.msg_if.pub_debug(":" + self.class_name + ": Failed to call service: " + str(e))
 
             states_status_msg = None
@@ -1532,51 +1664,50 @@ class SystemMgrNode():
 
     def updateSystemAdminSettings(self):
        
-        admin_password_valid = self.admin_password_valid #(self.admin_password_valid or self.run_mode == 'develop')
-        self.admin_mode_set = self.admin_enabled and admin_password_valid
-        self.status_msg.sys_admin_enabled = self.admin_enabled
-        self.status_msg.sys_admin_password_valid = admin_password_valid 
-        self.status_msg.sys_admin_mode_set = self.admin_mode_set   
+        self.admin_mode_set = self.admin_enabled and self.admin_password_valid
 
-        self.status_msg.sys_run_mode = self.run_mode
-        self.status_msg.sys_debug_enabled = self.debug_mode_enabled
-        self.status_msg.sys_debug_namespace = self.debug_namespace
-
-        self.status_msg.user_restrictions = self.user_restrictions
         user_restricted = []
         if self.run_mode == 'deploy':
             user_restricted = self.user_restrictions
         self.status_msg.user_restricted = user_restricted
 
         self.user_login_mode_set = self.user_login_enabled and self.user_login_password_valid
-        self.status_msg.user_login_enabled = self.user_login_enabled
-        self.status_msg.user_login_password_valid = self.user_login_password_valid 
-
 
 
         self.publish_status()
         nepi_system.set_admin_mode(self.admin_mode_set)
-        nepi_system.set_debug_mode(self.debug_mode_enabled)
+        nepi_system.set_debug_mode(self.debug_enabled)
+        nepi_system.set_debug_level(self.debug_level)
+        nepi_system.set_debug_options(self.debug_options)
         nepi_system.set_debug_namespace(self.debug_namespace)
         nepi_system.set_managers_running(self.managers_running_list)
 
-
+    def enableAdminRestrictCb(self, msg):
+        if self.admin_enabled == True:
+            self.admin_restricted = msg.data
+            self.updateSystemAdminSettings()
+            if self.node_if is not None:
+                self.node_if.set_param('admin_restricted',msg.data)
+                self.node_if.save_config()
 
     def enableAdminCb(self, msg):
-        self.admin_enabled = msg.data
-        if self.admin_enabled == False:
-            self.admin_password_valid = False
-        self.updateSystemAdminSettings()
-        if self.node_if is not None:
-            self.node_if.set_param('admin_enabled',msg.data)
-            self.node_if.save_config()
+        if self.admin_restricted == True:
+            self.admin_enabled = msg.data
+            if self.admin_enabled == False:
+                self.admin_password_valid = False
+            self.updateSystemAdminSettings()
+            if self.node_if is not None:
+                self.node_if.set_param('admin_enabled',msg.data)
+                self.node_if.save_config()
+
+
 
     def setAdminPasswordCb(self, msg):
         password_encripted = msg.data
-        self.msg_if.pub_debug("Got admin password msg: " + str(msg))
+        #self.msg_if.pub_debug("Got admin password msg: " + str(msg))
         password = nepi_keys.decrypt_rui_msg(password_encripted)
-        self.msg_if.pub_debug("Got decrypted admin password: " + str(password))
-        self.msg_if.pub_debug("Checking from user: " + str(self.nepi_uid))
+        #self.msg_if.pub_debug("Got decrypted admin password: " + str(password))
+        #self.msg_if.pub_debug("Checking from user: " + str(self.nepi_uid))
         if password is not None:
             if password != '':
 
@@ -1596,8 +1727,29 @@ class SystemMgrNode():
                     self.node_if.save_config()
 
     def enableDebugCb(self, msg):
-        self.debug_mode_enabled = msg.data
+        self.debug_enabled = msg.data
         self.updateSystemAdminSettings()
+
+    def setDebugLevelCb(self, msg):
+        level = msg.data
+        level = level.upper()
+        if level in DEBUG_LEVELS:
+            self.debug_level = level
+            self.updateSystemAdminSettings()
+
+    def addDebugOptionCb(self, msg):
+        name = msg.data
+        if name in self.debug_available_options:
+            self.debug_options.append(name)
+            self.updateSystemAdminSettings()
+      
+
+    def removeDebugOptionCb(self, msg):
+        name = msg.data
+        if name in self.debug_options:  
+            self.debug_options.remove(name)
+            self.updateSystemAdminSettings()
+
 
     def setDebugNamaspaceCb(self, msg):
         namespace = msg.data
@@ -1659,7 +1811,9 @@ class SystemMgrNode():
     def enableAllCb(self,msg):
         self.msg_if.pub_debug("Got enable all msg: " + str(msg))
         mgrs_names = list(self.managers_dict.keys())
-        for manager_name in mgrs_names and manager_name not in self.managers_base_list:
+        for manager_name in mgrs_names:
+            if manager_name in self.managers_base_list:
+                continue
             if manager_name not in self.managers_active_list:
                 self.managers_active_list.append(manager_name)
             self.publish_status()
@@ -1670,7 +1824,9 @@ class SystemMgrNode():
     def disableAllCb(self,msg):
         self.msg_if.pub_debug("Got disable all msg: " + str(msg))
         mgrs_names = list(self.managers_dict.keys())
-        for manager_name in mgrs_names and manager_name not in self.managers_base_list:
+        for manager_name in mgrs_names:
+            if manager_name in self.managers_base_list:
+                continue
             if manager_name in self.managers_active_list:
                 self.managers_active_list.remove(manager_name)
             self.publish_status()
@@ -1834,8 +1990,8 @@ class SystemMgrNode():
         nepi_system.update_nepi_system_config("NEPI_DEVICE_ID",msg.data)
         etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_hostname.sh"
         subprocess.call([etc_update_script])
-        nepi_utils.sleep(1)
-        self.system_config = self.get_nepi_system_config()
+        nepi_sdk.sleep(1)
+        self.system_config = nepi_system.load_nepi_system_config()
         
         # if 'NEPI_HW_TPE' not in self.system_config.keys():
         #     self.system_config = nepi_system.update_nepi_system_config('NEPI_HW_TYPE','unknown')
@@ -1915,6 +2071,21 @@ class SystemMgrNode():
 
 
     def publish_status(self):
+        self.status_msg.sys_admin_restricted = self.admin_restricted
+        self.status_msg.sys_admin_enabled = self.admin_enabled
+        self.status_msg.sys_admin_password_valid = self.admin_password_valid 
+        self.status_msg.sys_admin_mode_set = self.admin_mode_set   
+
+        self.status_msg.sys_run_mode = self.run_mode
+        self.status_msg.sys_debug_enabled = self.debug_enabled
+        self.status_msg.sys_debug_level = self.debug_level
+        self.status_msg.sys_debug_available_options = self.debug_available_options
+        self.status_msg.sys_debug_options = self.debug_options
+        self.status_msg.sys_debug_namespace = self.debug_namespace
+
+        self.status_msg.user_restrictions = self.user_restrictions
+        self.status_msg.user_login_enabled = self.user_login_enabled
+        self.status_msg.user_login_password_valid = self.user_login_password_valid 
         
         self.update_temperatures()
         # Populate the rest of the message contents
@@ -1941,4 +2112,4 @@ class SystemMgrNode():
 
 
 if __name__ == '__main__':
-    SysMgr = SystemMgrNode()
+    SysMgr = SystemMgr()

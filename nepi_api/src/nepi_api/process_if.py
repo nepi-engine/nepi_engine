@@ -46,16 +46,19 @@ from nepi_interfaces.msg import Datum, DataStatus
 
 
 from nepi_interfaces.msg import ProcessStatus
+from nepi_interfaces.msg import ProcessIFStatus
+from nepi_interfaces.srv import ProcessIFStatusQuery, ProcessIFStatusQueryRequest, ProcessIFStatusQueryResponse
 
 
 from nepi_api.messages_if import MsgIF
-from nepi_api.node_if import NodeClassIF
+from nepi_api.node_if import NodeIF
 from nepi_api.system_if import SaveDataIF
-from nepi_api.data_if import ColorImageIF
+from nepi_api.utils_if import ControlsIF
+from nepi_api.data_product_if_image import ColorImageIF
 
 
 
-
+logger = nepi_sdk.sdk_logger
 
 #########################################
 # Process IF Class
@@ -164,40 +167,59 @@ BLANK_SHOW_DICT = dict(
 
 
 CONNECTED_TIMEOUT = 2
-class ProcessIF:
-    
+
+
+class ProcessIF(NodeIF):
+
+    #########################
+    ## NODE IF Required
+    ## Class Variables Updated by NodeIF Init Class
+    #########################
+
+    STATUS_MSG = ProcessStatus()
+    DATA_MSG = None
+
+    ID = 'process'
+    DISPLAY_NAME = 'Process'
+    DESCRIPTION = 'Process'
+
+    IF_DICT = dict()
+
+    #########################
+    ## CUSTOM
+    #########################
     msg_if = None
     node_if = None
-    config_topic = ''
-    node_if_shared = False
+
     ready = False
+
+    data_products = None
+
+    process_status_msg = ProcessStatus()
+
+    status_msg = ProcessStatus()
+    status_msg_class = status_msg.__class__
+    status_msg_type = status_msg_class.__name__
 
     admin_enabled = False
 
-    save_data_if = None
-    data_products = None
-
-    status_msg = ProcessStatus()
-    save_data_topic = ''
-
-
-    active_nodes = []
-    active_topics = []
-    active_topic_types =  []
-    active_services =  []  
-
-    process_image_name = None
-    namespace = ''
+    process_image_if = None
+    process_image_function = None
+    process_image_controls_if = None
+    last_process_image_controls_dict = dict()
+    process_image_dict = dict()
+    process_image_dict['controls_dict'] = dict()
+    process_image_dict['data_dict'] = dict()
+    process_image_dict['config_dict'] = dict()
 
     data_dict = dict()
+    blank_data_dict = dict()
 
     settings_init_dict = copy.deepcopy(DEFAULT_SETTINGS_INIT_DICT)
     settings_dict = dict()
     settings_controls_dict = dict()
-    settings_msg = ControlsStatus()
 
     has_controls = False
-    controls_msg = ControlsStatus()
     controls_dict = dict()
     states_dict = dict()
 
@@ -207,8 +229,11 @@ class ProcessIF:
     results_display_dict = None
     results_display_msg = DataStatus()
 
+
     has_results_pub = True
     results_pub_msg = None
+    results_pub_msg_type = None
+    results_pub_dict = None
     results_pub_topic = ''
 
     
@@ -271,7 +296,7 @@ class ProcessIF:
     status_has_published = False
     last_status_time = 0
 
-    if_dict = dict()
+    process_if_dict = dict()
 
     debug = False
 
@@ -281,41 +306,31 @@ class ProcessIF:
                 process_name = 'process',
                 process_group = 'PROCESS',
                 process_description = 'Process',
-                process_module = None,              
+                process_module = None,
+                process_if_dict = None,  
+                process_image_if = None,            
                 callback_dict = None,
                 config_dict = None,
                 settings_init_dict = None,
                 show_dict = None,
-                if_dict = None,
                 msg_if = None,
                 node_if = None,
                 save_data_if = None,
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
+
+        ##############################  
+        # Update Class Variables
         ##############################  
 
         self.process_name = nepi_utils.get_clean_name(process_name)
 
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            #msg_namespace = self.node_namespace + '_' + self.process_name
-            self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes" )
 
-        # Create Process Name
-        
         if self.process_name is None or self.process_name == '':
-            self.msg_if.pub_debug("Process Name Not Valid: " + str(process_name) )
+            logger.log_error("Process Name Not Valid: " + str(process_name))
             return
-        self.msg_if.pub_info("Using Process Name: " + self.process_name )
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.process_name)
+        logger.log_debug("Using Process Name: " + self.process_name )
+        self.namespace = nepi_sdk.create_namespace(nepi_sdk.get_node_namespace(),self.process_name)
         self.data_products = [self.process_name]
 
 
@@ -347,7 +362,7 @@ class ProcessIF:
         self.max_image_rate = self.config_dict['default_image_rate']
 
 
- 
+
 
 
         if show_dict is not None:
@@ -364,7 +379,7 @@ class ProcessIF:
                 self.settings_init_dict |= settings_init_dict
             except:
                 pass
-        self.settings_dict = nepi_controls.create_controls_dict(self.settings_init_dict)
+        self.settings_dict = nepi_controls.create_controls_dict(self.settings_init_dict, self.process_name + '_settings', 'process_settings')
 
         self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'enabled',self.config_dict['has_enable'] == False)
 
@@ -386,14 +401,14 @@ class ProcessIF:
 
         self.settings_dict = nepi_controls.set_hidden(self.settings_dict,'use_last_image',self.config_dict['has_use_last_image'] == False)
 
-        self.status_msg.has_sources = has_sources
-        self.status_msg.multi_source_enabled = self.multi_source_enabled
+        self.process_status_msg.has_sources = has_sources
+        self.process_status_msg.multi_source_enabled = self.multi_source_enabled
         
         self.updateSettingsValues()
-          
+        
 
         if process_module is None:
-            self.msg_if.pub_warn("No Process Module Provided" )
+            logger.log_warn("No Process Module Provided" )
             return
 
         self.process_module = process_module
@@ -412,14 +427,25 @@ class ProcessIF:
                 self.data_products.append(self.image_pub_name)
 
 
-        # Registry keys on a shared node_if must be domain-unique, so every key
-        # this IF adds carries the process name. Param wire names ARE
-        # namespace + key, so the prefix is part of the external param surface.
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
+        if process_if_dict is not None:
+            self.process_if_dict = process_if_dict
 
-        if if_dict is not None:
-            self.if_dict = if_dict
+        self.process_image_if = process_image_if
+        if self.process_image_if is not None:
+            self.process_image_controls_if = self.process_image_if.options_controls_if
+            # self.process_image_controls_if = ControlsIF( name = 'image_options',
+            #                 namespace = None,
+            #                 controls_name = 'image_options',
+            #                 controls_display_name = 'Image Options',
+            #                 controls_description = 'Custom Image Options',
+            #                 controls_init_dict = dict(),
+            #                 save_params = True,
+            #                 controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
+            #                 info_dict = dict(),
+            #                 msg_if = None,
+            #                 node_if = None,)
+            # self.process_image_if.controls_options_topic = self.process_image_controls_if.get_namespace()
         ##############################    
         # Initialize Class Variables
 
@@ -429,74 +455,122 @@ class ProcessIF:
 
 
 
+
+
+        ##############################  
+        # Setup NodeIF Updates
+        ##############################  
+
+        #######################
+        # Sync System IF inputs to if_dict
+
+        self.msg_if = msg_if
+        self.IF_DICT['msg_if'] = msg_if
+        self.node_if = node_if
+        self.IF_DICT['node_if'] = node_if
+
+
+        ##################
+        if_info_dict = dict(
+            description = self.DESCRIPTION,
+            display_name = self.DISPLAY_NAME,
+            type = 'system'
+        )
+        update_info_dict = dict()
+        ##################        
+        update_caps_dict = dict()
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = show_dict
+        ##################
+        update_callback_dict =  callback_dict
+
+        ###########
+        # NODE IF SETUP
+
+        # Call the parent class constructor
+        super().__init__(id = self.ID,
+                name = process_name,
+                namespace = None,
+                status_msg = copy.deepcopy(self.STATUS_MSG),
+                data_msg = copy.deepcopy(self.DATA_MSG),
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict,
+                if_dict = dict(self.IF_DICT)
+                )
+
+        ready = self.wait_for_ready()
+
+        # The process load logs through msg_if and publishes status, which only
+        # exist once NodeIF is set up, and the params and results pub below
+        # read what it loads
         success = self._reloadProcesses()
         if success == False:
-            self.msg_if.pub_warn("INITIAL PROCESS LOAD FAILED: " + str(self.processes_functions_dict) )
+            logger.log_warn("INITIAL PROCESS LOAD FAILED: " + str(self.processes_functions_dict) )
         else:
-            self.msg_if.pub_info("Initial Process Load Succeeded: " + str(self.processes_functions_dict) )
+            logger.log_debug("Initial Process Load Succeeded: " + str(self.processes_functions_dict) )
 
 
+       #######################
+        # Add Services
+        #######################
 
-
-
-        ##############################   
-        ## Node Setup
-
-        # Configs Config Dict ####################
-        # Configs Config Dict ####################
-        self.process_node_configs_dict = {
-            'init_callback': self._initCb,
-            'reset_callback': self._resetCb,
-            'factory_reset_callback': self._factoryResetCb,
-            'init_configs': True,
-            'namespace': self.namespace
-        }
-
-        # Params Config Dict ####################
-        # Persist the selected topic under the connect namespace so the
-        # selection survives node restarts (via the config manager). Passing a
-        # params_dict is what enables config management on NodeClassIF.
         self.sprocess_param_name = self.node_if_prefix + 'selected_process'
         self.processes_param_name = self.node_if_prefix + 'processes_dict'
         self.settings_param_name = self.node_if_prefix + 'settings_dict'
-        self.process_node_params_dict = {
-            self.sprocess_param_name: {
+
+        params_dict = {
+            'selected_process': {
                 'name': 'selected_process',
                 'namespace': self.namespace,
                 'factory_val': self.selected_process
             },
-            self.processes_param_name: {
+            'processes_dict': {
                 'name': 'processes_dict',
                 'namespace': self.namespace,
                 'factory_val': self.processes_controls_dict
             },
-            self.settings_param_name: {
+            'settings_dict': {
                 'name': 'settings_dict',
                 'namespace': self.namespace,
                 'factory_val': self.settings_controls_dict
             }
         }
-
-
-        # Publishers Config Dict ####################
-        self.process_node_pubs_dict = dict()
-
-
-        # The status publisher is unconditional. Nepi_IF_ConnectProcess renders
-        # nothing at all until a ProcessStatus arrives, so a process with no
-        # custom status message still has to publish the generic one.
-
-        self.process_node_pubs_dict[self.node_if_prefix + 'status_pub'] = {
-            'namespace': self.namespace,
-            'topic': 'status',
-            'msg': ProcessStatus,
-            'qsize': 1,
-            'latch': True
-        }
-
         
+
+        #######################
+        # Add Services
+        #######################
+        services_dict = {
+            'process_if_status_query': {
+                'namespace': self.namespace,
+                'topic': 'process_if_status_query',
+                'srv': ProcessIFStatusQuery,
+                'req': ProcessIFStatusQueryRequest(),
+                'resp': ProcessIFStatusQueryResponse(),
+                'callback': self._processIFStatusQueryCb
+            }
+        }
+        
+
+        #######################
+        # Add Pubs 
+        #######################
+        pubs_dict = {}
+
+
         if self.has_results_pub == True:
-            self.process_node_pubs_dict[self.node_if_prefix + 'results_pub'] = {
+            pubs_dict['results_pub'] = {
                 'namespace': self.namespace.replace('/' + process_name,''),
                 'topic': process_name,
                 'msg': self.results_pub_msg,
@@ -506,214 +580,148 @@ class ProcessIF:
             self.results_pub_topic = self.namespace + '/' + process_name
             self.has_results_pub = True
 
-
-        # Subscribers Config Dict ####################
-      
-        self.process_node_subs_dict = {
-            self.node_if_prefix + 'update_setting': {
-                'msg': UpdateControl,
-                'namespace': self.namespace,
-                'topic': 'update_setting',
-                'qsize': 5,
-                'callback': self._updateSettingCb
-            },
-            self.node_if_prefix + 'set_process': {
-                'namespace': self.namespace,
-                'topic': 'set_process',
-                'msg': String,
-                'qsize': 10,
-                'callback': self._setProcessCb
-            },
-            self.node_if_prefix + 'reload_process': {
-                'namespace': self.namespace,
-                'topic': 'reload_process',
-                'msg': Empty,
-                'qsize': 10,
-                'callback': self._reloadProcessesCb
-            },
-            self.node_if_prefix + 'update_control': {
-                'msg': UpdateControl,
-                'namespace': self.namespace,
-                'topic': 'update_control',
-                'qsize': 5,
-                'callback': self._updateControlCb
-            },
-            self.node_if_prefix + 'reset_controls': {
-                'msg': Empty,
-                'namespace': self.namespace,
-                'topic': 'reset_controls',
-                'qsize': 5,
-                'callback': self._resetControlsCb
-            },
-            self.node_if_prefix + 'system_status': {
-                'msg': MgrSystemStatus,
-                'namespace': self.base_namespace,
-                'topic': 'status',
-                'qsize': 5,
-                'callback': self._systemStatusCb
-            },
-        }
+        #######################
+        # Add Subs 
+        #######################
+        subs_dict =  {
+             'update_setting': {
+                 'msg': UpdateControl,
+                 'namespace': self.namespace,
+                 'topic': 'update_setting',
+                 'qsize': 5,
+                 'callback': self._updateSettingCb
+             },
+             'set_process': {
+                 'namespace': self.namespace,
+                 'topic': 'set_process',
+                 'msg': String,
+                 'qsize': 10,
+                 'callback': self._setProcessCb
+             },
+             'reload_process': {
+                 'namespace': self.namespace,
+                 'topic': 'reload_process',
+                 'msg': Empty,
+                 'qsize': 10,
+                 'callback': self._reloadProcessesCb
+             },
+             'update_control': {
+                 'msg': UpdateControl,
+                 'namespace': self.namespace,
+                 'topic': 'update_control',
+                 'qsize': 5,
+                 'callback': self._updateControlCb
+             },
+             'reset_controls': {
+                 'msg': Empty,
+                 'namespace': self.namespace,
+                 'topic': 'reset_controls',
+                 'qsize': 5,
+                 'callback': self._resetControlsCb
+             },
+         }
 
 
-        if node_if is None:
-            self.node_if = NodeClassIF(
-                            configs_dict = self.process_node_configs_dict,
-                            params_dict = self.process_node_params_dict,
-                            services_dict = None,
-                            pubs_dict = self.process_node_pubs_dict,
-                            subs_dict = self.process_node_subs_dict,
-                            msg_if = self.msg_if
-            )
-            self.node_if.wait_for_ready()
-        else:
-            self.config_if = self.namespace
-            self.node_if_shared = True
-            try:
-                self.node_if = node_if
-                self.node_if.add_configs(self.process_node_configs_dict)
-                self.node_if.add_params(self.process_node_params_dict)
-                self.node_if.register_pubs(self.process_node_pubs_dict)
-                self.node_if.register_subs(self.process_node_subs_dict)
-                # Register this IF's params on the shared node_if too, or
-                # get_param/set_param below resolve to no namespace and the
-                # controls dict and enable state never persist.
-                
-                nepi_sdk.sleep(1)
-            except Exception as e:
-                self.msg_if.pub_debug("Failed to register pubs and subs: " + str(e) )
-                return
+        #####################
+        self.add_params(params_dict)
+        self.add_services(services_dict)
+        self.add_pubs(pubs_dict)
+        self.add_subs(subs_dict)
 
-        ####################
-        # Config
-        has_config = self.config_dict['has_config']
-        if has_config == True:
-            self.status_msg.has_config = has_config 
-            self.status_msg.config_topic = self.node_if.get_namespace()
+        nepi_sdk.sleep(0.1)
 
-        ####################
-        # Save Data
-        has_save_data = self.config_dict['has_save_data']
-        if has_save_data == False or len(self.data_products) == 0:
-            self.save_data_topic = ''
-            self.data_products = []
-        else:
-            if self.save_data_if is not None:
-                self.msg_if.pub_debug("####################" )
-                self.msg_if.pub_debug("Got Save Data IF is None: " + str(save_data_if is None) )
-                if save_data_if is not None and save_data_if != 'None':
-                    self.save_data_if = save_data_if
-                    data_products = self.save_data_if.get_data_products()
-                    for data_product in self.data_products:
-                        if data_product not in data_products:
-                            self.save_data_if.register_data_product(data_product)
-                elif save_data_if != 'None':
-                    
-                    # Setup Save Data IF Class 
-                    self.msg_if.pub_info("Starting Save Data IF Initialization" )
-                    factory_data_rates= dict()
+        ######################################################
 
-                    factory_filename_dict = {
-                        'prefix': "", 
-                        'add_timestamp': True, 
-                        'add_ms': True,
-                        'add_us': False,
-                        'suffix': "",
-                        'add_node_name': True
-                        }
+        #########################
+        # Update Status Message
+        ##############################
 
-                    sd_namespace = self.node_namespace
-                    self.save_data_if = SaveDataIF(namespace = sd_namespace,
-                                            data_products = [self.data_products],
-                                            factory_rate_dict = factory_data_rates,
-                                            factory_filename_dict = factory_filename_dict,
-                                            
-                                            msg_if = self.msg_if,
-                                            node_if = self.node_if)
-                    nepi_sdk.sleep(1)
-
-                if self.save_data_if is not None:
-                    self.save_data_topic = self.save_data_if.get_namespace()
-                    self.msg_if.pub_debug("Using save_data namespace: " + str(self.save_data_topic) )
-                else:
-                    has_save_data = False
-
-            self.status_msg.has_save_data = has_save_data 
-            self.status_msg.save_data_topic = self.save_data_topic
-            self.status_msg.data_products = self.data_products
-
-
-
-        self.init(do_updates = True)
 
 
 
         ##############################
         # Complete Initialization
         self.ready = True
-        # Without this the status topic is advertised and never written, and the
-        # RUI process panel stays blank forever.
-        nepi_sdk.start_timer_process(1, self._publishStatusCb)
-        self.publish_status()
-        self.msg_if.pub_info(str(self.process_name) + " Initialization Complete" )
+        self.msg_if.pub_debug("IF Initialization Complete" )
         ###############################
-    
+
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ProcessIF:
+            self.start()
 
 
-    def updateSettingsValues(self):
-            self.enabled = nepi_controls.get_value(self.settings_dict,'enabled') 
-            self.auto_select_enabled = nepi_controls.get_value(self.settings_dict,'auto_select_enabled')
-            self.selected_sources = self.get_selected_sources()      
-            self.max_process_rate = nepi_controls.get_value(self.settings_dict,'process_rate')   
-            self.min_max_process_rates = nepi_controls.get_bounds(self.settings_dict,'process_rate')
-            self.max_image_rate = nepi_controls.get_value(self.settings_dict,'image_rate')            
-            self.min_max_image_rates = nepi_controls.get_bounds(self.settings_dict,'image_rate')
-            self.use_last_image = nepi_controls.get_value(self.settings_dict,'use_last_image') 
+    def _processIFStatusQueryCb(self, _):
+        # The response carries a ProcessIFStatus, which wraps the NodeIFStatus
+        if_status_msg = ProcessIFStatus()
+        if_status_msg.if_status = self.get_if_status_msg()
+        return if_status_msg
+
+
+    ###############################
+    # NodeIF Class Override Methods
+    ###############################
+
+    def update_status_msg(self, status_msg):
+        # A ProcessStatus status is the process status itself, built whole by get_process_status
+        if isinstance(status_msg, ProcessStatus):
+            status_msg = self.get_process_status()
+        try:
+            status_msg = self.process_module.update_status_msg(status_msg)
+        except:
+            pass
+        return status_msg
+
+
+    def initCb(self, do_updates = False):
+        """Initialize or re-initialize interface state and publish status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+        """
+        self.msg_if.pub_debug("Initializing params" )
+        if self.node_if is not None:
+                processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
+                if processes_controls_dict is not None:
+                    self.processes_controls_dict = processes_controls_dict
+                self.msg_if.pub_debug("Init Processes Dict: " + str(self.processes_controls_dict))
+
+                selected_process =  self.node_if.get_param(self.sprocess_param_name)
+                if selected_process is not None:
+                    if selected_process in self.processes_controls_dict.keys():
+                        self.selected_process = selected_process
+
+                settings_controls_dict =  self.node_if.get_param(self.settings_param_name)
+                if settings_controls_dict is not None:
+                    for setting_name in settings_controls_dict.keys():
+                        if setting_name in self.settings_dict.keys():
+                            setting_value = settings_controls_dict[setting_name]
+                            self.settings_dict = nepi_controls.set_value(self.settings_dict,setting_name, setting_value)
+                self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
+
+        if do_updates == True:
+
+            success = self._reloadProcesses()
+            if success == False:
+                self.msg_if.pub_warn("PROCESS LOAD FAILED: " + str(self.processes_functions_dict) )
+            else:
+                self.msg_if.pub_debug("Processes Functions Updated: " + str(self.processes_functions_dict.keys()) )
+                # self.msg_if.pub_debug("Processes Dict Updated: " + str(self.processes_dict) )
+                # self.msg_if.pub_debug("Process Selected: " + str(self.selected_process) )
+        self.publish_status()
+
+    ###############################
+    # Class Public Methods
+    ###############################
+
+
+
 
 
     #######################
     # Class Public Methods
     #######################
 
-
-    def get_ready(self):
-        """Return the ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
-            else:
-                self.msg_if.pub_debug("Connected" )
-        return self.ready  
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the sources_connected PTX device.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.namespace
-    
 
 
     def get_available_processes(self):
@@ -735,6 +743,7 @@ class ProcessIF:
                 nepi_sdk.sleep(1)
                 processes_dict = copy.deepcopy(self.processes_dict)
                 [self.data_dict,controls_dict,self.results_display_dict,self.states_dict] = nepi_process.get_process_dicts(processes_dict,process_name)
+                self.blank_data_dict = copy.deepcopy(self.data_dict)
                 processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
                 if process_name in processes_controls_dict.keys():
                         if 'controls_dict' in processes_dict[process_name].keys():
@@ -901,6 +910,14 @@ class ProcessIF:
             self.publish_status()
 
 
+    ##############################
+    # IF and Topic Dict Support Methods
+
+
+
+    def update_process_if_dict(self, update_dict):
+        self.process_if_dict.update(update_dict)
+
     ##################
     # Data Dict Functions
 
@@ -1025,7 +1042,7 @@ class ProcessIF:
             settings_dict = copy.deepcopy(self.settings_dict)
             if settings_dict is not None:
                 if setting_name in settings_dict.keys():
-                    settings_dict = nepi_controls.set_bounds(settings_dict, setting_name, min_bound = min_bound, max_bound = max_bound)
+                    settings_dict = nepi_controls.set_bounds(settings_dict, setting_name, [min_bound, max_bound])
                     if settings_dict != self.settings_dict:
                         self.settings_dict = settings_dict
                         if self.node_if is not None:
@@ -1127,7 +1144,7 @@ class ProcessIF:
             controls_dict = copy.deepcopy(self.controls_dict)
             if controls_dict is not None:
                 if control_name in controls_dict.keys():
-                    controls_dict = nepi_controls.set_bounds(controls_dict, control_name, min_bound = min_bound, max_bound = max_bound)
+                    controls_dict = nepi_controls.set_bounds(controls_dict, control_name, [min_bound, max_bound])
                     if controls_dict != self.controls_dict:
                         self.controls_dict = controls_dict
                         self.publish_status()
@@ -1178,7 +1195,7 @@ class ProcessIF:
             process_ready = self.wait_for_process_ready()
             if process_ready == True:
                 try:
-                    [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict, self.if_dict)
+                    [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict, self.process_if_dict)
                     self.results_dict = results_dict
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 10 )
@@ -1212,199 +1229,57 @@ class ProcessIF:
             values_dict = nepi_data.get_values_dict(states_dict)
         return values_dict
 
-    ##################
-    # Misc Functions
 
-    def get_status_msg(self):
-        self.updateSettingsValues()
-
-        self.status_msg.name = self.process_name
-        self.status_msg.group = self.process_group
-        self.status_msg.description = self.process_description
-
-        self.status_msg.node_name = self.node_name
-        self.status_msg.namespace = self.namespace
-
-        self.status_msg.save_data_topic = self.save_data_topic
-        self.status_msg.config_topic = self.config_topic
-
-        # Run state. enabled is what the operator asked for and running is what
-        # the owning node reports back; the RUI shows both so an enable that
-        # could not take effect is visible rather than silently cosmetic.
-        self.status_msg.enabled = self.enabled
-        self.status_msg.running = self.running
-        self.status_msg.state = self.state
-        self.status_msg.msg_str = self.msg_str
-
-        settings_dict = copy.deepcopy(self.settings_dict)
-        self.settings_msg.name = self.process_name
-        self.settings_msg.description = self.process_description
-        self.settings_msg = nepi_controls.update_status_msg(self.settings_msg, settings_dict)
-        self.status_msg.settings = self.settings_msg
+    ###################
+    # Process Results Image
 
 
-        self.status_msg.auto_select_enabled = self.auto_select_enabled
-        self.status_msg.auto_select_active = self.auto_select_active
-        self.status_msg.available_source_topics = self.available_source_topics
-        self.status_msg.selected_sources = self.selected_sources
-        self.status_msg.sources_connected = self.sources_connected
-        self.status_msg.connected_source_topics = self.connected_source_topics
-        self.status_msg.sources_pub_namespaces = self.sources_pub_namespaces
 
-        self.status_msg.min_max_process_rates = self.min_max_process_rates
-        self.status_msg.set_process_rate = self.max_process_rate
-
-        self.status_msg.has_process_reload = True
-        self.status_msg.available_processes = self.available_processes
-        self.status_msg.selected_process = self.selected_process
-        self.status_msg.process_ready = self.get_process_ready()
-
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_msg.name = self.process_name
-        self.controls_msg.description = self.process_description
-        if controls_dict is not None:
-            has_controls = len(list(controls_dict.keys())) > 0
-            self.status_msg.has_controls = has_controls
-            if has_controls == True:
-                self.controls_msg = nepi_controls.update_status_msg(self.controls_msg, controls_dict)
-                self.status_msg.controls = self.controls_msg
-        #self.msg_if.pub_debug("Publishing status for process controls: " + str([ControlsStatus(),Control(),self.controls_msg]) , throttle_s = 10)
- 
- 
- 
- 
- 
-        results_display_dict = copy.deepcopy(self.results_display_dict)
-        self.results_display_msg.name = self.process_name
-        self.results_display_msg.description = self.process_description
-        if results_display_dict is not None:
-            has_results = len(list(results_display_dict.keys())) > 0
-            self.status_msg.has_results = has_results
-            if has_results == True:
-                self.results_display_msg = nepi_data.update_status_msg(self.results_display_msg, results_display_dict)
-                self.status_msg.results = self.results_display_msg
-
-        self.status_msg.has_results_pub = self.has_results_pub
-        if self.has_results_pub == True:
-            self.status_msg.results_pub_topic = self.results_pub_topic
-
-
-        self.status_msg.image_pub_name = self.image_pub_name
-        self.status_msg.min_max_image_rates = self.min_max_image_rates
-        self.status_msg.set_image_rate = self.max_image_rate
-        self.status_msg.image_pub_topics = self.image_pub_topics
-
-
-        for key in self.show_dict.keys():
-            if '_restricted' not in key:
+    def process_results_image(self, cv2_img, cv2_img_status_dict):
+        if self.process_image_function is None:
+            results_cv2_img = cv2_img
+        else:
+            results_cv2_img = copy.deepcopy(cv2_img)
+            process_image_dict = self.process_image_dict
+            if self.process_image_controls_if is not None:
                 try:
-                    restricted = self.show_dict[key + '_restricted'] and self.admin_enabled == True
-                    show = self.show_dict[key] and restricted == False
-                    setattr(self.status_msg, key, show)
+                    process_image_dict['controls_dict'] = nepi_controls.get_values_dict(self.process_image_controls_if.get_controls_dict())
+                except:
+                    pass
+            try:
+                [results_cv2_img, process_image_dict] = self.process_image_function(results_cv2_img, cv2_img_status_dict,
+                                                               process_image_dict,
+                                                               self.results_dict, self.process_image_if)
+
+                
+                try:
+                    controls_dict = self.process_image_dict['controls_dict'] 
+                    for control_name in controls_dict.keys():
+                        self.process_image_controls_if.set_control_value(control_name, controls_dict[control_name])
                 except:
                     pass
 
-        return self.status_msg
+                self.process_image_dict['data_dict'] = process_image_dict['data_dict']
+                self.process_image_dict['config_dict'] = process_image_dict['config_dict']
+            except Exception as e:
+                self.msg_if.pub_warn("Failed to process results image: " + str(e), throttle_s = 10 )
+        return results_cv2_img
 
-    def publish_status(self):
 
-        status_msg = self.get_status_msg()
-        #self.msg_if.pub_debug("Publishing status for process: " + str(status_msg) , throttle_s = 10)
-        ###########
 
-        if self.node_if is not None:
-            cur_time = nepi_utils.get_time()
-            timer = cur_time - self.last_status_time
-            if self.config_dict['has_status_pub'] == True and timer >= self.config_dict['throttle_status_sec']:
-                self.last_status_time = nepi_utils.get_time()
-
-                if self.status_has_published == False:
-                    self.msg_if.pub_debug("Publishing first status for process: " + str(self.process_name) )
-                    self.status_has_published = True
-                self.node_if.publish_pub(self.node_if_prefix + 'status_pub', status_msg) 
-        return status_msg
+    ##################
+    # Misc Functions
 
 
 
 
-    def unregister_pubs(self):
-        """Unregister all ROS publishers managed by this interface."""
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_pubs()
-            else:
-                if self.process_node_pubs_dict is not None:
-                    for pub_name in self.process_node_pubs_dict.keys():
-                        self.node_if.unregister_pub(pub_name)
 
-    def unsubscribe(self):
-        """Shut down this interface, unregister all owned ROS resources, and clear state."""
-        self.ready = False
-        if self.node_if is not None and self.node_if_shared == False:
-            self.node_if.unregister_class()
-        else:
-            self.unregister_pubs()
-        time.sleep(1)
-        self.namespace = None
-
-    def init(self, do_updates = False):
-        """Initialize or re-initialize interface state and publish status.
-
-        Args:
-            do_updates (bool, optional): Reserved for future use. Defaults to False.
-        """
-        self.msg_if.pub_debug("Initializing params" )
-        if self.node_if is not None:
-                processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
-                if processes_controls_dict is not None:
-                    self.processes_controls_dict = processes_controls_dict
-                self.msg_if.pub_debug("Init Processes Dict: " + str(self.processes_controls_dict))
-
-                selected_process =  self.node_if.get_param(self.sprocess_param_name)
-                if selected_process is not None:
-                    if selected_process in self.processes_controls_dict.keys():
-                        self.selected_process = selected_process
-
-                settings_controls_dict =  self.node_if.get_param(self.settings_param_name)
-                if settings_controls_dict is not None:
-                    for setting_name in settings_controls_dict.keys():
-                        if setting_name in self.settings_dict.keys():
-                            setting_value = settings_controls_dict[setting_name]
-                            self.settings_dict = nepi_controls.set_value(self.settings_dict,setting_name, setting_value)
-                self.settings_controls_dict = nepi_controls.get_values_dict(self.settings_dict)
-
-        if do_updates == True:
-
-            success = self._reloadProcesses()
-            if success == False:
-                self.msg_if.pub_warn("PROCESS LOAD FAILED: " + str(self.processes_functions_dict) )
-            else:
-                self.msg_if.pub_debug("Processes Functions Updated: " + str(self.processes_functions_dict.keys()) )
-                # self.msg_if.pub_debug("Processes Dict Updated: " + str(self.processes_dict) )
-                # self.msg_if.pub_debug("Process Selected: " + str(self.selected_process) )
-        self.publish_status()
-
-    def reset(self):
-        """Reset the interface to its initialized state."""   
-        self.msg_if.pub_debug("Resetting params" )
-        if self.node_if is not None and self.node_if_shared == False:
-            self.node_if.reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
-
-    def factory_reset(self):
-        """Reset the interface to factory defaults."""
-        self.msg_if.pub_debug("Factory resetting params" )
-        if self.node_if is not None and self.node_if_shared == False:
-            self.node_if.factory_reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
 
     def _resetControlsCb(self,msg):
         self.msg_if.pub_debug("Received reset controls msg" )
         if self.node_if is not None:
 
-            
+            self.process_ready = False
             self.node_if.reset_params([self.processes_param_name])
             nepi_sdk.sleep(1)
             processes_controls_dict =  self.node_if.get_param(self.processes_param_name)
@@ -1429,8 +1304,114 @@ class ProcessIF:
                     self.processes_controls_dict[process_name] = processes_values_dict
                     self.processes_dict = processes_dict
                     self.controls_dict = processes_dict[process_name]['controls_dict']
+            self.data_dict = copy.deepcopy(self.blank_data_dict)
+            self.process_ready = True
 
         self.publish_status()
+
+
+    ##########################
+    # Process Status 
+    ########################
+
+    def get_process_status(self):
+
+        self.updateSettingsValues()
+
+        self.process_status_msg.name = self.process_name
+        self.process_status_msg.group = self.process_group
+        self.process_status_msg.description = self.process_description
+
+        self.process_status_msg.node_name = self.node_name
+        self.process_status_msg.namespace = self.namespace
+
+        # NodeIF keeps these in node_topics_dict (SYSTEM_TOPICS_STATUS_FIELDS keys save_data, save_config)
+        self.process_status_msg.save_data_topic = self.node_topics_dict.get('save_data', dict()).get('topic', '')
+        self.process_status_msg.config_topic = self.node_topics_dict.get('save_config', dict()).get('topic', '')
+        self.process_status_msg.data_products = self.data_products
+
+        # Run state. enabled is what the operator asked for and running is what
+        # the owning node reports back; the RUI shows both so an enable that
+        # could not take effect is visible rather than silently cosmetic.
+        self.process_status_msg.enabled = self.enabled
+        self.process_status_msg.running = self.running
+        self.process_status_msg.state = self.state
+        self.process_status_msg.msg_str = self.msg_str
+
+        settings_dict = copy.deepcopy(self.settings_dict)
+        self.process_status_msg.settings = nepi_controls.convert_controls_dict2msg(self.settings_dict)
+
+
+        # NodeIF fills multi_source_enabled, max_process_rate, image_pub_enabled,
+        # use_last_image and data_products by name, but this message replaces
+        # its status, so they are set here too
+        self.process_status_msg.multi_source_enabled = self.multi_source_enabled
+        self.process_status_msg.auto_select_enabled = self.auto_select_enabled
+        self.process_status_msg.auto_select_active = self.auto_select_active
+        self.process_status_msg.available_source_topics = self.available_source_topics
+        self.process_status_msg.selected_sources = self.selected_sources
+        self.process_status_msg.sources_connected = self.sources_connected
+        self.process_status_msg.connected_source_topics = self.connected_source_topics
+        self.process_status_msg.sources_pub_namespaces = self.sources_pub_namespaces
+
+        self.process_status_msg.min_max_process_rates = self.min_max_process_rates
+        self.process_status_msg.set_process_rate = self.max_process_rate
+        self.process_status_msg.max_process_rate = self.max_process_rate
+
+        self.process_status_msg.has_process_reload = True
+        self.process_status_msg.available_processes = self.available_processes
+        self.process_status_msg.selected_process = self.selected_process
+        self.process_status_msg.process_ready = self.get_process_ready()
+
+        controls_dict = copy.deepcopy(self.controls_dict)
+
+        if controls_dict is not None:
+            has_controls = len(list(controls_dict.keys())) > 0
+            self.process_status_msg.has_controls = has_controls
+            if has_controls == True:
+                controls_msg = nepi_controls.convert_controls_dict2msg(controls_dict)
+                controls_msg.name = self.process_name
+                controls_msg.description = self.process_description
+                self.process_status_msg.controls = controls_msg
+        #self.msg_if.pub_debug("Publishing status for process controls: " + str([ControlsStatus(),Control(),self.controls_msg]) , throttle_s = 10)
+ 
+ 
+ 
+ 
+ 
+        results_display_dict = copy.deepcopy(self.results_display_dict)
+        self.results_display_msg.name = self.process_name
+        self.results_display_msg.description = self.process_description
+        if results_display_dict is not None:
+            has_results = len(list(results_display_dict.keys())) > 0
+            self.process_status_msg.has_results = has_results
+            if has_results == True:
+                self.results_display_msg = nepi_data.convert_data_dict2msg(results_display_dict, name = self.process_name, description = self.process_description)
+                self.process_status_msg.results = self.results_display_msg
+
+        self.process_status_msg.has_results_pub = self.has_results_pub
+        if self.has_results_pub == True:
+            self.process_status_msg.results_pub_topic = self.results_pub_topic
+
+
+        self.process_status_msg.image_pub_name = self.image_pub_name
+        self.process_status_msg.image_pub_enabled = self.image_pub_enabled
+        self.process_status_msg.use_last_image = self.use_last_image
+        self.process_status_msg.min_max_image_rates = self.min_max_image_rates
+        self.process_status_msg.set_image_rate = self.max_image_rate
+        self.process_status_msg.image_pub_topics = self.image_pub_topics
+
+
+        for key in self.show_dict.keys():
+            if '_restricted' not in key:
+                try:
+                    restricted = self.show_dict[key + '_restricted'] and self.admin_enabled == True
+                    show = self.show_dict[key] and restricted == False
+                    setattr(self.process_status_msg, key, show)
+                except:
+                    pass
+        return self.process_status_msg
+
 
     ###############################
     # Class Private Methods
@@ -1458,18 +1439,6 @@ class ProcessIF:
             self.last_process_time = cur_time
         self.process_times.pop(0)
         self.process_times.append(pub_time_sec)
-
-    def _initCb(self, do_updates = False):
-        self.init(do_updates = do_updates)
-
-    def _resetCb(self):
-        self.msg_if.pub_debug("Got Reset params callback " )
-        self.reset()
-
-    def _factoryResetCb(self):
-        self.msg_if.pub_debug("Got Factory Reset params callback" )
-        self.factory_reset()
-
 
     def _reloadProcessesCb(self,msg):
         self.msg_if.pub_debug("Got Process Reload Msg" )
@@ -1500,13 +1469,34 @@ class ProcessIF:
                     self.msg_if.pub_debug("Process Reloaded" )
                     self.msg_if.pub_debug("Updating Process Dictionaries" )
 
-
+                    # Update Status Info
                     try:
-                        self.results_pub_msg = self.process_module.RESULTS_PUB_MSG
-                        self.has_results_pub = self.has_results_pub == True and self.results_pub_msg is not None
-                    except:
-                        self.has_results_pub = False
+                        status_msg = self.process_module.STATUS_MSG 
+                        status_msg_class = status_msg.__class__()
+                        status_msg_type = status_msg_class.__name__
+                        self.status_msg = self.process_module.STATUS_MSG
+                        self.status_msg_class = status_msg_class
+                        self.status_msg_type = status_msg_type
+                        self.node_topic_dict['status_msg_type'] = self.status_msg_type
+                    except Exception as e:
+                        pass
 
+                    # Update Results Pub Info
+                    try:
+                        results_pub_msg = self.process_module.RESULTS_PUB_MSG 
+                        results_pub_msg_class = results_pub_msg.__class__()
+                        results_pub_msg_type = results_pub_msg_class.__name__
+                    except Exception as e:
+                        results_pub_msg = None
+                        results_pub_msg_class = None
+                        results_pub_msg_type = None
+                    self.results_pub_msg = self.process_module.RESULTS_PUB_MSG
+                    self.results_pub_msg_class = results_pub_msg_class
+                    self.results_pub_msg_type = results_pub_msg_type
+                    self.has_results_pub = self.has_results_pub == True and self.results_pub_msg is not None
+                   
+                        
+                    # Update Avaialable Processes
                     available_processes = []
                     processes_controls_dict = copy.deepcopy(self.processes_controls_dict)
                     self.msg_if.pub_debug("Got Process Params Dict: " + str(processes_controls_dict) )                  
@@ -1529,8 +1519,6 @@ class ProcessIF:
                     #self.msg_if.pub_debug("Processes Functions Updated: " + str(self.processes_functions_dict) )
 
 
-
-
                     #self.msg_if.pub_debug("" )
                     #self.msg_if.pub_debug("Processes Dict Updated: " + str(self.processes_dict) )
                     #self.msg_if.pub_debug("################################" )
@@ -1546,12 +1534,46 @@ class ProcessIF:
                     self.selected_process = selected_process
                     #self.msg_if.pub_debug("Process Selected: " + str(self.selected_process) )
                     success = self.set_selected_process(self.selected_process, check_updates = False)
+
+                    # Update Process Image Data
+                    if success == True and self.process_image_if is not None:
+                        try:
+                            self.process_image_function = self.process_module.process_results_image
+                        except:
+                            pass
+
+                        try:
+                            process_image_dict = self.process_module.process_image_dict
+                            last_process_image_controls_dict = process_image_dict.get('controls_dict', dict()).keys()
+                            self.process_image_controls_if.remove_controls(last_process_image_controls_dict)
+                            init_image_controls = process_image_dict.get('controls_dict', dict())
+                            self.process_image_controls_if.add_controls(init_image_controls)
+                        except:
+                            pass
+                        
+                        try:
+                            self.process_image_settings_dict = self.process_module.process_image_settings
+                        except:
+                            pass
+
+
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to reload process class: " + str(e) )
         if success == False:
             self.process_ready = False
         return success
 
+
+
+    def updateSettingsValues(self):
+            self.enabled = nepi_controls.get_value(self.settings_dict,'enabled') 
+            self.auto_select_enabled = nepi_controls.get_value(self.settings_dict,'auto_select_enabled')
+            self.selected_sources = self.get_selected_sources()      
+            self.max_process_rate = nepi_controls.get_value(self.settings_dict,'process_rate')   
+            self.min_max_process_rates = nepi_controls.get_bounds(self.settings_dict,'process_rate')
+            self.max_image_rate = nepi_controls.get_value(self.settings_dict,'image_rate')            
+            self.min_max_image_rates = nepi_controls.get_bounds(self.settings_dict,'image_rate')
+            self.use_last_image = nepi_controls.get_value(self.settings_dict,'use_last_image') 
 
     def _updateSettingCb(self,msg):
         #self.msg_if.pub_debug("Received setting update msg: " + str(msg) )
@@ -1600,11 +1622,7 @@ class ProcessIF:
                         pass
 
     def _publishResults(self, results_dict, source_topic = ''):
-        #self.msg_if.pub_debug("Starting Pub Result Process with Results Dict and Results Msg: " + str([results_pub_msg, self.results_pub_msg]), throttle_s = 10 )
-        try:
-            results_pub_dict = copy.deepcopy(self.process_module.RESULTS_PUB_DICT)
-        except:
-            results_pub_dict = None
+        results_pub_dict = self.results_pub_dict
         if results_pub_dict is not None and results_dict is not None:
             for key in results_pub_dict.keys():
                 if key in results_dict.keys():
@@ -1627,21 +1645,21 @@ class ProcessIF:
                     if key in results_pub_dict['data_header'].keys():
                         results_pub_dict['data_header'][key] = data_header[key]
 
-            try:          
-                msg = self.process_module.RESULTS_PUB_MSG
-                msg_type = self.process_module.RESULTS_PUB_TYPE
-                results_pub_msg = nepi_process.convert_results_pub_dict2msg(msg, msg_type, results_pub_dict)
-            except:
-                results_pub_msg = None
-                
-            if self.node_if is not None and self.results_pub_msg is not None:
-                self.node_if.publish_pub(self.node_if_prefix + 'results_pub', results_pub_msg) 
-            else:
-                self.msg_if.pub_debug("Failed to Pub. Results Msg is None: " + str([results_pub_dict, self.results_pub_msg]), throttle_s = 10 )
-                pass
 
 
-    def _publishStatusCb(self, timer):
-        self.admin_enabled = nepi_system.get_admin_mode()
-        self.publish_status()
+
+                pub_msg = None
+                if self.results_pub_msg is not None and self.results_pub_msg_type is not None:
+                    try:          
+                        pub_msg = nepi_process.convert_results_pub_dict2msg(self.results_pub_msg, self.results_pub_msg_type, results_pub_dict)
+                    except:
+                        pass
+
+                    if self.node_if is not None and pub_msg is not None:
+                        self.node_if.publish_pub(self.node_if_prefix + 'results_pub', pub_msg) 
+                    else:
+                        self.msg_if.pub_debug("Failed to Pub. Results Msg is None: " + str([results_pub_dict, self.results_pub_msg]), throttle_s = 10 )
+                        pass
+
+
 

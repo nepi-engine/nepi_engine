@@ -96,7 +96,7 @@ class AIDetectorManager:
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
         
         
         ##############################
@@ -297,7 +297,7 @@ class AIDetectorManager:
         self.ros_waiting_img.header.stamp = nepi_sdk.get_msg_stamp()
         #########################################################
         ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", color = 'GREEN')
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################

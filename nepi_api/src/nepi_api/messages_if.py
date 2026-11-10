@@ -27,8 +27,10 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk.nepi_sdk import logger
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
+from nepi_sdk import nepi_dict
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
+
 
 from nepi_interfaces.msg import Message
 
@@ -39,6 +41,7 @@ class MsgIF(logger):
     add_functions = ['pub_msg','pub_info','pub_warn','pub_error','pub_debug']
     add_files = []
 
+    
     #######################
     ### IF Initialization
     def __init__(self, colors_dict = dict()):
@@ -57,50 +60,48 @@ class MsgIF(logger):
                          colors_dict = colors_dict
                 )
 
+        # Create topic dict
+
+        status_msg = Message()
+        self.topic_dict = nepi_dict.get_blank_topic_dict()
+        self.topic_dict['name'] = 'messages'
+        self.topic_dict['display_name'] = 'Messages'
+        self.topic_dict['type'] = 'system'
+        self.topic_dict['sub_type'] = 'msg'
+        self.topic_dict['group'] = self.node_namespace
+        self.topic_dict['sub_group'] = ''
+        self.topic_dict['status_msg_type'] = status_msg.__class__.__name__
+        self.topic_dict['data_msg_type'] = ''
+        self.topic_dict['topic'] = self.node_namespace + '/messages'
+        self.topic_dict['topic_name'] = 'Messages'
 
     ###############################
     # Class Public Methods
-
-
-
     
     def pub_info(self, *args, **kwargs):
-        try:
-          caller_str = str(sys._getframe(1).f_code.co_name).strip()
-        except:
-          caller_str = None
-        # Dynamically forward all arguments to the superclass method
-        super().log_info(*args, **kwargs, caller_str = caller_str)
+        super().log_info(*args, **kwargs)
     
     def pub_warn(self,  *args, **kwargs):
-        try:
-          caller_str = str(sys._getframe(1).f_code.co_name).strip()
-        except:
-          caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_warn(*args, **kwargs, caller_str = caller_str)
+        super().log_warn(*args, **kwargs)
     
     def pub_error(self,  *args, **kwargs):
-        try:
-          caller_str = str(sys._getframe(1).f_code.co_name).strip()
-        except:
-           caller_str = None        
         # Dynamically forward all arguments to the superclass method
-        super().log_error(*args, **kwargs, caller_str = caller_str)
+        super().log_error(*args, **kwargs)
     
     def pub_fatal(self, *args, **kwargs):
-        try:
-          caller_str = str(sys._getframe(1).f_code.co_name).strip()
-        except:
-           caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_fatal(*args, **kwargs, caller_str = caller_str)
+        super().log_fatal(*args, **kwargs)
       
 
     def pub_debug(self,  *args, **kwargs):
-        try:
-          caller_str = str(sys._getframe(1).f_code.co_name).strip()
-        except:
-           caller_str = None
         # Dynamically forward all arguments to the superclass method
-        super().log_debug(*args, **kwargs, caller_str = caller_str)
+        super().log_debug(*args, **kwargs)
+
+    def get_namespace(self):
+        return self.node_namespace
+
+    def get_topic_dict(self):
+        return self.topic_dict
+
+    

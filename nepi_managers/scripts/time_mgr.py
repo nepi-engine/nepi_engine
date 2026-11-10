@@ -54,8 +54,9 @@ CHRONY_CFG_FACTORY = '/mnt/nepi_config/factory_cfg/etc/chrony/chrony.conf'
 
 FACTORY_TIMEZONE = 'UTC'
 
-class time_sync_mgr(object):
+class TimeMgr(object):
  
+    NEPI_ETC_UPDATE_SCRIPTS_PATH = "/opt/nepi/etc/scripts"
 
     last_set_time = 0.0
     clock_synced = False
@@ -76,7 +77,7 @@ class time_sync_mgr(object):
 
     #######################
     ### Node Initialization
-    DEFAULT_NODE_NAME = 'time_sync_mgr' # Can be overwitten by luanch command
+    DEFAULT_NODE_NAME = 'time_mgr' # Can be overwitten by luanch command
     def __init__(self):
         #### APP NODE INIT SETUP ####
         nepi_sdk.init_node(name= self.DEFAULT_NODE_NAME)
@@ -89,7 +90,7 @@ class time_sync_mgr(object):
         ##############################  
         # Create Msg Class
         self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting Initialization Processes")
+        self.msg_if.pub_info("Starting Initialization Processes", color = 'GREEN')
 
 
 
@@ -278,7 +279,7 @@ class time_sync_mgr(object):
 
         #########################################################
         ## Initiation Complete
-        self.msg_if.pub_info("Initialization Complete")
+        self.msg_if.pub_info("Initialization Complete", color = 'GREEN')
         # Spin forever (until object is detected)
         nepi_sdk.spin()
         #########################################################
@@ -351,8 +352,8 @@ class time_sync_mgr(object):
             ### Update ETC Files
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time_ntps.sh"
             subprocess.call([etc_update_script])
-            nepi_utils.sleep(1)
-            self.nepi_config = self.get_nepi_system_config()
+            nepi_sdk.sleep(1)
+            self.nepi_config = nepi_system.get_nepi_config()
             ####################
 
     def reset_to_factory_conf(self):
@@ -365,8 +366,8 @@ class time_sync_mgr(object):
             nepi_system.update_nepi_system_config("NEPI_NTP_IP",server_host)
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time_ntps.sh"
             subprocess.call([etc_update_script])
-            nepi_utils.sleep(1)
-            self.nepi_config = self.get_nepi_system_config()
+            nepi_sdk.sleep(1)
+            self.nepi_config = nepi_system.get_nepi_config()
             ####################
 
     def remove_server(self,server_host):
@@ -374,8 +375,8 @@ class time_sync_mgr(object):
             nepi_system.update_nepi_system_config("NEPI_NTP_IP","NONE")
             etc_update_script = self.NEPI_ETC_UPDATE_SCRIPTS_PATH + "/update_etc_time_ntps.sh"
             subprocess.call([etc_update_script])
-            nepi_utils.sleep(1)
-            self.nepi_config = self.get_nepi_system_config()
+            nepi_sdk.sleep(1)
+            self.nepi_config = nepi_system.get_nepi_config()
             ####################
 
     # def gather_ntp_status_timer_cb(self,event):
@@ -557,7 +558,7 @@ class time_sync_mgr(object):
         if topic != "":
             try:
                 nepi_sdk.wait_for_service('onvif_mgr/resync_onvif_device_clocks', timeout=0.1)
-                resync_srv = nepi_sdk.create_service('onvif_mgr/resync_onvif_device_clocks', EmptySrv)
+                resync_srv = nepi_sdk.connect_service('onvif_mgr/resync_onvif_device_clocks', EmptySrv)
                 resync_srv()
             except Exception as e:
                 pass
@@ -609,4 +610,4 @@ class time_sync_mgr(object):
 
 
 if __name__ == '__main__':
-    time_sync_mgr()
+    TimeMgr()

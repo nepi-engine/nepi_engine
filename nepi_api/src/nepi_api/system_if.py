@@ -25,6 +25,7 @@ import numpy as np
 import copy
 import threading
 import importlib
+import math
 
 os.environ['EGL_PLATFORM'] = 'surfaceless'   # Ubuntu 20.04+
 import open3d as o3d
@@ -43,13 +44,21 @@ from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
 from nepi_sdk import nepi_controls
 from nepi_sdk import nepi_data
-from nepi_sdk import nepi_process
+
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
 
 from nepi_interfaces.msg import Control, ControlsStatus, SettingsStatus, UpdateControl, MgrSystemStatus
 from nepi_interfaces.msg import Datum, DataStatus
+
+from nepi_interfaces.msg import NavPose, NavPoses, NavPoseStatus, NavPosesStatus
+from nepi_interfaces.msg import NavPoseLocation, NavPoseHeading
+from nepi_interfaces.msg import NavPoseOrientation, NavPosePosition
+from nepi_interfaces.msg import NavPoseAltitude, NavPoseDepth
+from nepi_interfaces.msg import NavPosePanTilt
+
+
 
 from nepi_interfaces.msg import ProcessStatus
 
@@ -62,622 +71,741 @@ from nepi_interfaces.msg import Transform, TransformStatus
 from nepi_interfaces.msg import SystemState, SystemStates, SystemStatesStatus
 from nepi_interfaces.srv import SystemStatesQuery, SystemStatesQueryRequest, SystemStatesQueryResponse
 
-from nepi_interfaces.msg import SystemTrigger
+from nepi_interfaces.msg import SystemTrigger, SystemTriggers, SystemTriggersStatus
 
 from nepi_api.messages_if import MsgIF
-from nepi_api.node_if import  NodeClassIF
+from nepi_api.node_if import  NodeIF
+from nepi_api.utils_if import ReadWriteIF
+
+
+SYSTEM_IF_KEYS = [
+    'msg_if',
+    'node_if',
+    'settings_if',
+    'save_data_if',
+    'transform_if',
+    'navpose_if',
+    'states_if',
+    'triggers_if'
+]
 
 
 
+#######################################
+# NavPoseIF
+#######################################
+NAVPOSE_NAV_FRAME_OPTIONS = ['ENU','NED','UKNOWN']
+NAVPOSE_ALT_FRAME_OPTIONS = ['WGS84','AMSL','UKNOWN'] # ['WGS84','AMSL','AGL','MSL','HAE','BAROMETER','UKNOWN']
+NAVPOSE_DEPTH_FRAME_OPTIONS = ['DEPTH','UKNOWN'] # ['MSL','TOC','DF','KB','DEPTH','UKNOWN']
 
 
+class NavPoseIF(NodeIF):
 
-#########################################
-# Controls IF Class
-#########################################
+    #########################
+    ## NODE IF Required
+    ## Class Variables Updated by NodeIF Init Class
+    #########################
 
+    STATUS_MSG = NavPoseStatus()
+    DATA_MSG = NavPose()
 
-class ControlsIF:
-    
+    ID = 'navpose'
+    DISPLAY_NAME = 'NavPose'
+    DESCRIPTION = 'Navigation and Pose Data'
+
+    IF_DICT = dict()
+
+    #########################
+    ## CUSTOM
+    #########################
+    frame_name = None
+    data_product = 'navpose'
+
     msg_if = None
     node_if = None
-    node_if_shared = False
-    config_topic = ''
-    node_if_prefix = 'controls_'
-    namespace = ''
+    save_data_if = None
+    transform_if = None
 
-    controls_name = 'controls'
-    controls_display_name = ''
-    controls_description = ''
-    controls_dict = dict()
-    controls_status_msg = ControlsStatus()
+    ready = False
 
-    controls_node_pubs_dict = None
-    controls_node_subs_dict = None
-    controls_ready = False
+    needs_data = False
 
-    status_has_published = False
+    last_pub_time = None
+    time_list = [0,0,0,0,0,0,0,0,0,0]
 
-    controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
+    frame_nav = 'ENU'
+    frame_altitude = 'WGS84'
+    frame_depth = 'MSL'
+    
+    data_source_description = 'sensor'
+    data_ref_description = 'sensor'
 
-    pub_status = True
-    save_params = True
+    navpose_msg = NavPose()
+    navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+    navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
+    navpose_frame = 'None'
 
-    #######################
-    ### IF Initialization
-    def __init__(self, 
-                controls_name = 'controls',
-                controls_display_name = 'Controls',
-                controls_description = 'Controls',
-                controls_init_dict = dict(),
-                controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
-                pub_status = True,
-                save_params = True,
+    data_lock = threading.Lock()
+    navpose_dict_lock = threading.Lock()
+
+    pub_msg_dict = dict()
+    pub_msg_dict['navpose_pub'] = NavPose
+    pub_msg_dict['location_pub'] = NavPoseLocation
+    pub_msg_dict['orientation_pub'] = NavPoseOrientation
+    pub_msg_dict['position_pub'] = NavPosePosition
+    pub_msg_dict['heading_pub'] = NavPoseHeading
+    pub_msg_dict['altitude_pub'] = NavPoseAltitude
+    pub_msg_dict['depth_pub'] = NavPoseDepth
+    pub_msg_dict['pan_tilt_pub'] = NavPosePanTilt
+              
+    def __init__(self,
+                name = 'navpose',
+                namespace = None,
+                frame_name = None,
+                data_product = None,
+                data_source_description = 'sensor',
+                data_ref_description = 'sensor',
+                pub_navpose = True,
+                pub_location = False, pub_heading = False,
+                pub_orientation = False, pub_position = False,
+                pub_altitude = False, pub_depth = False,
+                pub_pan_tilt = False,
+                info_dict = dict(),
                 msg_if = None,
                 node_if = None,
+                save_data_if = None,
+                transform_if = None,
+                
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
+
+        ##############################
+        # Instance Copies of Class State
+        ##############################
+        self.IF_DICT = dict(self.IF_DICT)
+        self.navpose_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_settings_dict = copy.deepcopy(self.navpose_settings_dict)
+        self.pub_msg_dict = dict(self.pub_msg_dict)
+        self.time_list = copy.deepcopy(self.time_list)
+        self.navpose_msg = copy.deepcopy(self.navpose_msg)
+        self.data_lock = threading.Lock()
+        self.navpose_dict_lock = threading.Lock()
+
+               
+        ##############################
+        # Update Class Variables
+        ##############################
+
+        name = nepi_utils.get_clean_name(name)
+        if data_product is not None:
+            data_product = nepi_utils.get_clean_name(data_product)
+            if data_product.strip() != '':
+                self.data_product = data_product
+
+
+        if frame_name is None:
+            frame_name = name
+        self.frame_name = frame_name
+
+        self.data_source_description = data_source_description
+        self.data_ref_description = data_ref_description
+
+        self.pub_navpose = pub_navpose
+        self.pub_location = pub_location
+        self.pub_heading = pub_heading
+        self.pub_orientation = pub_orientation
+        self.pub_position = pub_position
+        self.pub_altitude = pub_altitude
+        self.pub_depth = pub_depth
+        self.pub_pan_tilt = pub_pan_tilt
+
 
         ##############################  
+        # Setup NodeIF Updates
+        ##############################  
 
+        #######################
+        # Sync System IF inputs to if_dict
+
+        self.msg_if = msg_if
+        self.IF_DICT['msg_if'] = msg_if
+        self.node_if = node_if
+        self.IF_DICT['node_if'] = node_if
+        self.save_data_if = save_data_if
+        self.IF_DICT['save_data_if'] = save_data_if
+        self.transform_if = transform_if
+        self.IF_DICT['transform_if'] = transform_if
+
+        ##################
+        if_info_dict = dict(
+            description = self.DESCRIPTION,
+            display_name = self.DISPLAY_NAME,
+            type = 'system',
+            sub_type = self.ID,
+            source_description = data_source_description,
+            source_ref_description = data_source_description,
+            end_description = data_ref_description,
+            end_ref_description = data_ref_description,
+
+            # Custom
+            frame_name = frame_name,
+        )
+        update_info_dict = copy.deepcopy(info_dict)
+        update_info_dict.update(if_info_dict)
         
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting IF Initialization Controls " + str(controls_name) )
+        ##################        
+        update_caps_dict = dict(
+            has_navpose_pub = self.pub_navpose,
+            has_location_pub = self.pub_location,
+            has_heading_pub = self.pub_heading,
+            has_position_pub = self.pub_position,
+            has_orientation_pub = self.pub_orientation,
+            has_depth_pub = self.pub_depth,
+            has_pan_tilt = self.pub_pan_tilt,
+        )
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = dict()
+        ##################
+        update_callback_dict = dict()
 
-        # Create Namespace
-        self.controls_name = nepi_utils.get_clean_name(controls_name)
-        if controls_name is None or controls_name == '':
-            self.msg_if.pub_debug("Name Not Valid: " + str(controls_name)) 
-            return
-        self.msg_if.pub_debug("Using Name: " + self.controls_name )
-        # Built from the sanitized self.controls_name, not the raw argument -- the
-        # namespace must match the name reported in ControlsStatus.
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.controls_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
+        ###########
+        # NODE IF SETUP
 
-        ##############################    
-        # Initialize Class Variables
+        # Call the parent class constructor
+        super().__init__(id = self.ID,
+                name = name,
+                namespace = namespace,
+                status_msg = copy.deepcopy(self.STATUS_MSG),
+                data_msg = copy.deepcopy(self.DATA_MSG),
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict, 
+                if_dict = dict(self.IF_DICT)
+                )
 
-        self.controls_display_name = str(controls_display_name)
-        self.controls_description = str(controls_description)
-        self.controls_dict = nepi_controls.create_controls_dict(controls_init_dict)
-        self.controls_status_msg = nepi_controls.create_status_msg(self.controls_name, self.controls_display_name, self.controls_description)
-
-        self.controls_updated_callback = controls_updated_callback
-
-        self.pub_status = pub_status
-        self.save_params = save_params
-
-        # if source_callback_dict is not None:
-        #     for key in source_callback_dict.keys():
-        #         self.source_callback_dict[key] = source_callback_dict[key]
-      
+        ready = self.wait_for_ready()
 
 
-        ##############################   
-        ## Node Setup
-        # Configs Config Dict ####################
-        # The persisted value stays the string-valued settings dict it has
-        # always been, under the param key it has always used. The controls
-        # dict is derived state, so no deployed config file needs migrating.
-        if self.save_params == True:
+       #######################
+        # Add Services
+        #######################
+        params_dict = {}
+        self.add_params(params_dict)
 
-            # Configs Config Dict ####################
-            self.CONFIGS_DICT = {
-                'init_callback': self._initCb,
-                'reset_callback': self._resetCb,
-                'factory_reset_callback': self._factoryResetCb,
-                'init_configs': True,
-                'namespace': self.namespace
-            }
+        #######################
+        # Add Services
+        #######################
+        services_dict = {}
+        self.add_services(services_dict)
 
-            # Params Config Dict ####################
-            # Persist the selected topic under the connect namespace so the
-            # selection survives node restarts (via the config manager). Passing a
-            # params_dict is what enables config management on NodeClassIF.
-            self.PARAMS_DICT = {
-                self.node_if_prefix + 'controls_dict': {
-                    'name': 'controls_dict',
+        #######################
+        # Add Pubs 
+        #######################
+        pubs_dict = {}
+        if self.pub_navpose == True:
+                pubs_dict['navpose_pub'] = {
+                    'msg': NavPose,
                     'namespace': self.namespace,
-                    'factory_val': self.controls_dict
-                },
-            }
-        else:
-            self.CONFIGS_DICT = None
-            self.PARAMS_DICT = None
-
-        # Publishers Config Dict ####################
-        if pub_status == False:
-            self.controls_node_pubs_dict = dict()
-        else:
-            self.controls_node_pubs_dict = {
-                self.node_if_prefix + 'status_pub': {
-                    'namespace': self.namespace,
-                    'topic': 'status',
-                    'msg': ControlsStatus,
+                    'topic': '',
                     'qsize': 1,
-                    'latch': True
+                    'latch': False
                 }
+    
+        if self.pub_location == True:
+            pubs_dict['location_pub'] = {
+                'msg': NavPoseLocation,
+                'namespace': self.namespace,
+                'topic': 'location',
+                'qsize': 1,
+                'latch': False
+            }
+            
+        if self.pub_orientation == True:
+            pubs_dict['orientation_pub'] = {
+                'msg': NavPoseOrientation,
+                'namespace': self.namespace,
+                'topic': 'orientation',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.pub_position == True:
+            pubs_dict['position_pub'] = {
+                'msg': NavPosePosition,
+                'namespace': self.namespace,
+                'topic': 'position',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.pub_heading == True:
+            pubs_dict['heading_pub'] = {
+                'msg': NavPoseHeading,
+                'namespace': self.namespace,
+                'topic': 'heading',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.pub_altitude == True:
+            pubs_dict['altitude_pub'] = {
+                'msg': NavPoseAltitude,
+                'namespace': self.namespace,
+                'topic': 'altitude',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.pub_depth == True:
+            pubs_dict['depth_pub'] = {
+                'msg': NavPoseDepth,
+                'namespace': self.namespace,
+                'topic': 'depth',
+                'qsize': 1,
+                'latch': False
+            }
+
+        if self.pub_pan_tilt == True:
+            pubs_dict['pan_tilt_pub'] = {
+                'msg': NavPosePanTilt,
+                'namespace': self.namespace,
+                'topic': 'pan_tilt',
+                'qsize': 1,
+                'latch': False
             }
 
 
+        self.add_pubs(pubs_dict)
 
-        # Subscribers Config Dict ####################
-        self.controls_node_subs_dict = {
-            #####################
-            # Control Subs
-            ####################
-            self.node_if_prefix + 'update_control': {
-                'msg': UpdateControl,
-                'namespace': self.namespace,
-                'topic': 'update_control',
-                'qsize': 5,
-                'callback': self._updateControlCb
-            },
-            self.node_if_prefix + 'reset_controls': {
-                'msg': Empty,
-                'namespace': self.namespace,
-                'topic': 'reset_controls',
-                'qsize': 5,
-                'callback': self._resetControlsCb
-            },
-        }
+        #######################
+        # Add Subs 
+        #######################
+        subs_dict =  {}
+        self.add_subs(subs_dict)
 
-    
-        
-        if node_if is None:
-            self.config_topic = self.namespace
-            self.node_if = NodeClassIF(
-                            configs_dict = self.CONFIGS_DICT,
-                            params_dict = self.PARAMS_DICT,
-                            services_dict = None,
-                            pubs_dict = self.controls_node_pubs_dict,
-                            subs_dict = self.controls_node_subs_dict,
-                            msg_if = self.msg_if
-            )
-            self.node_if.wait_for_ready()
-        else:
-            self.node_if_shared = True
-            try:
-                self.node_if = node_if
-                self.node_if.register_pubs(self.controls_node_pubs_dict)
-                self.node_if.register_subs(self.controls_node_subs_dict)
-                self.node_if.add_params(self.PARAMS_DICT)
-                nepi_sdk.sleep(1)
-            except Exception as e:
-                self.msg_if.pub_debug("Failed to register pubs and subs: " + str(e) )
-                return
+        nepi_sdk.sleep(0.1)
+
+        ######################################################
+
+        ####################
+        # Setup Save Data IF Class 
+        ####################
+        if self.save_data_if is not None:
+            data_products = self.save_data_if.get_data_products()
+            if self.data_product not in data_products:
+                self.save_data_if.register_data_product(self.data_product)
+
+
+
+        #########################
+        # Update status message for values not in NodeIF Dictionaries
+        ##############################
+        self.status_msg.frame_name = self.frame_name
+        self.status_msg.data_source_description = self.data_source_description
+        self.status_msg.data_ref_description = self.data_ref_description
 
 
         ##############################
-        # Start updater controls
-
-        if pub_status == True:
-            nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
+        # Start Node Processes
+        ##############################
+        nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
 
         ##############################
         # Complete Initialization
-        self.controls_ready = True
-        self.msg_if.pub_debug(str(self.class_name) + " Initialization Complete" )
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete" )
         ###############################
-    
 
-    #######################
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is NavPoseIF:
+            self.start()
+
+    ###############################
+    # NodeIF Class Override Methods
+    ###############################
+
+    def update_status_msg(self, status_msg):
+
+        avg_rate = 0
+        if len(self.time_list) > 0:
+            avg_time = sum(self.time_list) / len(self.time_list)
+            if avg_time > .01:
+                avg_rate = float(1) / avg_time
+        status_msg.avg_pub_rate = avg_rate
+
+        return status_msg
+
+
+    
+    def get_navpose_msg(self):
+        """Return a deep copy of the most recently received nav pose dictionary.
+
+        Mirrors data_if.NavPoseIF.get_navpose_dict, which is the contract the
+        data_if image, depth map and pointcloud classes call against whichever
+        navpose interface they hold -- a server-side NavPoseIF when one is passed
+        in, or a ConnectNavPoseIF built from a namespace when one is not.
+
+        Returns:
+            dict: The last nav pose data dictionary, or None if no NavPose message
+                has arrived from the connected source yet.
+        """
+        if self.navpose_msg is None:
+            return None
+        self.data_lock.acquire()
+        navpose_msg = copy.deepcopy(self.navpose_msg)
+        self.data_lock.release()
+        if navpose_msg is None:
+            navpose_msg = NavPose()
+  
+        return navpose_msg
+
+    def get_navpose_dict(self):
+        """Return a deep copy of the most recently published nav pose dictionary.
+
+        Returns:
+            dict: The last nav pose data dictionary.
+        """
+        self.navpose_dict_lock.acquire()
+        navpose_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose_dict_lock.release()
+        if navpose_dict is None:
+            navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        return navpose_dict
+
+
+
+    ###############################
     # Class Public Methods
-    #######################
+    ###############################
 
-
-    def get_controls_ready_state(self):
-        """Return the ready state of the interface.
+    def get_frame_nav_options(self):
+        """Return the list of supported navigation frame identifiers.
 
         Returns:
-            bool: True if the interface has completed initialization, False otherwise.
+            list: Supported nav frame strings (e.g. 'ENU', 'NED').
         """
-        return self.controls_ready
+        return NAVPOSE_NAV_FRAME_OPTIONS
 
-    def wait_for_controls_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
+    def get_frame_altitude_options(self):
+        """Return the list of supported altitude frame identifiers.
+
+        Returns:
+            list: Supported altitude frame strings (e.g. 'WGS84', 'AMSL').
+        """
+        return NAVPOSE_ALT_FRAME_OPTIONS
+
+    def get_frame_depth_options(self):
+        """Return the list of supported depth frame identifiers.
+
+        Returns:
+            list: Supported depth frame strings (e.g. 'DEPTH').
+        """
+        return NAVPOSE_DEPTH_FRAME_OPTIONS
+
+
+
+    def get_blank_navpose_dict(self):
+        """Return a deep copy of the blank nav pose dictionary template.
+
+        Returns:
+            dict: A blank nav pose dictionary with all fields at default values.
+        """
+        blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        return blank_navpose_dict
+
+
+    def needs_data_check(self):
+        """Return whether downstream consumers currently need nav pose data.
+
+        Returns:
+            bool: True if there are active subscribers or save/snapshot requests.
+        """
+        needs_data = copy.deepcopy(self.needs_data)
+        # self.msg_if.pub_debug("Returning: " + self.namespace + " " "needs data: " + str(needs_data) , throttle_s = 5.0)
+        return needs_data
+
+    # Update System Status
+    def publish_navpose(self,navpose_dict,
+                        timestamp = None,
+                        ):
+        """Publish a nav pose data dictionary to all configured ROS topics.
+
+        Converts the input dictionary to NEPI standard frames (ENU / WGS84),
+        publishes individual component messages (location, heading, orientation,
+        position, altitude, depth, pan/tilt) if enabled, publishes the combined
+        NavPose message, and triggers data
+        saving if a SaveDataIF is registered.
 
         Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
+            navpose_dict (dict): Nav pose data following the NEPI navpose dict schema.
+            timestamp (float or rospy.Time, optional): Acquisition timestamp in seconds
+                or as a ROS Time object. Defaults to current time if None.
+          
 
         Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
+            dict: The processed nav pose dictionary in NEPI standard frames.
         """
-        success = False
-        if self.controls_ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.controls_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.controls_ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
+        np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+        if navpose_dict is None and self.status_msg is not None:
+            return np_dict
+        else:
+            # Initialize np_dict here so it's available in both branches
+            for key in np_dict.keys():
+                if key in navpose_dict.keys():
+                    np_dict[key] = navpose_dict[key]
+
+
+            #self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = 30)
+
+            if timestamp == None:
+                timestamp = nepi_utils.get_time()
             else:
-                self.msg_if.pub_debug("Connected" )
-        return self.controls_ready  
+                timestamp = nepi_sdk.sec_from_timestamp(timestamp)
 
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace this controls set publishes under.
+            current_time = nepi_utils.get_time()
+            get_latency = (current_time - timestamp)
+            #self.msg_if.pub_debug("Get Data Latency: {:.2f}".format(get_latency) , throttle_s = 30)
 
-        This is create_namespace(node_namespace, controls_name) -- the same
-        namespace the status publisher and every set_*_control_value subscriber
-        are registered on, so it is what a remote subscriber should use.
+            # Start Img Pub Process
+            start_time = nepi_utils.get_time()   
 
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.namespace
-    
-   
-    def unregister(self):
-        """Shut down this settings interface and release its ROS resources."""
-        self.ready = False
-        success = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
+            ###################################
+            # # Transform navpose data frames to nepi standard frames
+            # if np_dict['frame_nav'] != 'ENU':
+            #     if np_dict['frame_nav'] == 'NED':
+            #         nepi_nav.convert_navpose_ned2enu(np_dict)
+            # if np_dict['frame_altitude'] != 'WGS84':
+            #     if np_dict['frame_altitude'] == 'AMSL':
+            #         nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+            # if np_dict['frame_depth'] != 'MSL':
+            #     if np_dict['frame_depth'] == 'DEPTH':
+            #         pass # need to add conversions     
+
+            ###################################
+            # Transform navpose data frames to system set frames
+            frame_nav = self.navpose_settings_dict['frame_nav']
+            frame_alt = self.navpose_settings_dict['frame_alt']
+            frame_depth = self.navpose_settings_dict['frame_depth']
+            
+            if np_dict['frame_nav'] != frame_nav:
+                if np_dict['frame_nav'] == 'NED' and frame_nav == 'ENU':
+                    nepi_nav.convert_navpose_ned2enu(np_dict)
+                elif np_dict['frame_nav'] == 'ENU' and frame_nav == 'NED':
+                    nepi_nav.convert_navpose_enu2ned(np_dict)
+            if np_dict['frame_altitude'] != frame_alt:
+                if np_dict['frame_altitude'] == 'AMSL' and frame_alt ==  'WGS84':
+                    nepi_nav.convert_navpose_amsl2wgs84(np_dict)
+                elif np_dict['frame_altitude'] == 'WGS84' and frame_alt ==  'AMSL':
+                    nepi_nav.convert_navpose_wgs842amsl(np_dict)
+            #if np_dict['frame_depth'] != 'MSL':
+            #    if np_dict['frame_depth'] == 'DEPTH':
+            #        pass # need to add conversions
+
+
+            ###################################
+            # Transform in Frame
+            tnp_dict = np_dict
+            if self.transform_if is not None:
+                transform_dict = self.transform_if.get_transform_dict()
+                if transform_dict is not None:
+                    tnp_dict = nepi_nav.transform_navpose_dict(np_dict, transform_dict)
+            if tnp_dict is None:
+                self.msg_if.pub_debug("Failed to tranform navpose dict" , throttle_s = 30)
             else:
-                # These were SUBS_DICT/PUBS_DICT, which this class never
-                # defines -- it builds controls_node_subs_dict and
-                # controls_node_pubs_dict. The shared-node_if branch therefore
-                # raised AttributeError instead of unregistering anything.
-                if self.controls_node_subs_dict is not None:
-                        for sub_name in self.controls_node_subs_dict.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.controls_node_subs_dict = None
-
-                if self.controls_node_pubs_dict is not None:
-                        for pub_name in self.controls_node_pubs_dict.keys():
-                            self.node_if.unregister_pub(pub_name)
-                self.controls_node_pubs_dict = None
-
-        time.sleep(1)
-        try:
-            self.node_if = None
-            self.controls_ready = False
-            success = True
-        except Exception as e:
-            self.msg_if.pub_debug("Failed to unregister:  " + str(e) )
-        return success
-
-
-    ##################
-    # Controls Functions
-    def get_controls_dict(self):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        return controls_dict
-
-    def get_control_value(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        value = nepi_controls.get_value(controls_dict, control_name)
-        return value
-
-    def set_control_value(self, control_name, update_value, index = None):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        if controls_dict is not None:
-            if control_name in controls_dict.keys():
-                controls_dict = nepi_controls.set_value(controls_dict, control_name, update_value, index = index)
-                if controls_dict != self.controls_dict:
-                    self.controls_dict = controls_dict
-                    self.publish_status()
-                    if self.controls_updated_callback is not None:
-                        self.controls_updated_callback(control_name, update_value)
-                    self.save_params_dict()
-
-
-    def reset_control_value(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.reset_value(controls_dict, control_name)
-        self.controls_dict = controls_dict
-
-    def reset_control_values(self):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.reset_values(controls_dict)
-        self.controls_dict = controls_dict
-
-    def get_control_labels(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        labels = nepi_controls.get_labels(controls_dict, control_name)
-        return labels
-
-    def set_control_labels(self, control_name, labels):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_labels(controls_dict, control_name, labels)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
+                np_dict = tnp_dict
 
 
 
-    def get_control_options(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        options = nepi_controls.get_options(controls_dict, control_name)
-        return options
+            ###################################
+            # Update Class Data and Status Msg     
+            ###################################          
+            self.navpose_dict  = np_dict
 
-    def set_control_options(self, control_name, options):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_options(controls_dict, control_name, options)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
+            self.status_msg.frame_nav = np_dict['frame_nav']
+            self.status_msg.frame_altitude = np_dict['frame_altitude']
+            self.status_msg.frame_depth = np_dict['frame_depth']
 
-
-    def get_control_bounds(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        bounds = nepi_controls.get_bounds(controls_dict, control_name)
-        return bounds
+            self.status_msg.frame_name = self.frame_name #np_dict['navpose_frame']
+            self.status_msg.frame_nav = np_dict['frame_nav']
+            self.status_msg.frame_altitude = np_dict['frame_altitude']
+            self.status_msg.frame_depth = np_dict['frame_depth']
 
 
-    def set_control_min_bound(self, control_name, min_bound = None):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_min_bound(controls_dict, control_name, min_bound = min_bound)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
+            ###################################
+            # Pub NavPose Sub Topics               
+            ####################################
+            
+            # Publish nav pose subs
+            if self.pub_location == True:
+                pub_name = 'location_pub'
+                msg = self.pub_msg_dict[pub_name]()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_location']
+                msg.latitude = np_dict['latitude']
+                msg.longitude = np_dict['longitude']
+                msg.location_m_per_sec = np_dict['location_m_per_sec']
+                self.publish_msg(pub_name,msg)
 
-    def set_control_max_bound(self, control_name, max_bound = None):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_max_bound(controls_dict, control_name, max_bound = max_bound)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
+            if self.pub_heading == True:
+                pub_name = 'heading_pub'
+                msg = self.pub_msg_dict[pub_name]()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_heading']
+                msg.heading_deg = np_dict['heading_deg']
+                msg.heading_m_per_sec = np_dict['heading_m_per_sec']
+                self.publish_msg(pub_name,msg)
 
+            if self.pub_orientation == True:
+                pub_name = 'orientation_pub'
+                msg = self.pub_msg_dict[pub_name]()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_orientation']
+                msg.roll_deg = np_dict['roll_deg']
+                msg.pitch_deg = np_dict['pitch_deg']
+                msg.yaw_deg = np_dict['yaw_deg']
+                msg.roll_deg_per_sec = np_dict['roll_deg_per_sec']
+                msg.pitch_deg_per_sec = np_dict['pitch_deg_per_sec']
+                msg.yaw_deg_per_sec = np_dict['yaw_deg_per_sec']
+                self.publish_msg(pub_name,msg)
 
-    def set_control_bounds(self, control_name, bounds = [None,None]):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_bounds(controls_dict, control_name, bounds)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
+            if self.pub_position == True:
+                pub_name = 'position_pub'
+                msg = self.pub_msg_dict[pub_name]()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_position']
+                msg.x_m = np_dict['x_m']
+                msg.y_m = np_dict['y_m']
+                msg.z_m = np_dict['z_m']
+                # The component msg has no velocity flag, so -999 is the flag:
+                # nepi_nav.update_navpose_dict_from_msg reads it back that way.
+                msg.x_m_per_sec = np_dict['x_m_per_sec'] if np_dict['has_velocity'] else -999
+                msg.y_m_per_sec = np_dict['y_m_per_sec'] if np_dict['has_velocity'] else -999
+                msg.z_m_per_sec = np_dict['z_m_per_sec'] if np_dict['has_velocity'] else -999
+                self.publish_msg(pub_name,msg)
 
+            if self.pub_altitude == True:
+                pub_name = 'altitude_pub'
+                msg = self.pub_msg_dict[pub_name]()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_altitude']
+                msg.altitude_m = np_dict['altitude_m']
+                msg.altitude_m_per_sec = np_dict['altitude_m_per_sec']
+                self.publish_msg(pub_name,msg)
 
+            if self.pub_depth == True:
+                pub_name = 'depth_pub'
+                msg = self.pub_msg_dict[pub_name]()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_depth']
+                msg.depth_m = np_dict['depth_m']
+                msg.depth_m_per_sec = np_dict['depth_m_per_sec']
+                self.publish_msg(pub_name,msg)
 
-    ##################
-    # Display Functions
+            if self.pub_pan_tilt == True:
+                pub_name = 'pan_tilt_pub'
+                msg = self.pub_msg_dict[pub_name]()
+                # gps_fix pub
+                msg.timestamp = np_dict['time_depth']
+                msg.pan_deg = np_dict['pan_deg']
+                msg.tilt_deg = np_dict['tilt_deg']
+                self.publish_msg(pub_name,msg)
 
-    def get_control_display_name(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        display_name = nepi_controls.get_display_name(controls_dict, control_name)
-        return display_name
+            ###################################
+            # Pub NavPose Topic            
+            ####################################
 
-    def set_control_display_name(self, control_name, display_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_display_name(controls_dict, control_name, display_name)
-        self.controls_dict = controls_dict
+            if self.pub_navpose == True:
+                navpose_msg = None
+                try:
+                    navpose_msg = nepi_nav.convert_navpose_dict2msg(np_dict)
+                except Exception as e:
+                    self.msg_if.pub_debug("Failed to convert navpose data to msg: " + str(e) , throttle_s = 5.0)
+                    success = False
 
-
-    def get_control_description(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        description = nepi_controls.get_description(controls_dict, control_name)
-        return description
-
-    def set_control_description(self, control_name, description):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.set_description(controls_dict, control_name, description)
-        self.controls_dict = controls_dict
-
-    def get_control_hidden(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        hidden = nepi_controls.get_hidden(controls_dict, control_name)
-        return hidden
-
-    def set_control_hidden(self, control_name, hidden):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_hidden(controls_dict, control_name, hidden)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
-
-
-    def get_control_disabled(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        disabled = nepi_controls.get_disabled(controls_dict, control_name)
-        return disabled
-
-    def set_control_disabled(self, control_name, disabled):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_disabled(controls_dict, control_name, disabled)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
-
-
-    def get_control_display_order(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        order = nepi_controls.get_display_order(controls_dict, control_name)
-        return order
-
-    def set_control_display_order(self, control_name, update_order = 0):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.set_display_order(controls_dict, control_name, update_order)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
-
-    def move_control_display_top(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.move_control_top(controls_dict, control_name)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
-
-    def move_control_display_bottom(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.move_control_bottom(controls_dict, control_name)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
-
-    def move_control_display_up(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.move_control_up(controls_dict, control_name)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
-
-    def move_control_display_down(self, control_name):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        self.controls_dict = nepi_controls.move_control_down(controls_dict, control_name)
-        if self.controls_dict != controls_dict:
-            self.publish_status()
-            self.save_params_dict()
-    
+                if navpose_msg is not None:
+                    try:
+                        self.navpose_msg = navpose_msg
+                        self.publish_msg('navpose_pub', navpose_msg)
+                    except Exception as e:
+                        self.msg_if.pub_debug("Failed to publish navpose data msg: " + str(e) , throttle_s = 5.0)
+                        success = False
 
 
+            ###################################
+            # Get Stats
+            ####################################
 
-    def save_params_dict(self):
-        controls_dict = copy.deepcopy(self.controls_dict)
-        params_dict = nepi_controls.get_params_dict(controls_dict)
-        if self.node_if is not None and self.save_params == True and controls_dict is not None:
-            param_name = self.node_if_prefix + 'controls_dict'
-            self.node_if.set_param(param_name, params_dict)
+            current_time = nepi_utils.get_time()
+            pub_latency = (current_time - timestamp)
+            process_time = (current_time - start_time)
+            #self.msg_if.pub_debug("Get Data Latency: {:.2f}".format(pub_latency) , throttle_s = 30)
+
+            # Update Pub Stats
+            if self.last_pub_time is None:
+                pub_time_sec = 1.0
+                self.last_pub_time = nepi_utils.get_time()
+            else:
+                cur_time = nepi_utils.get_time()
+                pub_time_sec = cur_time - self.last_pub_time
+                self.last_pub_time = cur_time
 
 
-    ##################
-    # Misc Functions
+            self.time_list.pop(0)
+            self.time_list.append(pub_time_sec)
 
-    def publish_status(self, status_msg = None):
-        ###########
-        if self.pub_status == True:
-            controls_dict = copy.deepcopy(self.controls_dict)
-            self.controls_status_msg = nepi_controls.update_status_msg(self.controls_status_msg, controls_dict)
-            self.controls_status_msg.config_topic = self.config_topic
-            if self.node_if is not None:
-                if self.status_has_published == False:
-                    #self.msg_if.pub_debug("Publishing Status: " + str(self.controls_status_msg) )
-                    self.status_has_published = True
-                self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.controls_status_msg) 
-            return
 
-    def init(self, do_updates = False):
-        """Initialize or re-initialize controls from the parameter server and publish status.
+            ###################################
+            # Save Data    
+            ####################################
 
-        Args:
-            do_updates (bool, optional): Reserved for future use. Defaults to False.
-        """
-        if self.node_if is not None:
-            # Prefixed key, matching how the param is registered and how
-            # set_control_value()/set_control_options()/set_control_bounds()
-            # write it back. get_param() returns None for a name it does not
-            # know, so the unprefixed name wiped the controls dict on every
-            # config init, reset and factory reset, leaving ControlsStatus with
-            # empty control lists and the RUI with an empty controls box.
+            if self.save_data_if is not None:
+                save_enabled = self.save_data_if.data_product_save_enabled('navpose') == True
+                should_save = self.save_data_if.data_product_should_save('navpose') == True
+                snapshot_enabled = self.save_data_if.data_product_snapshot_enabled('navpose') == True
+                save_navpose = should_save or snapshot_enabled
+                time_ns = nepi_utils.get_time()
+                key_name = int(math.floor(time_ns * 1000))
+                navposes_save_dict = {key_name: np_dict}
+                if self.save_data_if is not None and len(list(navposes_save_dict.keys())) > 0 and save_navpose == True:
+                    filename = self.save_data_if.save('navposes', navposes_save_dict, timestamp = time_ns, filename = self.save_filename, key_name = key_name)
+                    if save_enabled == False:
+                        filename = None
+                    self.save_filename = filename
 
-            param_name = self.node_if_prefix + 'controls_dict'
-            controls_params_dict = nepi_controls.get_params_dict(self.controls_dict)
+        return np_dict
 
-            controls_params_dict = self.node_if.get_param(param_name)
-            if controls_params_dict is not None:
-                for control_name in controls_params_dict.keys():
-                    control_value = controls_params_dict[control_name]
-                    if control_value is not None:
-                        self.controls_dict = nepi_controls.set_value(self.controls_dict, control_name, control_value)
 
-        if do_updates == True:
-            pass
-        self.publish_status()
 
-    def reset(self):
-        """Reset parameters to their last-saved (user) values and reinitialize.
-
-        Calls node_if.reset_params() to reload the user configuration tier, then
-        reinitializes from the param server.
-        """
-        if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_debug("Reseting params" )
-            self.node_if.reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
-
-    def factory_reset(self):
-        """Reset parameters to factory defaults and reinitialize.
-
-        Calls node_if.factory_reset_params() to restore factory values, then
-        reinitializes from the param server.
-        """
-        self.controls_dict = nepi_controls.reset_values(self.controls_dict)
-        if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_debug("Factory resetting params" )
-            self.node_if.factory_reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
 
     ###############################
     # Class Private Methods
     ###############################
-    def _initCb(self, do_updates = False):
-        self.init(do_updates = do_updates)
-
-    def _resetCb(self):
-        self.msg_if.pub_debug("Got Reset params callback " )
-        self.reset()
-
-    def _factoryResetCb(self):
-        self.msg_if.pub_debug("Got Factory Reset params callback" )
-        self.factory_reset()
 
 
-    def _updateControlCb(self,msg):
-        self.msg_if.pub_debug("Received control update msg: " + str(msg) )
-        control_name = msg.name
-        # apply_update_msg writes through the dict it is handed, so passing
-        # self.controls_dict applied the update before set_control_value ever
-        # ran -- its "did anything change" test then compared the new dict with
-        # itself, and no status, callback or param save came out of an update.
-        controls_dict = copy.deepcopy(self.controls_dict)
-        controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
-        control_value = nepi_controls.get_value(controls_dict, control_name )
-        self.set_control_value(control_name, control_value)
+    def _needsDataCheckCb(self,timer):
+        has_subs = self.node_if.pub_has_subscribers(self.node_if_prefix + 'navpose_pub')
+        if self.save_data_if is not None:
+            needs_save = self.save_data_if.data_product_save_enabled(self.data_product)
+            needs_snapshot = self.save_data_if.data_product_snapshot_enabled(self.data_product)
+            needs_data = has_subs or needs_save or needs_snapshot
+        else:
+            needs_data = has_subs
+        self.needs_data = needs_data
+        #self.msg_if.pub_debug("Needs Data Check End: " + self.namespace + " : " + str([has_subs,needs_save, needs_snapshot]) )
+        nepi_sdk.start_timer_process(1.0, self._needsDataCheckCb, oneshot = True)
 
-    def _resetControlsCb(self,msg):
-        self.msg_if.pub_debug("Received reset controls msg" )
-        if self.node_if is not None:
 
-            param_name = self.node_if_prefix + 'controls_dict'
 
-            self.node_if.reset_params([param_name])
-            controls_params_dict = self.node_if.get_param(param_name)
-            if controls_params_dict is not None:
-                for control_name in controls_params_dict.keys():
-                    control_value = controls_params_dict[control_name]
-                    if control_value is not None:
-                        self.controls_dict = nepi_controls.set_value(self.controls_dict, control_name, control_value)
-        self.publish_status()
-           
-        
-
-    def _setHiddenValueCb(self,msg):
-            self.set_control_hidden(msg.name, msg.value)
-
-    def _setControlsHiddenCb(self,msg):
-            self.sets_hidden(msg.value)
-
-    def _setOrderValueCb(self,msg):
-            self.set_control_display_order(msg.name, msg.value)
-
-    def _setOrderTopCb(self,msg):
-            self.move_control_display_top(msg.name)
-
-    def _setOrderBottomCb(self,msg):
-            self.move_control_display_bottom(msg.name)
-
-    def _setOrderDownCb(self,msg):
-            self.move_control_display_down(msg.name)
-
-    def _publishStatusCb(self,timer):
-            self.publish_status()
 
 
 
@@ -702,7 +830,7 @@ def GET_NONE_SETTINGS_FUNCTION():
     return dict()
 
 
-class SettingsIF:
+class SettingsIF(NodeIF):
     """Publishes a node's settings as a nepi_settings settings set.
 
     A device's settings are settings: named, typed, bounded values with a
@@ -719,18 +847,29 @@ class SettingsIF:
         reset_settings      (Empty)                    restore last-saved values
     """
 
-    # Class Vars ####################
 
+    #########################
+    ## NODE IF Required
+    ## Class Variables Updated by NodeIF Init Class
+    #########################
+
+    STATUS_MSG = SettingsStatus()
+    DATA_MSG = None
+
+    ID = 'settings'
+    DISPLAY_NAME = 'Settings'
+    DESCRIPTION = 'Settings'
+
+    IF_DICT = dict()
+
+    #########################
+    ## CUSTOM
+    #########################
     msg_if = None
-    ready = False
-    namespace = '~'
-
     node_if = None
-    node_if_shared = False
-    config_topic = ''
 
-    node_if_prefix = ''
-
+    ready = False
+ 
     settings_dict_values = None
     getCapSettingsFunction = None
     getSettingsFunction = None
@@ -748,62 +887,38 @@ class SettingsIF:
     #######################
     ### IF Initialization
     def __init__(self, 
+                name = 'settings',
                 namespace = None,
-                settings_name = 'settings',
+                settings_name = None,
                 getSettingsFunction=None, 
                 setSettingFunction=None, 
                 callback_arg = None,
                 save_params = True,
+                info_dict = dict(),
                 msg_if = None,
-                node_if = None
+                node_if = None,
+                
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting Settings IF Initialization Processes" )
-        
+        ##############################
+        # Instance Copies of Class State
+        ##############################
+        self.IF_DICT = dict(self.IF_DICT)
 
-        #############################
+        ##############################
+        # Update Class Variables
+        ##############################
+
+        if settings_name is not None:
+            name = settings_name
 
         self.callback_arg = callback_arg
-
-
-        # Create Namespace
-        settings_name = nepi_utils.get_clean_name(settings_name)
-        if settings_name is None or settings_name == '':
-            self.msg_if.pub_debug("Name Not Valid: " + str(settings_name) )
-            return
-        self.settings_name = settings_name
-        self.msg_if.pub_debug("Using Settings Name: " + settings_name )
-        # An explicit namespace lets a caller place this interface somewhere other than
-        # its own node namespace. system_mgr passes the base namespace so the system
-        # config settings own the global '<base>/settings' namespace the RUI subscribes
-        # to, and the device IFs pass their device namespace ('<node>/idx', '<node>/ptx',
-        # ...) so each device type's settings sit under its own device namespace.
-        if namespace is None:
-            namespace = self.node_namespace
-        self.namespace = nepi_sdk.create_namespace(namespace,settings_name)
-
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/' 
-       
         self.save_params = save_params
-
 
         if getSettingsFunction is None:
             self.getSettingsFunction = GET_NONE_SETTINGS_FUNCTION
         else:
             self.getSettingsFunction = getSettingsFunction
-
 
         if setSettingFunction is None:
             self.setSettingFunction = SET_NONE_SETTINGS_FUNCTION
@@ -822,64 +937,107 @@ class SettingsIF:
         if settings_dict is not None:
             self.settings_dict = settings_dict
             #self.msg_if.pub_debug("Get Settings function returned Settings Dict: " + str(settings_dict) )
-        else:
-            self.msg_if.pub_debug("Setting update function returned None Settings Dict" )
 
-        self.settings_status_msg = nepi_settings.create_status_msg(
-                                    self.settings_name, 'Settings', 'Device Settings')
 
         ##############################  
-        # Create NodeClassIF Class  
+        # Setup NodeIF Updates
+        ##############################  
 
-        # Configs Config Dict ####################
-        # The persisted value stays the string-valued settings dict it has
-        # always been, under the param key it has always used. The controls
-        # dict is derived state, so no deployed config file needs migrating.
+        #######################
+        # Sync System IF inputs to if_dict
+
+        self.msg_if = msg_if
+        self.IF_DICT['msg_if'] = msg_if
+        self.node_if = node_if
+        self.IF_DICT['node_if'] = node_if
+
+
+        ##################
+        if_info_dict = dict(
+            description = self.DESCRIPTION,
+            display_name = self.DISPLAY_NAME,
+            type = 'system'
+        )
+        update_info_dict = copy.deepcopy(info_dict)
+        update_info_dict.update(if_info_dict)
+        ##################        
+        update_caps_dict = dict()
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = dict()
+        ##################
+        update_callback_dict = dict()
+
+        ###########
+        # NODE IF SETUP
+
+        # Call the parent class constructor
+        super().__init__(id = self.ID,
+                name = name,
+                namespace = namespace,
+                status_msg = copy.deepcopy(self.STATUS_MSG),
+                data_msg = copy.deepcopy(self.DATA_MSG),
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict, 
+                if_dict = dict(self.IF_DICT)
+                )
+
+        ready = self.wait_for_ready()
+
+
+       #######################
+        # Add Services
+        #######################
         if self.save_params == True:
-            self.CONFIGS_DICT = {
-                'init_callback': self._initCb,
-                'reset_callback': self._resetCb,
-                'factory_reset_callback': self._factoryResetCb,
-                'init_configs': True,
-                'namespace': self.namespace
-            }
-            self.PARAMS_DICT = {
-                self.node_if_prefix + 'settings': {
+            # Empty, not None: add_params skips a param whose factory value is None, so
+            # saved settings would never register, persist or restore
+            params_dict = {
+                'settings': {
                     'name': 'settings',
                     'namespace': self.namespace,
-                    'factory_val': self.settings_dict_values
+                    'factory_val': dict()
                 }
             }
         else:
-            self.CONFIGS_DICT = None
-            self.PARAMS_DICT = None
+            params_dict = {}
 
-        # Services Config Dict ####################
-        # No capabilities service. Everything _capabilitiesHandler used to
-        # return is published in the status message.
-        self.SRVS_DICT = None
+        self.add_params(params_dict)
 
-        # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            self.node_if_prefix + 'status_pub': {
-                'namespace': self.namespace,
-                'msg': SettingsStatus,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': True
-            }
-        }
+        #######################
+        # Add Services
+        #######################
+        services_dict = {}
+        self.add_services(services_dict)
 
-        # Subs Config Dict ####################
-        self.SUBS_DICT = {
-            self.node_if_prefix + 'update_setting': {
+        #######################
+        # Add Pubs 
+        #######################
+        pubs_dict = {}
+
+        self.add_pubs(pubs_dict)
+
+        #######################
+        # Add Subs 
+        #######################
+        subs_dict =  {
+            'update_setting': {
                 'msg': UpdateControl,
                 'namespace': self.namespace,
                 'topic': 'update_setting',
                 'qsize': 5,
                 'callback': self._updateSettingCb
             },
-            self.node_if_prefix + 'reset_settings': {
+            'reset_settings': {
                 'msg': Empty,
                 'namespace': self.namespace,
                 'topic': 'reset_settings',
@@ -888,109 +1046,132 @@ class SettingsIF:
                 'callback_args': None
             }
         }
+        self.add_subs(subs_dict)
 
-        # Udpate or Create Node Class ####################
-        if node_if is not None:
-            self.node_if_shared = True
-            self.node_if = node_if
-            self.node_if.add_configs(self.CONFIGS_DICT)
-            self.node_if.add_params(self.PARAMS_DICT) 
-            self.node_if.register_pubs(self.PUBS_DICT)
-            self.node_if.register_subs(self.SUBS_DICT)
-        else:
-            self.config_topic = self.namespace
-            self.node_if_shared = False
-            self.node_if = NodeClassIF(
-                            configs_dict = self.CONFIGS_DICT,
-                            params_dict = self.PARAMS_DICT,
-                            services_dict = self.SRVS_DICT,
-                            pubs_dict = self.PUBS_DICT,
-                            subs_dict = self.SUBS_DICT,
-                            
-                            msg_if = self.msg_if
-                                                )
+        nepi_sdk.sleep(0.1)
 
-   
-
-        success = nepi_sdk.wait()
-
-        ##############################
-        # Update vals from param server
-        self.init(do_updates = True)
-        self.publish_status() 
-    
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
+        ######################################################
 
   
+        #########################
+        # Update status message for values not in NodeIF Dictionaries
+        ##############################
+        self.status_msg = nepi_settings.create_status_msg(
+                                            self.settings_name, 'Settings', 'Device Settings')
+
+
+        ##############################
+        # Start Node Processes
+        ##############################
+
+
         ##############################
         # Complete Initialization
         self.ready = True
         self.msg_if.pub_debug("IF Initialization Complete" )
         ###############################
 
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is SettingsIF:
+            self.start()
+
+
+
+    ###############################
+    # NodeIF Class Override Methods
+    ###############################
+
+    def update_status_msg(self, status_msg):
+
+        """Build and publish the settings SettingsStatus message.
+
+        Refreshes the settings dict from the device (its live values, and its
+        capability report if it provides a getCapSettingsFunction), then
+        publishes. No-ops if node_if is None.
+        """
+
+        settings_dict = self.getSettingsDict()
+        status_msg = nepi_settings.update_status_msg(status_msg, settings_dict)
+
+        return status_msg
+
+    def init(self, do_updates = True):
+        """Load settings from the ROS param server and optionally apply them.
+
+        Reads the persisted string-valued settings dict from the param server,
+        seeds the settings dict default and set tiers from it, and if
+        do_updates is True pushes each stored value down to the device before a
+        final status publish.
+
+        Args:
+            do_updates (bool, optional): If True, apply all stored settings to the
+                hardware after loading. Defaults to True.
+        """
+        settings_params_dict = nepi_controls.get_params_dict(self.settings_dict)
+        if self.node_if is not None and self.save_params == True:
+            settings_params_dict = self.get_param('settings')            
+        #self.msg_if.pub_debug("Init start settings params: " + str(settings_params_dict) )
+
+        if self.callback_arg is None:
+            init_settings_dict = self.getSettingsFunction()
+        else:
+            init_settings_dict = self.getSettingsFunction(self.callback_arg)
+
+        #self.msg_if.pub_debug("Init start settings dict: " + str(init_settings_dict) )
+        if type(init_settings_dict) == dict:
+            if type(settings_params_dict) == dict:
+                for setting_name in settings_params_dict.keys():
+                    if setting_name in init_settings_dict.keys():
+                        setting_value = settings_params_dict[setting_name]
+                        # set_value's fourth parameter is `index`, not a second
+                        # copy of the value: passing setting_value twice used the
+                        # value as an array index into itself.
+                        init_settings_dict = nepi_controls.set_value(init_settings_dict, setting_name, setting_value)
+        else:
+            init_settings_dict = dict()
+
+        self.settings_dict = init_settings_dict
+
+
+        #self.msg_if.pub_debug("Init update settings dict: " + str(init_settings_dict) )
+
+        if do_updates == True:
+            settings_dict = self.getSettingsDict()
+            for setting_name in settings_dict.keys():
+                setting_value = nepi_controls.get_value(settings_dict, setting_name)
+                try:
+                    if self.callback_arg is None:
+                        [success, msg, settings_dict] = self.setSettingFunction(setting_name, setting_value)
+                    else:
+                        [success, msg, settings_dict] = self.setSettingFunction(setting_name, setting_value, self.callback_arg)
+                    if settings_dict is not None:
+                        self.settings_dict = settings_dict
+                        #self.msg_if.pub_debug("Init Got Settings update: " + str(settings_dict[setting_name]) )
+                    else:
+                        self.msg_if.pub_debug("Init Settings update function returned None Settings Dict" )
+
+                except Exception as e:
+                    self.msg_if.pub_debug("Init setSettingFunction callback failed: " + str(e) )
+                    success = False
+                    msg = str(e)
+            self.save_params_dict()
+            init_settings_values_dict = nepi_controls.get_values_dict(self.settings_dict)
+            self.msg_if.pub_debug("Init Settings Complete: " + str(init_settings_values_dict) )
+        self.publish_status()
+
+    def _initCb(self, do_updates = False):
+        self.init(do_updates = do_updates)
+
+    def resetCb(self, do_updates = True):
+        self.settings_dict = nepi_controls.reset_values(self.settings_dict)
+
+    def factoryResetCb(self, do_updates = True):
+        self.settings_dict = nepi_controls.reset_values(self.settings_dict)
+
     ###############################
     # Class Public Methods
     ###############################
-
-
-    def get_ready_state(self):
-        """Return the current ready state of the SettingsIF.
-
-        Returns:
-            bool: True if initialization completed successfully, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the SettingsIF is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
-            else:
-                self.msg_if.pub_debug("Connected" )
-        return self.ready
-
-    def get_namespace(self):
-        """Return the ROS namespace used by this SettingsIF.
-
-        Returns:
-            str: The fully-resolved ROS namespace string.
-        """
-        return self.namespace
-    
-    def unregister(self):
-        """Shut down this settings interface and release its ROS resources."""
-        self.ready = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
-            else:
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
-
-                if self.PUBS_DICT is not None:
-                        for pub_name in self.PUBS_DICT.keys():
-                            self.node_if.unregister_pub(pub_name)
-                self.PUBS_DICT = None
-
 
     def get_settings_dict(self):
         """Return the current settings in the string-valued device settings form.
@@ -998,23 +1179,10 @@ class SettingsIF:
         Returns:
             dict: setting name -> {'name', 'type', 'value'}.
         """
-        return nepi_controls.gets_values_dict(self.getSettingsDict())
+        return nepi_controls.get_values_dict(self.getSettingsDict())
 
-    def publish_status(self):
-        """Build and publish the settings SettingsStatus message.
-
-        Refreshes the settings dict from the device (its live values, and its
-        capability report if it provides a getCapSettingsFunction), then
-        publishes. No-ops if node_if is None.
-        """
-        if self.node_if is None:
-            return
-        self.settings_status_msg.config_topic = self.config_topic
-        settings_dict = self.getSettingsDict()
-
-        self.settings_status_msg = nepi_settings.update_status_msg(self.settings_status_msg, settings_dict)
-        #self.msg_if.pub_debug("Publishing Status Msg: " + str([settings_dict,self.settings_status_msg]) , throttle_s = 10)
-        self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.settings_status_msg)
+    def get_status_pub_msg(self):
+        return self.get_status_msg()
 
 
 
@@ -1080,99 +1248,15 @@ class SettingsIF:
         return success
 
 
-    def init(self, do_updates = True):
-        """Load settings from the ROS param server and optionally apply them.
 
-        Reads the persisted string-valued settings dict from the param server,
-        seeds the settings dict default and set tiers from it, and if
-        do_updates is True pushes each stored value down to the device before a
-        final status publish.
-
-        Args:
-            do_updates (bool, optional): If True, apply all stored settings to the
-                hardware after loading. Defaults to True.
-        """
-        settings_params_dict = nepi_controls.get_params_dict(self.settings_dict)
-        if self.node_if is not None and self.save_params == True:
-            settings_params_dict = self.node_if.get_param(self.node_if_prefix + 'settings')            
-        #self.msg_if.pub_debug("Init start settings params: " + str(settings_params_dict) )
-
-        if self.callback_arg is None:
-            init_settings_dict = self.getSettingsFunction()
-        else:
-            init_settings_dict = self.getSettingsFunction(self.callback_arg)
-
-        #self.msg_if.pub_debug("Init start settings dict: " + str(init_settings_dict) )
-        if type(init_settings_dict) == dict:
-            if type(settings_params_dict) == dict:
-                for setting_name in settings_params_dict.keys():
-                    if setting_name in init_settings_dict.keys():
-                        setting_value = settings_params_dict[setting_name]
-                        # set_value's fourth parameter is `index`, not a second
-                        # copy of the value: passing setting_value twice used the
-                        # value as an array index into itself.
-                        init_settings_dict = nepi_controls.set_value(init_settings_dict, setting_name, setting_value)
-        else:
-            init_settings_dict = dict()
-
-        self.settings_dict = init_settings_dict
-
-
-        #self.msg_if.pub_debug("Init update settings dict: " + str(init_settings_dict) )
-
-        if do_updates == True:
-            settings_dict = self.getSettingsDict()
-            for setting_name in settings_dict.keys():
-                setting_value = nepi_controls.get_value(settings_dict, setting_name)
-                try:
-                    if self.callback_arg is None:
-                        [success, msg, settings_dict] = self.setSettingFunction(setting_name, setting_value)
-                    else:
-                        [success, msg, settings_dict] = self.setSettingFunction(setting_name, setting_value, self.callback_arg)
-                    if settings_dict is not None:
-                        self.settings_dict = settings_dict
-                        #self.msg_if.pub_debug("Init Got Settings update: " + str(settings_dict[setting_name]) )
-                    else:
-                        self.msg_if.pub_debug("Init Settings update function returned None Settings Dict" )
-
-                except Exception as e:
-                    self.msg_if.pub_debug("Init setSettingFunction callback failed: " + str(e) )
-                    success = False
-                    msg = str(e)
-            self.save_params_dict()
-            init_settings_values_dict = nepi_controls.get_values_dict(self.settings_dict)
-            self.msg_if.pub_debug("Init Settings Complete: " + str(init_settings_values_dict) )
-        self.publish_status()
-
-    def reset(self):
-        """Reset settings to their last-saved (user) values and reinitialize.
-
-        Restores the default tier of every setting, reloads the user
-        configuration tier via node_if.reset_params(), then reapplies.
-        """
-        self.settings_dict = nepi_controls.reset_values(self.settings_dict)
-        if self.node_if is not None and self.save_params == True and self.node_if_shared == False:
-            self.node_if.reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
-
-    def factory_reset(self):
-        """Reset settings to factory defaults and reinitialize.
-
-        Restores the factory tier of every setting (factory -> default -> set),
-        restores the factory param values via node_if.factory_reset_params(),
-        then reapplies.
-        """
-        self.settings_dict = nepi_controls.reset_values(self.settings_dict)
-        if self.node_if is not None and self.save_params == True and self.node_if_shared == False:
-            self.node_if.factory_reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
 
 
     ###############################
     # Class Private Methods
     ###############################
+
+
+
 
     def getSettingsDict(self):
         return copy.deepcopy(self.settings_dict)
@@ -1182,25 +1266,11 @@ class SettingsIF:
         settings_dict = copy.deepcopy(self.settings_dict)
         params_dict = nepi_controls.get_params_dict(settings_dict)
         if self.node_if is not None and self.save_params == True and settings_dict is not None:
-            self.node_if.set_param(self.node_if_prefix + 'settings', params_dict)
+            self.set_value('settings', params_dict)
 
-    def _initCb(self, do_updates = False):
-        self.init(do_updates = do_updates)
-
-    def _resetCb(self):
-        self.msg_if.pub_debug("Got Reset params callback " )
-        self.reset()
-
-    def _factoryResetCb(self):
-        self.msg_if.pub_debug("Got Factory Reset params callback" )
-        self.factory_reset()
 
     def _resetSettingsCb(self, msg):
         self.reset()
-
-    def _publishStatusCb(self, timer):
-        self.publish_status()
-
 
     def _updateSettingCb(self,msg):
             #self.msg_if.pub_debug("Received setting update msg: " + str(msg) )
@@ -1214,1204 +1284,6 @@ class SettingsIF:
 
 
 
-
-
-
-#########################################
-# Data IF Class
-#########################################
-
-
-class DataIF:
-    
-    msg_if = None
-    node_if = None
-    node_if_shared = False
-    config_topic = ''
-    node_if_prefix = 'data_'
-    namespace = ''
-
-    data_name = 'data'
-    data_display_name = ''
-    data_description = ''
-    data_dict = dict()
-    data_status_msg = DataStatus()
-
-    data_node_pubs_dict = None
-    data_node_subs_dict = None
-    data_ready = False
-
-    status_has_published = False
-
-    pub_status = True
-
-    #######################
-    ### IF Initialization
-    def __init__(self, 
-                data_name = 'data',
-                data_display_name = 'Data',
-                data_description = 'Data',
-                data_init_dict = dict(),
-                pub_status = True,
-                msg_if = None,
-                node_if = None,
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting IF Initialization Data " + str(data_name) )
-
-        # Create Namespace
-        self.data_name = nepi_utils.get_clean_name(data_name)
-        if data_name is None or data_name == '':
-            self.msg_if.pub_debug("Name Not Valid: " + str(data_name) )
-            return
-        self.msg_if.pub_debug("Using Name: " + self.data_name )
-        # Built from the sanitized self.data_name, not the raw argument -- the
-        # namespace must match the name reported in DataStatus.
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,self.data_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
-
-        ##############################    
-        # Initialize Class Variables
-
-        self.data_display_name = str(data_display_name)
-        self.data_description = str(data_description)
-        self.data_dict = nepi_data.create_data_dict(data_init_dict)
-        self.data_status_msg = nepi_data.create_status_msg(self.data_name, self.data_display_name, self.data_description)
-
-        self.pub_status = pub_status
-
-
-        ##############################   
-        ## Node Setup
-        # Configs Config Dict ####################
-        # The persisted value stays the string-valued settings dict it has
-        # always been, under the param key it has always used. The data
-        # dict is derived state, so no deployed config file needs migrating.
-
-        # Publishers Config Dict ####################
-        if pub_status == False:
-            self.data_node_pubs_dict = dict()
-        else:
-            self.data_node_pubs_dict = {
-                self.node_if_prefix + 'status_pub': {
-                    'namespace': self.namespace,
-                    'topic': 'status',
-                    'msg': DataStatus,
-                    'qsize': 1,
-                    'latch': True
-                }
-            }
-
-
-
-        # Subscribers Config Dict ####################
-        self.data_node_subs_dict = dict()
-
-    
-        
-        if node_if is None:
-            self.config_topic = self.namespace
-            self.node_if = NodeClassIF(
-                            pubs_dict = self.data_node_pubs_dict,
-                            subs_dict = self.data_node_subs_dict,
-                            msg_if = self.msg_if
-            )
-            self.node_if.wait_for_ready()
-        else:
-            self.node_if_shared = True
-            try:
-                self.node_if.register_pubs(self.data_node_pubs_dict)
-                self.node_if.register_subs(self.data_node_subs_dict)
-                nepi_sdk.sleep(1)
-            except Exception as e:
-                self.msg_if.pub_debug("Failed to register pubs and subs: " + str(e) )
-                return
-
-
-        ##############################
-        # Start updater data
-
-        if pub_status == True:
-            nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
-
-        ##############################
-        # Complete Initialization
-        self.data_ready = True
-        self.msg_if.pub_debug(str(self.class_name) + " Initialization Complete" )
-        ###############################
-    
-
-    #######################
-    # Class Public Methods
-    #######################
-
-
-    def get_data_ready_state(self):
-        """Return the ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.data_ready
-
-    def wait_for_data_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.data_ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.data_ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.data_ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
-            else:
-                self.msg_if.pub_debug("Connected" )
-        return self.data_ready  
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace this data set publishes under.
-
-        This is create_namespace(node_namespace, data_name) -- the same
-        namespace the status publisher and every set_*_datum_value subscriber
-        are registered on, so it is what a remote subscriber should use.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.namespace
-    
-   
-    def unregister(self):
-        """Shut down this settings interface and release its ROS resources."""
-        self.ready = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
-            else:
-                # Same defect as ControlsIF.unregister above: this class builds
-                # data_node_subs_dict/data_node_pubs_dict, never SUBS_DICT or
-                # PUBS_DICT, so the shared-node_if branch raised AttributeError
-                # instead of unregistering anything.
-                if self.data_node_subs_dict is not None:
-                        for sub_name in self.data_node_subs_dict.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.data_node_subs_dict = None
-
-                if self.data_node_pubs_dict is not None:
-                        for pub_name in self.data_node_pubs_dict.keys():
-                            self.node_if.unregister_pub(pub_name)
-                self.data_node_pubs_dict = None
-
-        time.sleep(1)
-        try:
-            self.node_if = None
-            self.data_ready = False
-            success = True
-        except Exception as e:
-            self.msg_if.pub_debug("Failed to unregister:  " + str(e) )
-        return success
-
-
-    ##################
-    # Data Functions
-    def get_data_dict(self):
-        data_dict = copy.deepcopy(self.data_dict)
-        return data_dict
-
-    def get_datum_value(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        value = nepi_data.get_value(data_dict, datum_name)
-        return value
-
-    def set_datum_value(self, datum_name, update_value, index = None):
-        data_dict = copy.deepcopy(self.data_dict)
-        if data_dict is not None:
-            if datum_name in data_dict.keys():
-                data_dict = nepi_data.set_value(data_dict, datum_name, update_value, index = index)
-                if data_dict != self.data_dict:
-                    self.data_dict = data_dict
-                    self.publish_status()
-
-
-    def get_datum_labels(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        labels = nepi_data.get_labels(data_dict, datum_name)
-        return labels
-
-    def set_datum_labels(self, datum_name, labels):
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = nepi_data.set_labels(data_dict, datum_name, labels)
-        if self.data_dict != data_dict:
-            self.publish_status()
-
-
-
-    def get_datum_bounds(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        bounds = nepi_data.get_bounds(data_dict, datum_name)
-        return bounds
-
-
-    def set_datum_min_bound(self, datum_name, min_bound = None):
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = nepi_data.set_min_bound(data_dict, datum_name, min_bound = min_bound)
-        if self.data_dict != data_dict:
-            self.publish_status()
-
-
-    def set_datum_max_bound(self, datum_name, max_bound = None):
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = nepi_data.set_max_bound(data_dict, datum_name, max_bound = max_bound)
-        if self.data_dict != data_dict:
-            self.publish_status()
-
-
-
-    def set_datum_bounds(self, datum_name, bounds = [None,None]):
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = nepi_data.set_bounds(data_dict, datum_name, bounds)
-        if self.data_dict != data_dict:
-            self.publish_status()
-
-
-
-
-    ##################
-    # Display Functions
-
-    def get_datum_display_name(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        display_name = nepi_data.get_display_name(data_dict, datum_name)
-        return display_name
-
-    def set_datum_display_name(self, datum_name, display_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.set_display_name(data_dict, datum_name, display_name)
-        self.data_dict = data_dict
-
-
-    def get_datum_description(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        description = nepi_data.get_description(data_dict, datum_name)
-        return description
-
-    def set_datum_description(self, datum_name, description):
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.set_description(data_dict, datum_name, description)
-        self.data_dict = data_dict
-
-    def get_datum_hidden(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        hidden = nepi_data.get_hidden(data_dict, datum_name)
-        return hidden
-
-    def set_datum_hidden(self, datum_name, hidden):
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = nepi_data.set_hidden(data_dict, datum_name, hidden)
-        if self.data_dict != data_dict:
-            self.publish_status()
-
-
-
-    def get_datum_display_order(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        order = nepi_data.get_display_order(data_dict, datum_name)
-        return order
-
-    def set_datum_display_order(self, datum_name, update_order = 0):
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.set_display_order(data_dict, datum_name, update_order)
-        self.data_dict = data_dict
-
-
-    def move_datum_display_top(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.move_datum_top(data_dict, datum_name)
-        self.data_dict = data_dict
-
-
-    def move_datum_display_bottom(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.move_datum_bottom(data_dict, datum_name)
-        self.data_dict = data_dict
-
-
-    def move_datum_display_up(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.move_datum_up(data_dict, datum_name)
-        self.data_dict = data_dict
-
-
-    def move_datum_display_down(self, datum_name):
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.move_datum_down(data_dict, datum_name)
-        self.data_dict = data_dict
-
-
-
-    ##################
-    # Misc Functions
-
-    def publish_status(self, status_msg = None):
-        ###########
-        if self.pub_status == True:
-            data_dict = copy.deepcopy(self.data_dict)
-            self.data_status_msg = nepi_data.update_status_msg(self.data_status_msg, data_dict)
-            if self.node_if is not None:
-                if self.status_has_published == False:
-                    #self.msg_if.pub_debug("Publishing Status: " + str(self.data_status_msg) )
-                    self.status_has_published = True
-                self.node_if.publish_pub(self.node_if_prefix + 'status_pub', self.data_status_msg) 
-            return
-
-    def init(self, do_updates = False):
-        """Initialize or re-initialize data from the parameter server and publish status.
-
-        Args:
-            do_updates (bool, optional): Reserved for future use. Defaults to False.
-        """
-        if self.node_if is not None:
-            pass
-        if do_updates == True:
-            pass
-        self.publish_status()
-
-    def reset(self):
-        """Reset data
-        """
-        self.init(do_updates = True)
-
-    def factory_reset(self):
-        self.init(do_updates = True)
-
-    ###############################
-    # Class Private Methods
-    ###############################
-    def _initCb(self, do_updates = False):
-        self.init(do_updates = do_updates)
-
-    def _resetCb(self):
-        self.msg_if.pub_debug("Got Reset params callback " )
-        self.reset()
-
-    def _factoryResetCb(self):
-        self.msg_if.pub_debug("Got Factory Reset params callback" )
-        self.factory_reset()
-
-
-    def _updateDatumCb(self,msg):
-        self.msg_if.pub_debug("Received datum update msg: " + str(msg) )
-        datum_name = msg.name
-        # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
-        # through the dict it is handed.
-        data_dict = copy.deepcopy(self.data_dict)
-        data_dict = nepi_data.apply_update_msg(data_dict, msg)
-        datum_value = nepi_data.get_value(data_dict, datum_name )
-        self.set_datum_value(datum_name, datum_value)
-    
-
-    def _setHiddenValueCb(self,msg):
-            self.set_datum_hidden(msg.name, msg.value)
-
-    def _setDataHiddenCb(self,msg):
-            self.set_data_hidden(msg.value)
-
-    def _setOrderValueCb(self,msg):
-            self.set_datum_display_order(msg.name, msg.value)
-
-    def _setOrderTopCb(self,msg):
-            self.move_datum_display_top(msg.name)
-
-    def _setOrderBottomCb(self,msg):
-            self.move_datum_display_bottom(msg.name)
-
-    def _setOrderDownCb(self,msg):
-            self.move_datum_display_down(msg.name)
-
-    def _publishStatusCb(self,timer):
-            self.publish_status()
-
-
-
-
-
-           
-
-
-################################################
-## ReadWriteIF
-
-
-class ReadWriteIF:
-
-    ready = False
-    node_name = ''
-    # Save data variables
-    filename_dict = {
-        'prefix': "",
-        'suffix': "",
-        'add_timestamp': True, 
-        'use_utc_tz': True,
-        'add_ms': True,
-        'add_us': False,
-        'add_tz': True,
-        'add_node_name': True
-        }
-
-    node_if = None
-    node_if_shared = False
-    config_topic = ''
-    node_if_prefix = 'read_write_'
-
-
-    #######################
-    ### IF Initialization
-    def __init__(self,
-                filename_dict = None,
-                node_name = None,
-                msg_if = None,
-                node_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-        
-
-
-
-
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting IF Initialization Processes" )
-        
-
-
-
-        #############################
-        # Initialize Class Variables
-
-        if node_name is not None:
-            self.node_name = node_name.replace(' ','-')
-        self.msg_if.pub_debug("Using node_name: " + self.node_name )
-
-        if filename_dict is not None:
-            for key in self.filename_dict.keys():
-                if key in filename_dict.keys():
-                    self.filename_dict[key] = filename_dict[key]
-
-        self.data_dict = {
-            'dict': {
-                'data_type': dict,
-                'file_types': ['yaml'],
-                'read_function': self.read_dict_file,
-                'write_function': self.write_dict_file
-            },
-            'array': {
-                'data_type': np.ndarray,
-                'file_types': ['npy','csv','txt'],
-                'read_function': self.read_array_file,
-                'write_function': self.write_array_file 
-            },
-            'image': {
-                'data_type': np.ndarray,
-                'file_types': ['png','PNG','jpg','jpeg','JPG'],
-                'read_function': self.read_image_file,
-                'write_function': self.write_image_file 
-            },
-            'pointcloud': {
-                'data_type': o3d.geometry.PointCloud,
-                'file_types': ['pcd'],
-                'read_function': self.read_pointcloud_file,
-                'write_function': self.write_pointcloud_file 
-            },
-        }
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_debug("IF Initialization Complete" )
-        ###############################
-
-
-    ###############################
-    # Class Public Methods
-    ###############################
-
-    def get_ready_state(self):
-        """Return the current ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_utils.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_utils.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
-            else:
-                self.msg_if.pub_debug("Connected" )
-        return self.ready
-
-
-    def get_namespace(self):
-        """Return the ROS namespace used by this interface.
-
-        Returns:
-            str: The fully-resolved ROS namespace string.
-        """
-        return self.namespace
-
-    def unregister(self):
-        """Shut down this pointcloud interface and release all ROS resources."""
-        self.ready = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
-            else:
-                # if self.SRVS_DICT is not None:
-                #         for service_name in self.SRVS_DICT.keys():
-                #             self.node_if.unregister_service(service_name)
-                # self.service_name = None
-
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
-
-                # if self.node_if is not None:
-                #     if self.PUBS_DICT is not None:
-                #         for pub_name in self.PUBS_DICT.keys():
-                #             self.node_if.unregister_pub(pub_name)
-
-
-    def get_supported_data_types(self):
-        """Return the list of data type keys supported for file I/O.
-
-        Returns:
-            list: List of supported data type strings (e.g. 'dict', 'array', 'image',
-                'pointcloud').
-        """
-        return list(self.data_dict.keys())
-
-
-    def get_filename_prefix(self):
-        """Return the current filename prefix string.
-
-        Returns:
-            str: The prefix prepended to generated filenames.
-        """
-        return self.filename_dict['prefix']
-
-    def set_filename_prefix(self, prefix = ''):
-        """Set the filename prefix string used when generating file names.
-
-        Args:
-            prefix (str, optional): Prefix string to prepend to filenames.
-                Defaults to ''.
-        """
-        self.filename_dict['prefix'] = prefix
-
-    def get_use_utc_tz(self):
-        """Return whether UTC timezone is used for file timestamps.
-
-        Returns:
-            bool: True if UTC is used, False if local timezone is used.
-        """
-        return self.filename_dict['use_utc_tz']
-
-    def set_use_utc_tz(self, use_utc_tz):
-        """Set whether timestamps in filenames use UTC or local timezone.
-
-        Args:
-            use_utc_tz (bool): True to use UTC, False to use local timezone.
-        """
-        self.filename_dict['use_utc_tz'] = use_utc_tz
-
-    def get_add_timestamp(self):
-        """Return whether a timestamp is appended to generated filenames.
-
-        Returns:
-            bool: True if a timestamp is included in filenames.
-        """
-        return self.filename_dict['add_timestamp']
-
-    def set_add_timestamp(self, add_timestamp):
-        """Set whether a timestamp is included in generated filenames.
-
-        Args:
-            add_timestamp (bool): True to include a timestamp in filenames.
-        """
-        self.filename_dict['add_timestamp'] = add_timestamp
-
-    def get_add_ms(self):
-        """Return whether milliseconds are included in the filename timestamp.
-
-        Returns:
-            bool: True if milliseconds are appended to the timestamp portion.
-        """
-        return self.filename_dict['add_ms']
-
-    def set_add_ms(self, add_ms):
-        """Set whether milliseconds are included in the filename timestamp.
-
-        Args:
-            add_ms (bool): True to append milliseconds to the timestamp.
-        """
-        self.filename_dict['add_ms'] = add_ms
-
-    def get_add_us(self):
-        """Return whether microseconds are included in the filename timestamp.
-
-        Returns:
-            bool: True if microseconds are appended to the timestamp portion.
-        """
-        return self.filename_dict['add_us']
-
-    def set_add_us(self, add_us):
-        """Set whether microseconds are included in the filename timestamp.
-
-        Args:
-            add_us (bool): True to append microseconds to the timestamp.
-        """
-        self.filename_dict['add_us'] = add_us
-
-    def get_add_tz(self):
-        """Return whether the timezone abbreviation is included in filenames.
-
-        Returns:
-            bool: True if the timezone string is appended to the timestamp.
-        """
-        return self.filename_dict['add_tz']
-
-    def set_add_tz(self, add_tz):
-        """Set whether the timezone abbreviation is included in filenames.
-
-        Args:
-            add_tz (bool): True to append the timezone string to the timestamp.
-        """
-        self.filename_dict['add_tz'] = add_tz
-
-
-    def get_filename_dict(self):
-        """Return the full filename configuration dictionary.
-
-        Returns:
-            dict: Dictionary containing all filename formatting options (prefix,
-                suffix, add_timestamp, use_utc_tz, add_ms, add_us, add_tz,
-                add_node_name).
-        """
-        return self.filename_dict
-
-    def set_filename_dict(self,filename_dict):
-        """Merge a partial filename configuration dict into the current settings.
-
-        Any keys missing from the provided dict are filled in from the current
-        filename_dict, ensuring all required keys remain present.
-
-        Args:
-            filename_dict (dict): Dictionary with one or more filename config keys
-                to update.
-
-        Returns:
-            dict: The updated filename configuration dictionary.
-        """
-        for key in self.filename_dict.keys():
-            if key not in filename_dict.keys():
-                filename_dict[key] = self.filename_dict[key]
-
-        self.filename_dict = filename_dict
-        return self.filename_dict
-
-
-    def get_folder_files(self, path, ext_str = ""):
-        """Return a list of files in a folder, optionally filtered by extension.
-
-        Args:
-            path (str): Filesystem path of the directory to list.
-            ext_str (str, optional): File extension filter (e.g. 'yaml'). Defaults
-                to '' (all files).
-
-        Returns:
-            list: List of file paths matching the extension filter.
-        """
-        file_list = nepi_utils.get_file_list(path,ext_str=ext_str)
-        return file_list
-
-    def get_time_from_filename(self,filename):
-        """Extract and return the timestamp embedded in a NEPI-style filename.
-
-        Args:
-            filename (str): Filename string containing an embedded datetime token.
-
-        Returns:
-            float: Unix timestamp (seconds) parsed from the filename, or None if
-                parsing fails.
-        """
-        file_time = None
-        dt_str = self._getDtStr(filename)
-        file_time = nepi_utils.get_time_from_datetime_str(dt_str)
-        return file_time
-
-
-    def get_data_type(self,data):
-        """Infer the NEPI data type category of a data object.
-
-        Inspects the Python type and, for numpy arrays, the dtype and number of
-        dimensions to distinguish images from generic arrays.
-
-        Args:
-            data: The data object to classify.
-
-        Returns:
-            str: One of 'dict', 'pointcloud', 'image', 'array', or the string
-                representation of the object's type if unrecognized.
-        """
-        dtype = type(data)
-
-        if dtype == dict:
-            return 'dict'
-        elif dtype == o3d.geometry.PointCloud:
-            return 'pointcloud'
-        elif dtype == np.ndarray:
-            # Check for valid image dtypes (uint8 or float32 are common)
-            image_dtypes = [np.uint8]
-            if data.dtype not in image_dtypes:
-                return 'array'
-            elif data.ndim == 2 or data.ndim == 3 :
-                if data.dtype == np.uint8:
-                    return 'image'
-                else:
-                    return 'array'
-            else:
-                return 'array'
-        else:
-            return str(dtype)
-            
-
-
-
-
-
-    def write_data_file(self, filepath, data, data_name, timestamp = None, timezone = None, filename = None, key_name = None):
-        """Write a data object to disk using the appropriate format for its type.
-
-        The data type is inferred automatically via get_data_type(). Supported types
-        are 'dict' (YAML), 'array' (npy/csv), 'image' (png/jpg), and 'pointcloud'
-        (pcd). Unsupported types are logged as warnings.
-
-        Args:
-            filepath (str): Directory path where the file will be written.
-            data: Data object to save. Must be one of the supported types.
-            data_name (str): Name token embedded in the generated filename.
-            timestamp (float, optional): Unix timestamp for the filename. Defaults
-                to current time if None.
-            timezone (str, optional): Timezone name for the filename timestamp.
-                Defaults to None (UTC).
-        """
-        data_type = self.get_data_type(data)
-        found_type = False
-        if data_type in self.data_dict.keys():
-                save_function = self.data_dict[data_type]['write_function']
-                #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone) , throttle_s = 5.0)
-                filename = save_function(filepath, data, data_name, timestamp = timestamp, timezone = timezone, filename = filename, key_name = key_name)
-                found_type = True
-        if found_type == False:
-            self.msg_if.pub_debug("Data type not supported: " + str(data_type) + ' for data name: ' + str(data_name) + ' with data: ' + str(data) , throttle_s = 5.0)
-        return filename
-
-
-    def read_dict_file(self, filepath, filename):
-        """Read a YAML file and return its contents as a dictionary.
-
-        Args:
-            filepath (str): Directory path containing the file.
-            filename (str): Name of the YAML file to read (must have a supported
-                extension such as 'yaml').
-
-        Returns:
-            dict: Parsed dictionary from the YAML file, or None if the file type
-                is unsupported or reading fails.
-        """
-        data_key = 'dict'
-        data = None
-        ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_key]['file_types']
-        if ext_str not in file_types:
-            self.msg_if.pub_debug("File type not supported: " + ext_str + " : " + str(file_types) )
-        else:
-            file_path = os.path.join(filepath,filename)
-            try:
-                data = nepi_utils.read_yaml_2_dict(file_path)
-            except:
-                self.msg_if.pub_debug("Failed to read file: " + file_path )
-        return data
-
-    def write_dict_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'yaml', filename = None, key_name = None):
-        """Write a dictionary to a YAML file using a generated filename.
-
-        Args:
-            filepath (str): Directory path where the file will be written.
-            data (dict): Dictionary to serialize.
-            data_name (str): Name token embedded in the generated filename.
-            timestamp (float, optional): Unix timestamp for the filename. Defaults
-                to current time if None.
-            timezone (str, optional): Timezone name for the filename timestamp.
-                Defaults to None (UTC).
-            ext_str (str, optional): File extension. Defaults to 'yaml'.
-
-        Returns:
-            bool: True if the file was written successfully, False otherwise.
-        """
-        data_key = 'dict'
-        success = False
-        data_type = self.data_dict[data_key]['data_type']
-        if isinstance(data,data_type) == False:
-            self.msg_if.pub_debug("Data type not supported: " + str(data_type) )
-        else:
-            file_types = self.data_dict[data_key]['file_types']
-            if ext_str not in file_types:
-                self.msg_if.pub_debug("File type not supported: " + ext_str + " : " + str(file_types) )
-            else:
-                if filename is None:
-                    filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
-                file_path = os.path.join(filepath,filename)
-                if os.path.exists(file_path) == True:
-                    try:
-                        success = nepi_utils.add_dict_2_yaml(file_path, data, key_name = key_name)
-                    except Exception as e:
-                        self.msg_if.pub_debug("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
-                else:
-                    try:
-                        data_to_write = {key_name: data} if key_name is not None else data
-                        success = nepi_utils.write_dict_2_yaml(file_path, data_to_write)
-                    except Exception as e:
-                        self.msg_if.pub_debug("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
-        return filename
-
-
-    def read_array_file(self, filepath, filename):
-        """Read a numeric array from a .npy, .csv, or .txt file.
-
-        Args:
-            filepath (str): Directory path containing the file.
-            filename (str): Name of the array file to read (must have a supported
-                extension such as 'npy', 'csv', or 'txt').
-
-        Returns:
-            numpy.ndarray: Array loaded from the file, or None if the file type is
-                unsupported or reading fails.
-        """
-        data_key = 'array'
-        data = None
-        ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_key]['file_types']
-        if ext_str not in file_types:
-            self.msg_if.pub_debug("File type not supported: " + ext_str + " : " + str(file_types) )
-        else:
-            file_path = os.path.join(filepath,filename)
-            try:
-                if ext_str == 'npy':
-                    data = np.genfromtxt(file_path, delimiter=',', dtype=float, filling_values=-999)
-                else:
-                    data = np.genfromtxt(file_path, delimiter=',', dtype=float, filling_values=-999)
-            except:
-                self.msg_if.pub_debug("Failed to read file: " + file_path )
-                
-        return data
-
-    def write_array_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'npy', filename = None, key_name = None):
-        """Write a numpy array to a file using a generated filename.
-
-        Args:
-            filepath (str): Directory path where the file will be written.
-            data (numpy.ndarray): Array to save.
-            data_name (str): Name token embedded in the generated filename.
-            timestamp (float, optional): Unix timestamp for the filename. Defaults
-                to current time if None.
-            timezone (str, optional): Timezone name for the filename timestamp.
-                Defaults to None (UTC).
-            ext_str (str, optional): File extension ('npy', 'csv', or 'txt').
-                Defaults to 'npy'.
-
-        Returns:
-            bool: True if the file was written successfully, False otherwise.
-        """
-        data_key = 'array'
-        success = False
-        data_type = self.data_dict[data_key]['data_type']
-        if isinstance(data,data_type) == False:
-            self.msg_if.pub_debug("Data type not supported: " + str(type(data)) )
-        else:
-            file_types = self.data_dict[data_key]['file_types']
-            if ext_str not in file_types:
-                self.msg_if.pub_debug("File type not supported: " + ext_str + " : " + str(file_types) )
-            else:
-                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
-                file_path = os.path.join(filepath,filename)
-                if os.path.exists(file_path) == True:
-                    self.msg_if.pub_debug("File already exists: " + file_path )
-                else:
-                    try:
-                        if ext_str == 'npy':
-                            file_path = file_path.replace('.' + ext_str, '')
-                            success = np.save(file_path, data)
-                        else:
-                            success = np.savetxt(file_path, data)
-                    except Exception as e:
-                        self.msg_if.pub_debug("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
-
-        return success
-
-
-    def read_image_file(self, filepath, filename):
-        """Read an image from disk and return it as a numpy array.
-
-        Args:
-            filepath (str): Directory path containing the file.
-            filename (str): Name of the image file to read (must have a supported
-                extension such as 'png', 'jpg', or 'jpeg').
-
-        Returns:
-            numpy.ndarray: Image array, or None if the file type is unsupported or
-                reading fails.
-        """
-        data_key = 'image'
-        data = None
-        ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_key]['file_types']
-        if ext_str not in file_types:
-            self.msg_if.pub_debug("File type not supported: " + ext_str + " : " + str(file_types) )
-        else:
-            file_path = os.path.join(filepath,filename)
-            try:
-                data = nepi_img.read_image_file(file_path)
-            except:
-                self.msg_if.pub_debug("Failed to read file: " + file_path )
-                
-        return data
-
-    def write_image_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'png', filename = None, key_name = None):
-        """Write a numpy image array to an image file using a generated filename.
-
-        Args:
-            filepath (str): Directory path where the file will be written.
-            data (numpy.ndarray): Image array (uint8) to save.
-            data_name (str): Name token embedded in the generated filename.
-            timestamp (float, optional): Unix timestamp for the filename. Defaults
-                to current time if None.
-            timezone (str, optional): Timezone name for the filename timestamp.
-                Defaults to None (UTC).
-            ext_str (str, optional): Image format extension ('png', 'jpg', etc.).
-                Defaults to 'png'.
-
-        Returns:
-            bool: True if the file was written successfully, False otherwise.
-        """
-        data_key = 'image'
-        success = False
-        data_type = self.data_dict[data_key]['data_type']
-        if isinstance(data,data_type) == False:
-            self.msg_if.pub_debug("Data type not supported: " + str(type(data)) )
-        else:
-            file_types = self.data_dict[data_key]['file_types']
-            if ext_str not in file_types:
-                self.msg_if.pub_debug("File type not supported: " + ext_str + " : " + str(file_types) )
-            else:
-                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
-                file_path = os.path.join(filepath,filename)
-                if os.path.exists(file_path) == True:
-                    self.msg_if.pub_debug("File already exists: " + file_path )
-                else:
-                    try:
-                        success = nepi_img.write_image_file(file_path, data)
-                    except Exception as e:
-                        self.msg_if.pub_debug("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
-        return success
-
-
-    def read_pointcloud_file(self, filepath, filename):
-        """Read a point cloud from a .pcd file and return an Open3D PointCloud object.
-
-        Args:
-            filepath (str): Directory path containing the file.
-            filename (str): Name of the point cloud file to read (must have a
-                supported extension such as 'pcd').
-
-        Returns:
-            open3d.geometry.PointCloud: Loaded point cloud, or None if the file type
-                is unsupported or reading fails.
-        """
-        data_key = 'pointcloud'
-        data = None
-        ext_str = os.path.splitext(filename)[1]
-        file_types = self.data_dict[data_key]['file_types']
-        if ext_str not in file_types:
-            self.msg_if.pub_debug("File type not supported: " + ext_str + " : " + str(file_types) )
-        else:
-            file_path = os.path.join(filepath,filename)
-            try:
-                data = nepi_pc.read_pointcloud_file(file_path)
-            except:
-                self.msg_if.pub_debug("Failed to read file: " + file_path )
-                
-        return data
-
-    def write_pointcloud_file(self, filepath, data, data_name, timestamp = None, timezone = None, ext_str = 'pcd', filename = None, key_name = None):
-        """Write an Open3D point cloud to a file using a generated filename.
-
-        Args:
-            filepath (str): Directory path where the file will be written.
-            data (open3d.geometry.PointCloud): Point cloud object to save.
-            data_name (str): Name token embedded in the generated filename.
-            timestamp (float, optional): Unix timestamp for the filename. Defaults
-                to current time if None.
-            timezone (str, optional): Timezone name for the filename timestamp.
-                Defaults to None (UTC).
-            ext_str (str, optional): Point cloud format extension. Defaults to 'pcd'.
-
-        Returns:
-            bool: True if the file was written successfully, False otherwise.
-        """
-        data_key = 'pointcloud'
-        success = False
-        data_type = self.data_dict[data_key]['data_type']
-        if isinstance(data,data_type) == False:
-            self.msg_if.pub_debug("Data type not supported: " + str(data_type) )
-        else:
-            file_types = self.data_dict[data_key]['file_types']
-            if ext_str not in file_types:
-                self.msg_if.pub_debug("File type not supported: " + ext_str + " : " + str(file_types) )
-            else:
-                filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
-                file_path = os.path.join(filepath,filename)
-                if os.path.exists(file_path) == True:
-                    self.msg_if.pub_debug("File already exists: " + file_path )
-                else:
-                    try:
-                        success = nepi_pc.write_pointcloud_file(file_path,data)
-                    except Exception as e:
-                        self.msg_if.pub_debug("Failed to save data type: " + data_key + " to " + file_path + str(e) , throttle_s = 5 )
-                    
-        return success
-
-
-    def get_example_filename(self, data_name = 'data_product', timestamp = None, timezone = None, ext_str = 'ext'):
-        """Generate and return an example filename using the current naming settings.
-
-        Useful for previewing what output filenames will look like without writing
-        any data.
-
-        Args:
-            data_name (str, optional): Name token to embed in the filename. Defaults
-                to 'data_product'.
-            timestamp (float, optional): Unix timestamp used in the filename. Defaults
-                to current time if None.
-            timezone (str, optional): Timezone name for the timestamp. Defaults to
-                None (UTC).
-            ext_str (str, optional): File extension for the example filename. Defaults
-                to 'ext'.
-
-        Returns:
-            str: The generated example filename string.
-        """
-        filename = self._createFileName(data_name, timestamp = timestamp, timezone = timezone, ext_str = ext_str)
-        return filename
-    ###############################
-    # Class Private Methods
-    ###############################
-
-    def _createFileName(self, data_name_str, timestamp = None, timezone = None, ext_str = ""):
-        if timestamp == None:
-            timestamp = nepi_utils.get_time()
-        prefix = self.filename_dict['prefix']
-        if len(prefix) > 0:
-            if prefix[-1] != '_':
-                prefix = prefix + '_'
-        suffix = self.filename_dict['suffix']
-        if len(suffix) > 0:
-            if suffix[0] != '_':
-                suffix = '_' + suffix
-        add_time = self.filename_dict['add_timestamp']
-        data_time_str = ''
-        if add_time == True:
-            time_ns = nepi_sdk.sec_from_timestamp(timestamp)
-            add_ms = self.filename_dict['add_ms']
-            add_us = self.filename_dict['add_us']
-            add_tz = self.filename_dict['add_tz']
-            data_time_str = nepi_utils.get_datetime_str_from_timestamp(time_ns, add_ms = add_ms, add_us = add_us, add_tz = add_tz, timezone = timezone) + '_'
-        node_name_str = ""
-        if self.filename_dict['add_node_name'] == True:
-            node_name_str = self.node_name
-        if len(ext_str) > 0:
-            ext_str  = '.' + ext_str
-        if len(data_name_str) >  0:
-            data_name_str = '-' + data_name_str
-        filename = prefix + data_time_str + node_name_str + data_name_str + suffix + ext_str
-        return filename
-
-    
-    def _getDtStr(self,filename):
-        d_inds = nepi_utils.find_all_indexes(filename, 'D')
-        dt_ind = None
-        dt_str = filename
-        for ind in d_inds:
-            if len(filename) >= ind + 1:
-                if filename[ind + 1].isdigit() == True:
-                    dt_ind = ind
-                    break
-        dt_str = dt_str[dt_ind:]
-        dt_str = dt_str.split('_')[0]
-        return dt_str
-                
 
 
 
@@ -2446,24 +1318,43 @@ EXAMPLE_FILENAME_DICT = {
     'add_node_name': False
     }
 
-class SaveDataIF:
+class SaveDataIF(NodeIF):
+
+
+    #########################
+    ## NODE IF Required
+    ## Class Variables Updated by NodeIF Init Class
+    #########################
+
+    STATUS_MSG = SaveDataStatus()
+    DATA_MSG = None
+
+    ID = 'save_data'
+    DISPLAY_NAME = 'Save Data'
+    DESCRIPTION = 'Save Data'
+
+    IF_DICT = dict()
+
+    #########################
+    ## CUSTOM
+    #########################
+    msg_if = None
+    node_if = None
+
+    ready = False
 
     DEFAULT_TIMEZONE = 'UTC'
 
-    ready = None
-    namespace = "~"
-    all_save_namespace = None
-    status_msg = SaveDataStatus
-    node_if = None
-    node_if_shared = False
-    config_topic = ''
-    node_if_prefix = 'save_data'
+    DATA_UID = 'nepi'
+    DATA_GID = 'nepi'
+
     read_write_if = None
  
     snapshot_dict = dict()
 
     sys_mgr_if = None
     read_write_if = None
+    all_save_namespace = None
 
     save_data_root_directory = FALLBACK_DATA_FOLDER
 
@@ -2494,105 +1385,109 @@ class SaveDataIF:
 
     was_saving = False
 
-    pub_status = False
 
     ### IF Initialization
     def __init__(self, 
+                name = 'save_data',
                 namespace = None,
-                save_data_name = 'save_data',
+                save_data_name = None,
                 data_products = [], 
-                pub_status = True,
                 factory_rate_dict = None, 
                 factory_filename_dict = None, 
                 ignore_global_rate_updates = False,
+                info_dict = dict(),
                 msg_if = None,
-                node_if = None
+                node_if = None,
+                
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
+        ##############################
+        # Instance Copies of Class State
+        ##############################
+        self.IF_DICT = dict(self.IF_DICT)
+        self.snapshot_dict = copy.deepcopy(self.snapshot_dict)
+        self.filename_dict = copy.deepcopy(self.filename_dict)
+        self.save_rate_dict = copy.deepcopy(self.save_rate_dict)
+    
+        ##############################
+        # Update Class Variables
+        ##############################
 
-        self.msg_if.pub_debug("Starting SaveData IF Initialization Processes" )
-        ############################## 
-        # Initialize Class Variables
-        # Create Namespace
-        save_data_name = nepi_utils.get_clean_name(save_data_name)
-        if save_data_name is None or save_data_name == '':
-            self.msg_if.pub_debug("Name Not Valid: " + str(save_data_name) )
-            return
-        self.msg_if.pub_debug("Using States Name: " + save_data_name )
-        # An explicit namespace lets a caller place this interface somewhere other than
-        # its own node namespace. system_mgr passes the base namespace to own the global
-        # '<base>/save_data' namespace, which is where the RUI's All selection subscribes
-        # for status and where every other instance subscribes for global commands.
-        if namespace is None:
-            namespace = self.node_namespace
-        self.namespace = nepi_sdk.create_namespace(namespace,save_data_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
-        
-        self.msg_if.pub_debug("Using save data namespace: " + self.namespace )
-        
-        self.pub_status = pub_status
+        name = nepi_utils.get_clean_name(name)
+        if save_data_name is not None:
+            save_data_name = nepi_utils.get_clean_name(save_data_name)
+            if save_data_name.strip() != '':
+                name = save_data_name
+
 
         tzd = nepi_utils.get_timezone_description(self.DEFAULT_TIMEZONE)
         self.timezone = tzd
+
+    
+
+
+        ##############################  
+        # Setup NodeIF Updates
+        ##############################  
+
+        #######################
+        # Sync System IF inputs to if_dict
+
+        self.msg_if = msg_if
+        self.IF_DICT['msg_if'] = msg_if
+        self.node_if = node_if
+        self.IF_DICT['node_if'] = node_if
+
+
+        ##################
+        if_info_dict = dict(
+            description = self.DESCRIPTION,
+            display_name = self.DISPLAY_NAME,
+            type = 'system'
+        )
+        update_info_dict = copy.deepcopy(info_dict)
+        update_info_dict.update(if_info_dict)
+        ##################        
+        update_caps_dict = dict()
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = dict()
+        ##################
+        update_callback_dict = dict()
+
+        ###########
+        # NODE IF SETUP
+
+        # Call the parent class constructor
+        super().__init__(id = self.ID,
+                name = name,
+                namespace = namespace,
+                status_msg = copy.deepcopy(self.STATUS_MSG),
+                data_msg = copy.deepcopy(self.DATA_MSG),
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict, 
+                if_dict = dict(self.IF_DICT)
+                )
+
+        ready = self.wait_for_ready()
 
         all_save_namespace = nepi_sdk.create_namespace(self.base_namespace,'/save_data')
         if all_save_namespace != self.namespace:
             self.all_save_namespace = all_save_namespace
 
-        ###############################
-        # Connect Sys Mgr Services
 
-        
-        ##############################
-        # Get for System Folders
-        self.msg_if.pub_debug("Waiting for user folders" )
-        user_folders = nepi_system.get_user_folders()
-        if user_folders is not None and 'data' in user_folders.keys():
-            self.save_data_root_directory = user_folders['data']
-        self.msg_if.pub_debug("Using SDK Share Folder: " + str(self.save_data_root_directory) )
-
-        # Ensure the data folder exists with proper ownership
-        if not os.path.exists(self.save_data_root_directory):
-            self.msg_if.pub_debug("Reported data folder does not exist... data saving is disabled" )
-            self.save_data_root_directory = None # Flag it as non-existent
-            return # Don't enable any of the ROS interface stuff
-        self.save_path = self.save_data_root_directory
-        # And figure out user/group so that we know what ownership to create subfolders with
-        stat_info = os.stat(self.save_data_root_directory)
-        self.DATA_UID = stat_info.st_uid
-        self.DATA_GID = stat_info.st_gid
-
- 
- 
-
-
-        # Setup System IF Classes
-        # Initialize with empty dict, then call update function
-
-        self.read_write_if = ReadWriteIF(
-                            filename_dict = dict(),
-                            node_name = self.node_name
-                            )
-        nepi_sdk.sleep(1)
-        self.msg_if.pub_debug("Got starting filename dict: " + str(self.filename_dict) )
-        if factory_filename_dict is not None:
-            self.update_filename_dict(factory_filename_dict)
-        self.msg_if.pub_debug("Got Updated filename dict: " + str(self.filename_dict) )
-
-        
-        # Config initial data products dict
+        # Config initial data products dict. Built before 'save_rate_dict' is
+        # registered below, so its factory value holds every product's default rate.
         self.msg_if.pub_debug("^^^^^^^^^^^^^^^^^^^^^^" )
         self.msg_if.pub_debug("Starting Save_Data_IF with data products: " + str(data_products) )
         self.msg_if.pub_debug("Starting Save_Data_IF with rate dict: " + str(factory_rate_dict) )
@@ -2613,73 +1508,51 @@ class SaveDataIF:
             self.snapshot_dict[data_product] = False
         self.save_rate_dict = save_rate_dict
         self.msg_if.pub_debug("Got defualt data rate dict: " + str(self.save_rate_dict) )
-            
 
-
-        ##############################    
-        # Node Setup
-        # Configs Config Dict ####################
-        self.CONFIGS_DICT = {
-            'init_callback': self._initCb,
-            'reset_callback': self._resetCb,
-            'factory_reset_callback': self._factoryResetCb,
-            'init_configs': True,
-            'namespace': self.namespace
-        }
-
-
-        # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            # 'disabled': {
-            #     'namespace': self.namespace,
-            #     'factory_val': self.disabled
-            # },
-            self.node_if_prefix + 'save_rate_dict': {
+       #######################
+        # Add Services
+        #######################
+       
+        params_dict = {            
+            'save_rate_dict': {
                 'name': 'save_rate_dict',
                 'namespace': self.namespace,
                 'factory_val': self.save_rate_dict
             },
-            self.node_if_prefix + 'filename_dict': {
+            'filename_dict': {
                 'name': 'filename_dict',
                 'namespace': self.namespace,
                 'factory_val': self.filename_dict
             }
         }
+        self.add_params(params_dict)
 
-
-        # Services Config Dict ####################
-        if self.namespace == self.namespace:
-            self.SRVS_DICT = {
-                self.node_if_prefix + 'save_data_capabilities_query': {
-                    'namespace': self.namespace,
-                    'topic': 'capabilities_query',
-                    'srv': SaveDataCapabilitiesQuery,
-                    'req': SaveDataCapabilitiesQueryRequest(),
-                    'resp': SaveDataCapabilitiesQueryResponse(),
-                    'callback': self._capabilitiesHandler
-                }
-            }
-        else:
-            self.SRVS_DICT = None
-
-
-        # Publishers Config Dict ####################
-        self.PUBS_DICT = dict()
-
-        if self.pub_status == True:
-            self.PUBS_DICT[self.node_if_prefix + 'save_data_status_pub'] = {
+        #######################
+        # Add Services
+        #######################
+        services_dict = {
+            'save_data_capabilities_query': {
                 'namespace': self.namespace,
-                'msg': SaveDataStatus,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': True
+                'topic': 'capabilities_query',
+                'srv': SaveDataCapabilitiesQuery,
+                'req': SaveDataCapabilitiesQueryRequest(),
+                'resp': SaveDataCapabilitiesQueryResponse(),
+                'callback': self._capabilitiesHandler
             }
-        
+        }
+        self.add_services(services_dict)
 
+        #######################
+        # Add Pubs 
+        #######################
+        pubs_dict = {}
+        self.add_pubs(pubs_dict)
 
-        # Subscribers Config Dict ####################
-        self.SUBS_DICT = {
-            self.node_if_prefix + 'save_data_disable': {
+        #######################
+        # Add Subs 
+        #######################
+        subs_dict = {
+            'save_data_disable': {
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'disable',
@@ -2687,7 +1560,7 @@ class SaveDataIF:
                 'callback': self._disableCb, 
                 'callback_args': ()
             }, 
-            self.node_if_prefix + 'save': {
+            'save': {
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'save_data_enable',
@@ -2695,7 +1568,7 @@ class SaveDataIF:
                 'callback': self._saveEnableCb, 
                 'callback_args': ()
             },  
-            self.node_if_prefix + 'prefix': {
+            'prefix': {
                 'namespace': self.namespace,
                 'msg': String,
                 'topic': 'save_data_prefix',
@@ -2703,7 +1576,7 @@ class SaveDataIF:
                 'callback': self._setPrefixCb, 
                 'callback_args': ()
             },
-            self.node_if_prefix + 'subfolder': {
+            'subfolder': {
                 'namespace': self.namespace,
                 'msg': String,
                 'topic': 'save_data_subfolder',
@@ -2711,7 +1584,7 @@ class SaveDataIF:
                 'callback': self._setSubfolderCb, 
                 'callback_args': ()
             },
-            self.node_if_prefix + 'save_data_utc': {
+            'save_data_utc': {
                 'namespace': self.namespace,
                 'msg': Bool,
                 'topic': 'save_data_utc',
@@ -2719,7 +1592,7 @@ class SaveDataIF:
                 'callback': self._setLocalTzCb, 
                 'callback_args': ()
             },
-            self.node_if_prefix + 'filename': {
+            'filename': {
                 'namespace': self.namespace,
                 'msg': FilenameConfig,
                 'topic': 'filename_config',
@@ -2727,7 +1600,7 @@ class SaveDataIF:
                 'callback': self._setFilenameCb, 
                 'callback_args': ()
             },
-            self.node_if_prefix + 'rate': {
+            'rate': {
                 'namespace': self.namespace,
                 'msg': SaveDataRate,
                 'topic': 'save_data_rate',
@@ -2735,7 +1608,7 @@ class SaveDataIF:
                 'callback': self._saveRateCb, 
                 'callback_args': ()
             },          
-            self.node_if_prefix + 'snapshot': {
+            'snapshot': {
                 'namespace': self.namespace,
                 'msg': Empty,
                 'topic': 'snapshot_trigger',
@@ -2743,7 +1616,7 @@ class SaveDataIF:
                 'callback': self._snapshotCb,  
                 'callback_args': ()
             },
-            self.node_if_prefix + 'save_data_reset': {
+            'save_data_reset': {
                 'namespace': self.namespace,
                 'msg': Empty,
                 'topic': 'reset_save_data',
@@ -2756,7 +1629,7 @@ class SaveDataIF:
 
         if self.all_save_namespace is not None:
             ALL_SUBS_DICT =  {
-                self.node_if_prefix + 'disable_all': {
+                'disable_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'saving_disable',
@@ -2764,7 +1637,7 @@ class SaveDataIF:
                     'callback': self._disableCb, 
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'save_all': {
+                'save_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'save_data_enable',
@@ -2772,7 +1645,7 @@ class SaveDataIF:
                     'callback': self._saveEnableCb, 
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'prefix_all': {
+                'prefix_all': {
                     'namespace': self.all_save_namespace,
                     'msg': String,
                     'topic': 'save_data_prefix',
@@ -2780,7 +1653,7 @@ class SaveDataIF:
                     'callback': self._setPrefixCb, 
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'subfolder_all': {
+                'subfolder_all': {
                     'namespace': self.all_save_namespace,
                     'msg': String,
                     'topic': 'save_data_subfolder',
@@ -2788,7 +1661,7 @@ class SaveDataIF:
                     'callback': self._setSubfolderCb, 
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'use_local_tz_all': {
+                'use_local_tz_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Bool,
                     'topic': 'save_data_utc',
@@ -2796,7 +1669,7 @@ class SaveDataIF:
                     'callback': self._setLocalTzCb, 
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'filename_all': {
+                'filename_all': {
                     'namespace': self.all_save_namespace,
                     'msg': FilenameConfig,
                     'topic': 'filename_config',
@@ -2804,7 +1677,7 @@ class SaveDataIF:
                     'callback': self._setFilenameCb,
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'snapshot_all': {
+                'snapshot_all': {
                     'namespace': self.all_save_namespace,
                     'msg': Empty,
                     'topic': 'snapshot_trigger',
@@ -2812,7 +1685,7 @@ class SaveDataIF:
                     'callback': self._snapshotCb, 
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'save_all_config': {
+                'save_all_config': {
                     'namespace': self.all_save_namespace,
                     'msg': Empty,
                     'topic': 'save_config',
@@ -2820,7 +1693,7 @@ class SaveDataIF:
                     'callback': self._saveConfigCb, 
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'all_save_sub': {
+                'all_save_sub': {
                     'namespace': self.all_save_namespace,
                     'msg': SaveDataStatus,
                     'topic': 'status',
@@ -2830,7 +1703,7 @@ class SaveDataIF:
                 }
             }
             if ignore_global_rate_updates == False:
-                ALL_SUBS_DICT[self.node_if_prefix + 'rate_all'] = {
+                ALL_SUBS_DICT['rate_all'] = {
                         'namespace': self.all_save_namespace,
                         'msg': SaveDataRate,
                         'topic': 'save_data_rate',
@@ -2839,116 +1712,190 @@ class SaveDataIF:
                         'callback_args': ()
                     } 
 
-            self.SUBS_DICT.update(ALL_SUBS_DICT)
+            subs_dict.update(ALL_SUBS_DICT)
         
+        self.add_subs(subs_dict)
 
+        nepi_sdk.sleep(0.1)
 
-        # Udpate or Create Node Class ####################
-        if node_if is not None:
-            self.node_if = node_if
-            self.node_if.add_configs(self.CONFIGS_DICT)
-            self.node_if.add_params(self.PARAMS_DICT) 
-            self.node_if.register_services(self.SRVS_DICT)
-            self.node_if.register_pubs(self.PUBS_DICT)
-            self.node_if.register_subs(self.SUBS_DICT)
-        else:
-            self.config_topic = self.namespace
-            self.node_if_shared = False
-            self.node_if = NodeClassIF(
-                            configs_dict = self.CONFIGS_DICT,
-                            params_dict = self.PARAMS_DICT,
-                            services_dict = self.SRVS_DICT,
-                            pubs_dict = self.PUBS_DICT,
-                            subs_dict = self.SUBS_DICT,
-                            
-                            msg_if = self.msg_if
-                                                )
-
-        success = nepi_sdk.wait()
+        ######################################################
+       
 
         ##############################
-        # Update vals from param server
-        self.init(do_updates = True)
-        self.publish_status()
-        
+        # Get for System Folders and Update
+        ##############################
+        self.msg_if.pub_debug("Waiting for user folders" )
+        user_folders = nepi_system.get_user_folders()
+        if user_folders is not None and 'data' in user_folders.keys():
+            self.save_data_root_directory = user_folders['data']
+        self.msg_if.pub_debug("Using SDK Share Folder: " + str(self.save_data_root_directory) )
+
+        # Ensure the data folder exists with proper ownership
+        if not os.path.exists(self.save_data_root_directory):
+            self.msg_if.pub_debug("Reported data folder does not exist... data saving is disabled" )
+            self.save_data_root_directory = None # Flag it as non-existent
+            return # Don't enable any of the ROS interface stuff
+        self.save_path = self.save_data_root_directory
+        # And figure out user/group so that we know what ownership to create subfolders with
+        stat_info = os.stat(self.save_data_root_directory)
+        self.DATA_UID = stat_info.st_uid
+        self.DATA_GID = stat_info.st_gid
+
+
+        nepi_sdk.sleep(1)
+        self.msg_if.pub_debug("Got starting filename dict: " + str(self.filename_dict) )
+        if factory_filename_dict is not None:
+            self.update_filename_dict(factory_filename_dict)
+        self.msg_if.pub_debug("Got Updated filename dict: " + str(self.filename_dict) )
+
+            
+
+
+        #########################
+        # Setup System IF Classes
+        #########################
+        # Initialize with empty dict, then call update function
+
+        self.read_write_if = ReadWriteIF(
+                            filename_dict = dict(),
+                            node_name = self.node_name,
+                            msg_if = self.msg_if
+                            )
+
+        #########################
+        # Update status message for values not in NodeIF Dictionaries
+        ##############################
+
+
+        ##############################
+        # Start Node Processes
+        ##############################
         self.updater = nepi_sdk.start_timer_process(1, self.updaterCb, oneshot = True)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
+
         ##############################
         # Complete Initialization
         self.ready = True
         self.msg_if.pub_debug("IF Initialization Complete" )
         ###############################
 
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is SaveDataIF:
+            self.start()
 
+
+    ###############################
+    # NodeIF Class Override Methods
+    ###############################
+
+    def update_status_msg(self, status_msg):
+        """Build and publish a SaveDataStatus message on the status topic.
+
+        Compiles current save rates, filename config, data directory, timezone,
+        and an example filename into the status message and latches it to the
+        'status' publisher. No-ops if pub_status is False or node_if is None.
+        """
+
+        save_rates_msg = []
+        save_rate_dict = self.save_rate_dict
+
+        #self.msg_if.pub_debug("Status got save_rate_dict", data = save_rate_dict , throttle_s = 5)
+        for name in save_rate_dict.keys():
+            save_rate_msg = SaveDataRate()
+            save_rate_msg.data_product = name
+            save_rate_msg.save_rate_hz = 0
+            if self.disabled == False:
+                save_rate_msg.save_rate_hz = save_rate_dict[name][0]
+            save_rates_msg.append(save_rate_msg)
+            #self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg) , throttle_s = 5)
+        
+        status_msg.node_name = self.node_name
+        status_msg.save_data_topic = self.namespace
+        status_msg.filename_config = self.create_filename_msg()
+        status_msg.data_dir = self.save_path
+        if self.filename_dict is not None:
+            filename_dict = copy.deepcopy(self.filename_dict)
+            try:
+                status_msg.filename_prefix = filename_dict['prefix']
+                status_msg.save_subfolder = filename_dict['subfolder']
+                status_msg.save_data_utc = filename_dict['use_utc_tz']
+            except Exception as e:
+                self.msg_if.pub_debug("Failed to Publish filename dict: " + str(e) , throttle_s = 5)
+            #self.msg_if.pub_debug("Publishing filename dict: " + str(filename_dict) , throttle_s = 5)
+
+        status_msg.timezone = self.timezone
+        status_msg.data_products = list(save_rate_dict.keys())
+        status_msg.save_data_rates = save_rates_msg
+        status_msg.save_data_enabled = self.save_data
+        status_msg.disabled = self.disabled
+
+        if self.all_save_namespace is None:
+            status_msg.save_all_enabled = self.save_data
+            # Guarded: publish_status runs on a 1 Hz timer, so a KeyError here would
+            # silence the global status topic entirely.
+            status_msg.save_all_rate = save_rate_dict.get('All',[0.0])[0]
+        else:
+            status_msg.save_all_enabled = self.save_all_enabled
+            status_msg.save_all_rate = self.save_all_rate   
+
+
+        if self.save_data_root_directory is not None:
+            status_msg.data_dir = self.save_data_root_directory
+
+        timezone = 'UTC'
+        if self.filename_dict is not None:
+            if self.filename_dict['use_utc_tz'] == False:
+                timezone = self.timezone
+
+        #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone)  , throttle_s = 5)
+        exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
+        status_msg.example_filename = exp_filename
+
+
+        return status_msg
+
+    def init(self, do_updates = False):
+        """Load save rate and filename parameters from the ROS param server and publish status.
+
+        Reads the persisted save_rate_dict from the param server, merges it into the
+        current dict (preserving last-save timers at zero), writes the merged dict back,
+        and then publishes the current status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use; has no effect currently.
+                Defaults to False.
+        """
+        #self.msg_if.pub_debug("Param updated save rate dict: " + str(self.save_rate_dict) )
+        if self.node_if is not None:
+            # Prefixed keys, matching how the params are registered in PARAMS_DICT
+            # and how set_save_rate()/update_filename_dict()/register_data_product()
+            # write them back. get_param() returns None for a name it does not know,
+            # so the unprefixed name wiped filename_dict on every config init, reset
+            # and factory reset -- and save() no-ops entirely when filename_dict is
+            # None, so nothing was ever written to disk.
+            save_rate_dict = self.get_param('save_rate_dict')
+            if save_rate_dict is not None:
+                for data_product in self.save_rate_dict.keys():
+                    if data_product in save_rate_dict.keys():
+                        self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
+                    self.save_rate_dict[data_product][1] = 0.0 # Reset timer
+            self.set_value('save_rate_dict',self.save_rate_dict)
+            filename_dict = self.get_param('filename_dict')
+            if filename_dict is not None:
+                self.filename_dict = filename_dict
+            disabled = self.get_param('disabled')
+            if disabled is not None:
+                self.disabled = disabled
+        self.publish_status()
+
+    def _initCb(self, do_updates = False):
+        self.init(do_updates = do_updates)
+
+    
 
     ###############################
     # Class Public Methods
     ###############################
-
-    def get_ready_state(self):
-        """Return the current ready state of the SaveDataIF.
-
-        Returns:
-            bool: True if initialization completed successfully, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the SaveDataIF is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
-            else:
-                self.msg_if.pub_debug("Connected" )
-        return self.ready
-
-
-    def get_namespace(self):
-        """Return the ROS namespace used by this SaveDataIF.
-
-        Returns:
-            str: The fully-resolved ROS namespace string.
-        """
-        return self.namespace
-    
-    def unregister(self):
-        """Shut down this pointcloud interface and release all ROS resources."""
-        self.ready = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
-            else:
-                if self.SRVS_DICT is not None:
-                        for service_name in self.SRVS_DICT.keys():
-                            self.node_if.unregister_service(service_name)
-                self.service_name = None
-
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
-
-                if self.node_if is not None:
-                    if self.PUBS_DICT is not None:
-                        for pub_name in self.PUBS_DICT.keys():
-                            self.node_if.unregister_pub(pub_name)
-
 
     def get_data_products(self):
         """Return the list of registered data product names.
@@ -2972,11 +1919,8 @@ class SaveDataIF:
         save_rate_dict = self.save_rate_dict
         if data_product not in save_rate_dict.keys():
             save_rate_dict[data_product] =  [factory_rate, 0.0, 100] # Default to 1Hz save rate, max rate = 100Hz
-            self.save_rate_dict = save_rate_dict
             self.snapshot_dict[data_product] = False
-            self.publish_status()
-            if self.node_if is not None:
-                self.node_if.set_param(self.node_if_prefix + 'save_rate_dict',save_rate_dict)
+            self.set_value('save_rate_dict',save_rate_dict)
 
     def unregister_data_product(self, data_product):
         """Remove a previously registered data product from the save rate tracking dict.
@@ -2989,30 +1933,6 @@ class SaveDataIF:
             purge = True
         if purge == True:
             del self.save_rate_dict[data_product]
-
-    def unregister(self):
-        """Shut down this pointcloud interface and release all ROS resources."""
-        self.ready = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
-            else:
-                if self.SRVS_DICT is not None:
-                        for service_name in self.SRVS_DICT.keys():
-                            self.node_if.unregister_service(service_name)
-                self.service_name = None
-
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
-
-                if self.node_if is not None:
-                    if self.PUBS_DICT is not None:
-                        for pub_name in self.PUBS_DICT.keys():
-                            self.node_if.unregister_pub(pub_name)
 
 
     def update_filename_dict(self,filename_dict):
@@ -3063,12 +1983,10 @@ class SaveDataIF:
                 if key in filename_dict.keys():
                     self.filename_dict[key] = filename_dict[key]  
 
-            self.publish_status()
+            self.set_value('filename_dict',self.filename_dict)
             if self.read_write_if is not None and self.filename_dict is not None:
                 self.read_write_if.set_filename_dict(filename_dict)
-            if self.node_if is not None and self.filename_dict is not None:
-                self.node_if.set_param(self.node_if_prefix + 'filename_dict',self.filename_dict)
-                self.node_if.save_config()
+            
 
     def set_save_rate(self,data_product,save_rate_hz=0):
         """Set the save rate for one or more data products.
@@ -3103,13 +2021,8 @@ class SaveDataIF:
         elif (data_product in save_rate_dict.keys()):
             save_rate_dict[data_product][0] = save_rate_hz if save_rate_hz <= save_rate_dict[data_product][2] else save_rate_dict[data_product][2]
         else:
-            self.msg_if.pub_debug("Requested unknown data product: " + data_product ) 
-        self.save_rate_dict = save_rate_dict     
-        #self.msg_if.pub_debug("Updated save rate dict: " + str(self.save_rate_dict) )  
-        self.publish_status()
-        if self.node_if is not None:
-            self.node_if.set_param(self.node_if_prefix + 'save_rate_dict',save_rate_dict)
-            self.node_if.save_config()
+            self.msg_if.pub_debug("Requested unknown data product: " + data_product )    
+        self.set_value('save_rate_dict',save_rate_dict)
         
     def disable(self, enabled):
         """Enable or disable data saving for all registered data products.
@@ -3392,147 +2305,16 @@ class SaveDataIF:
         return fn_msg
 
 
-    def publish_status(self):
-        """Build and publish a SaveDataStatus message on the status topic.
+    def get_status_pub_msg(self):
+        return self.get_status_msg()
 
-        Compiles current save rates, filename config, data directory, timezone,
-        and an example filename into the status message and latches it to the
-        'status' publisher. No-ops if pub_status is False or node_if is None.
-        """
-        if self.node_if is not None and self.pub_status == True:
-            save_rates_msg = []
-            save_rate_dict = self.save_rate_dict
-
-            #self.msg_if.pub_debug("Status pub save_rate_dict " + str(save_rate_dict) , throttle_s = 5)
-            for name in save_rate_dict.keys():
-                save_rate_msg = SaveDataRate()
-                save_rate_msg.data_product = name
-                save_rate_msg.save_rate_hz = 0
-                if self.disabled == False:
-                    save_rate_msg.save_rate_hz = save_rate_dict[name][0]
-                save_rates_msg.append(save_rate_msg)
-                #self.msg_if.pub_debug("data_rates_msg " + str(save_rates_msg) , throttle_s = 5)
-            status_msg = SaveDataStatus()
-            status_msg.node_name = self.node_name
-            status_msg.save_data_topic = self.namespace
-            status_msg.config_topic = self.config_topic
-            status_msg.filename_config = self.create_filename_msg()
-            status_msg.data_dir = self.save_path
-            if self.filename_dict is not None:
-                filename_dict = copy.deepcopy(self.filename_dict)
-                try:
-                    status_msg.filename_prefix = filename_dict['prefix']
-                    status_msg.save_subfolder = filename_dict['subfolder']
-                    status_msg.save_data_utc = filename_dict['use_utc_tz']
-                except Exception as e:
-                    self.msg_if.pub_debug("Failed to Publish filename dict: " + str(e) , throttle_s = 5)
-                #self.msg_if.pub_debug("Publishing filename dict: " + str(filename_dict) , throttle_s = 5)
-
-            status_msg.timezone = self.timezone
-            status_msg.data_products = list(save_rate_dict.keys())
-            status_msg.save_data_rates = save_rates_msg
-            status_msg.save_data_enabled = self.save_data
-            status_msg.disabled = self.disabled
-
-            if self.all_save_namespace is None:
-                status_msg.save_all_enabled = self.save_data
-                # Guarded: publish_status runs on a 1 Hz timer, so a KeyError here would
-                # silence the global status topic entirely.
-                status_msg.save_all_rate = save_rate_dict.get('All',[0.0])[0]
-            else:
-                status_msg.save_all_enabled = self.save_all_enabled
-                status_msg.save_all_rate = self.save_all_rate   
-
-
-            if self.save_data_root_directory is not None:
-                status_msg.data_dir = self.save_data_root_directory
-
-            timezone = 'UTC'
-            if self.filename_dict is not None:
-                if self.filename_dict['use_utc_tz'] == False:
-                    timezone = self.timezone
-
-            #self.msg_if.pub_debug("Saving Data with Timezone: " + str(timezone)  , throttle_s = 5)
-            exp_filename = self.read_write_if.get_example_filename(timezone = timezone)
-            status_msg.example_filename = exp_filename
-            if self.node_if is not None:
-                self.node_if.publish_pub(self.node_if_prefix +  'save_data_status_pub', status_msg)
-
-    def init(self, do_updates = False):
-        """Load save rate and filename parameters from the ROS param server and publish status.
-
-        Reads the persisted save_rate_dict from the param server, merges it into the
-        current dict (preserving last-save timers at zero), writes the merged dict back,
-        and then publishes the current status.
-
-        Args:
-            do_updates (bool, optional): Reserved for future use; has no effect currently.
-                Defaults to False.
-        """
-        #self.msg_if.pub_debug("Param updated save rate dict: " + str(self.save_rate_dict) )
-        if self.node_if is not None:
-            # Prefixed keys, matching how the params are registered in PARAMS_DICT
-            # and how set_save_rate()/update_filename_dict()/register_data_product()
-            # write them back. get_param() returns None for a name it does not know,
-            # so the unprefixed name wiped filename_dict on every config init, reset
-            # and factory reset -- and save() no-ops entirely when filename_dict is
-            # None, so nothing was ever written to disk.
-            save_rate_dict = self.node_if.get_param(self.node_if_prefix + 'save_rate_dict')
-            if save_rate_dict is not None:
-                for data_product in self.save_rate_dict.keys():
-                    if data_product in save_rate_dict.keys():
-                        self.save_rate_dict[data_product][0] = save_rate_dict[data_product][0]
-                    self.save_rate_dict[data_product][1] = 0.0 # Reset timer
-            self.node_if.set_param(self.node_if_prefix + 'save_rate_dict',self.save_rate_dict)
-            filename_dict = self.node_if.get_param(self.node_if_prefix + 'filename_dict')
-            if filename_dict is not None:
-                self.filename_dict = filename_dict
-            disabled = self.node_if.get_param('disabled')
-            if disabled is not None:
-                self.disabled = disabled
-        self.publish_status()
-
-
-    def reset(self):
-        """Reset parameters to their last-saved (user) values and reinitialize.
-
-        Calls node_if.reset_params() to reload the user configuration tier, then
-        reinitializes from the param server.
-        """
-        if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_debug("Reseting params" )
-            self.node_if.reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
-
-    def factory_reset(self):
-        """Reset parameters to factory defaults and reinitialize.
-
-        Calls node_if.factory_reset_params() to restore factory values, then
-        reinitializes from the param server.
-        """
-        if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_debug("Factory resetting params" )
-            self.node_if.factory_reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
 
     ###############################
     # Class Private Methods
     ###############################
-    def _initCb(self, do_updates = False):
-        if self.node_if is not None:
-            pass
-        self.init(do_updates = do_updates)
 
-    def _resetCb(self):
-        self.msg_if.pub_debug("Got Reset params callback " )
-        self.reset()
 
-    def _factoryResetCb(self):
-        self.msg_if.pub_debug("Got Factory Reset params callback" )
-        self.factory_reset()
-
+ 
     def updaterCb(self,timer):
         tzd = nepi_system.get_timezone()
         last_tz = copy.deepcopy(self.timezone)
@@ -3610,7 +2392,7 @@ class SaveDataIF:
 
 
     def _setFilenameCb(self, msg):
-        filename_dict = nepi_utils.convert_msg2dict(msg)
+        filename_dict = nepi_sdk.convert_msg2dict(msg)
         if self.filename_dict is not None:
             self.update_filename_dict(filename_dict)
 
@@ -3637,123 +2419,237 @@ class SaveDataIF:
         self.publish_status()
 
 #######################################
-# Transform3DIF
+# TransformIF
 
 # Transform_List = [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg]
 
 
 
-class Transform3DIF:
+class TransformIF(NodeIF):
 
-    ZERO_TRANSFORM = [0,0,0,0,0,0,0]
-    # Class Vars ####################
+    #########################
+    ## NODE IF Required
+    ## Class Variables Updated by NodeIF Init Class
+    #########################
 
+    STATUS_MSG = TransformStatus()
+    DATA_MSG = None
+
+    ID = 'transform'
+    DISPLAY_NAME = 'Transform'
+    DESCRIPTION = 'Transform'
+
+    IF_DICT = dict()
+
+    CAPS_DICT = dict(
+            has_x = True,
+            has_y = True,
+            has_z = True,
+            has_roll = True,
+            has_pitch = True,
+            has_yaw = True,
+            has_heading = True,
+            has_invert = True,
+            has_offsets = True,
+            supports_updates = True,
+    )
+
+    #########################
+    ## CUSTOM
+    #########################
     msg_if = None
-    ready = False
-    namespace = '~'
-
     node_if = None
-    node_if_shared = False
-    config_topic = ''
-    node_if_prefix = 'transform_'
 
-    transform = copy.deepcopy(ZERO_TRANSFORM)
+    ready = False
+    
+    ####
+    # Capabilities
+    has_x = True
+    has_y = True
+    has_z = True
+    has_roll = True
+    has_pitch = True
+    has_yaw = True
+    has_heading = True
+    has_invert = True
+    has_offsets = True
+    supports_updates = True
+
+
+    ######
+    transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
     source = ''
     end = ''
     has_transform = True
-    supports_updates = True
 
-    status_msg = TransformStatus()
+
+
     
     #######################
     ### IF Initialization
     def __init__(self, 
+                name = 'transform',
                 namespace = None,
-                transform_name = 'transform',
+                transform_name = None,
                 source_ref_description = '',
                 end_ref_description = '',
-                get_3d_transform_function = None,
+                get_transform_function = None,
+                info_dict = dict(),
+                has_x = True,
+                has_y = True,
+                has_z = True,
+                has_roll = True,
+                has_pitch = True,
+                has_yaw = True,
+                has_heading = True,
+                has_invert = True,
+                has_offsets = True,
                 msg_if = None,
-                node_if = None
+                node_if = None,
+                    
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting Settings IF Initialization Processes" )
-        
+        ##############################
+        # Instance Copies of Class State
+        ##############################
+        self.IF_DICT = dict(self.IF_DICT)
+        self.transform_dict = copy.deepcopy(self.transform_dict)
 
         #############################
         # Initialize Class Variables
-        transform_name = nepi_utils.get_clean_name(transform_name)
-        if transform_name is None or transform_name == '':
-            self.msg_if.pub_debug("Name Not Valid: " + str(transform_name) )
-            return
-        self.msg_if.pub_debug("Using States Name: " + transform_name )
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,transform_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
+      
+
+
+        ##############################
+        # Update Class Variables
+        ##############################
+
+        name = nepi_utils.get_clean_name(name)
+        if transform_name is not None:
+            transform_name = nepi_utils.get_clean_name(transform_name)
+            if transform_name.strip() != '':
+                name = transform_name
+
+
 
         self.source = source_ref_description
         self.end = end_ref_description
-        self.get_3d_transform_function = get_3d_transform_function
-        if self.get_3d_transform_function is not None:
+
+
+        self.has_x = has_x
+        self.has_y = has_y
+        self.has_z = has_z
+        self.has_roll = has_roll
+        self.has_pitch = has_pitch
+        self.has_yaw = has_yaw
+        self.has_heading = has_heading
+        self.has_invert = has_invert
+        self.has_offsets = has_offsets
+
+
+        self.get_transform_function = get_transform_function
+        if self.get_transform_function is not None:
             self.supports_updates = False
 
-        self.status_msg.has_transform = self.has_transform
-        self.status_msg.supports_updates = self.supports_updates
+        ####################
+        # Update Caps Dict
+        # Node IF adds/updtes these values to its self.caps_dict
+        self.CAPS_DICT = dict(
+                has_x = self.has_x,
+                has_y = self.has_y,
+                has_z = self.has_z,
+                has_roll = self.has_roll,
+                has_pitch = self.has_pitch,
+                has_yaw = self.has_yaw,
+                has_heading = self.has_heading,
+                has_invert = self.has_invert,
+                has_offsets = self.has_offsets,
+                supports_updates = self.supports_updates,
+        )
+
         ##############################  
-        # Create NodeClassIF Class  
-        # Configs Config Dict ####################
-        self.CONFIGS_DICT = {
-            'init_callback': self._initCb,
-            'reset_callback': self._resetCb,
-            'factory_reset_callback': self._factoryResetCb,
-            'init_configs': True,
-            'namespace': self.namespace
-        }
-        
-        # Params Config Dict ####################
-        self.PARAMS_DICT = {
-            self.node_if_prefix + 'transform': {
+        # Setup NodeIF Updates
+        ##############################  
+
+        #######################
+        # Sync System IF inputs to if_dict
+
+        self.msg_if = msg_if
+        self.IF_DICT['msg_if'] = msg_if
+        self.node_if = node_if
+        self.IF_DICT['node_if'] = node_if
+
+        ##################
+        if_info_dict = dict(
+            description = self.DESCRIPTION,
+            display_name = self.DISPLAY_NAME,
+            type = 'system',
+            source_description = source_ref_description,
+            source_ref_description = source_ref_description,
+            end_description = end_ref_description,
+            end_ref_description = end_ref_description,
+        )
+        update_info_dict = copy.deepcopy(info_dict)
+        update_info_dict.update(if_info_dict)
+        ##################        
+        update_caps_dict = self.CAPS_DICT
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = dict()
+        ##################
+        update_callback_dict = dict()
+
+        ###########
+        # NODE IF SETUP
+
+        # Call the parent class constructor
+        super().__init__(id = self.ID,
+                name = name,
+                namespace = namespace,
+                status_msg = copy.deepcopy(self.STATUS_MSG),
+                data_msg = copy.deepcopy(self.DATA_MSG),
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict, 
+                if_dict = dict(self.IF_DICT)
+                )
+
+        ready = self.wait_for_ready()
+
+
+       #######################
+        # Add Services
+        #######################
+       
+        params_dict = {
+            'transform': {
                 'name': 'transform',
                 'namespace': self.namespace,
-                'factory_val': self.transform
+                'factory_val': self.transform_dict
             },
-            self.node_if_prefix + 'source': {
-                'name': 'source',
-                'namespace': self.namespace,
-                'factory_val': self.source
-            },
-            self.node_if_prefix + 'end': {
-                'name': 'end',
-                'namespace': self.namespace,
-                'factory_val': self.end
-            }
         }
+        self.add_params(params_dict)
 
-        # Services Config Dict ####################
-        self.SRVS_DICT = None
-        
+        #######################
+        # Add Services
+        #######################
+        services_dict = {}
+        self.add_services(services_dict)
 
-        # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            self.node_if_prefix + 'transform_status_pub': {
-                'namespace': self.namespace,
-                'msg': TransformStatus,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': True
-            },
-            self.node_if_prefix + 'transform_pub': {
+        #######################
+        # Add Pubs 
+        #######################
+        pubs_dict = {
+            'transform_pub': {
                 'namespace': self.namespace,
                 'msg': Transform,
                 'topic': '',
@@ -3761,30 +2657,32 @@ class Transform3DIF:
                 'latch': True
             }
         }
+        self.add_pubs(pubs_dict)
 
-        # Subs Config Dict ####################
-
+        #######################
+        # Add Subs 
+        #######################
         if self.supports_updates == False:
-            self.SUBS_DICT = None
+            subs_dict = None
         else:
-            self.SUBS_DICT = {
-                self.node_if_prefix + 'clear_navpose_frame_transform': {
+            subs_dict = {
+                'clear_navpose_frame_transform': {
                     'namespace': self.namespace,
-                    'topic': 'clear_3d_transform',
+                    'topic': 'clear_transform',
                     'msg': Empty,
                     'qsize': 5,
                     'callback': self._clearFrame3dTransformCb, 
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'set_navpose_frame_transform': {
+                'set_navpose_frame_transform': {
                     'namespace': self.namespace,
-                    'topic': 'set_3d_transform',
+                    'topic': 'set_transform',
                     'msg': Transform,
                     'qsize': 5,
                     'callback': self._setFrame3dTransformCb,
                     'callback_args': ()
                 },
-                self.node_if_prefix + 'set_source_ref_description': {
+                'set_source_ref_description': {
                     'namespace': self.namespace,
                     'topic': 'set_source_ref',
                     'msg': String,
@@ -3793,167 +2691,60 @@ class Transform3DIF:
                     'callback_args': ()
                 }
         }
+        self.add_subs(subs_dict)
 
-        # Udpate or Create Node Class ####################
-        if node_if is not None:
-            self.node_if = node_if
-            self.node_if.add_configs(self.CONFIGS_DICT)
-            self.node_if.add_params(self.PARAMS_DICT) 
-            self.node_if.register_pubs(self.PUBS_DICT)
-            self.node_if.register_subs(self.SUBS_DICT)
-        else:
-            self.config_topic = self.namespace
-            self.node_if_shared = False
-            self.node_if = NodeClassIF(
-                            configs_dict = self.CONFIGS_DICT,
-                            params_dict = self.PARAMS_DICT,
-                            services_dict = self.SRVS_DICT,
-                            pubs_dict = self.PUBS_DICT,
-                            subs_dict = self.SUBS_DICT,
-                            
-                            msg_if = self.msg_if
-                                                )
-   
+        nepi_sdk.sleep(0.1)
 
-        success = nepi_sdk.wait()
+        ######################################################
+
+
+        #########################
+        # Update Status Message
+        ##############################
+
+
+
+        self.status_msg.has_x = self.has_x
+        self.status_msg.has_y = self.has_y
+        self.status_msg.has_z = self.has_z
+        self.status_msg.has_roll = self.has_roll
+        self.status_msg.has_pitch = self.has_pitch
+        self.status_msg.has_yaw = self.has_yaw
+        self.status_msg.has_heading = self.has_heading
+        self.status_msg.has_invert = self.has_invert
+        self.status_msg.has_offsets = self.has_offsets
+        self.status_msg.supports_updates = self.supports_updates
+
 
         ##############################
-        # Update vals from param server
-        self.init(do_updates = True)
-        self.publish_status()    
-    
+        # Start Node Processes
+        ##############################
         nepi_sdk.start_timer_process(1.0, self._publishTransformCb)
-        nepi_sdk.start_timer_process(1.0, self._publishStatusCb)
 
-  
+        
         ##############################
         # Complete Initialization
         self.ready = True
         self.msg_if.pub_debug("IF Initialization Complete" )
         ###############################
 
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is TransformIF:
+            self.start()
+
+
+    ###############################
+    # NodeIF Class Override Methods
+    ###############################
+
+    def update_status_msg(self, status_msg):
+        return status_msg
+
     ###############################
     # Class Public Methods
     ###############################
-
-
-    def get_ready_state(self):
-        """Return the current ready state of the Transform3DIF.
-
-        Returns:
-            bool: True if initialization completed successfully, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the Transform3DIF is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
-            else:
-                self.msg_if.pub_debug("Connected" )
-        return self.ready
-
-    def get_namespace(self):
-        """Return the ROS namespace used by this Transform3DIF.
-
-        Returns:
-            str: The fully-resolved ROS namespace string.
-        """
-        return self.namespace
-
-    def unregister(self):
-        """Shut down this pointcloud interface and release all ROS resources."""
-        self.ready = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
-            else:
-                if self.SRVS_DICT is not None:
-                        for service_name in self.SRVS_DICT.keys():
-                            self.node_if.unregister_service(service_name)
-                self.service_name = None
-
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
-
-                if self.node_if is not None:
-                    if self.PUBS_DICT is not None:
-                        for pub_name in self.PUBS_DICT.keys():
-                            self.node_if.unregister_pub(pub_name)
-
-
-    def get_zero_3d_transform(self):
-        """Return the zero/identity 3D transform list.
-
-        Returns:
-            list: Seven-element list of zeros [x, y, z, roll, pitch, yaw, heading].
-        """
-        return copy.deepcopy(self.ZERO_TRANSFORM)
-
-    def get_3d_transform(self):
-        """Return the current 3D transform as a seven-element list.
-
-        If a get_3d_transform_function was provided at construction, it is called
-        first. Falls back to the internally stored transform if the function returns
-        None.
-
-        Returns:
-            list: [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg].
-        """
-        transform = None
-        blank_transform = copy.deepcopy(self.ZERO_TRANSFORM)
-        if self.get_3d_transform_function is not None:
-            transform = self.get_3d_transform_function()
-
-        if transform is None:
-            transform = self.transform
-            if isinstance(transform, list) == False:
-                transform = blank_transform
-                self.transform = transform
-            if len(transform) != len(blank_transform):
-                transform = blank_transform
-                self.transform = transform
-
-        if isinstance(transform, list) == False:
-                transform = blank_transform
-        if len(transform) != len(blank_transform):
-            transform = blank_transform
-
-        return transform
-
-    def get_3d_transform_msg(self):
-        """Build and return the current 3D transform as a ROS Transform message.
-
-        Returns:
-            nepi_interfaces.msg.Transform: Transform message populated with the
-                current transform values and source/end reference descriptions.
-        """
-        transform = self.get_3d_transform()
-        transform_msg = nepi_nav.convert_transform_list2msg(transform,
-                source_ref_description = self.source,
-                end_ref_description = self.end)
-        return transform_msg
-
-    def get_3d_transform_dict(self):
+    def get_transform_dict(self):
         """Return the current 3D transform as a nepi_nav transform dict.
 
         Suitable for passing to nepi_nav.transform_navpose_dict() to apply the
@@ -3962,52 +2753,108 @@ class Transform3DIF:
         Returns:
             dict: BLANK_TRANSFORM_DICT-shaped dict populated from the current transform.
         """
-        return nepi_nav.convert_transform_list2dict(self.get_3d_transform())
 
-    def set_3d_transform(self,transform_list):
-        """Set the 3D transform from a seven-element list and publish the update.
+        transform_dict = copy.deepcopy(self.transform_dict)
+        return transform_dict
+    
 
-        No-ops if updates are not supported (i.e., a get_3d_transform_function was
-        supplied at construction) or if the list does not have exactly seven elements.
+    def set_transform_value(self, name, value):
+        """Return the current 3D transform as a nepi_nav transform dict.
 
-        Args:
-            transform_list (list): [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg,
-                heading_deg].
+        Suitable for passing to nepi_nav.transform_navpose_dict() to apply the
+        transform to a navpose dict.
+
+        Returns:
+            dict: BLANK_TRANSFORM_DICT-shaped dict populated from the current transform.
         """
-        if self.supports_updates == True:
-            if len(transform_list) == 7:
-                self.transform = transform_list
-                self.publish_transform()
-                if self.node_if is not None:
-                    self.node_if.set_param(self.node_if_prefix + 'transform',transform_list)
 
-    def clear_3d_transform(self):
+        transform_dict = copy.deepcopy(self.transform_dict)
+        if name in transform_dict.keys():
+            cap_name = 'has_' + name.split('_')[0]
+            if cap_name in self.caps_dict.keys():
+                allowed = self.caps_dict[cap_name] == True
+                if name.endswith('_invert'):
+                    allowed = allowed and self.has_invert == True
+                if name.endswith('_offset'):
+                    allowed = allowed and self.has_offsets == True
+                if allowed == True:
+                    try:
+                        self.transform_dict[name] = float(value)
+                    except:
+                        pass
+        if transform_dict != self.transform_dict:
+            self.publish_transform()
+            self.set_value('transform',self.transform_dict)
+
+
+
+    def update_transforms_from_list(self,transform_list):
+        if self.supports_updates == True:
+            # Apply Caps: disabled axes keep their stored values, and the caller's
+            # list is not modified
+            cap_keys = list(self.CAPS_DICT)
+            stored_list = nepi_nav.convert_transform_dict2list(self.transform_dict)
+            update_list = list(transform_list)
+            for i, value in enumerate(update_list):
+                if len(cap_keys) > i and len(stored_list) > i:
+                    cap_value = self.caps_dict[cap_keys[i]]
+                    if cap_value == False:
+                        update_list[i] = stored_list[i]
+            transform_dict = copy.deepcopy(self.transform_dict)
+            self.transform_dict = nepi_nav.update_transform_dict_from_list(transform_dict, transform_list = update_list)
+            if transform_dict != self.transform_dict:
+                self.publish_transform()
+                self.set_value('transform',self.transform_dict)
+                
+                    
+    def update_offsets_from_list(self,offset_list):
+        if self.supports_updates == True and self.has_offsets == True:
+            transform_dict = copy.deepcopy(self.transform_dict)
+            self.transform_dict = nepi_nav.update_transform_dict_from_list(transform_dict, offset_list = offset_list)
+            if transform_dict != self.transform_dict:
+                self.publish_transform()
+
+
+    def clear_transforms(self):
         """Reset the 3D transform to the zero/identity transform and publish the update.
 
-        No-ops if updates are not supported (i.e., a get_3d_transform_function was
+        No-ops if updates are not supported (i.e., a get_transform_function was
         supplied at construction).
         """
         if self.supports_updates == True:
-            self.transform = copy.deepcopy(self.ZERO_TRANSFORM)
-            self.publish_transform()
-            if self.node_if is not None:
-                self.node_if.set_param(self.node_if_prefix + 'transform',self.transform)
+            transform_dict = copy.deepcopy(self.transform_dict)
+            self.transform_dict = nepi_nav.clear_transforms(transform_dict)
+            if transform_dict != self.transform_dict:
+                self.publish_transform()
+                self.set_value('transform',self.transform_dict)
 
-    def set_has_transform(self,has_transform):
-        """Set whether this interface reports having a valid transform.
 
-        Args:
-            has_transform (bool): True if a valid transform is available.
-        """
-        self.has_trasform = has_transform
+    def clear_offsets(self):
+        transform_dict = copy.deepcopy(self.transform_dict)
+        self.transform_dict = nepi_nav.clear_offsets(transform_dict)
 
-    def get_has_transform(self):
-        """Return whether this interface reports having a valid transform.
+
+
+    #############################
+    def get_transform_list(self):
+        """Return the current 3D transform as a seven-element list.
+
+        If a get_transform_function was provided at construction, it is called
+        first. Falls back to the internally stored transform if the function returns
+        None.
 
         Returns:
-            bool: True if a valid transform is available, False otherwise.
+            list: [x_m, y_m, z_m, roll_deg, pitch_deg, yaw_deg, heading_deg].
         """
-        return self.has_transform
+        transform_list = None
+        if self.get_transform_function is not None:
+            transform_list = self.get_transform_function()
+        if transform_list is None:
+            transform_dict = copy.deepcopy(self.transform_dict)
+            transform_list = nepi_nav.convert_transform_dict2list(transform_dict)
+
+        return transform_list
+
 
 
     def get_source_description(self):
@@ -4025,9 +2872,13 @@ class Transform3DIF:
             source (str): Human-readable description of the source reference frame.
         """
         self.source = source
-        self.publish_transform()
-        if self.node_if is not None:
-            self.node_if.set_param(self.node_if_prefix + 'source',source)
+        self.status_msg.source_ref_description = self.source
+        transform_dict = copy.deepcopy(self.transform_dict)
+        self.transform_dict['source_ref_description'] = self.source
+        if transform_dict != self.transform_dict:
+            self.publish_transform()
+            self.set_value('transform',self.transform_dict)
+        
 
     def get_end_description(self):
         """Return the end (target) reference frame description string.
@@ -4044,9 +2895,12 @@ class Transform3DIF:
             end (str): Human-readable description of the end reference frame.
         """
         self.end = end
-        self.publish_transform()
-        if self.node_if is not None:
-            self.node_if.set_param(self.node_if_prefix + 'end',end)
+        self.status_msg.end_ref_description = self.end
+        transform_dict = copy.deepcopy(self.transform_dict)
+        self.transform_dict['end_ref_description'] = self.end
+        if transform_dict != self.transform_dict:
+            self.publish_transform()
+            self.set_value('transform',self.transform_dict)
 
 
     def publish_transform(self):
@@ -4055,22 +2909,11 @@ class Transform3DIF:
         Converts the current seven-element transform list to a ROS message and
         publishes it on the 'transform_pub' topic. No-ops if node_if is None.
         """
-        transform = self.get_3d_transform()
-        transform_msg = nepi_nav.convert_transform_list2msg(transform,
-                                                source_ref_description = self.source,
-                                                end_ref_description = self.end)
-        if self.node_if is not None:
-            self.node_if.publish_pub(self.node_if_prefix +  'transform_pub',transform_msg)
 
-    def publish_status(self):
-        """Publish the current TransformStatus message on the 'transform_status_pub' topic.
-
-        No-ops if node_if is None.
-        """
+        transform_dict = copy.deepcopy(self.transform_dict)
+        transform_msg = nepi_nav.convert_transform_dict2msg(transform_dict)
         if self.node_if is not None:
-            self.status_msg.config_topic = self.config_topic
-            self.status_msg.has_transform = self.has_transform
-            self.node_if.publish_pub('transform_status_pub',self.status_msg)
+            self.publish_msg( 'transform_pub',transform_msg)
 
 
     def init(self, do_updates = True):
@@ -4084,63 +2927,31 @@ class Transform3DIF:
         """
         if self.node_if is not None:
             # Prefixed keys, matching how the params are registered in PARAMS_DICT and
-            # how set_3d_transform()/set_source_description()/set_end_description()
+            # how set_transform()/set_source_description()/set_end_description()
             # write them back. get_param() returns None for a name it does not know,
-            # so the unprefixed names wiped the transform on every config init, reset
+            # so the unprefixed names wiped the transform_dict on every config init, reset
             # and factory reset -- saved 3D transforms never restored.
-            transform = self.node_if.get_param(self.node_if_prefix + 'transform')
-            if transform is not None:
-                self.transform = transform
-            source = self.node_if.get_param(self.node_if_prefix + 'source')
-            if source is not None:
-                self.source = source
-            end = self.node_if.get_param(self.node_if_prefix + 'end')
-            if end is not None:
-                self.end = end
+            transform_dict = self.get_param('transform')
+            if transform_dict is not None:
+                # Merge: the defaults already in self.transform_dict, saved values on top
+                for key in transform_dict.keys():
+                    if key in self.transform_dict.keys():
+                        self.transform_dict[key] = transform_dict[key]
+            self.clear_offsets()
+
+
             #self.msg_if.pub_debug("Setting init values to param server values: " + str(self.init_settings_dict) )
             if do_updates:
                 pass
             self.publish_status()
 
 
-    def reset(self):
-        """Reset transform parameters to their last-saved values and reinitialize.
-
-        Calls node_if.reset_params() to reload the user configuration tier, then
-        reinitializes from the param server.
-        """
-        if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_debug("Reseting params" )
-            self.node_if.reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
-
-    def factory_reset(self):
-        """Reset transform parameters to factory defaults and reinitialize.
-
-        Calls node_if.factory_reset_params() to restore factory values, then
-        reinitializes from the param server.
-        """
-        if self.node_if is not None and self.node_if_shared == False:
-            self.msg_if.pub_debug("Factory resetting params" )
-            self.node_if.factory_reset_params()
-            nepi_sdk.sleep(1) 
-        self.init(do_updates = True)
-
 
     ###############################
     # Class Private Methods
     ###############################
-    def _initCb(self, do_updates = False):
+    def initCb(self, do_updates = False):
         self.init(do_updates = do_updates)
-
-    def _resetCb(self):
-        self.msg_if.pub_debug("Got Reset params callback " )
-        self.reset()
-
-    def _factoryResetCb(self):
-        self.msg_if.pub_debug("Got Factory Reset params callback" )
-        self.factory_reset()
 
 
     def _setFrame3dTransformCb(self, msg):
@@ -4155,13 +2966,19 @@ class Transform3DIF:
         pitch = -transform_msg.pitch_deg if transform_msg.pitch_invert else transform_msg.pitch_deg
         yaw = -transform_msg.yaw_deg if transform_msg.yaw_invert else transform_msg.yaw_deg
         heading = -transform_msg.heading_deg if transform_msg.heading_invert else transform_msg.heading_deg
-        transform = [x, y, z, roll, pitch, yaw, heading]
-        self.set_3d_transform(transform)
+        transform_list = [x, y, z, roll, pitch, yaw, heading]
+
+        transform_dict = copy.deepcopy(self.transform_dict)
+        self.transform_dict = nepi_nav.update_transform_dict_from_list(transform_dict, transform_list)
+        if transform_dict != self.transform_dict:
+            self.publish_transform()
+            self.set_value('transform',self.transform_dict)
+
 
 
     def _clearFrame3dTransformCb(self, msg):
         self.msg_if.pub_debug("Recived Clear 3D Transform update message: " )
-        self.clear_3d_transform()
+        self.clear_transforms()
 
     def _setSourceRefCb(self, msg):
         self.set_source_description(msg.data)
@@ -4169,8 +2986,6 @@ class Transform3DIF:
     def _publishTransformCb(self, timer):
         self.publish_transform()
 
-    def _publishStatusCb(self, timer):
-        self.publish_status()
 
 
 
@@ -4194,17 +3009,29 @@ EXAMPLE_STATES_DICT = {
 }
 
 
-class StatesIF:
+class StatesIF(NodeIF):
 
+    #########################
+    ## NODE IF Required
+    ## Class Variables Updated by NodeIF Init Class
+    #########################
+
+    STATUS_MSG = SystemStatesStatus()
+    DATA_MSG = None
+
+    ID = 'states'
+    DISPLAY_NAME = 'States'
+    DESCRIPTION = 'States'
+
+    IF_DICT = dict()
+
+    #########################
+    ## CUSTOM
+    #########################
+    msg_if = None
     node_if = None
-    node_if_shared = False
-    config_topic = ''
-    node_if_prefix = 'states_'
-    
 
     ready = False
-    msg_if = None
-    namespace = '~'
 
     get_states_dict_function = None
 
@@ -4213,50 +3040,108 @@ class StatesIF:
     #######################
     ### IF Initialization
     def __init__(self,
-                states_name = 'states',
+                name = 'states',
+                namespace = None,
+                states_name = None,
                 get_states_dict_function = None,
+                info_dict = dict(),
                 msg_if = None,
-                node_if = None
+                node_if = None,
+                
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting States IF Initialization Processes" )
-        
-        #############################
-        # Initialize Class Variables
+        ##############################
+        # Instance Copies of Class State
+        ##############################
+        self.IF_DICT = dict(self.IF_DICT)
+
+    
+
+        ##############################
+        # Update Class Variables
+        ##############################
+
+
+        name = nepi_utils.get_clean_name(name)
+        if states_name is not None:
+            states_name = nepi_utils.get_clean_name(states_name)
+            if states_name.strip() != '':
+                name = states_name
 
         if get_states_dict_function is None:
-            self.msg_if.pub_debug("get_states_dict_function can not be None" )
             return
         self.get_states_dict_function = get_states_dict_function
 
-        # Create Namespace
-        states_name = nepi_utils.get_clean_name(states_name)
-        if states_name is None or states_name == '':
-            self.msg_if.pub_debug("Name Not Valid: " + str(states_name) )
-            return
-        self.msg_if.pub_debug("Using States Name: " + states_name )
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,states_name)
-
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
+   
 
         ##############################  
-        # Create NodeClassIF Class  
+        # Setup NodeIF Updates
+        ##############################  
 
-        # Services Config Dict ####################
-        self.SRVS_DICT = {
-            self.node_if_prefix + 'states_query': {
+        #######################
+        # Sync System IF inputs to if_dict
+
+        self.msg_if = msg_if
+        self.IF_DICT['msg_if'] = msg_if
+        self.node_if = node_if
+        self.IF_DICT['node_if'] = node_if
+
+
+        ##################
+        if_info_dict = dict(
+            description = self.DESCRIPTION,
+            display_name = self.DISPLAY_NAME,
+            type = 'system'
+        )
+        update_info_dict = copy.deepcopy(info_dict)
+        update_info_dict.update(if_info_dict)
+        ##################        
+        update_caps_dict = dict()
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = dict()
+        ##################
+        update_callback_dict = dict()
+
+        ###########
+        # NODE IF SETUP
+
+        # Call the parent class constructor
+        super().__init__(id = self.ID,
+                name = name,
+                namespace = namespace,
+                status_msg = copy.deepcopy(self.STATUS_MSG),
+                data_msg = copy.deepcopy(self.DATA_MSG),
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict, 
+                if_dict = dict(self.IF_DICT)
+                )
+
+        ready = self.wait_for_ready()
+
+
+       #######################
+        # Add Services
+        #######################
+       
+        params_dict = {}
+        self.add_params(params_dict)
+
+        #######################
+        # Add Services
+        #######################
+        services_dict = {
+            'states_query': {
                 'namespace': self.namespace,
                 'topic': 'system_states_query',
                 'srv': SystemStatesQuery,
@@ -4265,38 +3150,33 @@ class StatesIF:
                 'callback': self._statesQueryHandler
             }
         }
+        self.add_services(services_dict)
 
-        # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            self.node_if_prefix + 'states_status_pub': {
-                'namespace': self.namespace,
-                'msg': SystemStatesStatus,
-                'topic': 'status',
-                'qsize': 1,
-                'latch': True
-            }
-        }
+        #######################
+        # Add Pubs 
+        #######################
+        pubs_dict = {}
+        self.add_pubs(pubs_dict)
 
-        # Udpate or Create Node Class ####################
-        if node_if is not None:
-            self.node_if = node_if
-            self.node_if.register_services(self.SRVS_DICT)
+        #######################
+        # Add Subs 
+        #######################
+        subs_dict =  {}
+        self.add_subs(subs_dict)
 
-        else:
-            self.config_topic = self.namespace
-            self.node_if_shared = False
-            self.node_if = NodeClassIF(
-                            services_dict = self.SRVS_DICT,
-                            
-                            msg_if = self.msg_if
-                                                )
+        nepi_sdk.sleep(0.1)
+
+        ######################################################
+
+        #########################
+        # Update status message for values not in NodeIF Dictionaries
+        ##############################
 
 
-        success = nepi_sdk.wait()
-        states_dict = self.get_states_dict_function()
-        status_msg = SystemStatesStatus()
-        status_msg.state_names = list(states_dict.keys())
-        self.node_if.publish_pub(self.node_if_prefix + 'states_status_pub', status_msg)
+        ##############################
+        # Start Node Processes
+        ##############################
+
 
         ##############################
         # Complete Initialization
@@ -4304,75 +3184,33 @@ class StatesIF:
         self.msg_if.pub_debug("IF Initialization Complete" )
         ###############################
 
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is StatesIF:
+            self.start()
+
+
+
+
     ###############################
-    # Class Public Methods
+    # NodeIF Class Override Methods
     ###############################
 
+    def update_status_msg(self, status_msg):
+        states_dict = self.get_states_dict_function()
 
-    def get_ready_state(self):
-        """Return the current ready state of the StatesIF.
+        state_names = []
+        states_msg_list = []
+        if states_dict is not None:
+            for key in states_dict.keys():
+                state_names.append(str(key))
+                state = states_dict[key] == True
+                states_msg_list.append(nepi_states.create_state_msg(str(key), state))
 
-        Returns:
-            bool: True if initialization completed successfully, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the StatesIF is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
-            else:
-                self.msg_if.pub_debug("Connected" )
-        return self.ready
-
-
-    def get_namespace(self):
-        """Return the ROS namespace used by this StatesIF.
-
-        Returns:
-            str: The fully-resolved ROS namespace string.
-        """
-        return self.namespace
-
-    def unregister(self):
-        """Shut down this pointcloud interface and release all ROS resources."""
-        self.ready = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
-            else:
-                if self.SRVS_DICT is not None:
-                        for service_name in self.SRVS_DICT.keys():
-                            self.node_if.unregister_service(service_name)
-                self.service_name = None
-
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
-
-                # if self.node_if is not None:
-                #     if self.PUBS_DICT is not None:
-                #         for pub_name in self.PUBS_DICT.keys():
-                #             self.node_if.unregister_pub(pub_name)
-
+        status_msg.state_names = state_names
+        status_msg.states_msg_list = states_msg_list
+        return status_msg
+    
     ###############################
     # Class Private Methods
     ###############################
@@ -4412,63 +3250,149 @@ EXAMPLE_TRIGGERS_DICT = {
 
 
 
-class TriggersIF:
+class TriggersIF(NodeIF):
 
-    node_if = None
-    node_if_shared = False
-    config_topic = ''
-    node_if_prefix = 'triggers_'
+    #########################
+    ## NODE IF Required
+    ## Class Variables Updated by NodeIF Init Class
+    #########################
 
+    STATUS_MSG = SystemTriggersStatus()
+    DATA_MSG = SystemTriggers()
+
+    ID = 'triggers'
+    DISPLAY_NAME = 'Triggers'
+    DESCRIPTION = 'Triggers'
+
+    IF_DICT = dict()
+
+    #########################
+    ## CUSTOM
+    #########################
     msg_if = None
+    node_if = None
+
     ready = False
-    namespace = '~'
 
     triggers_dict = dict()
+    triggers_list = []
 
     #######################
     ### IF Initialization
     def __init__(self, 
+                name = 'triggers',
+                namespace = None,
+                triggers_name = None,
                 triggers_dict = None,
-                triggers_name = 'triggers',
+                info_dict = dict(),
                 msg_if = None,
-                node_if = None
+                node_if = None,
+                
                 ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
-        
-        # Create Msg Class
-        if msg_if is not None:
-            self.msg_if = msg_if
-        else:
-            self.msg_if = MsgIF()
-        self.msg_if.pub_debug("Starting Triggers IF Initialization Processes" )
-        
-        #############################
-        # Initialize Class Variables
+        ##############################
+        # Instance Copies of Class State
+        ##############################
+        self.IF_DICT = dict(self.IF_DICT)
+        self.triggers_list = copy.deepcopy(self.triggers_list)
+   
+        ##############################
+        # Update Class Variables
+        ##############################
+
+        name = nepi_utils.get_clean_name(name)
+        if triggers_name is not None:
+            triggers_name = nepi_utils.get_clean_name(triggers_name)
+            if triggers_name.strip() != '':
+                name = triggers_name
+   
 
         if triggers_dict is None:
             self.triggers_dict = dict()
         else:
             self.triggers_dict = triggers_dict
 
-        # Create Namespace
-        triggers_name = nepi_utils.get_clean_name(triggers_name)
-        if triggers_name is None or triggers_name == '':
-            self.msg_if.pub_debug("Name Not Valid: " + str(triggers_name) ) 
-            return
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
         ##############################  
-        # Create NodeClassIF Class  
+        # Setup NodeIF Updates
+        ##############################  
+
+        #######################
+        # Sync System IF inputs to if_dict
+
+        self.msg_if = msg_if
+        self.IF_DICT['msg_if'] = msg_if
+        self.node_if = node_if
+        self.IF_DICT['node_if'] = node_if
 
 
-        # Pubs Config Dict ####################
-        self.PUBS_DICT = {
-            self.node_if_prefix + 'trigger_pub': {
+        ##################
+        if_info_dict = dict(
+            description = self.DESCRIPTION,
+            display_name = self.DISPLAY_NAME,
+            type = 'system'
+        )
+        update_info_dict = copy.deepcopy(info_dict)
+        update_info_dict.update(if_info_dict)
+        ##################        
+        update_caps_dict = dict()
+        ##################        
+        update_config_control_dict = dict()
+        ##################       
+        update_node_controls_dict = dict()
+        ##################
+        update_stats_dict = dict()
+        ##################
+        update_rui_dict = dict()
+        ##################
+        update_callback_dict = dict()
+
+        ###########
+        # NODE IF SETUP
+
+        # Call the parent class constructor
+        super().__init__(id = self.ID,
+                name = name,
+                namespace = namespace,
+                status_msg = copy.deepcopy(self.STATUS_MSG),
+                data_msg = copy.deepcopy(self.DATA_MSG),
+                info_dict = update_info_dict,
+                caps_dict = update_caps_dict, 
+                stats_dict = update_stats_dict, 
+                rui_dict = update_rui_dict, 
+                config_control_dict = update_config_control_dict, 
+                node_controls_dict = update_node_controls_dict, 
+                callback_dict = update_callback_dict, 
+                if_dict = dict(self.IF_DICT)
+                )
+
+        ready = self.wait_for_ready()
+
+
+       #######################
+        # Add Services
+        #######################
+       
+        params_dict = {}
+        self.add_params(params_dict)
+
+        #######################
+        # Add Services
+        #######################
+        services_dict = {}
+        self.add_services(services_dict)
+
+        #######################
+        # Add Pubs 
+        #######################
+        pubs_dict = {
+            'triggers': {
+                'msg': SystemTrigger,
+                'namespace': self.namespace,
+                'topic': '',
+                'qsize': 1,
+                'latch': False
+            },
+            'system_triggers': {
                 'msg': SystemTrigger,
                 'namespace': self.base_namespace,
                 'topic': 'system_triggers',
@@ -4476,22 +3400,21 @@ class TriggersIF:
                 'latch': False
             }
         }
+        self.add_pubs(pubs_dict)
 
-        # Udpate or Create Node Class ####################
-        if node_if is not None:
-            self.node_if = node_if
-            self.node_if.register_services(self.SRVS_DICT)
-            self.node_if.register_pubs(self.PUBS_DICT)
-        else:
-            self.config_topic = self.namespace
-            self.node_if_shared = False
-            self.node_if = NodeClassIF(
-                            pubs_dict = self.PUBS_DICT,
-                            
-                            msg_if = self.msg_if
-                                                )
+        #######################
+        # Add Subs 
+        #######################
+        subs_dict =  {}
+        self.add_subs(subs_dict)
 
-        success = nepi_sdk.wait()
+        nepi_sdk.sleep(0.1)
+
+        ######################################################
+
+        #########################
+        # Update status message for values not in NodeIF Dictionaries
+        ##############################
 
 
         ##############################
@@ -4500,77 +3423,32 @@ class TriggersIF:
         self.msg_if.pub_debug("IF Initialization Complete" )
         ###############################
 
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is TriggersIF:
+            self.start()
 
+
+    ###############################
+    # NodeIF Class Override Methods
+    ###############################
+
+    def update_status_msg(self, status_msg):
+        triggers_list = copy.deepcopy(self.triggers_list)
+        self.triggers_list = []
+
+        trigger_names = []
+        triggers_msg_list = []
+        for msg in triggers_list:
+            trigger_names.append(msg.name)
+            triggers_msg_list.append(msg)
+        status_msg.trigger_names = trigger_names
+        status_msg.triggers_msg_list = triggers_msg_list
+        return status_msg
 
     ###############################
     # Class Public Methods
     ###############################
-
-
-    def get_ready_state(self):
-        """Return the current ready state of the TriggersIF.
-
-        Returns:
-            bool: True if initialization completed successfully, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the TriggersIF is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_debug("Waiting for connection" )
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_debug("Failed to Connect" )
-            else:
-                self.msg_if.pub_debug("Connected" )
-        return self.ready
-
-    def get_namespace(self):
-        """Return the ROS namespace used by this TriggersIF.
-
-        Returns:
-            str: The fully-resolved ROS namespace string.
-        """
-        return self.namespace
-
-    def unregister(self):
-        """Shut down this pointcloud interface and release all ROS resources."""
-        self.ready = False
-        if self.node_if is not None:
-            if self.node_if_shared == False:
-                self.node_if.unregister_class()
-                nepi_sdk.wait()
-                self.node_if = None
-            else:
-                if self.SRVS_DICT is not None:
-                        for service_name in self.SRVS_DICT.keys():
-                            self.node_if.unregister_service(service_name)
-                self.service_name = None
-
-                if self.SUBS_DICT is not None:
-                        for sub_name in self.SUBS_DICT.keys():
-                            self.node_if.unregister_sub(sub_name)
-                self.SUBS_DICT = None
-
-                if self.node_if is not None:
-                    if self.PUBS_DICT is not None:
-                        for pub_name in self.PUBS_DICT.keys():
-                            self.node_if.unregister_pub(pub_name)
-
-
 
     def publish_trigger(self, trigger_dict):
         """Build and publish a system trigger message on the 'system_triggers' topic.
@@ -4582,9 +3460,14 @@ class TriggersIF:
             trigger_dict (dict): Trigger event dictionary with keys 'name',
                 'node_name', 'description', 'data_str_list', and 'time'.
         """
-        trig_msg = nepi_triggers.create_trigger_msg(self.namespace, trigger_dict)
-        if self.node_if is not None:
-            self.node_if.publish_pub(self.node_if_prefix +  'trigger_pub',trig_msg)
+        try:
+            trig_msg = nepi_triggers.create_trigger_msg(self.namespace, trigger_dict)
+            self.publish_msg( 'triggers',trig_msg)
+            self.publish_msg( 'system_triggers',trig_msg)
+            self.triggers_list.append(trig_msg)
+        except Exception as e:
+            self.msg_if.pub_debug("Failed to create trigger msg from dict", data = [trigger_dict,str(e)] )
+
 
 
     ###############################

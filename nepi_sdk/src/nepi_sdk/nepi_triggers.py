@@ -58,23 +58,22 @@ def get_triggers_publisher_namespaces(topics_list = None, types_list = None):
 
 def parse_trigger_msg(trigger_msg):
     trigger_dict = dict()
+    trigger_dict['timestamp'] = trigger_msg.timestamp
     trigger_dict['name'] = trigger_msg.name
-
-    trigger_dict['time'] = sec_from_msg_stamp(trigger_msg.header.stamp)
-    trigger_dict['description'] = trigger_msg.description
     trigger_dict['node_name'] = trigger_msg.node_name
+    trigger_dict['description'] = trigger_msg.description
     trigger_dict['data_str_list'] = trigger_msg.data_str_list
     return trigger_dict
 
 
-
 def create_trigger_msg(node_name, trigger_dict):
     trigger_msg = SystemTrigger()
-    trigger_msg.header.stamp = get_msg_stamp()
+    trigger_msg.timestamp = nepi_utils.get_time()
     trigger_msg.name = trigger_dict['name']
+    trigger_msg.node_name = trigger_dict['node_name']
     trigger_msg.description = trigger_dict['description']
     trigger_msg.data_str_list = trigger_dict['data_str_list']
-    trigger_msg.node_name = trigger_dict['node_name']
+
     return trigger_msg
 
 

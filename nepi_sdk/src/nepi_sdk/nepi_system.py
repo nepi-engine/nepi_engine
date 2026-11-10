@@ -82,6 +82,36 @@ def set_debug_mode(value):
     success = nepi_sdk.set_param(param_namespace, value)
     return success
 
+def get_debug_level():
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_level')
+    data = nepi_sdk.get_param(param_namespace, 'LOW')
+    return data
+
+def set_debug_level(value):
+    value = value.upper()
+    success = False
+    if value in nepi_sdk.DEBUG_LEVELS:
+        param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_level')
+        success = nepi_sdk.set_param(param_namespace, str(value))
+    return success
+
+
+def get_debug_options():
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_options')
+    data = nepi_sdk.get_param(param_namespace, [nepi_sdk.DEBUG_OPTIONS[0]])
+    return data
+
+def set_debug_options(values):
+    success = False
+    options = []
+    for value in values:
+        value = str(value).upper()
+        if str(value) in nepi_sdk.DEBUG_AVAILABLE_OPTIONS:
+            options.append(str(value))
+    param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_options')
+    success = nepi_sdk.set_param(param_namespace, options)
+    return success
+
 def get_debug_namespace():
     param_namespace = nepi_sdk.create_namespace(nepi_sdk.get_base_namespace(),'debug_namespace')
     data = nepi_sdk.get_param(param_namespace, 'ALL')

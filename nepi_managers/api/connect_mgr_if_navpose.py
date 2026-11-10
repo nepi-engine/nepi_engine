@@ -57,7 +57,7 @@ from nepi_interfaces.msg import SaveDataRate
 
 from nepi_api.messages_if import MsgIF
 
-from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.node_if import NodeClassIF
 from nepi_api.connect_system_if import ConnectSaveDataIF
 
 
@@ -78,8 +78,6 @@ class ConnectMgrNavPoseIF:
     #######################
     ### IF Initialization
     def __init__(self, timeout = float('inf'),
-                
-              ,
                 msg_if = None
                 ):
         ####  IF INIT SETUP ####
@@ -94,7 +92,7 @@ class ConnectMgrNavPoseIF:
             self.msg_if = msg_if
         else:
             self.msg_if = MsgIF()
-        self.msg_if.pub_info("Starting IF Initialization Processes", 
+        self.msg_if.pub_info("Starting IF Initialization Processes", color = "GREEN")
 
 
         ##############################    
@@ -104,7 +102,7 @@ class ConnectMgrNavPoseIF:
         ##############################
         ### Wait for status to publish
         status_topic = nepi_sdk.create_namespace(self.mgr_namespace,'status')
-        self.msg_if.pub_info("Waiting for status topic: " + status_topic, 
+        self.msg_if.pub_debug("Waiting for status topic: " + status_topic)
         nepi_sdk.wait_for_topic(status_topic)
         ##############################
         ### Setup Node
@@ -239,7 +237,7 @@ class ConnectMgrNavPoseIF:
 
         # Create Node Class ####################
 
-        self.node_if = ConnectNodeClassIF(
+        self.node_if = NodeClassIF(
                         configs_dict = self.CFGS_DICT,
                         services_dict = self.SRVS_DICT,
                         pubs_dict = self.PUBS_DICT,
@@ -259,7 +257,7 @@ class ConnectMgrNavPoseIF:
 
         #################################
         self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete", 
+        self.msg_if.pub_info("IF Initialization Complete", color = "GREEN")
         
 
     #######################
@@ -270,20 +268,20 @@ class ConnectMgrNavPoseIF:
 
     def wait_for_ready(self, timeout = float('inf') ):
         success = False
-        self.msg_if.pub_info("Waiting for ready", 
+        self.msg_if.pub_debug("Waiting for ready")
         timer = 0
         time_start = nepi_sdk.get_time()
         while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
             nepi_sdk.sleep(.1)
             timer = nepi_sdk.get_time() - time_start
         if self.ready == False:
-            self.msg_if.pub_info("Failed to Connect", 
+            self.msg_if.pub_warn("Failed to Connect")
         else:
-            self.msg_if.pub_info("ready", 
+            self.msg_if.pub_debug("ready") 
         return self.ready
 
     def wait_for_services(self, timeout = float('inf') ):
-        self.msg_if.pub_info("Waiting for status connection", 
+        self.msg_if.pub_debug("Waiting for status connection")
         timer = 0
         time_start = nepi_sdk.get_time()
         connected = False
@@ -295,9 +293,9 @@ class ConnectMgrNavPoseIF:
                 connected = (ret is not None)
             timer = nepi_sdk.get_time() - time_start
         if connected == False:
-            self.msg_if.pub_info("Failed to connect to status msg", 
+            self.msg_if.pub_warn("Failed to connect to status msg")
         else:
-            self.msg_if.pub_info("Status Connected", 
+            self.msg_if.pub_info("Status Connected")
         return connected
 
     def call_navpose_dict_service(self, verbose = True):
@@ -307,10 +305,10 @@ class ConnectMgrNavPoseIF:
         try:
             request = self.node_if.create_request_msg(service_name)
         except Exception as e:
-            self.msg_if.pub_warn("Failed to create service request: " + " " + str(e), 
+            self.msg_if.pub_warn("Failed to create service request: " + " " + str(e)) 
         try:
             response = self.node_if.call_service(service_name, request, verbose = verbose)
-            #self.msg_if.pub_info("Got time status response: " + str(response), 
+            #self.msg_if.pub_debug("Got time status response: " + str(response), 
         except Exception as e:
             if verbose == True:
                 self.msg_if.pub_warn("Failed to call service request: " + service_name + " " + str(e) , throttle_s = 5.0)
@@ -327,16 +325,16 @@ class ConnectMgrNavPoseIF:
 
     def wait_for_status_connection(self, timout = float('inf') ):
         if self.con_node_if is not None:
-            self.msg_if.pub_info("Waiting for status connection", 
+            self.msg_if.pub_debug("Waiting for status connection")
             timer = 0
             time_start = nepi_sdk.get_time()
             while self.status_connected == False and timer < timeout and not nepi_sdk.is_shutdown():
                 nepi_sdk.sleep(.1)
                 timer = nepi_sdk.get_time() - time_start
             if self.status_connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg", 
+                self.msg_if.pub_warn("Failed to connect to status msg")
             else:
-                self.msg_if.pub_info("Status Connected", 
+                self.msg_if.pub_info("Status Connected")
         return self.status_connected
 
     def get_pub_rate(self):
@@ -440,7 +438,7 @@ class ConnectMgrNavPoseIF:
         success = False
         self.connected = False
         if self.con_node_if is not None:
-            self.msg_if.pub_warn("Unregistering", 
+            self.msg_if.pub_warn("Unregistering")
             try:
                 self.con_node_if.unregister_class()
                 time.sleep(1)
@@ -449,7 +447,7 @@ class ConnectMgrNavPoseIF:
                 self.data_dict = None
                 success = True
             except Exception as e:
-                self.msg_if.pub_warn("Failed to unregister image:  " + str(e), 
+                self.msg_if.pub_warn("Failed to unregister image:  " + str(e))
         return success
 
 

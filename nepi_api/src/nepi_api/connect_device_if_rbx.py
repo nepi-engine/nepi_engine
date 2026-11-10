@@ -31,12 +31,14 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from geographic_msgs.msg import GeoPoint
 
 from nepi_interfaces.msg import SaveDataRate
-from nepi_interfaces.msg import DeviceRBXStatus, DeviceRBXInfo
-from nepi_interfaces.msg import MotorStatus, MotorsStatus
-from nepi_interfaces.msg import ErrorBounds, MotorControl
+# 3.4.0 PORT: DeviceRBXInfo is gone; its fields ride in DeviceRBXStatus, see report
+from nepi_interfaces.msg import DeviceRBXStatus
+# 3.4.0 PORT: motors are per-motor SVX, see report
+#from nepi_interfaces.msg import MotorStatus, MotorsStatus
+from nepi_interfaces.msg import ErrorBounds
 from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, GotoVelocity
 
-from nepi_interfaces.srv import RBXCapabilitiesQuery, RBXCapabilitiesQueryRequest, RBXCapabilitiesQueryResponse
+from nepi_interfaces.srv import DeviceRBXStatusQuery, DeviceRBXStatusQueryRequest, DeviceRBXStatusQueryResponse
 
 from nepi_api.messages_if import MsgIF
 
@@ -140,6 +142,11 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete")
         ###############################
+
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ConnectRBXDeviceIF:
+            self.start()
 
 
     #######################
@@ -273,7 +280,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         """Return the latest device info as a dictionary.
 
         Returns:
-            dict: A dictionary representation of the most recent DeviceRBXInfo message,
+            dict: A dictionary representation of the most recent DeviceRBXStatus message,
                 or None if no info has been received yet.
         """
         info_dict = None
@@ -285,7 +292,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         """Return the latest device info as a msg.
 
         Returns:
-            DeviceRBXInfo: The most recent DeviceRBXInfo message,
+            DeviceRBXStatus: The most recent DeviceRBXStatus message,
                 or None if no info has been received yet.
         """
         return self.info_msg
@@ -294,13 +301,13 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         """Query and return the RBX device capabilities report.
 
         Returns:
-            RBXCapabilitiesQueryResponse: The capabilities response, carrying the
+            DeviceRBXStatusQueryResponse: The capabilities response, carrying the
                 device's DeviceRBXStatus in device_status, or None if no device
                 is selected or the call failed.
         """
         resp = None
         if self.node_if is not None:
-            resp = self.node_if.call_service('rbx_capabilities_query', RBXCapabilitiesQueryRequest())
+            resp = self.node_if.call_service('rbx_capabilities_query', DeviceRBXStatusQueryRequest())
         return resp
 
     def get_goto_capabilities(self):
@@ -325,32 +332,33 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             'has_goto_velocity': caps.has_goto_velocity
         }
 
-    def get_motors_status_dict(self):
-        """Return the latest multi-motor status as a dictionary.
+    # 3.4.0 PORT: motors are per-motor SVX, see report
+    #def get_motors_status_dict(self):
+        #"""Return the latest multi-motor status as a dictionary.
 
-        Returns:
-            dict: A dictionary representation of the most recent MotorsStatus message,
-                or None if no motor status has been received yet.
-        """
-        motors_dict = None
-        if self.motors_status_msg is not None:
-            motors_dict = nepi_sdk.convert_msg2dict(self.motors_status_msg)
-        return motors_dict
+        #Returns:
+            #dict: A dictionary representation of the most recent MotorsStatus message,
+                #or None if no motor status has been received yet.
+        #"""
+        #motors_dict = None
+        #if self.motors_status_msg is not None:
+            #motors_dict = nepi_sdk.convert_msg2dict(self.motors_status_msg)
+        #return motors_dict
 
-    def get_motors_status_msg(self):
-        """Return the latest multi-motor status as a msg.
+    #def get_motors_status_msg(self):
+        #"""Return the latest multi-motor status as a msg.
 
-        Returns:
-            MotorsStatus: The most recent MotorsStatus message,
-                or None if no motor status has been received yet.
-        """
-        return self.motors_status_msg
+        #Returns:
+            #MotorsStatus: The most recent MotorsStatus message,
+                #or None if no motor status has been received yet.
+        #"""
+        #return self.motors_status_msg
 
     def get_state(self):
         """Return the index of the device's current state option.
 
         Returns:
-            int: The enumerated state index reported in DeviceRBXInfo, or None if no
+            int: The enumerated state index reported in DeviceRBXStatus, or None if no
                 info has been received.
         """
         if self.info_msg is not None:
@@ -360,7 +368,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         """Return the index of the device's current mode option.
 
         Returns:
-            int: The enumerated mode index reported in DeviceRBXInfo, or None if no
+            int: The enumerated mode index reported in DeviceRBXStatus, or None if no
                 info has been received.
         """
         if self.info_msg is not None:
@@ -371,7 +379,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
         Returns:
             list: A three-element list [latitude, longitude, altitude_m] reported in
-                DeviceRBXInfo, or None if no info has been received.
+                DeviceRBXStatus, or None if no info has been received.
         """
         if self.info_msg is not None:
             return [self.info_msg.home_lat, self.info_msg.home_long, self.info_msg.home_alt]
@@ -380,7 +388,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         """Return the goto command timeout in seconds.
 
         Returns:
-            float: The command timeout reported in DeviceRBXInfo, or None if no info
+            float: The command timeout reported in DeviceRBXStatus, or None if no info
                 has been received.
         """
         if self.info_msg is not None:
@@ -474,15 +482,16 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         if self.status_msg is not None:
             return self.status_msg.errors_prev
 
-    def get_motor_control_settings(self):
-        """Return the current manual motor control settings.
+    # 3.4.0 PORT: motors are per-motor SVX, see report
+    #def get_motor_control_settings(self):
+        #"""Return the current manual motor control settings.
 
-        Returns:
-            list: A list of MotorControl entries reporting the current per-motor speed
-                ratios, or None if no status has been received.
-        """
-        if self.status_msg is not None:
-            return self.status_msg.current_motor_control_settings
+        #Returns:
+            #list: A list of MotorControl entries reporting the current per-motor speed
+                #ratios, or None if no status has been received.
+        #"""
+        #if self.status_msg is not None:
+            #return self.status_msg.current_motor_control_settings
 
     def get_last_cmd_string(self):
         """Return the last command string issued to the device.
@@ -574,18 +583,19 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         msg = timeout_s
         self.node_if.publish_pub(pub_name, msg)
 
-    def set_motor_control(self, motor_ind, speed_ratio):
-        """Command a single motor's speed ratio in manual control mode.
+    # 3.4.0 PORT: motors are per-motor SVX, see report
+    #def set_motor_control(self, motor_ind, speed_ratio):
+        #"""Command a single motor's speed ratio in manual control mode.
 
-        Args:
-            motor_ind (int): Index of the motor to command.
-            speed_ratio (float): Desired speed as a ratio from 0.0 (off) to 1.0 (max).
-        """
-        pub_name = 'set_motor_control'
-        msg = MotorControl()
-        msg.motor_ind = motor_ind
-        msg.speed_ratio = speed_ratio
-        self.node_if.publish_pub(pub_name, msg)
+        #Args:
+            #motor_ind (int): Index of the motor to command.
+            #speed_ratio (float): Desired speed as a ratio from 0.0 (off) to 1.0 (max).
+        #"""
+        #pub_name = 'set_motor_control'
+        #msg = MotorControl()
+        #msg.motor_ind = motor_ind
+        #msg.speed_ratio = speed_ratio
+        #self.node_if.publish_pub(pub_name, msg)
 
     def go_home(self):
         """Command the RBX device to move to its configured home location.
@@ -623,7 +633,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             lat (float): Target latitude in degrees. Pass -999 to keep the current value.
             long (float): Target longitude in degrees. Pass -999 to keep the current value.
             altitude_meters (float): Target altitude in meters. Pass -999 to keep the current value.
-            yaw_deg (float): Target yaw in degrees (-180 to 180). Pass -999 to keep the current value.
+            yaw_deg (float): Target yaw, ENU yaw in degrees, 0 = east, counter-clockwise positive (-180 to 180). Pass -999 to keep the current value.
         """
         pub_name = 'goto_location'
         msg = GotoLocation()
@@ -636,11 +646,13 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     def goto_position(self, x_meters, y_meters, z_meters, yaw_deg):
         """Command the RBX device to move to a relative body-frame position.
 
+        Body FLU frame: x forward, y left, z up, yaw counter-clockwise positive.
+
         Args:
             x_meters (float): Target forward offset in meters. Zero keeps the current position on this axis.
             y_meters (float): Target left offset in meters. Zero keeps the current position on this axis.
             z_meters (float): Target up offset in meters. Zero keeps the current position on this axis.
-            yaw_deg (float): Target yaw in degrees (-180 to 180). Zero keeps the current yaw.
+            yaw_deg (float): Target body yaw change in degrees (-180 to 180), counter-clockwise positive (turn left). Zero keeps the current yaw.
         """
         pub_name = 'goto_position'
         msg = GotoPosition()
@@ -679,7 +691,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             roll_deg (float): Target roll in degrees (-180 to 180). Pass -999 to keep the current value.
             pitch_deg (float): Target pitch in degrees (-180 to 180). Pass -999 to keep the current value.
-            yaw_deg (float): Target yaw in degrees (-180 to 180). Pass -999 to keep the current value.
+            yaw_deg (float): Target yaw, ENU yaw in degrees, 0 = east, counter-clockwise positive (-180 to 180). Pass -999 to keep the current value.
         """
         pub_name = 'goto_pose'
         msg = GotoPose()
@@ -857,22 +869,24 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 'qsize': 10,
                 'callback': self._statusCb
             },
-            'info_sub': {
-                'namespace': self.selected_topic,
-                'topic': 'info',
-                'msg': DeviceRBXInfo,
-                'qsize': 1,
-                'callback': self._infoCb,
-                'callback_args': ()
-            },
-            'motor_status_sub': {
-                'namespace': self.selected_topic,
-                'topic': 'motor_status',
-                'msg': MotorsStatus,
-                'qsize': 10,
-                'callback': self._motorStatusCb,
-                'callback_args': ()
-            }
+            # 3.4.0 PORT: no info topic in 3.4; _statusCb feeds _infoCb, see report
+            # 'info_sub': {
+            #     'namespace': self.selected_topic,
+            #     'topic': 'info',
+            #     'msg': DeviceRBXInfo,
+            #     'qsize': 1,
+            #     'callback': self._infoCb,
+            #     'callback_args': ()
+            # },
+            # 3.4.0 PORT: motors are per-motor SVX, see report
+            # 'motor_status_sub': {
+            #     'namespace': self.selected_topic,
+            #     'topic': 'motor_status',
+            #     'msg': MotorsStatus,
+            #     'qsize': 10,
+            #     'callback': self._motorStatusCb,
+            #     'callback_args': ()
+            # }
         }
 
 
@@ -915,12 +929,13 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 'msg': UInt32,
                 'qsize': 1,
             },
-            'set_motor_control': {
-                'namespace': self.selected_topic,
-                'topic': 'set_motor_control',
-                'msg': MotorControl,
-                'qsize': 20,
-            },
+            # 3.4.0 PORT: motors are per-motor SVX, see report
+            # 'set_motor_control': {
+            #     'namespace': self.selected_topic,
+            #     'topic': 'set_motor_control',
+            #     'msg': MotorControl,
+            #     'qsize': 20,
+            # },
             'go_home': {
                 'namespace': self.selected_topic,
                 'topic': 'go_home',
@@ -1016,10 +1031,10 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         self.connect_topic_srvs_dict = {
             'rbx_capabilities_query': {
                 'namespace': self.selected_topic,
-                'topic': 'capabilities_query',
-                'srv': RBXCapabilitiesQuery,
-                'req': RBXCapabilitiesQueryRequest(),
-                'resp': RBXCapabilitiesQueryResponse()
+                'topic': 'status_query',
+                'srv': DeviceRBXStatusQuery,
+                'req': DeviceRBXStatusQueryRequest(),
+                'resp': DeviceRBXStatusQueryResponse()
             }
         }
 
@@ -1082,6 +1097,8 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             self.statusCb(status_dict)
         if self.dataCB is not None:
             self.dataCB(status_dict)
+        # 3.4.0 PORT: the DeviceRBXInfo fields ride in DeviceRBXStatus, see report
+        self._infoCb(status_msg)
 
     def _infoCb(self,info_msg):
         self.info_msg = info_msg
@@ -1089,8 +1106,9 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             info_dict = self.get_info_dict()
             self.infoCb(info_dict)
 
-    def _motorStatusCb(self,motors_status_msg):
-        self.motors_status_msg = motors_status_msg
-        if self.motorStatusCb is not None:
-            motors_dict = self.get_motors_status_dict()
-            self.motorStatusCb(motors_dict)
+    # 3.4.0 PORT: motors are per-motor SVX, see report
+    #def _motorStatusCb(self,motors_status_msg):
+        #self.motors_status_msg = motors_status_msg
+        #if self.motorStatusCb is not None:
+            #motors_dict = self.get_motors_status_dict()
+            #self.motorStatusCb(motors_dict)

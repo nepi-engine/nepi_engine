@@ -111,7 +111,7 @@ BASE_CONTROLS_DICT = dict(
         pan_limits = {
             'type': 'Floats', 'default': [-175, 175], 'bounds': [-175, 175, 20,1], 'round_value': 0,
             # OPTIONAL
-            'display_name':'Pan Limits (Deg)', 'display_labels':['Min','Max'], 'description':' Scan Limits in Degs', 'display_bounds': False, 'display_hidden':False, 'round_display': 0, 'display_row': True},
+            'display_name':'Pan Limits (Deg)', 'value_names':['Min','Max'], 'description':' Scan Limits in Degs', 'display_bounds': False, 'display_hidden':False, 'round_display': 0, 'display_row': True},
 
         tilt_scan = {"type":"Toggle", "value": False,
                    # OPTIONAL
@@ -126,7 +126,7 @@ BASE_CONTROLS_DICT = dict(
         tilt_limits = {
             'type': 'Floats', 'default': [-60, 60], 'bounds': [-60, 60, 20, 1], 'round_value': 0,
             # OPTIONAL
-            'display_name':'Tilt Limits (Deg)', 'display_labels':['Min','Max'], 'description':'Tilt Scan Limits in Degs', 'display_bounds': False, 'display_hidden':False, 'round_display': 0, 'display_row': True},
+            'display_name':'Tilt Limits (Deg)', 'value_names':['Min','Max'], 'description':'Tilt Scan Limits in Degs', 'display_bounds': False, 'display_hidden':False, 'round_display': 0, 'display_row': True},
 
 
     )
@@ -136,7 +136,7 @@ BASE_RESULTS_DISPLAY_DICT = dict(
 
         scanning = {
                     'type': 'Bools', 'value': [False, False],
-                    'display_name': 'Scanning', 'display_labels':['Pan','Tilt'], 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
+                    'display_name': 'Scanning', 'value_names':['Pan','Tilt'], 'description': 'Two booleans.', 'display_hidden': False, 'display_row': True},
 
         pan_deg = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL

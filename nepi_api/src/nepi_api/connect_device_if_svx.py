@@ -27,7 +27,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from nepi_interfaces.msg import DeviceSVXStatus
 from nepi_interfaces.msg import SingleAxisTimedSpeedMove
 from nepi_interfaces.srv import DeviceInfoQuery, DeviceInfoQueryRequest, DeviceInfoQueryResponse
-from nepi_interfaces.srv import SVXCapabilitiesQuery, SVXCapabilitiesQueryRequest, SVXCapabilitiesQueryResponse
+from nepi_interfaces.srv import DeviceSVXStatusQuery, DeviceSVXStatusQueryRequest, DeviceSVXStatusQueryResponse
 
 from nepi_api.messages_if import MsgIF
 
@@ -145,6 +145,11 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         self.ready = True
         self.msg_if.pub_info("IF Initialization Complete")
         ###############################
+
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ConnectSVXDeviceIF:
+            self.start()
 
 
     #######################
@@ -298,12 +303,12 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         """Query and return the SVX device capabilities report.
 
         Returns:
-            SVXCapabilitiesQueryResponse: The capabilities response, carrying the device's
+            DeviceSVXStatusQueryResponse: The status response, carrying the device's
                 DeviceSVXStatus in device_status, or None if the call failed.
         """
         resp = None
         if self.node_if is not None:
-            resp = self.node_if.call_service('svx_capabilities_query', SVXCapabilitiesQueryRequest())
+            resp = self.node_if.call_service('svx_status_query', DeviceSVXStatusQueryRequest())
         return resp
 
     def get_device_info(self):
@@ -880,12 +885,12 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         # register_service replaces the keyed entry, which drops the old proxy and
         # builds one on the newly selected device.
         self.connect_topic_srvs_dict = {
-            'svx_capabilities_query': {
+            'svx_status_query': {
                 'namespace': self.selected_topic,
-                'topic': 'capabilities_query',
-                'srv': SVXCapabilitiesQuery,
-                'req': SVXCapabilitiesQueryRequest(),
-                'resp': SVXCapabilitiesQueryResponse()
+                'topic': 'status_query',
+                'srv': DeviceSVXStatusQuery,
+                'req': DeviceSVXStatusQueryRequest(),
+                'resp': DeviceSVXStatusQueryResponse()
             },
             'svx_device_info_query': {
                 'namespace': self.selected_topic,

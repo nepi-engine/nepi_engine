@@ -46,748 +46,7 @@ from nepi_interfaces.msg import PointcloudStatus
 
 from nepi_api.messages_if import MsgIF
 
-from nepi_api.connect_node_if import ConnectNodeIF
-from nepi_api.connect_node_if import ConnectNodeClassIF
-
-
-
-
-#########################################
-# Connect IF Class
-#########################################
-
-
-# connect_status_msg is the status msg TYPE NAME, as a string. ConnectNodeIF
-# hands it to nepi_sdk.find_topics_by_msg, which string-compares it against the
-# ROS type names of live topics, and publishes it as ConnectIFStatus.status_msg_type,
-# which is a string field. connect_status_msg_class is the matching msg CLASS,
-# which subscribe_topic needs as the subscriber msg type. The two are separate
-# parameters because neither consumer accepts the other's form, and ConnectDataIF
-# is generic so it cannot hardcode the class the way connect_targets_if.py does.
-CONNECT_ID='DATA'
-CONNECT_STATUS_MSG=None
-CONNECT_STATUS_MSG_CLASS=None
-CONNECT_DATA_MSG=None
-CONNECT_NAME='data_connect'
-
-
-CONNECTED_TIMEOUT = 2
-
-
-class ConnectDataIF(ConnectNodeIF):
-
-    # ADD Additional Connect Callback Functions
-
-
-    msg_if = None
-    ready = False
-    namespace = '~'
-
-    node_if = None
-
-    connect_name = CONNECT_NAME
-    status_msg = None
-    connected = False
-    last_status_time = 0
-
-    connect_status_msg = None
-    connect_status_msg_class = None
-    status_callback = None # Backwards Compatibility
-
-    # Data pipeline state. The connected data source publishes an Image on its
-    # base namespace and an ImageStatus on <namespace>/status. Retrieved image
-    # frames are cached here (thread-safe) for polling consumers, or handed
-    # straight to data_callback when one is provided.
-    # data_lock is created per instance in __init__. As a class attribute it
-    # would be one lock shared by every connect instance in the process, needlessly
-    # serialising instances that only ever guard their own data_dict.
-    data_msg = None
-    data_dict = None
-    data_lock = None
-
-    navpose_dict = None
-    navpose_dict_lock = None
-
-
-    connect_data_msg = None
-    connect_data = True
-    data_callback = None
-
-    connect_topic_subs_dict = None
-    connect_topic_pubs_dict = None
-
-    connect_topic_controls_dict = None
-
-    has_navpose = False
-    #######################
-    ### IF Initialization
-    def __init__(self,
-                connect_id = CONNECT_ID,
-                connect_name = CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = True,
-                connect_status_msg = CONNECT_STATUS_MSG,
-                connect_status_msg_class = CONNECT_STATUS_MSG_CLASS,
-                status_callback = None,
-                connect_data = True,
-                connect_data_msg = CONNECT_DATA_MSG,
-                data_callback = None,
-                filter_topic_list = [],
-                connect_topic_controls_dict = None,
-                has_navpose = False,
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
-                msg_if = None,
-                node_if = None
-                ):
-
-        # Raise rather than return. A bare return here left a half-built object with
-        # msg_if still None, so the real failure surfaced much later as an
-        # AttributeError on NoneType somewhere unrelated to the missing argument.
-        if connect_status_msg is None:
-            raise ValueError(str(type(self).__name__) +
-                    ": connect_status_msg is required (status msg type name, as a string)")
-        if connect_status_msg_class is None:
-            raise ValueError(str(type(self).__name__) +
-                    ": connect_status_msg_class is required (status msg class). "
-                    "subscribe_topic always creates the status subscriber, so this "
-                    "is required even when connect_data is False.")
-
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-
-        
-        if msg_if is None:
-            self.msg_if = MsgIF()
-        else:
-            self.msg_if = msg_if
-        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
-
-
-        self.msg_if = msg_if
-        self.node_if = node_if
-        self.connect_name = connect_name
-        self.connect_topic_controls_dict = connect_topic_controls_dict
-        self.has_navpose = has_navpose
-
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
-
-        super().__init__(
-                connect_id = connect_id,
-                connect_status_msg = connect_status_msg,
-                connect_name = connect_name,
-                selected_topic = namespace,
-                auto_select_enabled = auto_select_enabled,
-                filter_topics_list = filter_topic_list,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = self.msg_if,
-                node_if = self.node_if
-                )
-        ####  IF INIT SETUP ####
-
-        self.wait_for_connect_ready()
-
-
-
-        ##############################
-        # Initialize Class Variables
-        self.connect_status_msg = connect_status_msg
-        self.connect_status_msg_class = connect_status_msg_class
-        self.status_callback = status_callback
-        self.connect_data_msg = connect_data_msg
-        self.connect_data = connect_data and connect_data_msg is not None
-        self.data_callback = data_callback
-        self.data_lock = threading.Lock()
-
-
-        ##############################
-        # Start updater process
-
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
-        ###############################
-
-
-    #######################
-    # Class Public Methods
-    #######################
-
-
-    def get_ready_state(self):
-        """Return the ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.ready
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected data source.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.selected_topic
-
-
-    def check_connection(self):
-        """Check whether the data source is currently connected.
-
-        Returns:
-            bool: True if a status message has been received within the connection timeout window,
-                False otherwise.
-        """
-        return self.connected
-
-    def wait_for_connection(self, timeout = float('inf') ):
-        """Block until the data source is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.connected
-
-
-    def check_status_connection(self):
-        """Check whether the status topic from the data source is currently connected.
-
-        Returns:
-            bool: True if status messages are being received, False otherwise.
-        """
-        return self.connected
-
-    def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until the data source status topic is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the status connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for status connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
-            else:
-                self.msg_if.pub_info("Status Connected")
-        return self.connected
-
-    def get_status_dict(self):
-        """Return the latest data source status as a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the most recent ImageStatus message,
-                or None if no status has been received yet.
-        """
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-    def get_status_msg(self):
-        """Return the latest data source status as a msg.
-
-        Returns:
-            dict: A msg representation of the most recent ImageStatus message,
-                or None if no status has been received yet.
-        """
-        return self.status_msg
-
-    def get_data_topic(self):
-        """Return the image data topic of the connected data source.
-
-        Returns:
-            str: The selected data source namespace, which is also the Image topic
-                the source publishes on, or 'None' if no source is selected.
-        """
-        return self.selected_topic
-
-
-    def get_navpose_dict(self):
-        self.navpose_dict_lock.acquire()
-        navpose_dict = copy.deepcopy(self.navpose_dict)
-        self.navpose_dict_lock.release()
-        return navpose_dict
-
-
-
-    def save_config(self):
-        """Publish a save configuration command to persist current settings on the data source.
-        """
-        self.node_if.publish_pub('save_config',Empty())
-
-    def reset_config(self):
-        """Publish a reset configuration command to restore the last saved settings on the data source.
-        """
-        self.node_if.publish_pub('reset_config',Empty())
-
-    def factory_reset_config(self):
-        """Publish a factory reset command to restore factory default settings on the data source.
-        """
-        self.node_if.publish_pub('factory_reset_config',Empty())
-
-    #################
-    ## Save Data Functions
-
-    def get_save_data_products(self):
-        """Return the list of available save data products for this data source.
-
-        Returns:
-            list: A list of data product identifiers supported by the save data interface.
-        """
-        data_products = self.con_save_data_if.get_data_products()
-        return data_products
-
-    def get_save_data_status_dict(self):
-        """Return the current save data status as a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the save data interface status.
-        """
-        status_dict = self.con_save_data_if.get_status_dict()
-        return status_dict
-
-    def save_data_enable_pub(self,enable):
-        """Enable or disable data saving on the data source.
-
-        Args:
-            enable (bool): True to enable data saving, False to disable it.
-        """
-        self.con_save_data_if.save_data_pub(enable)
-
-    def save_data_prefix_pub(self,prefix):
-        """Publish an updated filename prefix for saved data files.
-
-        Args:
-            prefix (str): The prefix string to prepend to saved data filenames.
-        """
-        self.con_save_data_if.save_data_prefix_pub(prefix)
-
-    def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
-        """Publish an updated save rate for a data product.
-
-        Args:
-            rate_hz (float): Desired save rate in Hz.
-            data_product (int, optional): Identifier for the specific data product to update.
-                Defaults to SaveDataRate.ALL_DATA_PRODUCTS.
-        """
-        self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
-
-    def save_data_snapshot_pub(self):
-        """Trigger a one-shot snapshot save of current data on the data source.
-        """
-        self.con_save_data_if.publish_pub()
-
-    def save_data_factory_reset_pub(self):
-        """Publish a factory reset command to restore the save data configuration to defaults.
-        """
-        pub_name = 'factory_reset'
-        msg = Empty()
-        self.con_save_data_if.publish_pub(pub_name,msg)
-
-    ###############################
-    # Class Private Methods
-    ###############################
-
-    def updaterCb(self,timer):
-        cur_time = nepi_utils.get_time()
-        last_time = copy.deepcopy(self.last_status_time )
-        if self.connected == True:
-            if (cur_time - last_time) > CONNECTED_TIMEOUT:
-                self.connected = False
-                self.status_msg = None
-
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-
-
-
-    def subscribe_topic(self, topic):
-        self.msg_if.pub_debug("subscribe_data_topic Called")
-
-        success = False
-        success = self.unsubscribe_topic()
-
-        # Subscribers Config Dict ####################
-        self.connect_topic_subs_dict = {
-            self.node_if_prefix + 'status_sub': {
-                'namespace': self.selected_topic,
-                'topic': 'status',
-                'msg': self.connect_status_msg_class,
-                'qsize': 10,
-                'callback': self._statusCb
-            }
-        }
-        if self.connect_data == True:
-             self.connect_topic_subs_dict[self.node_if_prefix + 'data_sub'] = {
-                'namespace': self.selected_topic,
-                'topic': '',
-                'msg': self.connect_data_msg,
-                'qsize': 1,
-                'callback': self._dataCb
-            }
-
-
-        if self.has_navpose == True:
-            self.connect_topic_subs_dict[self.node_if_prefix + 'navpose_sub'] = {
-                'namespace': self.selected_topic,
-                'topic': 'navpose',
-                'msg': NavPose,
-                'qsize': 1,
-                'callback': self._navposeCb
-            }            
-
-        # Publishers Config Dict ####################
-        self.connect_topic_pubs_dict = {
-            self.node_if_prefix + 'save_config': {
-                'namespace': self.selected_topic,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'reset_config': {
-                'namespace': self.selected_topic,
-                'topic': 'reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'factory_reset_config': {
-                'namespace': self.selected_topic,
-                'topic': 'factory_reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            }
-        }
-
-        # Controls Config Dict ####################
-        # Each subclass authors its controls dict in its own constructor, before the
-        # connected namespace is known, so every entry carries the 'unknown' namespace
-        # sentinel meaning "fill this in with the connected topic". Resolve into a
-        # per-entry copy. Writing self.selected_topic back into
-        # self.connect_topic_controls_dict strips the sentinel permanently, and the
-        # next subscribe -- connect_node_if._updaterCb calls subscribe_topic on every
-        # topic change -- would then re-register every control publisher against the
-        # previously connected namespace, silently commanding the wrong data source.
-        if self.connect_topic_controls_dict is not None:
-            for control_name in self.connect_topic_controls_dict.keys():
-                control_dict = dict(self.connect_topic_controls_dict[control_name])
-                if control_dict['namespace'] == 'unknown':
-                    control_dict['namespace'] = self.selected_topic
-                self.connect_topic_pubs_dict[control_name] = control_dict
-
-        if self.node_if is not None:
-            self.node_if.register_pubs(self.connect_topic_pubs_dict)
-            self.node_if.register_subs(self.connect_topic_subs_dict)
-            self.connecting = True
-            self.connected = False
-            self.connected_topic = 'None'
-            self.status_msg = None
-
-        return success
-
-
-
-
-    def unsubscribe_topic(self):
-        success = False
-        if self.connecting == True or self.connected == True:
-            self.msg_if.pub_debug("unsubscribe_topic Called")
-
-            if self.node_if is not None:
-                if self.connect_topic_subs_dict is not None:
-                    for sub_name in self.connect_topic_subs_dict.keys():
-                        self.node_if.unregister_sub(sub_name)
-            self.connect_topic_subs_dict = None
-
-            if self.node_if is not None:
-                if self.connect_topic_pubs_dict is not None:
-                    for pub_name in self.connect_topic_pubs_dict.keys():
-                        self.node_if.unregister_pub(pub_name)
-            self.connect_topic_pubs_dict = None
-
-            nepi_sdk.sleep(1)
-            self.connecting = False
-            self.connected = False
-            self.connected_topic = 'None'
-            self.status_msg = None
-            self.data_dict = None
-            success = True
-        return success
-
-
-    def _statusCb(self,status_msg):
-        self.last_status_time = nepi_utils.get_time()
-        if self.connected == False:
-            self._announceConnected(self.connect_id)
-            self.connecting = False
-            self.connected_topic = self.selected_topic
-        self.connected = True
-        self.status_msg = status_msg
-
-        if self.status_callback is not None:
-            status_dict = self.get_status_dict()
-            self.status_callback(status_dict)
-
-
-    def _dataCb(self,data_msg):
-        pass
-
-
-
-    def _navposeCb(self,navpose_msg):
-       
-        navpose_dict = nepi_nav.convert_navposes_msg2dict(navpose_msg)
-
-
-        self.navpose_dict_lock.acquire()
-        self.navpose_dict = navpose_dict
-        self.navpose_dict_lock.release()
-
-
-
-
-#########################################
-# Connect NavPose IF Class
-#########################################
-# Client-side connect class mirroring data_if.NavPoseIF. NavPoseIF is a
-# standalone (non-image) data interface, so this connect class subclasses
-# ConnectNodeIF directly and diverges from the image-oriented ConnectDataIF:
-# the connected source publishes a NavPose on its base namespace and a
-# NavPoseStatus on <namespace>/status. Retrieved NavPose messages are
-# converted to nav pose dictionaries and cached (thread-safe) for polling
-# consumers, or handed straight to data_callback when one is provided.
-
-
-NAVPOSE_CONNECT_ID = 'NAVPOSE'
-NAVPOSE_CONNECT_STATUS_MSG = 'NavPoseStatus'
-NAVPOSE_CONNECT_STATUS_MSG_CLASS = NavPoseStatus
-NAVPOSE_CONNECT_DATA_MSG = NavPose
-NAVPOSE_CONNECT_NAME = 'navpose_connect'
-
-
-class ConnectNavPoseIF(ConnectDataIF):
-
-    # ADD Additional Connect Callback Functions
-
-    #######################
-    ### IF Initialization
-    def __init__(self,
-                connect_name = NAVPOSE_CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = False,
-                status_callback = None,
-                connect_data = True,
-                data_callback = None,
-                filter_topic_list = [],
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
-                msg_if = None,
-                node_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-
-        
-        if msg_if is None:
-            self.msg_if = MsgIF()
-        else:
-            self.msg_if = msg_if
-        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
-
-        # Forward by keyword. These arguments used to be passed positionally into a
-        # signature whose 3rd and 6th slots are connect_status_msg/connect_data_msg,
-        # so every argument landed in the wrong slot and connect_status_msg received
-        # None, which tripped the guard in ConnectDataIF.__init__ and left the
-        # instance dead. msg_if and node_if never arrived at all.
-
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
-
-        # Controls Config Dict ####################
-        # Mirrors data_if.NavPoseIF.SUBS_DICT, which advertises exactly one
-        # subscriber. The 'unknown' namespace is the sentinel ConnectDataIF
-        # replaces with the connected topic at subscribe time.
-        connect_topic_controls_dict = {
-            self.node_if_prefix + self.node_if_prefix + 'navpose_reset': {
-                'namespace': 'unknown',
-                'topic': 'reset',
-                'msg': Empty,
-                'qsize': 1,
-            }
-        }
-
-        super().__init__(
-                connect_id = NAVPOSE_CONNECT_ID,
-                connect_name = connect_name,
-                namespace = namespace,
-                auto_select_enabled = auto_select_enabled,
-                connect_status_msg = NAVPOSE_CONNECT_STATUS_MSG,
-                connect_status_msg_class = NAVPOSE_CONNECT_STATUS_MSG_CLASS,
-                status_callback = status_callback,
-                connect_data = False,
-                connect_data_msg = None,
-                data_callback = data_callback,
-                filter_topic_list = filter_topic_list,
-                connect_topic_controls_dict = connect_topic_controls_dict,
-                has_navpose = True,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = msg_if,
-                node_if = node_if
-                )
-        ####  IF INIT SETUP ####
-
-        self.msg_if.pub_info("IF Initialization Complete")
-        ###############################
-
-
-    #######################
-    # Class Public Methods
-    #######################
-
-    #################
-    ## Data Functions
-
-
-    def get_navpose_msg(self):
-        """Return a deep copy of the most recently received nav pose dictionary.
-
-        Mirrors data_if.NavPoseIF.get_navpose_dict, which is the contract the
-        data_if image, depth map and pointcloud classes call against whichever
-        navpose interface they hold -- a server-side NavPoseIF when one is passed
-        in, or a ConnectNavPoseIF built from a namespace when one is not.
-
-        Returns:
-            dict: The last nav pose data dictionary, or None if no NavPose message
-                has arrived from the connected source yet.
-        """
-        if self.data_msg is None:
-            return None
-        self.data_lock.acquire()
-        data_msg = copy.deepcopy(self.data_msg)
-        self.data_lock.release()
-        return data_msg
-
-    def get_navpose_dict(self):
-        """Return a deep copy of the most recently received nav pose dictionary.
-
-        Mirrors data_if.NavPoseIF.get_navpose_dict, which is the contract the
-        data_if image, depth map and pointcloud classes call against whichever
-        navpose interface they hold -- a server-side NavPoseIF when one is passed
-        in, or a ConnectNavPoseIF built from a namespace when one is not.
-
-        Returns:
-            dict: The last nav pose data dictionary, or None if no NavPose message
-                has arrived from the connected source yet.
-        """
-        if self.data_dict is None:
-            return None
-        self.data_lock.acquire()
-        navpose_dict = copy.deepcopy(self.data_dict)
-        self.data_lock.release()
-        return navpose_dict
-
-
-    #################
-    ## Control Functions
-
-    def reset(self):
-        """Publish a reset command to the connected navpose source.
-
-        Restores the navpose interface to its initialized state. Mirrors
-        data_if.NavPoseIF.reset.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
-        """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'navpose_reset', Empty())
-
-
-    ###############################
-    # Class Private Methods
-    ###############################
-
-    def _navposeCb(self,navpose_msg):
-       
-        navpose_dict = nepi_nav.convert_navpose_msg2dict(navpose_msg)
-        #self.msg_if.pub_warn("Got navpose dict: " + str(navpose_dict), throttle_s = 5)
-        if self.data_callback is not None:
-            self.data_callback(navpose_dict)
-        
-        self.data_lock.acquire()
-        self.data_msg = navpose_msg
-        self.data_dict = navpose_dict
-        self.navpose_dict = navpose_dict
-        self.data_lock.release()
-        self.got_data = True
-
-
+from nepi_api.connect_data_product_if import ConnectDataProductIF
 
 
 
@@ -797,7 +56,7 @@ class ConnectNavPoseIF(ConnectDataIF):
 # Connect BaseImage IF Class
 #########################################
 # Client-side connect class mirroring data_if.BaseImageIF, the shared parent of
-# the image data-interface family. ConnectDataIF already implements the full
+# the image data-interface family. ConnectDataProductIF already implements the full
 # image connect pattern (ImageStatus status + Image data), so ConnectBaseImageIF
 # subclasses it and supplies only the image msg types. Every data_if.BaseImageIF
 # descendant publishes the same ImageStatus/Image pair, so the image connect
@@ -812,11 +71,11 @@ BASE_IMAGE_CONNECT_DATA_MSG = Image
 BASE_IMAGE_CONNECT_NAME = 'base_image_connect'
 
 
-class ConnectBaseImageIF(ConnectDataIF):
+class ConnectBaseImageIF(ConnectDataProductIF):
     """Shared parent connect class for the image data-interface family.
 
     Mirrors data_if.BaseImageIF. Supplies the ImageStatus/Image msg types to
-    ConnectDataIF, which provides the complete connect implementation
+    ConnectDataProductIF, which provides the complete connect implementation
     (status/ready/connection handling, save/config methods, and the private ROS
     callbacks).
     """
@@ -860,7 +119,7 @@ class ConnectBaseImageIF(ConnectDataIF):
         # Mirrors the data_if.BaseImageIF subscriber set. Only the subscribers
         # advertised on the data product namespace appear here -- that namespace is
         # what the connect side's selected_topic resolves to. The 'unknown' namespace
-        # is the sentinel ConnectDataIF replaces with the connected topic at subscribe
+        # is the sentinel ConnectDataProductIF replaces with the connected topic at subscribe
         # time. Every image connect subclass inherits this set unchanged.
         connect_topic_controls_dict = {
 
@@ -1473,6 +732,11 @@ class ConnectBaseImageIF(ConnectDataIF):
                 )
         ####  IF INIT SETUP ####
         ###############################
+
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ConnectBaseImageIF:
+            self.start()
 
 
     #######################
@@ -2802,74 +2066,49 @@ class ConnectBaseImageIF(ConnectDataIF):
     # Class Private Methods
     ###############################
 
+    # Overrides ConnectDataProductIF._dataCb, which flattens the msg with
+    # convert_msg2dict. A depth map is an Image carrying float distance data, so
+    # it is decoded to cv2 here and returned with its dimensions, timestamps and
+    # get/process/got latency.
+    def _dataCb(self,data_msg):
 
 
+        current_time = nepi_sdk.get_msg_stamp()
+        msg_stamp = data_msg.header.stamp
+        get_latency = (current_time.to_sec() - msg_stamp.to_sec())
 
-#########################################
-# Connect Image IF Class
-#########################################
+        start_time = nepi_sdk.get_time()
+
+        ##############################
+        ### Preprocess Depth Map
+        data = nepi_img.rosimg_to_cv2img(data_msg)
 
 
-IMAGE_CONNECT_NAME = 'image_connect'
+        data_dict = dict()
+        data_dict['namespace'] = self.selected_topic
+        data_dict['color_image'] = data
+        data_dict['navpose_dict'] = self.get_navpose_dict()
+        height, width = data.shape[:2]
+        data_dict['width'] = width
+        data_dict['height'] = height
+        data_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(msg_stamp)
+        data_dict['ros_img_header'] = data_msg.header
+        data_dict['ros_img_stamp'] = msg_stamp
+        data_dict['get_latency_time'] = get_latency
+        ##############################
 
+        process_time = round( (nepi_sdk.get_time() - start_time) , 3)
+        data_dict['process_time'] = process_time
 
-class ConnectImageIF(ConnectBaseImageIF):
-    """Connect class mirroring data_if.ImageIF.
+        got_latency = (nepi_sdk.get_msg_stamp().to_sec() - msg_stamp.to_sec())
+        data_dict['got_latency_time'] = got_latency
 
-    Adds nothing beyond the shared ConnectBaseImageIF image connect pattern; the
-    connected 'image' data product is selected by namespace.
-    """
+        if self.data_callback is not None:
+            self.data_callback(data_dict)
 
-    #######################
-    ### IF Initialization
-    def __init__(self,
-                connect_name = IMAGE_CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = True,
-                status_callback = None,
-                connect_data = True,
-                data_callback = None,
-                filter_topic_list = [],
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
-                msg_if = None,
-                node_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-
-        
-        if msg_if is None:
-            self.msg_if = MsgIF()
-        else:
-            self.msg_if = msg_if
-        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
-
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
-
-        super().__init__(
-                connect_name = connect_name,
-                namespace = namespace,
-                auto_select_enabled = auto_select_enabled,
-                status_callback = status_callback,
-                connect_data = connect_data,
-                data_callback = data_callback,
-                filter_topic_list = filter_topic_list,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = msg_if,
-                node_if = node_if
-                )
-        ####  IF INIT SETUP ####
-        ###############################
+        self.data_lock.acquire()
+        self.data_dict = data_dict
+        self.data_lock.release()
 
 
 
@@ -2940,400 +2179,473 @@ class ConnectColorImageIF(ConnectBaseImageIF):
         ####  IF INIT SETUP ####
         ###############################
 
+        ##############################
+        # Start NodeIF Processes
+        if type(self) is ConnectColorImageIF:
+            self.start()
 
 
+
+
+from nepi_api.messages_if import MsgIF
+
+
+SYSTEM_ALL_TOPIC = 'all'
 
 #########################################
-# Connect DepthMap IF Class
+# Connect Image IF All Class
 #########################################
-# Client-side connect class mirroring data_if.DepthMapIF. DepthMapIF is a
-# standalone (non-BaseImageIF) data interface that publishes its depth map as an
-# Image on its base namespace and a DepthMapStatus on <namespace>/status, so
-# this connect class subclasses ConnectDataIF and supplies the DepthMapStatus
-# status type. Everything the connect pattern shares is inherited; what stays
-# here is what ConnectDataIF has no generic form of -- the DepthMapStatus field
-# accessors, the cached depth map getter, and a _dataCb that decodes the Image
-# to cv2 and records latency rather than flattening the msg to a dict.
+IMAGE_ALL_TOPIC = 'images'
 
 
-DEPTH_MAP_CONNECT_ID = 'DEPTH_MAP'
-DEPTH_MAP_CONNECT_STATUS_MSG = 'DepthMapStatus'
-DEPTH_MAP_CONNECT_STATUS_MSG_CLASS = DepthMapStatus
-DEPTH_MAP_CONNECT_DATA_MSG = Image
-DEPTH_MAP_CONNECT_NAME = 'depth_map_connect'
-
-
-class ConnectDepthMapIF(ConnectDataIF):
+class ConnectImagesAllIF:
 
     # ADD Additional Connect Callback Functions
 
+
+    msg_if = None
+    ready = False
+    namespace = '~'
+
+    node_if = None
+
+    connected = False
+
+    connect_topic_pubs_dict = None
     #######################
     ### IF Initialization
     def __init__(self,
-                connect_name = DEPTH_MAP_CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = True,
-                status_callback = None,
-                connect_data = True,
-                data_callback = None,
-                filter_topic_list = [],
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
                 msg_if = None,
                 node_if = None
                 ):
+
+
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
         self.base_namespace = nepi_sdk.get_base_namespace()
         self.node_name = nepi_sdk.get_node_name()
         self.node_namespace = nepi_sdk.get_node_namespace()
 
-        ##############################  
 
-        
+
+        ##############################  
+        # Connect Msg Class
+
         if msg_if is None:
             self.msg_if = MsgIF()
         else:
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
+        ##############################  
+        # Setup All Namespace
 
-        super().__init__(
-                connect_id = DEPTH_MAP_CONNECT_ID,
-                connect_name = connect_name,
-                namespace = namespace,
-                auto_select_enabled = auto_select_enabled,
-                connect_status_msg = DEPTH_MAP_CONNECT_STATUS_MSG,
-                connect_status_msg_class = DEPTH_MAP_CONNECT_STATUS_MSG_CLASS,
-                status_callback = status_callback,
-                connect_data = connect_data,
-                connect_data_msg = DEPTH_MAP_CONNECT_DATA_MSG,
-                data_callback = data_callback,
-                filter_topic_list = filter_topic_list,
-                connect_topic_controls_dict = None,
-                has_navpose = True,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = msg_if,
-                node_if = node_if
-                )
-        ####  IF INIT SETUP ####
-        ###############################
+        # Collective controls publish on the shared images all_namespace, which fans a
+        # single command out to every IDX image.
+        all_namespace = nepi_sdk.create_namespace(self.base_namespace, SYSTEM_ALL_TOPIC)
+        all_namespace = nepi_sdk.create_namespace(all_namespace, IMAGE_ALL_TOPIC)
+        self.all_namespace = all_namespace
+        self.msg_if.pub_warn("Using connect all_namespace: " + str(self.all_namespace) )
 
-
-    #######################
-    # Class Public Methods
-    #######################
-
-
-    def get_encoding(self):
-        """Return the depth map encoding reported by the connected data source.
-
-        Returns:
-            str: The encoding string (e.g. '32FC1'), or None if no status has been received.
-        """
-        if self.status_msg is not None:
-            return self.status_msg.encoding
-
-    def get_image_size_px(self):
-        """Return the depth map dimensions in pixels reported by the connected data source.
-
-        Returns:
-            list: A two-element list [width_px, height_px], or None if no status
-                has been received.
-        """
-        if self.status_msg is not None:
-            return [self.status_msg.width_px, self.status_msg.height_px]
-
-    def get_depth_map_dict(self):
-        """Retrieve and consume the latest captured depth map data dictionary.
-
-        Thread-safe. Clears the stored data after retrieval so subsequent calls
-        return None until a new frame arrives.
-
-        Returns:
-            dict: The depth map data dictionary containing the cv2 depth map,
-                dimensions, timestamps, and latency metrics, or None if no depth
-                map is available.
-        """
-        self.data_lock.acquire()
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = None
-        self.data_lock.release()
-        return data_dict
-
-
-    ###############################
-    # Class Private Methods
-    ###############################
-
-    # Overrides ConnectDataIF._dataCb, which flattens the msg with
-    # convert_msg2dict. A depth map is an Image carrying float distance data, so
-    # it is decoded to cv2 here and returned with its dimensions, timestamps and
-    # get/process/got latency.
-    def _dataCb(self,data_msg):
-
-
-        current_time = nepi_sdk.get_msg_stamp()
-        msg_stamp = data_msg.header.stamp
-        get_latency = (current_time.to_sec() - msg_stamp.to_sec())
-
-        start_time = nepi_sdk.get_time()
-
-        ##############################
-        ### Preprocess Depth Map
-        data = nepi_img.rosimg_to_cv2img(data_msg)
-
-
-        data_dict = dict()
-        data_dict['namespace'] = self.selected_topic
-        data_dict['data'] = data
-        height, width = data.shape[:2]
-        data_dict['width'] = width
-        data_dict['height'] = height
-        data_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(msg_stamp)
-        data_dict['ros_img_header'] = data_msg.header
-        data_dict['ros_img_stamp'] = msg_stamp
-        data_dict['get_latency_time'] = get_latency
-        ##############################
-
-        process_time = round( (nepi_sdk.get_time() - start_time) , 3)
-        data_dict['process_time'] = process_time
-
-        got_latency = (nepi_sdk.get_msg_stamp().to_sec() - msg_stamp.to_sec())
-        data_dict['got_latency_time'] = got_latency
-
-        if self.data_callback is not None:
-            self.data_callback(data_dict)
-
-        self.data_lock.acquire()
-        self.data_dict = data_dict
-        self.data_lock.release()
-
-
-
-
-#########################################
-# Connect DepthMapImage IF Class
-#########################################
-
-
-DEPTH_MAP_IMAGE_CONNECT_NAME = 'depth_map_image_connect'
-
-
-class ConnectDepthMapImageIF(ConnectBaseImageIF):
-    """Connect class mirroring data_if.DepthMapImageIF.
-
-    Adds nothing beyond the shared ConnectBaseImageIF image connect pattern; the
-    connected 'depth_map_image' data product is selected by namespace.
-    """
-
-    #######################
-    ### IF Initialization
-    def __init__(self,
-                connect_name = DEPTH_MAP_IMAGE_CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = True,
-                status_callback = None,
-                connect_data = True,
-                data_callback = None,
-                filter_topic_list = [],
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
-                msg_if = None,
-                node_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
 
         ##############################  
+        # Connect Node Class
 
-        
-        if msg_if is None:
-            self.msg_if = MsgIF()
-        else:
-            self.msg_if = msg_if
-        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
-
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
-
-        super().__init__(
-                connect_name = connect_name,
-                namespace = namespace,
-                auto_select_enabled = auto_select_enabled,
-                status_callback = status_callback,
-                connect_data = connect_data,
-                data_callback = data_callback,
-                filter_topic_list = filter_topic_list,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = msg_if,
-                node_if = node_if
-                )
-        ####  IF INIT SETUP ####
-        ###############################
+        if node_if is None:
+            self.msg_if.pub_info("Node IF Not Provided")
+            return
+        self.node_if = node_if
 
 
 
 
-#########################################
-# Connect Pointcloud IF Class
-#########################################
-# Client-side connect class mirroring data_if.PointcloudIF. PointcloudIF is a
-# standalone (non-BaseImageIF) data interface that publishes a PointCloud2 on
-# its base namespace and a PointcloudStatus on <namespace>/status, so this
-# connect class subclasses ConnectDataIF and supplies the PointcloudStatus
-# status type. Everything the connect pattern shares is inherited; what stays
-# here is what ConnectDataIF has no generic form of -- the PointcloudStatus
-# field accessors, the cached pointcloud getter, and a _dataCb that converts the
-# PointCloud2 to an Open3D cloud and records latency.
 
 
-POINTCLOUD_CONNECT_ID = 'POINTCLOUD'
-POINTCLOUD_CONNECT_STATUS_MSG = 'PointcloudStatus'
-POINTCLOUD_CONNECT_STATUS_MSG_CLASS = PointcloudStatus
-POINTCLOUD_CONNECT_DATA_MSG = PointCloud2
-POINTCLOUD_CONNECT_NAME = 'pointcloud_connect'
 
 
-class ConnectPointcloudIF(ConnectDataIF):
 
-    # ADD Additional Connect Callback Functions
-
-    #######################
-    ### IF Initialization
-    def __init__(self,
-                connect_name = POINTCLOUD_CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = True,
-                status_callback = None,
-                connect_data = True,
-                data_callback = None,
-                filter_topic_list = [],
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
-                msg_if = None,
-                node_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-
-        
-        if msg_if is None:
-            self.msg_if = MsgIF()
-        else:
-            self.msg_if = msg_if
-        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
-
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
-
-        connect_topic_controls_dict = {
-            self.node_if_prefix + 'pointcloud_reset_controls': {
-                'namespace': 'unknown',
-                'topic': 'reset_controls',
+        # Publishers Config Dict ####################
+        self.connect_topic_pubs_dict = {
+            'all_overlay_text_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_text_size_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_size_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_overlay_text_horz_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_horz_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_overlay_text_vert_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_vert_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_overlay_text_transparency_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_overlay_text_color_rgb': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_color_rgb',
+                'msg': ColorBGR,
+                'qsize': 1,
+            },
+            'all_overlay_text_source_name': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_source_name',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_text_date_time': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_date_time',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_text_nav': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_nav',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_text_pose': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_pose',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            # 'all_click_text_enable': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'click_text_enable',
+            #     'msg': Bool,
+            #     'qsize': 1,
+            # },
+            'all_overlay_text': {
+                'namespace': self.all_namespace,
+                'topic': 'add_overlay_text',
+                'msg': String,
+                'qsize': 1,
+            },
+            'all_overlay_text_list': {
+                'namespace': self.all_namespace,
+                'topic': 'set_overlay_text_list',
+                'msg': StringArray,
+                'qsize': 1,
+            },
+            'all_overlay_text_clear': {
+                'namespace': self.all_namespace,
+                'topic': 'clear_overlay_text_list',
                 'msg': Empty,
                 'qsize': 1,
             },
-            self.node_if_prefix + 'pointcloud_set_clip_enable': {
-                'namespace': 'unknown',
-                'topic': 'set_clip_enable',
+            'all_crosshairs_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'crosshairs_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            self.node_if_prefix + 'pointcloud_set_clip_selection': {
-                'namespace': 'unknown',
-                'topic': 'set_clip_selection',
-                'msg': String,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'pointcloud_set_range_clip_m': {
-                'namespace': 'unknown',
-                'topic': 'set_range_clip_m',
-                'msg': RangeWindow,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'pointcloud_set_clip_bounding_box3d_topic': {
-                'namespace': 'unknown',
-                'topic': 'set_clip_bounding_box3d_topic',
-                'msg': String,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'pointcloud_set_voxel_downsample_size': {
-                'namespace': 'unknown',
-                'topic': 'set_voxel_downsample_size',
+            'all_crosshairs_size_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_size_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            self.node_if_prefix + 'pointcloud_uniform_downsample_k_points': {
-                'namespace': 'unknown',
-                'topic': 'uniform_downsample_k_points',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'pointcloud_outlier_removal_num_neighbors': {
-                'namespace': 'unknown',
-                'topic': 'outlier_removal_num_neighbors',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'pointcloud_set_rotate_ratio': {
-                'namespace': 'unknown',
-                'topic': 'set_rotate_ratio',
+            'all_crosshairs_thickness_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_thickness_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            self.node_if_prefix + 'pointcloud_set_tilt_ratio': {
-                'namespace': 'unknown',
-                'topic': 'set_tilt_ratio',
+            'all_crosshairs_text_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_text_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            self.node_if_prefix + 'pointcloud_set_render_enable': {
-                'namespace': 'unknown',
-                'topic': 'set_render_enable',
+            'all_crosshairs_transparency_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_crosshairs_color_rgb': {
+                'namespace': self.all_namespace,
+                'topic': 'set_crosshairs_color_rgb',
+                'msg': ColorBGR,
+                'qsize': 1,
+            },
+            'all_overlay_crosshair_names': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_crosshair_names',
                 'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_crosshair_pixels': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_crosshair_pixels',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_crosshair_degrees': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_crosshair_degrees',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_crosshair_text': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_crosshair_text',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            # 'all_click_crosshair_enable': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'click_crosshair_enable',
+            #     'msg': Bool,
+            #     'qsize': 1,
+            # },
+            # 'all_add_crosshair_pixel': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'add_crosshair_pixel',
+            #     'msg': ImageCrosshair,
+            #     'qsize': 1,
+            # },
+            'all_add_crosshair_ratios': {
+                'namespace': self.all_namespace,
+                'topic': 'add_crosshair_ratios',
+                'msg': ImageCrosshair,
+                'qsize': 1,
+            },
+            'all_add_crosshair_degree_offsets': {
+                'namespace': self.all_namespace,
+                'topic': 'add_crosshair_degree_offsets',
+                'msg': ImageCrosshair,
+                'qsize': 1,
+            },
+            'all_remove_crosshair': {
+                'namespace': self.all_namespace,
+                'topic': 'remove_crosshair',
+                'msg': String,
+                'qsize': 1,
+            },
+            'all_clear_crosshairs': {
+                'namespace': self.all_namespace,
+                'topic': 'clear_crosshairs',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'all_targets_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'targets_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_targets_size_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_size_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_targets_thickness_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_thickness_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_targets_text_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_text_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_targets_transparency_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_transparency_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_targets_color_rgb': {
+                'namespace': self.all_namespace,
+                'topic': 'set_targets_color_rgb',
+                'msg': ColorBGR,
+                'qsize': 1,
+            },
+            'all_overlay_target_names': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_names',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_target_pixels': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_pixels',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_target_degrees': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_degrees',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_overlay_target_text': {
+                'namespace': self.all_namespace,
+                'topic': 'overlay_target_text',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            # 'all_click_target_enable': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'click_target_enable',
+            #     'msg': Bool,
+            #     'qsize': 1,
+            # },
+            # 'all_add_target_pixel': {
+            #     'namespace': self.all_namespace,
+            #     'topic': 'add_target_pixel',
+            #     'msg': ImageTarget,
+            #     'qsize': 1,
+            # },
+            'all_add_target_ratios': {
+                'namespace': self.all_namespace,
+                'topic': 'add_target_ratios',
+                'msg': ImageTarget,
+                'qsize': 1,
+            },
+            'all_add_target_degree_offsets': {
+                'namespace': self.all_namespace,
+                'topic': 'add_target_degree_offsets',
+                'msg': ImageTarget,
+                'qsize': 1,
+            },
+            'all_remove_target': {
+                'namespace': self.all_namespace,
+                'topic': 'remove_target',
+                'msg': String,
+                'qsize': 1,
+            },
+            'all_clear_targets': {
+                'namespace': self.all_namespace,
+                'topic': 'clear_targets',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'all_set_aspect_adjust_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_set_aspect_adjust_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_aspect_adjust_by_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_aspect_adjust_by_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_stream_compression_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_stream_compression_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_set_stream_compression_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_stream_compression_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_rotate_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_rotate_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_rotate_deg': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_rotate_deg',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_x_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_x_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_x_pixel': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_x_pixel',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_x_deg': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_x_deg',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_y_ratio': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_y_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_y_pixel': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_y_pixel',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'all_set_live_adjust_y_deg': {
+                'namespace': self.all_namespace,
+                'topic': 'set_live_adjust_y_deg',
+                'msg': Float32,
                 'qsize': 1,
             }
         }
 
-        super().__init__(
-                connect_id = POINTCLOUD_CONNECT_ID,
-                connect_name = connect_name,
-                namespace = namespace,
-                auto_select_enabled = auto_select_enabled,
-                connect_status_msg = POINTCLOUD_CONNECT_STATUS_MSG,
-                connect_status_msg_class = POINTCLOUD_CONNECT_STATUS_MSG_CLASS,
-                status_callback = status_callback,
-                connect_data = connect_data,
-                connect_data_msg = POINTCLOUD_CONNECT_DATA_MSG,
-                data_callback = data_callback,
-                filter_topic_list = filter_topic_list,
-                connect_topic_controls_dict = connect_topic_controls_dict,
-                has_navpose = True,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = msg_if,
-                node_if = node_if
-                )
-        ####  IF INIT SETUP ####
+        if self.node_if is not None:
+            self.node_if.register_pubs(self.connect_topic_pubs_dict)
+            self.connecting = False
+            self.connected = True
+            self.connected_topic = self.all_namespace
+            self.status_msg = None
+            
+
+
+
+        ##############################
+        # Initialize Class Variables
+
+
+        ##############################
+        # Complete Initialization
+        self.ready = True
+        self.msg_if.pub_info("IF Initialization Complete")
         ###############################
 
 
@@ -3342,320 +2654,724 @@ class ConnectPointcloudIF(ConnectDataIF):
     #######################
 
 
-    def get_point_count(self):
-        """Return the point count reported by the connected pointcloud source.
+    def get_ready_state(self):
+        """Return the ready state of the interface.
 
         Returns:
-            int: The number of points in the pointcloud, or None if no status has been received.
+            bool: True if the interface has completed initialization, False otherwise.
         """
-        if self.status_msg is not None:
-            return self.status_msg.point_count
+        return self.ready
 
-    def get_has_rgb(self):
-        """Return whether the connected pointcloud source provides RGB color data.
+    def wait_for_ready(self, timeout = float('inf') ):
+        """Block until the interface is ready or the timeout expires.
+
+        Args:
+            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
 
         Returns:
-            bool: True if the pointcloud carries RGB data, or None if no status has been received.
+            bool: True if the interface became ready, False if the timeout was reached.
         """
-        if self.status_msg is not None:
-            return self.status_msg.has_rgb
+        success = False
+        if self.ready is not None:
+            self.msg_if.pub_info("Waiting for connection")
+            timer = 0
+            time_start = nepi_sdk.get_time()
+            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
+                nepi_sdk.sleep(.1)
+                timer = nepi_sdk.get_time() - time_start
+            if self.ready == False:
+                self.msg_if.pub_info("Failed to Connect")
+            else:
+                self.msg_if.pub_info("Connected")
+        return self.ready
 
-    def get_has_intensity(self):
-        """Return whether the connected pointcloud source provides intensity data.
+    def get_namespace(self):
+        """Return the fully-resolved ROS namespace the collective image controls publish on.
 
         Returns:
-            bool: True if the pointcloud carries intensity data, or None if no status has been received.
+            str: The shared images namespace (base namespace + '/images') used to fan a
+                single command out to every IDX image.
         """
-        if self.status_msg is not None:
-            return self.status_msg.has_intensity
-
-    def get_pointcloud_dict(self):
-        """Retrieve and consume the latest captured pointcloud data dictionary.
-
-        Thread-safe. Clears the stored data after retrieval so subsequent calls
-        return None until a new frame arrives.
-
-        Returns:
-            dict: The pointcloud data dictionary containing the Open3D point cloud,
-                point count, timestamps, and latency metrics, or None if no
-                pointcloud is available.
-        """
-        self.data_lock.acquire()
-        data_dict = copy.deepcopy(self.data_dict)
-        self.data_dict = None
-        self.data_lock.release()
-        return data_dict
+        return self.all_namespace
 
 
     #################
-    ## Control Functions
+    ## Image Text Overlays
 
-    def reset_controls(self):
-        """Reset all pointcloud process controls to their initialized values.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
-        """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_reset_controls', Empty())
-
-    def set_clip_enable(self, enable):
-        """Enable or disable pointcloud clipping.
+    def set_overlay_text_enable(self, enable):
+        """Enable or disable all text overlays on every IDX image output.
 
         Args:
-            enable (bool): True to enable clipping, False to disable.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            enable (bool): True to render the text overlays, False to hide them.
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_clip_enable', Bool(enable))
+        pub_name = 'all_overlay_text_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
 
-    def set_clip_selection(self, selection):
-        """Select which clipping mode is applied.
+    def set_overlay_text_size_ratio(self, size_ratio):
+        """Set the overlay text size on every IDX image output.
 
         Args:
-            selection (str): Clip selection name, from the clip_options list in
-                the pointcloud status message.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            size_ratio (float): Desired overlay text size as a ratio from 0.0 (smallest) to 1.0 (largest).
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_clip_selection', String(selection))
+        pub_name = 'all_overlay_text_size_ratio'
+        msg = size_ratio
+        self.node_if.publish_pub(pub_name, msg)
 
-    def set_range_clip_m(self, range_window_msg):
-        """Set the clipping range window in meters.
+    def set_overlay_text_horz_ratio(self, horz_ratio):
+        """Set the horizontal position of the text overlay block on every IDX image output.
 
         Args:
-            range_window_msg (RangeWindow): Caller-built RangeWindow message
-                carrying the minimum and maximum clip range in meters.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            horz_ratio (float): Position from the image left edge as a ratio from 0.0 to 1.0.
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_range_clip_m', range_window_msg)
+        pub_name = 'all_overlay_text_horz_ratio'
+        msg = horz_ratio
+        self.node_if.publish_pub(pub_name, msg)
 
-    def set_clip_bounding_box3d_topic(self, topic):
-        """Set the topic supplying the 3D bounding box used for clipping.
+    def set_overlay_text_vert_ratio(self, vert_ratio):
+        """Set the vertical position of the text overlay block on every IDX image output.
 
         Args:
-            topic (str): Namespace of the bounding box 3D topic.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            vert_ratio (float): Position from the image top edge as a ratio from 0.0 to 1.0.
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_clip_bounding_box3d_topic', String(topic))
+        pub_name = 'all_overlay_text_vert_ratio'
+        msg = vert_ratio
+        self.node_if.publish_pub(pub_name, msg)
 
-    def set_voxel_downsample_size(self, size_m):
-        """Set the voxel downsample size.
+    def set_overlay_text_transparency_ratio(self, transparency_ratio):
+        """Set the text overlay transparency on every IDX image output.
 
         Args:
-            size_m (float): Voxel edge length in meters. Zero disables voxel
-                downsampling.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            transparency_ratio (float): Transparency as a ratio from 0.0 (opaque) to 1.0 (invisible).
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_voxel_downsample_size', Float32(size_m))
+        pub_name = 'all_overlay_text_transparency_ratio'
+        msg = transparency_ratio
+        self.node_if.publish_pub(pub_name, msg)
 
-    def uniform_downsample_k_points(self, k_points):
-        """Set the uniform downsample point count.
+    def set_overlay_text_color_rgb(self, color_rgb = (0,255,0)):
+        """Set the text overlay color on every IDX image output.
 
         Args:
-            k_points (int): Number of points to keep. Zero disables uniform
-                downsampling.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            color_rgb (tuple): Three-element (r, g, b) color, each component 0-255.
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_uniform_downsample_k_points', Int32(k_points))
+        pub_name = 'all_overlay_text_color_rgb'
+        msg = ColorBGR()
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        self.node_if.publish_pub(pub_name, msg)
 
-    def outlier_removal_num_neighbors(self, num_neighbors):
-        """Set the outlier removal neighbor count.
+    def set_overlay_text_source_name(self, enable):
+        """Enable or disable the image source name overlay on every IDX image output.
 
         Args:
-            num_neighbors (int): Neighbor count used for statistical outlier
-                removal. Zero disables outlier removal.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            enable (bool): True to overlay the image source name, False to hide it.
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_outlier_removal_num_neighbors', Int32(num_neighbors))
+        pub_name = 'all_overlay_text_source_name'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
 
-    def set_rotate_ratio(self, ratio):
-        """Set the pointcloud render rotation ratio.
+    def set_overlay_text_date_time(self, enable):
+        """Enable or disable the date and time overlay on every IDX image output.
 
         Args:
-            ratio (float): Rotation as a 0.0-1.0 ratio.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            enable (bool): True to overlay the date and time, False to hide it.
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_rotate_ratio', Float32(ratio))
+        pub_name = 'all_overlay_text_date_time'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
 
-    def set_tilt_ratio(self, ratio):
-        """Set the pointcloud render tilt ratio.
+    def set_overlay_text_nav(self, enable):
+        """Enable or disable the navigation data overlay on every IDX image output.
 
         Args:
-            ratio (float): Tilt as a 0.0-1.0 ratio.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            enable (bool): True to overlay navigation data, False to hide it.
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_tilt_ratio', Float32(ratio))
+        pub_name = 'all_overlay_text_nav'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
 
-    def set_render_enable(self, enable):
-        """Enable or disable pointcloud render image publishing.
+    def set_overlay_text_pose(self, enable):
+        """Enable or disable the pose data overlay on every IDX image output.
 
         Args:
-            enable (bool): True to enable rendering, False to disable.
-
-        Returns:
-            bool: True if the command was published, False if there is no node
-                interface or no connected source.
+            enable (bool): True to overlay pose data, False to hide it.
         """
-        if self.node_if is None or self.connected == False:
-            return False
-        return self.node_if.publish_pub(self.node_if_prefix + 'pointcloud_set_render_enable', Bool(enable))
+        pub_name = 'all_overlay_text_pose'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
 
+    def set_click_text_enable(self, enable):
+        """Enable or disable placing the text overlay block at the next image click.
+
+        Args:
+            enable (bool): True to move the text block on the next click, False to disable it.
+        """
+        pub_name = 'all_click_text_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_overlay_text(self, text):
+        """Add a line of custom text to every IDX image overlay.
+
+        Args:
+            text (str): The text string to add to the overlays.
+        """
+        pub_name = 'all_overlay_text'
+        msg = String()
+        msg.data = text
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_text_list(self, overlay_text_list):
+        """Set the full list of custom overlay text lines on every IDX image output.
+
+        Args:
+            overlay_text_list (list): A list of text strings to display as image overlays.
+        """
+        pub_name = 'all_overlay_text_list'
+        msg = StringArray()
+        msg.array = overlay_text_list
+        self.node_if.publish_pub(pub_name, msg)
+
+    def clear_overlay_text_list(self):
+        """Clear all custom overlay text lines from every IDX image output.
+        """
+        pub_name = 'all_overlay_text_clear'
+        msg = Empty()
+        self.node_if.publish_pub(pub_name, msg)
+
+    #################
+    ## Image Crosshair Overlays
+    def set_crosshairs_enable(self, enable):
+        """Enable or disable crosshair overlays on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay crosshairs, False to hide them.
+        """
+        pub_name = 'all_crosshairs_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_size_ratio(self, size_ratio):
+        """Set the crosshair size on every IDX image output.
+
+        Args:
+            size_ratio (float): Desired crosshair size as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_crosshairs_size_ratio'
+        msg = size_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_thickness_ratio(self, thickness_ratio):
+        """Set the crosshair line thickness on every IDX image output.
+
+        Args:
+            thickness_ratio (float): Desired line thickness as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_crosshairs_thickness_ratio'
+        msg = thickness_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_text_ratio(self, text_ratio):
+        """Set the crosshair label text size on every IDX image output.
+
+        Args:
+            text_ratio (float): Desired label text size as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_crosshairs_text_ratio'
+        msg = text_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_transparency_ratio(self, transparency_ratio):
+        """Set the crosshair transparency on every IDX image output.
+
+        Args:
+            transparency_ratio (float): Transparency as a ratio from 0.0 (opaque) to 1.0 (invisible).
+        """
+        pub_name = 'all_crosshairs_transparency_ratio'
+        msg = transparency_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_crosshairs_color_rgb(self, color_rgb = (0,255,0)):
+        """Set the crosshair color on every IDX image output.
+
+        Args:
+            color_rgb (tuple): Three-element (r, g, b) color, each component 0-255.
+        """
+        pub_name = 'all_crosshairs_color_rgb'
+        msg = ColorBGR()
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_crosshair_names(self, enable):
+        """Enable or disable crosshair name labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay crosshair names, False to hide them.
+        """
+        pub_name = 'all_overlay_crosshair_names'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_crosshair_pixels(self, enable):
+        """Enable or disable crosshair pixel coordinate labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay crosshair pixel coordinates, False to hide them.
+        """
+        pub_name = 'all_overlay_crosshair_pixels'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_crosshair_degrees(self, enable):
+        """Enable or disable crosshair degree coordinate labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay crosshair degree coordinates, False to hide them.
+        """
+        pub_name = 'all_overlay_crosshair_degrees'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_crosshair_text(self, enable):
+        """Enable or disable crosshair messages coordinate labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay crosshair messages coordinates, False to hide them.
+        """
+        pub_name = 'all_overlay_crosshair_text'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_click_crosshair_enable(self, enable):
+        """Enable or disable adding a crosshair at the clicked location on every IDX image.
+
+        Args:
+            enable (bool): True to add a crosshair on image click, False to disable it.
+        """
+        pub_name = 'all_click_crosshair_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_crosshair_pixel(self, name, x_pixel, y_pixel, color_rgb = (0,255,0), msg_str = ''):
+        """Add a named crosshair at a pixel location on every IDX image output.
+
+        Args:
+            name (str): Identifier for the crosshair.
+            x_pixel (int): Horizontal pixel location of the crosshair from the image left edge.
+            y_pixel (int): Vertical pixel location of the crosshair from the image top edge.
+        """
+        pub_name = 'all_add_crosshair_pixel'
+        msg = ImageCrosshair()
+        msg.name = name
+        msg.x_pixel = x_pixel
+        msg.y_pixel = y_pixel
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        msg.msg_str = msg_str
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_crosshair_ratios(self, name, x_ratio, y_ratio, color_rgb = (0,255,0)):
+        """Add a named crosshair at a pixel location on every IDX image output.
+
+        Args:
+            name (str): Identifier for the crosshair.
+            x_pixel (int): Horizontal pixel location of the crosshair from the image left edge.
+            y_pixel (int): Vertical pixel location of the crosshair from the image top edge.
+        """
+        pub_name = 'all_add_crosshair_ratios'
+        msg = ImageCrosshair()
+        msg.name = name
+        msg.x_ratio = x_ratio
+        msg.y_ratio = y_ratio
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_crosshair_degree_offsets(self, name, x_offset_deg, y_offset_deg, color_rgb = (0,255,0)):
+        """Add a named crosshair at a degree offset on every IDX image output.
+
+        Args:
+            name (str): Identifier for the crosshair.
+            x_offset_deg (float): Horizontal degree offset of the crosshair from image center.
+            y_offset_deg (float): Vertical degree offset of the crosshair from image center.
+        """
+        pub_name = 'all_add_crosshair_degree_offsets'
+        msg = ImageCrosshair()
+        msg.name = name
+        msg.x_offset_deg = x_offset_deg
+        msg.y_offset_deg = y_offset_deg
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        self.node_if.publish_pub(pub_name, msg)
+
+    def remove_crosshair(self, name):
+        """Remove a named crosshair from every IDX image output.
+
+        Args:
+            name (str): Identifier of the crosshair to remove.
+        """
+        pub_name = 'all_remove_crosshair'
+        msg = String()
+        msg.data = name
+        self.node_if.publish_pub(pub_name, msg)
+
+    def clear_crosshairs(self):
+        """Remove all crosshairs from every IDX image output.
+        """
+        pub_name = 'all_clear_crosshairs'
+        msg = Empty()
+        self.node_if.publish_pub(pub_name, msg)
+
+    #################
+    ## Image Target Overlays
+
+    def set_targets_enable(self, enable):
+        """Enable or disable target overlays on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay targets, False to hide them.
+        """
+        pub_name = 'all_targets_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_size_ratio(self, size_ratio):
+        """Set the target marker size on every IDX image output.
+
+        Args:
+            size_ratio (float): Desired target size as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_targets_size_ratio'
+        msg = size_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_thickness_ratio(self, thickness_ratio):
+        """Set the target marker line thickness on every IDX image output.
+
+        Args:
+            thickness_ratio (float): Desired line thickness as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_targets_thickness_ratio'
+        msg = thickness_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_text_ratio(self, text_ratio):
+        """Set the target label text size on every IDX image output.
+
+        Args:
+            text_ratio (float): Desired label text size as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_targets_text_ratio'
+        msg = text_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_transparency_ratio(self, transparency_ratio):
+        """Set the target marker transparency on every IDX image output.
+
+        Args:
+            transparency_ratio (float): Transparency as a ratio from 0.0 (opaque) to 1.0 (invisible).
+        """
+        pub_name = 'all_targets_transparency_ratio'
+        msg = transparency_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_targets_color_rgb(self, color_rgb = (0,255,0)):
+        """Set the target marker color on every IDX image output.
+
+        Args:
+            color_rgb (tuple): Three-element (r, g, b) color, each component 0-255.
+        """
+        pub_name = 'all_targets_color_rgb'
+        msg = ColorBGR()
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_target_names(self, enable):
+        """Enable or disable target name labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay target names, False to hide them.
+        """
+        pub_name = 'all_overlay_target_names'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_target_pixels(self, enable):
+        """Enable or disable target pixel coordinate labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay target pixel coordinates, False to hide them.
+        """
+        pub_name = 'all_overlay_target_pixels'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_target_degrees(self, enable):
+        """Enable or disable target degree coordinate labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay target degree coordinates, False to hide them.
+        """
+        pub_name = 'all_overlay_target_degrees'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_overlay_target_text(self, enable):
+        """Enable or disable target message labels on every IDX image output.
+
+        Args:
+            enable (bool): True to overlay target messages, False to hide them.
+        """
+        pub_name = 'all_overlay_target_text'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_click_target_enable(self, enable):
+        """Enable or disable adding a target at the clicked location on every IDX image.
+
+        Args:
+            enable (bool): True to add a target on image click, False to disable it.
+        """
+        pub_name = 'all_click_target_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_target_pixel(self, name, x_pixel, y_pixel, color_rgb = (0,255,0), msg_str = ''):
+        """Add a named target at a pixel location on every IDX image output.
+
+        Args:
+            name (str): Identifier for the target.
+            x_pixel (int): Horizontal pixel location of the target from the image left edge.
+            y_pixel (int): Vertical pixel location of the target from the image top edge.
+            color_rgb (tuple): Three-element (r, g, b) marker color, each component 0-255.
+            msg_str (str): Optional message rendered beside the target.
+        """
+        pub_name = 'all_add_target_pixel'
+        msg = ImageTarget()
+        msg.name = name
+        msg.x_pixel = x_pixel
+        msg.y_pixel = y_pixel
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        msg.msg_str = msg_str
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_target_ratios(self, name, x_ratio, y_ratio, color_rgb = (0,255,0), msg_str = ''):
+        """Add a named target at an image ratio location on every IDX image output.
+
+        Args:
+            name (str): Identifier for the target.
+            x_ratio (float): Horizontal location as a ratio from 0.0 (left) to 1.0 (right).
+            y_ratio (float): Vertical location as a ratio from 0.0 (top) to 1.0 (bottom).
+            color_rgb (tuple): Three-element (r, g, b) marker color, each component 0-255.
+            msg_str (str): Optional message rendered beside the target.
+        """
+        pub_name = 'all_add_target_ratios'
+        msg = ImageTarget()
+        msg.name = name
+        msg.x_ratio = x_ratio
+        msg.y_ratio = y_ratio
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        msg.msg_str = msg_str
+        self.node_if.publish_pub(pub_name, msg)
+
+    def add_target_degree_offsets(self, name, x_offset_deg, y_offset_deg, color_rgb = (0,255,0), msg_str = ''):
+        """Add a named target at a degree offset on every IDX image output.
+
+        Args:
+            name (str): Identifier for the target.
+            x_offset_deg (float): Horizontal degree offset of the target from image center.
+            y_offset_deg (float): Vertical degree offset of the target from image center.
+            color_rgb (tuple): Three-element (r, g, b) marker color, each component 0-255.
+            msg_str (str): Optional message rendered beside the target.
+        """
+        pub_name = 'all_add_target_degree_offsets'
+        msg = ImageTarget()
+        msg.name = name
+        msg.x_offset_deg = x_offset_deg
+        msg.y_offset_deg = y_offset_deg
+        msg.r = color_rgb[0]
+        msg.g = color_rgb[1]
+        msg.b = color_rgb[2]
+        msg.msg_str = msg_str
+        self.node_if.publish_pub(pub_name, msg)
+
+    def remove_target(self, name):
+        """Remove a named target from every IDX image output.
+
+        Args:
+            name (str): Identifier of the target to remove.
+        """
+        pub_name = 'all_remove_target'
+        msg = String()
+        msg.data = name
+        self.node_if.publish_pub(pub_name, msg)
+
+    def clear_targets(self):
+        """Remove all targets from every IDX image output.
+        """
+        pub_name = 'all_clear_targets'
+        msg = Empty()
+        self.node_if.publish_pub(pub_name, msg)
+
+    #################
+    ## Aspect Controls
+
+    def set_aspect_adjust_enable(self, enable):
+        """Enable or disable aspect ratio adjustment on every IDX image output.
+
+        Args:
+            enable (bool): True to apply the selected aspect ratio, False to publish the original.
+        """
+        pub_name = 'all_set_aspect_adjust_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_aspect_adjust_ratio(self, aspect_ratio):
+        pub_name = 'all_set_aspect_adjust_ratio'
+        msg = Float32()
+        msg.data = aspect_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_aspect_adjust_by_ratio(self, ratio):
+        pub_name = 'all_set_aspect_adjust_by_ratio'
+        msg = Float32()
+        msg.data = ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    #################
+    ## Stream Compression Controls
+    def set_stream_compression_enable(self, enable):
+        """Enable or disable HTTP stream compression on every IDX image output.
+
+        Args:
+            enable (bool): True to compress the stream, False to publish uncompressed.
+        """
+        pub_name = 'all_set_stream_compression_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_stream_compression_ratio(self, compression_ratio):
+        """Set the HTTP stream compression level on every IDX image output.
+
+        Args:
+            compression_ratio (float): Compression level as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_set_stream_compression_ratio'
+        msg = compression_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    #################
+    ## Live Adjust Controls
+
+    def set_live_adjust_enable(self, enable):
+        """Enable or disable the live rotate and translate adjustments on every IDX image.
+
+        Args:
+            enable (bool): True to apply the live adjustments, False to bypass them.
+        """
+        pub_name = 'all_set_live_adjust_enable'
+        msg = enable
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_live_adjust_rotate_ratio(self, rotate_ratio):
+        """Set the live rotation adjustment of every IDX image as a ratio.
+
+        Args:
+            rotate_ratio (float): Desired rotation as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_set_live_adjust_rotate_ratio'
+        msg = rotate_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_live_adjust_rotate_deg(self, rotate_deg):
+        """Set the live rotation adjustment of every IDX image in degrees.
+
+        Args:
+            rotate_deg (float): Desired rotation in degrees.
+        """
+        pub_name = 'all_set_live_adjust_rotate_deg'
+        msg = rotate_deg
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_live_adjust_x_ratio(self, x_ratio):
+        """Set the live horizontal translation adjustment of every IDX image as a ratio.
+
+        Args:
+            x_ratio (float): Desired horizontal translation as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_set_live_adjust_x_ratio'
+        msg = x_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_live_adjust_x_pixel(self, x_pixel):
+        """Set the live horizontal translation adjustment of every IDX image in pixels.
+
+        Args:
+            x_pixel (int): Desired horizontal translation in pixels.
+        """
+        pub_name = 'all_set_live_adjust_x_pixel'
+        msg = x_pixel
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_live_adjust_x_deg(self, x_deg):
+        """Set the live horizontal translation adjustment of every IDX image in degrees.
+
+        Args:
+            x_deg (float): Desired horizontal translation in degrees.
+        """
+        pub_name = 'all_set_live_adjust_x_deg'
+        msg = x_deg
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_live_adjust_y_ratio(self, y_ratio):
+        """Set the live vertical translation adjustment of every IDX image as a ratio.
+
+        Args:
+            y_ratio (float): Desired vertical translation as a ratio from 0.0 to 1.0.
+        """
+        pub_name = 'all_set_live_adjust_y_ratio'
+        msg = y_ratio
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_live_adjust_y_pixel(self, y_pixel):
+        """Set the live vertical translation adjustment of every IDX image in pixels.
+
+        Args:
+            y_pixel (int): Desired vertical translation in pixels.
+        """
+        pub_name = 'all_set_live_adjust_y_pixel'
+        msg = y_pixel
+        self.node_if.publish_pub(pub_name, msg)
+
+    def set_live_adjust_y_deg(self, y_deg):
+        """Set the live vertical translation adjustment of every IDX image in degrees.
+
+        Args:
+            y_deg (float): Desired vertical translation in degrees.
+        """
+        pub_name = 'all_set_live_adjust_y_deg'
+        msg = y_deg
+        self.node_if.publish_pub(pub_name, msg)
 
     ###############################
     # Class Private Methods
     ###############################
 
-    # Overrides ConnectDataIF._dataCb, which flattens the msg with
-    # convert_msg2dict. A PointCloud2 is converted to an Open3D cloud here and
-    # returned with its point count, timestamps and get/process/got latency.
-    def _dataCb(self,data_msg):
-
-        current_time = nepi_sdk.get_msg_stamp()
-        msg_stamp = data_msg.header.stamp
-        get_latency = (current_time.to_sec() - msg_stamp.to_sec())
-
-        start_time = nepi_sdk.get_time()
-
-
-
-        ##############################
-        ### Preprocess Pointcloud
-        data = nepi_pc.rospc_to_o3dpc(data_msg)
-
-        data_dict = dict()
-        data_dict['namespace'] = self.selected_topic
-        data_dict['data'] = data
-        data_dict['point_count'] = len(data.points) if data is not None else 0
-        data_dict['timestamp'] = nepi_sdk.sec_from_msg_stamp(msg_stamp)
-        data_dict['ros_pc_header'] = data_msg.header
-        data_dict['ros_pc_stamp'] = msg_stamp
-        data_dict['get_latency_time'] = get_latency
-        ##############################
-
-        process_time = round( (nepi_sdk.get_time() - start_time) , 3)
-        data_dict['process_time'] = process_time
-
-        got_latency = (nepi_sdk.get_msg_stamp().to_sec() - msg_stamp.to_sec())
-        data_dict['got_latency_time'] = got_latency
-
-        if self.data_callback is not None:
-            self.data_callback(data_dict)
-
-        self.data_lock.acquire()
-        self.data_dict = data_dict
-        self.data_lock.release()
 
 
 
 
 
-#########################################
-# Connect PointcloudImage IF Class
-#########################################
 
-
-POINTCLOUD_IMAGE_CONNECT_NAME = 'pointcloud_image_connect'
-
-
-class ConnectPointcloudImageIF(ConnectBaseImageIF):
-    """Connect class mirroring data_if.PointcloudImageIF.
-
-    Adds nothing beyond the shared ConnectBaseImageIF image connect pattern; the
-    connected 'pointcloud_image' data product is selected by namespace.
-    """
-
-    #######################
-    ### IF Initialization
-    def __init__(self,
-                connect_name = POINTCLOUD_IMAGE_CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = True,
-                status_callback = None,
-                connect_data = True,
-                data_callback = None,
-                filter_topic_list = [],
-                show_selector = True,
-                show_controls = True,
-                show_data = True,
-                msg_if = None,
-                node_if = None
-                ):
-        ####  IF INIT SETUP ####
-        self.class_name = type(self).__name__
-        self.base_namespace = nepi_sdk.get_base_namespace()
-        self.node_name = nepi_sdk.get_node_name()
-        self.node_namespace = nepi_sdk.get_node_namespace()
-
-        ##############################  
-
-        
-        if msg_if is None:
-            self.msg_if = MsgIF()
-        else:
-            self.msg_if = msg_if
-        self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
-
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
-        self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
-        super().__init__(
-                connect_name = connect_name,
-                namespace = namespace,
-                auto_select_enabled = auto_select_enabled,
-                status_callback = status_callback,
-                connect_data = connect_data,
-                data_callback = data_callback,
-                filter_topic_list = filter_topic_list,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = msg_if,
-                node_if = node_if
-                )
-        ####  IF INIT SETUP ####
-        ###############################
