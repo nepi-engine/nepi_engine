@@ -2181,7 +2181,7 @@ class BaseImageIF(DataProductIF):
         if source_status_dict is not None:
             self.status_msg.source_description = source_status_dict.get('end_description', self.data_source_description)
             self.status_msg.source_ref_description = source_status_dict.get('end_ref_description', self.data_source_description)
-            
+
         if source_status_dict is not None:
             is_stabilized = source_status_dict.get('stabilize_enabled', False)
             if is_stabilize == True:
@@ -2930,7 +2930,7 @@ class BaseImageIF(DataProductIF):
                 if cv2_img is not None:
                     cv2_img = self._liveAdjust(cv2_img) 
 
-               if cv2_img is not None:
+                if cv2_img is not None:
                     is_stabilized = source_status_dict.get('stabilize_enabled', False)
                     if is_stabilize == True:
                         self.status_msg.stabilize_disabled = True
