@@ -2206,7 +2206,6 @@ class BaseImageIF(DataProductIF):
             navpose_dict = source_navpose_dict
             status_msg.navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
         else:
-            navpose_dict = self.get_navpose_dict()
             status_msg.navpose_msg = self.get_navpose_msg()
 
 
@@ -2844,10 +2843,8 @@ class BaseImageIF(DataProductIF):
                     self.msg_if.pub_debug("Failed to get_source_navpose_callback: " + str(e) , throttle_s = 5)
         if source_navpose_dict is not None:
             navpose_dict = source_status_dict
-            status_msg.navpose_msg = nepi_nav.convert_navpose_dict2msg(navpose_dict)
         else:
             navpose_dict = self.get_navpose_dict()
-            status_msg.navpose_msg = self.get_navpose_msg()
 
 
 
