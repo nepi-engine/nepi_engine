@@ -2260,29 +2260,40 @@ class BaseImageIF(DataProductIF):
         status_msg.tilt_3d_ratio = self.controls_dict['tilt_3d_ratio']
         status_msg.render_3d_controls_enabled = self.render_3d_controls_enabled
 
-        status_msg.camera_fov = self.controls_dict['cam_fov']
+        try:
+            status_msg.camera_fov = self.controls_dict['cam_fov']
+        except:
+            pass
 
-        view = self.controls_dict['cam_view']
-        cam_view = Vector3()
-        cam_view.x = view[0]
-        cam_view.y = view[1]
-        cam_view.z = view[2]
-        status_msg.camera_view = cam_view
+        try:
+            view = self.controls_dict['cam_view']
+            cam_view = Vector3()
+            cam_view.x = view[0]
+            cam_view.y = view[1]
+            cam_view.z = view[2]
+            status_msg.camera_view = cam_view
+        except:
+            pass
 
-        pos = self.controls_dict['cam_pos']
-        cam_pos = Vector3()
-        cam_pos.x = pos[0]
-        cam_pos.y = pos[1]
-        cam_pos.z = pos[2]
-        status_msg.camera_position = cam_pos
+        try:
+            pos = self.controls_dict['cam_pos']
+            cam_pos = Vector3()
+            cam_pos.x = pos[0]
+            cam_pos.y = pos[1]
+            cam_pos.z = pos[2]
+            status_msg.camera_position = cam_pos
+        except:
+            pass
 
-        rot = self.controls_dict['cam_rot']
-        cam_rot = Vector3()
-        cam_rot.x = rot[0]
-        cam_rot.y = rot[1]
-        cam_rot.z = rot[2]
-        status_msg.camera_rotation = cam_rot
-
+        try:
+            rot = self.controls_dict['cam_rot']
+            cam_rot = Vector3()
+            cam_rot.x = rot[0]
+            cam_rot.y = rot[1]
+            cam_rot.z = rot[2]
+            status_msg.camera_rotation = cam_rot
+        except:
+            pass
 
         live_adjust_dict = copy.deepcopy(self.live_adjust_dict)
         live_adjust_enabled = live_adjust_dict['live_adjust_enabled']
