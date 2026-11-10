@@ -415,7 +415,7 @@ class BaseImageIF(DataProductIF):
     )
 
     stabilize_enabled = False
-    stabilize_angle = 0
+    stabilize_rotate_deg = 0
 
     stream_compression_enabled = False
     stream_compression_ratio = 0.5
@@ -2191,11 +2191,11 @@ class BaseImageIF(DataProductIF):
             else:       
                 self.status_msg.stabilize_disabled = False
                 self.status_msg.stabilize_enabled = self.stabilize_enabled
-                self.status_msg.stabilize_rotate_deg = self.stab_adjust_rotate_deg      
+                self.status_msg.stabilize_rotate_deg = stabilize_rotate_deg     
         else:       
             self.status_msg.stabilize_disabled = False
             self.status_msg.stabilize_enabled = self.stabilize_enabled
-            self.status_msg.stabilize_rotate_deg = self.stab_adjust_rotate_deg   
+            self.status_msg.stabilize_rotate_deg = stabilize_rotate_deg  
 
         source_navpose_dict = self.source_navpose_dict
         if self.callback_dict['get_source_navpose_callback'] is not None and source_navpose_dict is None:
@@ -2938,7 +2938,7 @@ class BaseImageIF(DataProductIF):
                         cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
                         self.status_msg.stabilize_disabled = False
                         self.status_msg.stabilize_enabled = self.stabilize_enabled
-                        self.status_msg.stabilize_rotate_deg = self.stab_adjust_rotate_deg                                
+                        self.status_msg.stabilize_rotate_deg = stabilize_rotate_deg                               
 
                 if self.callback_dict['post_process_callback'] is not None and  cv2_img is not None:
                         try:
