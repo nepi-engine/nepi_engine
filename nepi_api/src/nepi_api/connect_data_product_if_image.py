@@ -86,6 +86,7 @@ class ConnectBaseImageIF(ConnectDataProductIF):
                 connect_name = BASE_IMAGE_CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
+                selected_topic = None,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -112,7 +113,11 @@ class ConnectBaseImageIF(ConnectDataProductIF):
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
 
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.connect_name = connect_name
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = namespace.replace('/' + self.connect_name, '')
+        self.namespace = nepi_sdk.create_namespace(namespace,self.connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         # Controls Config Dict ####################
@@ -715,6 +720,7 @@ class ConnectBaseImageIF(ConnectDataProductIF):
                 connect_name = connect_name,
                 namespace = namespace,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 connect_status_msg = BASE_IMAGE_CONNECT_STATUS_MSG,
                 connect_status_msg_class = BASE_IMAGE_CONNECT_STATUS_MSG_CLASS,
                 status_callback = status_callback,
@@ -2134,6 +2140,7 @@ class ConnectColorImageIF(ConnectBaseImageIF):
                 connect_name = COLOR_IMAGE_CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
+                selected_topic = None,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -2159,13 +2166,18 @@ class ConnectColorImageIF(ConnectBaseImageIF):
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.connect_name = connect_name
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = namespace.replace('/' + self.connect_name, '')
+        self.namespace = nepi_sdk.create_namespace(namespace,self.connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 status_callback = status_callback,
                 connect_data = connect_data,
                 data_callback = data_callback,

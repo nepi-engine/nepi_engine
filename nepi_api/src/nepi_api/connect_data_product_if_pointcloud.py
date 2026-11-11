@@ -67,11 +67,11 @@ from nepi_api.connect_data_product_if_image import ConnectBaseImageIF
 # PointCloud2 to an Open3D cloud and records latency.
 
 
-POINTCLOUD_CONNECT_ID = 'POINTCLOUD'
+POINTCLOUD_CONNECT_ID = 'CONNECT_POINTCLOUD'
 POINTCLOUD_CONNECT_STATUS_MSG = 'PointcloudStatus'
 POINTCLOUD_CONNECT_STATUS_MSG_CLASS = PointcloudStatus
 POINTCLOUD_CONNECT_DATA_MSG = PointCloud2
-POINTCLOUD_CONNECT_NAME = 'pointcloud_connect'
+POINTCLOUD_CONNECT_NAME = 'connect_pointcloud'
 
 
 class ConnectPointcloudIF(ConnectDataProductIF):
@@ -84,6 +84,7 @@ class ConnectPointcloudIF(ConnectDataProductIF):
                 connect_name = POINTCLOUD_CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
+                selected_topic = None,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -109,7 +110,11 @@ class ConnectPointcloudIF(ConnectDataProductIF):
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.connect_name = connect_name
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = namespace.replace('/' + self.connect_name, '')
+        self.namespace = nepi_sdk.create_namespace(namespace,self.connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         connect_topic_controls_dict = {
@@ -186,6 +191,7 @@ class ConnectPointcloudIF(ConnectDataProductIF):
                 connect_name = connect_name,
                 namespace = namespace,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 connect_status_msg = POINTCLOUD_CONNECT_STATUS_MSG,
                 connect_status_msg_class = POINTCLOUD_CONNECT_STATUS_MSG_CLASS,
                 status_callback = status_callback,
@@ -490,6 +496,7 @@ class ConnectPointcloudImageIF(ConnectBaseImageIF):
                 connect_name = POINTCLOUD_IMAGE_CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
+                selected_topic = None,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -515,12 +522,17 @@ class ConnectPointcloudImageIF(ConnectBaseImageIF):
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.connect_name = connect_name
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = namespace.replace('/' + self.connect_name, '')
+        self.namespace = nepi_sdk.create_namespace(namespace,self.connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
         super().__init__(
                 connect_name = connect_name,
                 namespace = namespace,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 status_callback = status_callback,
                 connect_data = connect_data,
                 data_callback = data_callback,

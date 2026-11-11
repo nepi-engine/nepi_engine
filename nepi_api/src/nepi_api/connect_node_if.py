@@ -96,7 +96,7 @@ class ConnectNodeIF(NodeIF):
 
 
 
-    connect_namespace = ''
+    namespace = ''
     connect_id = None
     connect_status_msg = None
     connect_name = None
@@ -135,8 +135,9 @@ class ConnectNodeIF(NodeIF):
     ### IF Initialization
     def __init__(self, 
                 connect_id = None,
-                connect_status_msg = None,
                 connect_name = None,
+                namespace = None,
+                connect_status_msg = None,
                 filter_topics_list = [],
                 exclude_namespaces_list = None,
                 selected_topic = "None",
@@ -148,7 +149,10 @@ class ConnectNodeIF(NodeIF):
                 node_if = None
                 ):
 
-  
+        self.class_name = type(self).__name__
+        self.base_namespace = nepi_sdk.get_base_namespace()
+        self.node_name = nepi_sdk.get_node_name()
+        self.node_namespace = nepi_sdk.get_node_namespace()
    
         ##############################
         # Update Class Variables
@@ -174,10 +178,11 @@ class ConnectNodeIF(NodeIF):
             logger.log_debug("Topic Name Not Valid: " + str(connect_name)) 
             return
         logger.log_debug("Using Topic Name: " + self.connect_name)
-        node_name = nepi_sdk.get_node_name()
-        node_namespace = nepi_sdk.get_node_namespace()
-        self.connect_namespace = nepi_sdk.create_namespace(node_namespace,self.connect_name)
 
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = namespace.replace('/' + self.connect_name, '')
+        self.namespace = nepi_sdk.create_namespace(namespace,self.connect_name)
         
         ##############################    
         # Initialize Class Variables
@@ -224,7 +229,7 @@ class ConnectNodeIF(NodeIF):
         self.topic_dict['sub_group'] = ''
         self.topic_dict['status_msg_type'] = status_msg.__class__.__name__
         self.topic_dict['data_msg_type'] = ''
-        self.topic_dict['topic'] = self.connect_namespace
+        self.topic_dict['topic'] = self.namespace
         self.topic_dict['topic_name'] = topic_display
 
 
@@ -291,7 +296,7 @@ class ConnectNodeIF(NodeIF):
        
         params_dict = {
             'selected_topic': {
-                'namespace': self.connect_namespace,
+                'namespace': self.namespace,
                 'factory_val': self.selected_topic
             }
         }
@@ -314,7 +319,7 @@ class ConnectNodeIF(NodeIF):
         #######################
         subs_dict =  {
             'select_topic': {
-                'namespace': self.connect_namespace,
+                'namespace': self.namespace,
                 'topic': 'select_topic',
                 'msg': String,
                 'qsize': None,
@@ -563,6 +568,26 @@ class ConnectNodeIF(NodeIF):
                 self.msg_if.pub_debug("Connected")
         return self.connected
 
+    def get_status_dict(self):
+        """Return the latest data source status as a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the most recent ImageStatus message,
+                or None if no status has been received yet.
+        """
+        status_dict = None
+        if self.status_msg is not None:
+            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
+        return status_dict
+
+    def get_status_msg(self):
+        """Return the latest data source status as a msg.
+
+        Returns:
+            dict: A msg representation of the most recent ImageStatus message,
+                or None if no status has been received yet.
+        """
+        return self.status_msg
 
     def subscribe_topic(self):
         pass

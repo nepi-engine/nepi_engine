@@ -94,9 +94,10 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 connect_name = CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
+                exclude_namespaces_list = None,
+                selected_topic = None,
                 statusCb = None,
                 infoCb = None,
-                motorStatusCb = None,
                 dataCB = None,
                 show_selector = True,
                 show_controls = True,
@@ -110,13 +111,15 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 connect_id = CONNECT_ID,
                 connect_status_msg = CONNECT_STATUS_MSG,
                 connect_name = connect_name,
-                selected_topic = namespace,
+                namespace = namespace,
+                exclude_namespaces_list = exclude_namespaces_list,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
-                msg_if = None,
-                node_if = None
+                msg_if = self.msg_if,
+                node_if = self.node_if
                 )
         ####  IF INIT SETUP ####
 
@@ -129,7 +132,6 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
         self.statusCb = statusCb
         self.infoCb = infoCb
-        self.motorStatusCb = motorStatusCb
         self.dataCB = dataCB
 
 
@@ -1105,10 +1107,3 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         if self.infoCb is not None:
             info_dict = self.get_info_dict()
             self.infoCb(info_dict)
-
-    # 3.4.0 PORT: motors are per-motor SVX, see report
-    #def _motorStatusCb(self,motors_status_msg):
-        #self.motors_status_msg = motors_status_msg
-        #if self.motorStatusCb is not None:
-            #motors_dict = self.get_motors_status_dict()
-            #self.motorStatusCb(motors_dict)

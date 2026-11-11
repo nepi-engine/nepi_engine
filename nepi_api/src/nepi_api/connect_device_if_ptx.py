@@ -84,14 +84,17 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
     connect_topic_pubs_dict = None
     #######################
     ### IF Initialization
-    def __init__(self, 
+
+    def __init__(self,
                 connect_name = CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
-                statusCb = None,
+                exclude_namespaces_list = None,
+                selected_topic = None,
                 panTiltCb = None,
                 stopPanCb = None,
                 stopTiltCb = None,
+                statusCb = None,
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
@@ -104,18 +107,17 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 connect_id = CONNECT_ID,
                 connect_status_msg = CONNECT_STATUS_MSG,
                 connect_name = connect_name,
-                selected_topic = namespace,
+                namespace = namespace,
+                exclude_namespaces_list = exclude_namespaces_list,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
                 msg_if = self.msg_if,
                 node_if = self.node_if
                 )
-        ####  IF INIT SETUP ####
-
-        self.wait_for_connect_ready()
-
+   
 
 
         ##############################    

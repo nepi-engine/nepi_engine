@@ -2920,7 +2920,7 @@ class BaseImageIF(DataProductIF):
 
                 [height,width] = cv2_img.shape[0:2]
                 [self.height_org,self.width_org] = [height,width]
-                self.msg_if.pub_debug("Got Image size: " + str([height,width]) , throttle_s = 5)
+                #self.msg_if.pub_debug("Got Image size: " + str([height,width]) , throttle_s = 5)
 
 
                 ########
@@ -2967,7 +2967,7 @@ class BaseImageIF(DataProductIF):
                 if cv2_img is not None:
                     [height,width] = cv2_img.shape[0:2]
                     [self.height_proc,self.width_proc] = [height,width]
-                    self.msg_if.pub_debug("Got Processed Image size: " + str([height,width]) , throttle_s = 5)
+                    #self.msg_if.pub_debug("Got Processed Image size: " + str([height,width]) , throttle_s = 5)
 
                     last_width = self.status_msg.width_px
                     last_height = self.status_msg.height_px

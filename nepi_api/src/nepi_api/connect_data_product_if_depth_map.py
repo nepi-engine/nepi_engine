@@ -67,11 +67,11 @@ from nepi_api.connect_data_product_if_image import ConnectBaseImageIF
 # to cv2 and records latency rather than flattening the msg to a dict.
 
 
-DEPTH_MAP_CONNECT_ID = 'DEPTH_MAP'
+DEPTH_MAP_CONNECT_ID = 'CONNECT_DEPTH_MAP'
 DEPTH_MAP_CONNECT_STATUS_MSG = 'DepthMapStatus'
 DEPTH_MAP_CONNECT_STATUS_MSG_CLASS = DepthMapStatus
 DEPTH_MAP_CONNECT_DATA_MSG = Image
-DEPTH_MAP_CONNECT_NAME = 'depth_map_connect'
+DEPTH_MAP_CONNECT_NAME = 'connect_depth_map'
 
 
 class ConnectDepthMapIF(ConnectDataProductIF):
@@ -84,6 +84,7 @@ class ConnectDepthMapIF(ConnectDataProductIF):
                 connect_name = DEPTH_MAP_CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
+                selected_topic = None,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -109,7 +110,11 @@ class ConnectDepthMapIF(ConnectDataProductIF):
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.connect_name = connect_name
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = namespace.replace('/' + self.connect_name, '')
+        self.namespace = nepi_sdk.create_namespace(namespace,self.connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         super().__init__(
@@ -117,6 +122,7 @@ class ConnectDepthMapIF(ConnectDataProductIF):
                 connect_name = connect_name,
                 namespace = namespace,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 connect_status_msg = DEPTH_MAP_CONNECT_STATUS_MSG,
                 connect_status_msg_class = DEPTH_MAP_CONNECT_STATUS_MSG_CLASS,
                 status_callback = status_callback,
@@ -255,6 +261,7 @@ class ConnectDepthMapImageIF(ConnectBaseImageIF):
                 connect_name = DEPTH_MAP_IMAGE_CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
+                selected_topic = None,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -287,6 +294,7 @@ class ConnectDepthMapImageIF(ConnectBaseImageIF):
                 connect_name = connect_name,
                 namespace = namespace,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 status_callback = status_callback,
                 connect_data = connect_data,
                 data_callback = data_callback,

@@ -98,8 +98,10 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
     def __init__(self,
                 connect_name = CONNECT_NAME,
                 namespace = None,
-                statusCb = None,
                 auto_select_enabled = True,
+                exclude_namespaces_list = None,
+                selected_topic = None,
+                statusCb = None,
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
@@ -108,16 +110,14 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
                 ):
         self.msg_if = msg_if
         self.node_if = node_if
-        # auto_select_enabled is exposed because a consumer that owns MORE THAN ONE
-        # servo interface must be able to turn it off. With it on, every interface
-        # independently grabs the first discovered SVX device, so a pan/tilt pair
-        # both land on the same servo channel.
         super().__init__(
                 connect_id = CONNECT_ID,
                 connect_status_msg = CONNECT_STATUS_MSG,
                 connect_name = connect_name,
-                selected_topic = namespace,
+                namespace = namespace,
+                exclude_namespaces_list = exclude_namespaces_list,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,

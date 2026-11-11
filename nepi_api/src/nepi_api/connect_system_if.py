@@ -69,11 +69,11 @@ from nepi_api.connect_node_if import ConnectNodeIF
 # which subscribe_topic needs as the subscriber msg type. The two are separate
 # parameters because neither consumer accepts the other's form, and ConnectSystemIF
 # is generic so it cannot hardcode the class the way connect_targets_if.py does.
-CONNECT_ID='System'
+CONNECT_ID='connect_system'
 CONNECT_STATUS_MSG=None
 CONNECT_STATUS_MSG_CLASS=None
 CONNECT_DATA_MSG=None
-CONNECT_NAME='system_connect'
+CONNECT_NAME='connect_system'
 
 
 CONNECTED_TIMEOUT = 2
@@ -126,6 +126,7 @@ class ConnectSystemIF(ConnectNodeIF):
                 connect_name = CONNECT_NAME,
                 namespace = None,
                 auto_select_enabled = True,
+                selected_topic = None,
                 connect_status_msg = CONNECT_STATUS_MSG,
                 connect_status_msg_class = CONNECT_STATUS_MSG_CLASS,
                 status_callback = None,
@@ -174,15 +175,19 @@ class ConnectSystemIF(ConnectNodeIF):
         self.connect_name = connect_name
         self.connect_topic_controls_dict = connect_topic_controls_dict
 
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = namespace.replace('/' + self.connect_name, '')
+        self.namespace = nepi_sdk.create_namespace(namespace,self.connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         super().__init__(
                 connect_id = connect_id,
-                connect_status_msg = connect_status_msg,
                 connect_name = connect_name,
-                selected_topic = namespace,
+                namespace = namespace,
+                connect_status_msg = connect_status_msg,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 filter_topics_list = filter_topic_list,
                 show_selector = show_selector,
                 show_controls = show_controls,
@@ -229,128 +234,6 @@ class ConnectSystemIF(ConnectNodeIF):
     #######################
 
 
-    def get_ready_state(self):
-        """Return the ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.ready
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected data source.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.selected_topic
-
-
-    def check_connection(self):
-        """Check whether the data source is currently connected.
-
-        Returns:
-            bool: True if a status message has been received within the connection timeout window,
-                False otherwise.
-        """
-        return self.connected
-
-    def wait_for_connection(self, timeout = float('inf') ):
-        """Block until the data source is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.connected
-
-
-    def check_status_connection(self):
-        """Check whether the status topic from the data source is currently connected.
-
-        Returns:
-            bool: True if status messages are being received, False otherwise.
-        """
-        return self.connected
-
-    def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until the data source status topic is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the status connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for status connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
-            else:
-                self.msg_if.pub_info("Status Connected")
-        return self.connected
-
-    def get_status_dict(self):
-        """Return the latest data source status as a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the most recent ImageStatus message,
-                or None if no status has been received yet.
-        """
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-    def get_status_msg(self):
-        """Return the latest data source status as a msg.
-
-        Returns:
-            dict: A msg representation of the most recent ImageStatus message,
-                or None if no status has been received yet.
-        """
-        return self.status_msg
 
     def get_data_topic(self):
         """Return the image data topic of the connected data source.
@@ -601,11 +484,11 @@ class ConnectSystemIF(ConnectNodeIF):
 # consumers, or handed straight to data_callback when one is provided.
 
 
-NAVPOSE_CONNECT_ID = 'NAVPOSE'
+NAVPOSE_CONNECT_ID = 'connect_navpose'
 NAVPOSE_CONNECT_STATUS_MSG = 'NavPoseStatus'
 NAVPOSE_CONNECT_STATUS_MSG_CLASS = NavPoseStatus
 NAVPOSE_CONNECT_DATA_MSG = NavPose
-NAVPOSE_CONNECT_NAME = 'navpose_connect'
+NAVPOSE_CONNECT_NAME = 'connect_navpose'
 
 
 class ConnectNavPoseIF(ConnectSystemIF):
@@ -615,9 +498,8 @@ class ConnectNavPoseIF(ConnectSystemIF):
     #######################
     ### IF Initialization
     def __init__(self,
-                connect_name = NAVPOSE_CONNECT_NAME,
-                namespace = None,
-                auto_select_enabled = False,
+                auto_select_enabled = True,
+                selected_topic = None,
                 status_callback = None,
                 connect_data = True,
                 data_callback = None,
@@ -650,6 +532,7 @@ class ConnectNavPoseIF(ConnectSystemIF):
         # None, which tripped the guard in ConnectDataIF.__init__ and left the
         # instance dead. msg_if and node_if never arrived at all.
 
+        connect_name = NAVPOSE_CONNECT_NAME
         self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
@@ -671,8 +554,8 @@ class ConnectNavPoseIF(ConnectSystemIF):
         super().__init__(
                 connect_id = NAVPOSE_CONNECT_ID,
                 connect_name = connect_name,
-                namespace = namespace,
                 auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
                 connect_status_msg = NAVPOSE_CONNECT_STATUS_MSG,
                 connect_status_msg_class = NAVPOSE_CONNECT_STATUS_MSG_CLASS,
                 status_callback = status_callback,
