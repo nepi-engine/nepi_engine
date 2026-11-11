@@ -203,7 +203,7 @@ class BaseImageIF(DataProductIF):
     depth_map_topic = ""
     pointcloud_topic = ""
 
-    options_controls_if = dict()
+    options_controls_if = None
 
     ready = False
 
