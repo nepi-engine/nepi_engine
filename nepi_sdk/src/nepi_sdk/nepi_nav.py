@@ -1103,11 +1103,11 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['time_position'] = npdata_dict['time_position']
 
           invert = -1 if transform_dict['x_invert'] else 1
-          npx = npdata_dict['x_deg'] * invert + x
+          npx = npdata_dict['x_m'] * invert + x
           invert = -1 if transform_dict['y_invert'] else 1
-          npy = npdata_dict['y_deg'] * invert + y
+          npy = npdata_dict['y_m'] * invert + y
           invert = -1 if transform_dict['z_invert'] else 1
-          npz = npdata_dict['z_deg'] * invert + z
+          npz = npdata_dict['z_m'] * invert + z
 
           [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ar,'x')
           [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ap,'y')
@@ -1119,9 +1119,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['has_altitude'] = True
           navpose_dict['time_altitude'] = npdata_dict['time_altitude']
 
-          invert = -1 if transform_dict['altitude_m'] else 1
-          navpose_dict['altitude_m'] = npdata_dict['altitude_m'] * invert  + transform_dict['altitude_m']
-
+          # Transform dicts have no 'altitude_m' key, so a direct assignment here raised
+          # KeyError on every frame with a transform and skipped depth and pan/tilt;
+          # altitude_m is set from the rotated point below.
           npx = 0
           invert = -1 if transform_dict['y_invert'] else 1
           npy = npdata_dict['altitude_m'] * invert + y

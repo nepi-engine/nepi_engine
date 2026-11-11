@@ -711,13 +711,21 @@ class logger:
         self.ignore_functions = MSG_FILTER_FUNCTIONS + ignore_functions
         self.ignore_files = MSG_FILTER_FILES + ignore_functions
 
+        # Daemon threads: these loops only end on rospy shutdown, and the
+        # module-level sdk_logger starts them at import, before init_node. A
+        # process that dies before init_node completes never reaches rospy
+        # shutdown, so non-daemon threads here kept it alive forever (Python
+        # exit waits on them); orphaned *_img_pub processes were found that way.
         sub_updater_thread = threading.Thread(target=self.subUpdaterCb)
+        sub_updater_thread.daemon = True
         sub_updater_thread.start()
 
         pub_updater_thread = threading.Thread(target=self.pubUpdaterCb)
+        pub_updater_thread.daemon = True
         pub_updater_thread.start()
 
         throttle_updater_thread = threading.Thread(target=self.throttleUpdaterCb)
+        throttle_updater_thread.daemon = True
         throttle_updater_thread.start()
 
 
