@@ -65,7 +65,7 @@ from nepi_api.data_product_if_image import ColorImageIF
 from nepi_api.device_if_npx import NPXDeviceIF
 
 
-from nepi_api.process_if import ProcessIF
+# from nepi_api.process_if import ProcessIF
 
 from nepi_api.device_if import DeviceIF
 
@@ -287,11 +287,11 @@ class RBXRobotIF(DeviceIF):
     )
 
     connected = False
-    rbx_process_module = nepi_process_rbx
-    rbx_process_name = nepi_process_rbx.NAME
-    process_if = None
-    process_data_dict = copy.deepcopy(BLANK_PROCESS_DATA_DICT)
-    process_ready = False
+    # rbx_process_module = nepi_process_rbx
+    # rbx_process_name = nepi_process_rbx.NAME
+    # process_if = None
+    # process_data_dict = copy.deepcopy(BLANK_PROCESS_DATA_DICT)
+    # process_ready = False
 
     states = []
     modes = []
@@ -858,59 +858,59 @@ class RBXRobotIF(DeviceIF):
 
 
 
-        ######################################################
-        # Setup RBX Process IF ####################
-        self.rbx_process_callback_dict = dict(
-            process_update_callback = None,
-            settings_updated_callback = None,
-            controls_updated_callback = None,
-        )
+        # ######################################################
+        # # Setup RBX Process IF ####################
+        # self.rbx_process_callback_dict = dict(
+        #     process_update_callback = None,
+        #     settings_updated_callback = None,
+        #     controls_updated_callback = None,
+        # )
 
 
-        self.rbx_process_config_dict = dict(
-            has_sources = False,
-            multi_source_enabled = False,
-            has_auto_select = False,
-            auto_select_enabled = True,
-            selected_sources = [],
+        # self.rbx_process_config_dict = dict(
+        #     has_sources = False,
+        #     multi_source_enabled = False,
+        #     has_auto_select = False,
+        #     auto_select_enabled = True,
+        #     selected_sources = [],
             
-            has_enable = False,
+        #     has_enable = False,
 
-            has_process_rate = True,
-            min_max_process_rates = self.MIN_MAX_PROCESS_RATES,
-            default_process_rate = self.DEFAULT_PROCESS_RATE,
+        #     has_process_rate = True,
+        #     min_max_process_rates = self.MIN_MAX_PROCESS_RATES,
+        #     default_process_rate = self.DEFAULT_PROCESS_RATE,
 
-            has_image_rate = False,
-            min_max_image_rates = [1,10],
-            default_image_rate = 10,
-            has_use_last_image = False,
+        #     has_image_rate = False,
+        #     min_max_image_rates = [1,10],
+        #     default_image_rate = 10,
+        #     has_use_last_image = False,
 
-            has_process_pub = True,
-            has_process_enable = True,
-            has_process_reload = False,
+        #     has_process_pub = True,
+        #     has_process_enable = True,
+        #     has_process_reload = False,
 
-            has_results_pub = True,
+        #     has_results_pub = True,
 
-            has_save_data = True,
-            has_config = True,
+        #     has_save_data = True,
+        #     has_config = True,
 
-            has_image_pub = True,
+        #     has_image_pub = True,
 
-            has_status_pub = True,
-            throttle_status_sec = 0.1
-        )
+        #     has_status_pub = True,
+        #     throttle_status_sec = 0.1
+        # )
 
     
-        self.process_if = ProcessIF(
-                    process_name = self.rbx_process_name,
-                    process_group = self.rbx_process_name,
-                    process_description = self.rbx_process_name,
-                    process_module = self.rbx_process_module,
-                    callback_dict = self.rbx_process_callback_dict,
-                    config_dict = self.rbx_process_config_dict,
-                    msg_if = self.msg_if,
-                    node_if = self.node_if
-                )
+        # self.process_if = ProcessIF(
+        #             process_name = self.rbx_process_name,
+        #             process_group = self.rbx_process_name,
+        #             process_description = self.rbx_process_name,
+        #             process_module = self.rbx_process_module,
+        #             callback_dict = self.rbx_process_callback_dict,
+        #             config_dict = self.rbx_process_config_dict,
+        #             msg_if = self.msg_if,
+        #             node_if = self.node_if
+        #         )
 
 
 
@@ -933,8 +933,8 @@ class RBXRobotIF(DeviceIF):
             options_updated_callback = None,
             get_source_status_callback = self.connect_img_if.get_status_dict,
             get_source_navpose_callback = self.connect_img_if.get_navpose_dict,
-            pre_process_callback = self.process_if.pre_process_results_image,
-            post_process_callback = self.process_if.post_process_results_image
+            # pre_process_callback = self.process_if.pre_process_results_image,
+            # post_process_callback = self.process_if.post_process_results_image
         )
 
         self.image_if = ColorImageIF(namespace = self.node_namespace,
@@ -946,7 +946,6 @@ class RBXRobotIF(DeviceIF):
                         )
         self.if_dict['image_if'] = self.image_if
 
-        self.process_if.set_process_if_dict('image_if',self.image_if)
 
         #########################
         # Update Status Msg
@@ -1013,8 +1012,8 @@ class RBXRobotIF(DeviceIF):
         ##############################
         # Start Node Processes
         nepi_sdk.start_timer_process(1, self.blankImagePubCb)
-        # processCb re-arms itself as a oneshot at the process rate
-        nepi_sdk.start_timer_process(1, self.processCb, oneshot = True)
+        # # processCb re-arms itself as a oneshot at the process rate
+        # nepi_sdk.start_timer_process(1, self.processCb, oneshot = True)
         # Refresh the current_* control attributes from this device's navpose.
         # The goto convergence loops, takeoff checks and home location all read
         # current_*; without this timer they stayed at their [0,0,0] defaults.
@@ -2442,15 +2441,16 @@ class RBXRobotIF(DeviceIF):
 
 
     def get_capabilities_msg(self):
-        if self.process_if is None:
-           self.process_data_dict = copy.deepcopy(self.BLANK_PROCESS_DATA_DICT)
-           self.process_ready = False
-        else:
-           self.process_ready = self.process_if.get_process_ready()
-           if self.process_ready == False:
-            self.process_data_dict = copy.deepcopy(self.BLANK_PROCESS_DATA_DICT)
+        process_dict = dict()
+        # if self.process_if is None:
+        #    self.process_data_dict = copy.deepcopy(self.BLANK_PROCESS_DATA_DICT)
+        #    self.process_ready = False
+        # else:
+        #    self.process_ready = self.process_if.get_process_ready()
+        #    if self.process_ready == False:
+        #     self.process_data_dict = copy.deepcopy(self.BLANK_PROCESS_DATA_DICT)
 
-        process_dict = copy.deepcopy(self.process_data_dict)
+        # process_dict = copy.deepcopy(self.process_data_dict)
 
         caps_msg = DeviceRBXStatusQuery()
         caps_msg.has_x_control = self.caps_dict['has_x_control'] or process_dict.get('has_x_control',False)
@@ -2489,112 +2489,112 @@ class RBXRobotIF(DeviceIF):
 
         return caps_msg
 
-    ####################################
-    ### Callback for rbx proccess
+    # ####################################
+    # ### Callback for rbx proccess
 
-    def processCb(self, timer):
-        #self.msg_if.pub_warn("Starting Process Thread", throttle_s = 10)
-        start_time = nepi_utils.get_time()
+    # def processCb(self, timer):
+    #     #self.msg_if.pub_warn("Starting Process Thread", throttle_s = 10)
+    #     start_time = nepi_utils.get_time()
 
-        if self.process_if is None:
-           nepi_sdk.start_timer_process(1, self.processCb, oneshot = True)
-           return
-        #####################
-        # Setup Process Input Data
-        #####################
+    #     if self.process_if is None:
+    #        nepi_sdk.start_timer_process(1, self.processCb, oneshot = True)
+    #        return
+    #     #####################
+    #     # Setup Process Input Data
+    #     #####################
         
-        # RBX DATA
-        self.process_data_dict['rbx_status_dict'] =  self.get_status_dict()
-        self.process_data_dict['rbx_navpose_dict'] =  self.get_navpose_dict()
+    #     # RBX DATA
+    #     self.process_data_dict['rbx_status_dict'] =  self.get_status_dict()
+    #     self.process_data_dict['rbx_navpose_dict'] =  self.get_navpose_dict()
 
 
-        ########
-        # Image DATA
-        cv2_img = None
-        cv2_navpose_dict = None
-        cv2_status = None
-        try:
-            if self.connect_img_if.check_connection() == True:
-                cv2_img = self.connect_img_if.get_data_dict()['color_image']
-                cv2_status = self.connect_img_if.get_status_dict()
-                cv2_navpose_dict = self.connect_img_if.get_navpose_dict()
-        except:
-            pass
+    #     ########
+    #     # Image DATA
+    #     cv2_img = None
+    #     cv2_navpose_dict = None
+    #     cv2_status = None
+    #     try:
+    #         if self.connect_img_if.check_connection() == True:
+    #             cv2_img = self.connect_img_if.get_data_dict()['color_image']
+    #             cv2_status = self.connect_img_if.get_status_dict()
+    #             cv2_navpose_dict = self.connect_img_if.get_navpose_dict()
+    #     except:
+    #         pass
 
-        self.process_data_dict['cv2_img'] = cv2_img
-        self.process_data_dict['cv2_status_dict'] = cv2_status
-        self.process_data_dict['cv2_navpose_dict'] = cv2_navpose_dict
+    #     self.process_data_dict['cv2_img'] = cv2_img
+    #     self.process_data_dict['cv2_status_dict'] = cv2_status
+    #     self.process_data_dict['cv2_navpose_dict'] = cv2_navpose_dict
 
 
 
-        ########
-        # Servo DATA
-        servo_names = []
-        servo_status_dict = dict()
-        servo_if_dict = dict()
-        for servo_name in self.servo_if_dict.keys():
-            servo_if = self.servo_if_dict[servo_name]
-            try:
+    #     ########
+    #     # Servo DATA
+    #     servo_names = []
+    #     servo_status_dict = dict()
+    #     servo_if_dict = dict()
+    #     for servo_name in self.servo_if_dict.keys():
+    #         servo_if = self.servo_if_dict[servo_name]
+    #         try:
 
-                servo_status_dict[servo_name] = servo_if.get_status_dict()
-                servo_names.append(servo_name)
-                servo_if_dict[servo_name] = servo_if
-            except:
-                pass
-        self.process_if.set_process_if_dict('servo_if_dict',servo_if_dict)
-        self.process_data_dict['servo_names'] = servo_names
-        self.process_data_dict['servo_status_dict'] = servo_status_dict
+    #             servo_status_dict[servo_name] = servo_if.get_status_dict()
+    #             servo_names.append(servo_name)
+    #             servo_if_dict[servo_name] = servo_if
+    #         except:
+    #             pass
+    #     self.process_if.set_process_if_dict('servo_if_dict',servo_if_dict)
+    #     self.process_data_dict['servo_names'] = servo_names
+    #     self.process_data_dict['servo_status_dict'] = servo_status_dict
 
-        #################
-        ## Apply and Clear Updates
+    #     #################
+    #     ## Apply and Clear Updates
        
-        for key in self.process_update_dict.keys():
-           self.process_data_dict[key] = self.process_update_dict[key]
-        self.process_update_dict = copy.deepcopy(self.BLANK_PROCESS_UPDATE_DICT)
+    #     for key in self.process_update_dict.keys():
+    #        self.process_data_dict[key] = self.process_update_dict[key]
+    #     self.process_update_dict = copy.deepcopy(self.BLANK_PROCESS_UPDATE_DICT)
 
 
-        #####################
-        # Run Process
-        #####################
+    #     #####################
+    #     # Run Process
+    #     #####################
 
-        source_image_topic = self.status_msg.connect_image_topic
-        auto_results_dict = self.process_if.process_results(source_topic = source_image_topic)
-        # self.msg_if.pub_warn("Got auto_results_dict: " + str(auto_results_dict), throttle_s = 10)    
-        self.process_data_dict = self.process_if.get_data_dict()
+    #     source_image_topic = self.status_msg.connect_image_topic
+    #     auto_results_dict = self.process_if.process_results(source_topic = source_image_topic)
+    #     # self.msg_if.pub_warn("Got auto_results_dict: " + str(auto_results_dict), throttle_s = 10)    
+    #     self.process_data_dict = self.process_if.get_data_dict()
 
   
-        #####################
-        # Apply Process Results
-        #####################
+    #     #####################
+    #     # Apply Process Results
+    #     #####################
 
 
 
         
-        #############################
-        # Publish Status and Set Next Process
-        self.publish_status()
-        max_hz = self.process_if.get_process_rate()
-        if max_hz < 1:
-            max_hz = 1
-        process_delay = (float(1) / max_hz) - (nepi_utils.get_time() - start_time)
-        next_process_delay = max(0.01, process_delay)
-        # Re-arm this loop, not updaterCb. Re-arming the updater here ran the
-        # process body exactly once and then drove the 1 Hz updater at the process
-        # rate instead.
-        nepi_sdk.start_timer_process(next_process_delay, self.processCb, oneshot = True)
+    #     #############################
+    #     # Publish Status and Set Next Process
+    #     self.publish_status()
+    #     max_hz = self.process_if.get_process_rate()
+    #     if max_hz < 1:
+    #         max_hz = 1
+    #     process_delay = (float(1) / max_hz) - (nepi_utils.get_time() - start_time)
+    #     next_process_delay = max(0.01, process_delay)
+    #     # Re-arm this loop, not updaterCb. Re-arming the updater here ran the
+    #     # process body exactly once and then drove the 1 Hz updater at the process
+    #     # rate instead.
+    #     nepi_sdk.start_timer_process(next_process_delay, self.processCb, oneshot = True)
 
 
-    def blankImagePubCb(self, timer):
-        img_connected = False
-        try:
-           img_connected = self.connect_img_if.check_connection()
-        except:
-           pass
-        if img_connected == False:
-            try:
-                self.image_if.publish_cv2_img(self.image_blank)
-            except:
-                pass      
+    # def blankImagePubCb(self, timer):
+    #     img_connected = False
+    #     try:
+    #        img_connected = self.connect_img_if.check_connection()
+    #     except:
+    #        pass
+    #     if img_connected == False:
+    #         try:
+    #             self.image_if.publish_cv2_img(self.image_blank)
+    #         except:
+    #             pass      
 
 
     def imageCb(self,data_dict):

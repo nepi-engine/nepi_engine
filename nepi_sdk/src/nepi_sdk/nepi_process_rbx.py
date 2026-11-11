@@ -39,19 +39,16 @@ logger = nepi_sdk.sdk_logger
 ########################
 ## REQUIRED Process IF Utilities
 ID = 'rbx_process'
-NAME = 'rbx_auto'
-DESCRIPTION = 'Light and Strobe Device'
+NAME = 'rbx_process'
+DESCRIPTION = 'RBX Device Process'
 
 STATUS_MSG = ProcessStatus()
 
 RESULTS_PUB_MSG = None
 RESULTS_PUB_TOPIC = None
 
-IMAGE_PUB_TOPIC = None
 
 DEFAULT_PROCESS = 'rbx_auto_1'
-
-
 
 
 ########################
@@ -59,42 +56,13 @@ DEFAULT_PROCESS = 'rbx_auto_1'
 ##########################
 
 
-##########################
-REQUIRED_RESULTS_DICT = dict()
-
-def get_blank_results_dict():
-  results_dict = copy.deepcopy(REQUIRED_RESULTS_DICT)
-  return results_dict
-
-
-def update_results(results_dict, navpose_dict = None):
-    if results_dict is not None:        
-        timestamp = results_dict.get('timestamp',-999)
-        if timestamp == -999:
-            timestamp = nepi_utils.get_time()
-        age_sec =  nepi_utils.get_time() - timestamp
-        results_dict['timestamp'] = timestamp
-        results_dict['age_sec'] = age_sec
-        #logger.log_warn("Updated Results Dict: " + str([results_dict]), throttle_s = 5)
-    return results_dict
-
-
-
-
-
-
 ########################
-## Process Functions   
-#######################
-processes_dict = dict()
-functions_dict = dict()
+## Process Data Dictionary
+##########################
 
-# REQUIRED_IF_DICT = dict(
-#     servo_name = servo_name_if,
-#     ...
-# )
-   
-REQUIRED_DATA_DICT = dict(
+
+##########################   
+DATA_DICT = dict(
     ###############
     # Provided By Caller
     rbx_status_dict = dict(),
@@ -108,18 +76,20 @@ REQUIRED_DATA_DICT = dict(
     cv2_img_navpose_dict = None,
 
     ###############
-    # Updated By Caller, Then Clears
-    set_home =   None,
-    go_home = None,
-    go_stop = None,
-    goto_pose = None,
-    goto_position = None,
-    goto_location = None,
-    goto_velocity = None,
-    go_action = None,
+    # Updated By Caller, Then Cleared
+    set_home_updated =   None,
+    go_home_updated = None,
+    go_stop_updated = None,
+    goto_pose_updated = None,
+    goto_position_updated = None,
+    goto_location_updated = None,
+    goto_velocity_updated = None,
+    mode_updated = None,
+    action_updated = None,
+
 
     ###############
-    # Capabilities Set by Process and Overide Any Driver Settings
+    # Capabilities Set by Process
     has_x_control = False,
     has_y_control = False,
     has_z_control = False,
@@ -137,10 +107,11 @@ REQUIRED_DATA_DICT = dict(
     has_goto_location = False,
     has_go_velocity = False,
 
-    go_action_options = [],
+    mode_options = [],
+    action_options = [],
 
     ###############
-    # Updated by Process
+    # Updated by Process, Cleared by Caller
     set_home_success = None,
     go_home_success = None, # Caller Waits/Blocks for True/False Response
     go_stop_success = None, 
@@ -148,80 +119,55 @@ REQUIRED_DATA_DICT = dict(
     goto_position_success = None,
     goto_location_success = None,
     goto_velocity_success = None,
-    go_action_success = None, # Caller Waits/Blocks for True/False Response   
+    set_mode_success = None,
+    set_action_success = None, # Caller Waits/Blocks for True/False Response   
 
+    ###############
+    # Custom Data Used and Managed by Process
 
-    last_results_time = 0,
-    )
-
-
-REQUIRED_CONTROLS_DICT = dict()
-
-
-REQUIRED_RESULTS_DISPLAY_DICT = dict( )
-
-
-REQUIRED_STATES_DICT = dict(
 
     )
 
 
-########################
-## Process 1   
+
+##########################
+## Process Result Dictionaries
+##########################
+
+RESULTS_DICT = dict(
+    result_1 = 'Result'
+)
+
+# Controls which and how results are displayed to the User
+RESULTS_DISPLAY_DICT = dict(
+
+    result_1 = {"type":"String", "default":'None',
+                # OPTIONAL
+                'display_name':'Result 1', 'description':'Result 1 Display', 'display_hidden':False},
+
+),
+
+
+##########################
+## Process Functions   
+##########################
+processes_dict = dict()
+functions_dict = dict()
 
 
 
-rbx_auto_1_dict = {
-
-   
-    'data_dict': dict(
-        has_set_home = False,
-        has_home = False,
-        has_stop = False,
-        has_pose = False,
-        has_position = False,
-        has_location = False,
-        has_velocity = False,
-        go_action_options = [],
-    ),
+rbx_auto_1_controls = dict(
+        example_slider = {'type': 'FloatSlider', 'default': 0, 'bounds': [0,1],
+                      'display_name': 'Example', 'description': 'Example Controls.', 'display_hidden': False}, 
+)
 
 
-
-    'controls_dict': dict(
-        select_motor = {'type': 'Menu', 'default': 0, 'options': ['None'],
-                      'display_name': 'Display Motor Data', 'description': 'Pick Motor Data to Display.', 'display_hidden': False}, 
-            
-    ),
-
-
-    'results_display_dict': dict(
-
-        motor_name = {"type":"String", "value":'None',
-                    # OPTIONAL
-                    'display_name':'Motor Name', 'description':'Motor Name', 'display_hidden':False},
-
-        speed_ratio = {"type":"Float", "value":-999, 'round_value': 1,
-                    # OPTIONAL
-                    'display_name':'Motor Speed Ratio', 'description':'Motor Speed Ratio', 'display_hidden':False, 'round_display': 1},
-
-        direction = {"type":"Int", "value":1,
-                    # OPTIONAL
-                    'display_name':'Motor Dir', 'description':'Motor Dir', 'display_hidden':False},
-    ),
-       
-
-    'states_dict': {
-       
-    },
-}
-
-
-def rbx_auto_1_process(data_dict, controls_dict, states_dict, results_dict, if_dict):
+def rbx_auto_1_process(controls_dict, data_dict, results_dict, if_dict):
     start_time = nepi_utils.get_time()
     last_data_dict = copy.deepcopy(data_dict)
     last_results_dict = copy.deepcopy(results_dict)
     if last_results_dict is None:
-        last_results_dict = get_blank_results_dict()
+        last_results_dict = copy.deepcopy(RESULTS_DICT)
     controls_values_dict = nepi_controls.get_values_dict(controls_dict)
     #logger.log_warn("Got  Data: " + str(data_dict), throttle_s = 10)
     #logger.log_warn("Got  Data,Controls: " + str([data_dict,controls_values_dict]), throttle_s = 10)
@@ -333,18 +279,14 @@ def rbx_auto_1_process(data_dict, controls_dict, states_dict, results_dict, if_d
     ##############
     # Process Results
     #############
-    results_dict = get_blank_results_dict()
-    ######
-    # Update Results Dict As Needed
-    #####
-    results_dict = update_results(results_dict)
+
   
     ##################
     # Clean Up
     ##################
     data_dict['last_results_time'] = nepi_utils.get_time()
     #logger.log_warn("Process Axisleted: " + str([auto_dict,results_dict,len(filtered_targets),len(targets_dict_list),class_filters]), throttle_s = 5)
-    return data_dict, controls_dict, states_dict, results_dict
+    return data_dict, results_dict
 
     #########################################################
 
@@ -384,41 +326,35 @@ FUNCTIONS_DICT = functions_dict
 #######################
 
 
-process_image_dict = {
 
-    'controls_dict': dict(
-        overlay_results =  {
-                'type': 'Toggle', 'value': True,
-                # Optional
-                'display_name': 'Show Overlay', 'description': 'Overlay Result Image', 'display_hidden': False},
+IMAGE_CONTROLS_DICT =  dict(
+    overlay_results =  {
+            'type': 'Toggle', 'value': True,
+            # Optional
+            'display_name': 'Show Overlay', 'description': 'Overlay Result Image', 'display_hidden': False},
 
-    ),
-    
-    'data_dict': dict(
-        # Provided by Caller
-        rbx_status_dict = dict(),
-        rbx_navpose_dict = None,
-
-        # Updated by Process Image Functions
-        last_image_time = 0,
-    ),
-
-    'config_dict': dict(
-        config_dict = dict(),
-        overlay_color = (0,0,127),
-        overlay_colors = [],
-        overlay_font = nepi_img.OVERLAY_FONT,
-        overlay_font_color = nepi_img.OVERLAY_FONT_COLOR,
-        overlay_line_type = nepi_img.OVERLAY_LINE_TYPE,
-        overlay_line_color = nepi_img.OVERLAY_LINE_COLOR,
-        overlay_labels = True,
-        overlay_range_bearing = True,
-    ),
-
-}
+)
 
 
-def pre_process_results_image(cv2_img, cv2_img_status, cv2_img_navpose_dict, process_image_dict, results_dict, if_dict):
+IMAGE_CONFIG_DICT = dict(
+    config_dict = dict(),
+    overlay_color = (0,0,127),
+    overlay_colors = [],
+    overlay_font = nepi_img.OVERLAY_FONT,
+    overlay_font_color = nepi_img.OVERLAY_FONT_COLOR,
+    overlay_line_type = nepi_img.OVERLAY_LINE_TYPE,
+    overlay_line_color = nepi_img.OVERLAY_LINE_COLOR,
+    overlay_labels = True,
+    overlay_range_bearing = True,
+)
+
+
+
+def pre_process_results_image(cv2_img,  
+                              data_dict,
+                              results_dict,                              
+                              image_controls_dict = nepi_controls.get_values_dict(IMAGE_CONTROLS_DICT),
+                              image_config_dict = IMAGE_CONFIG_DICT,):
         ##################
         # Get Image Data
         try:
