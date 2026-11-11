@@ -2136,10 +2136,19 @@ class RBXRobotIF(DeviceIF):
       self.update_current_goals( [0,0,0,0,0,0,0] )
       self.msg_if.pub_info("************************" )
       self.msg_if.pub_info("Starting Setpoint Location Global Process" )
+      # Exactly latitude 0, longitude 0 is an unset target -- a GoTo Location
+      # form still at its 0 defaults, or a home that was never set -- not a
+      # destination. Confirmed on the bench 2026-11-10: an RUI GoTo Location
+      # sent with untouched fields was accepted and drove the vehicle and its
+      # fake GPS toward 0,0, about 12,400 km away. Refused here so every caller
+      # is covered (RUI, driver go-home, apps). A held axis is -999, never 0.
+      if float(setpoint_location[0]) == 0.0 and float(setpoint_location[1]) == 0.0:
+        self.update_error_msg("Refusing GoTo Location to latitude 0, longitude 0: the target is unset")
+        return False
       ##############################################
       # Capture Current NavPose Data
       ##############################################
-      start_geopoint_wgs84 = list(self.current_location_wgs84_geo)  
+      start_geopoint_wgs84 = list(self.current_location_wgs84_geo)
       start_orientation_enu_degs=list(self.current_orientation_enu_degs)
       start_yaw_enu_deg = start_orientation_enu_degs[2]
       self.msg_if.pub_info("Start Yaw ENU degs" )
