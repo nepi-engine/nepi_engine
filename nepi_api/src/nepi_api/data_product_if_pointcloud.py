@@ -611,6 +611,10 @@ class PointcloudIF(DataProductIF):
             status_msg.uniform_downsample_points = self.node_if.get_param(self.node_if_prefix +  'uniform_downsample_k_points',self.DEFAULT_CONTROLS_DICT['uniform_downsample_k_points'])
             status_msg.outlier_k_points = self.node_if.get_param(self.node_if_prefix +  'outlier_removal_num_neighbors',self.DEFAULT_CONTROLS_DICT['outlier_removal_num_neighbors'])
 
+            # nepi_pointcloud_img_pub_node renders only while this reads True, so
+            # leaving it unset (msg default False) stops the pointcloud image.
+            status_msg.render_enable = self.node_if.get_param(self.node_if_prefix +  'render_enable', True)
+
             # Degrees use the same conversion the renderer applies to its own
             # rotate_3d_ratio/tilt_3d_ratio, so the two agree on what 0.5 means.
             rotate_ratio = self.node_if.get_param(self.node_if_prefix +  'rotate_ratio', 0.5)

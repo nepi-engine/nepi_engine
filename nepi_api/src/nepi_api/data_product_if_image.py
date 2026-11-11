@@ -2855,7 +2855,7 @@ class BaseImageIF(DataProductIF):
                     self.msg_if.pub_debug("Failed to get_source_navpose_callback: " + str(e) , throttle_s = 5)
         if source_navpose_dict is not None:
             self.source_navpose_dict = source_navpose_dict
-            navpose_dict = source_status_dict
+            navpose_dict = source_navpose_dict
         else:
             navpose_dict = self.get_navpose_dict()
 

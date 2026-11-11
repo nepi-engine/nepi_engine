@@ -324,6 +324,11 @@ class ConnectSystemIF(ConnectNodeIF):
     # Class Private Methods
     ###############################
 
+    def getDataSubTopic(self, selected_topic):
+        # Data topic relative to the selected namespace; '' means the source
+        # publishes its data on the selected namespace itself.
+        return ''
+
     def updaterCb(self,timer):
         cur_time = nepi_utils.get_time()
         last_time = copy.deepcopy(self.last_status_time )
@@ -356,7 +361,7 @@ class ConnectSystemIF(ConnectNodeIF):
         if self.connect_data == True:
              self.connect_topic_subs_dict[self.node_if_prefix + 'data_sub'] = {
                 'namespace': self.selected_topic,
-                'topic': '',
+                'topic': self.getDataSubTopic(self.selected_topic),
                 'msg': self.connect_data_msg,
                 'qsize': 1,
                 'callback': self._dataCb
@@ -542,7 +547,10 @@ class ConnectNavPoseIF(ConnectSystemIF):
         self.transform_if = transform_if
         self.navpose_if = navpose_if
 
-        
+        # NavPose Manager frames live at <base>/navposes/<frame> (navpose_mgr.addNavpose).
+        # Set before super().__init__, whose updater can subscribe immediately.
+        self.navpose_frames_namespace = nepi_sdk.create_namespace(self.base_namespace, 'navposes')
+
         self.connect_name = connect_name
 
         if namespace is None:
@@ -669,8 +677,34 @@ class ConnectNavPoseIF(ConnectSystemIF):
 
 
     ###############################
+    # NodeIF Class Override Methods
+    ###############################
+
+    def update_status_msg(self, status_msg):
+        # ConnectNodeIF builds a fresh ConnectIFStatus that leaves navpose_topic and
+        # transform_topic blank, so the RUI NavPose Connect panel had no topic to show.
+        # Report the host's own NavPoseIF/TransformIF, which this connect feeds.
+        status_msg = super().update_status_msg(status_msg)
+        navpose_if = getattr(self, 'navpose_if', None)
+        if navpose_if is not None:
+            status_msg.navpose_topic = navpose_if.get_namespace()
+        transform_if = getattr(self, 'transform_if', None)
+        if transform_if is not None:
+            status_msg.transform_topic = transform_if.get_namespace()
+        return status_msg
+
+    ###############################
     # Class Private Methods
     ###############################
+
+    def getDataSubTopic(self, selected_topic):
+        # A NavPose Manager frame publishes its status at <frame>/status but its NavPose
+        # at <frame>/navpose (navpose_mgr.addNavpose), unlike a device NavPoseIF, which
+        # publishes both at <device>/navpose. Discovery finds a frame by its status topic,
+        # so subscribing at the frame namespace itself showed Connected but never got a pose.
+        if str(selected_topic).startswith(self.navpose_frames_namespace + '/'):
+            return 'navpose'
+        return ''
 
     def _dataCb(self,data_msg):
         # ConnectSystemIF.subscribe_topic registers the data subscriber with _dataCb
