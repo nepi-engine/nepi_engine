@@ -498,6 +498,8 @@ class ConnectNavPoseIF(ConnectSystemIF):
     #######################
     ### IF Initialization
     def __init__(self,
+                connect_name = NAVPOSE_CONNECT_NAME,
+                namespace = None,
                 auto_select_enabled = True,
                 selected_topic = None,
                 status_callback = None,
@@ -532,8 +534,15 @@ class ConnectNavPoseIF(ConnectSystemIF):
         # None, which tripped the guard in ConnectDataIF.__init__ and left the
         # instance dead. msg_if and node_if never arrived at all.
 
-        connect_name = NAVPOSE_CONNECT_NAME
-        self.namespace = nepi_sdk.create_namespace(self.node_namespace,connect_name)
+        self.msg_if = msg_if
+        self.node_if = node_if
+        self.connect_name = connect_name
+        self.connect_topic_controls_dict = connect_topic_controls_dict
+
+        if namespace is None:
+            namespace = self.node_namespace
+        namespace = namespace.replace('/' + self.connect_name, '')
+        self.namespace = nepi_sdk.create_namespace(namespace,self.connect_name)
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
         self.navpose_callback = navpose_callback
@@ -554,6 +563,7 @@ class ConnectNavPoseIF(ConnectSystemIF):
         super().__init__(
                 connect_id = NAVPOSE_CONNECT_ID,
                 connect_name = connect_name,
+                namespace = namespace,
                 auto_select_enabled = auto_select_enabled,
                 selected_topic = selected_topic,
                 connect_status_msg = NAVPOSE_CONNECT_STATUS_MSG,
