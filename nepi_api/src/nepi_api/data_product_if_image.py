@@ -4872,9 +4872,9 @@ class BaseImageIF(DataProductIF):
             self.stabilize_rotate_deg = 0
         else:
             if navpose_dict.get('has_pan_tilt', False):
-                stab_adjust_rotate_deg = -1 * navpose_dict.get('pan_tilt_roll_deg',0)
+                stab_adjust_rotate_deg = 1 * navpose_dict.get('pan_tilt_roll_deg',0)
             else:
-                stab_adjust_rotate_deg = -1 * navpose_dict.get('roll_deg',0)
+                stab_adjust_rotate_deg = 1 * navpose_dict.get('roll_deg',0)
             self.stabilize_rotate_deg = stab_adjust_rotate_deg
             if abs(stab_adjust_rotate_deg) > 0.01:
                 #self.msg_if.pub_debug("Stabilize Adjusting Rotate with degrees: " + str([stab_adjust_rotate_deg]) , throttle_s = 5)
