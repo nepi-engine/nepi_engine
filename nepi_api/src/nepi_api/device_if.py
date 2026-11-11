@@ -318,7 +318,7 @@ class DeviceIF(NodeIF):
         # Setup Transform IF Class ####################
 
         self.msg_if.pub_info("Starting New Transfrom IF Initialization" , color = 'RED')
-        self.transform_if = TransformIF(namespace = self.namespace,
+        self.transform_if = TransformIF(namespace = self.node_namespace,
                                 info_dict = self.info_dict,
                                 msg_if = self.msg_if,
                                 node_if = self.node_if)
@@ -329,7 +329,7 @@ class DeviceIF(NodeIF):
         ##################################
         # Setup NavPose IF Class ####################
         self.msg_if.pub_info("Starting New NavPose IF Initialization" , color = 'RED')
-        self.navpose_if = NavPoseIF(namespace = self.namespace,
+        self.navpose_if = NavPoseIF(namespace = self.node_namespace,
                                 frame_name = self.node_name,
                                 info_dict = self.info_dict,
                                 msg_if = self.msg_if,
@@ -354,6 +354,7 @@ class DeviceIF(NodeIF):
             # made every device select itself (not a navpose topic, so its navpose
             # never published) and threw away the operator's saved pick on restart.
             self.connect_navpose_if = ConnectNavPoseIF(
+                                    namespace = self.node_namespace,
                                     navpose_callback = self._pubNavposeCb,
                                     msg_if = self.msg_if,
                                     node_if = self.node_if)
