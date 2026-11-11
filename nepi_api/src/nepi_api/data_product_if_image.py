@@ -2184,7 +2184,7 @@ class BaseImageIF(DataProductIF):
 
         if source_status_dict is not None:
             is_stabilized = source_status_dict.get('stabilize_enabled', False)
-            if is_stabilize == True:
+            if is_stabilized == True:
                 self.status_msg.stabilize_disabled = True
                 self.status_msg.stabilize_enabled = True
                 self.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
@@ -2797,6 +2797,8 @@ class BaseImageIF(DataProductIF):
                         add_pubs = [],
                         source_status_dict = None,
                         source_navpose_dict = None,
+                        pre_process_callback = None,
+                        post_process_callback = None
                         ):
         """Process and publish an OpenCV image to all configured ROS topics.
 
@@ -2918,26 +2920,31 @@ class BaseImageIF(DataProductIF):
 
                 [height,width] = cv2_img.shape[0:2]
                 [self.height_org,self.width_org] = [height,width]
-                #self.msg_if.pub_debug("Got Image size: " + str([height,width]) )
+                self.msg_if.pub_debug("Got Image size: " + str([height,width]) , throttle_s = 5)
 
 
+                ########
+                if self.callback_dict.get('pre_process_callback', None) is not None and  pre_process_callback is None:
+                        pre_process_callback = self.callback_dict['pre_process_callback']
+                if pre_process_callback is not None and cv2_img is not None:
+                    try:
+                        cv2_img_status = nepi_sdk.convert_msg2dict(self.status_msg)
+                        cv2_img = pre_process_callback(cv2_img, cv2_img_status, navpose_dict)
+                    except Exception as e:
+                        self.msg_if.pub_debug("Failed to pre_process_callback: " + str(e) , throttle_s = 5)
 
-                if self.callback_dict['pre_process_callback'] is not None and  cv2_img is not None:
-                        try:
-                            cv2_img_status = nepi_sdk.convert_msg2dict(self.status_msg)
-                            cv2_img = self.callback_dict['pre_process_callback'](cv2_img, cv2_img_status, navpose_dict)
-                        except Exception as e:
-                            self.msg_if.pub_debug("Failed to pre_process_callback: " + str(e) , throttle_s = 5)
-
+                ########
                 if process_data == True and  cv2_img is not None:
                     cv2_img = self.process_cv2_img(cv2_img)
 
+                ########
                 if cv2_img is not None:
                     cv2_img = self._liveAdjust(cv2_img) 
 
+                ########
                 if cv2_img is not None:
                     is_stabilized = source_status_dict.get('stabilize_enabled', False)
-                    if is_stabilize == True:
+                    if is_stabilized == True:
                         self.status_msg.stabilize_disabled = True
                         self.status_msg.stabilize_enabled = True
                         self.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
@@ -2947,17 +2954,20 @@ class BaseImageIF(DataProductIF):
                         self.status_msg.stabilize_enabled = self.stabilize_enabled
                     self.status_msg.stabilize_rotate_deg = self.stabilize_rotate_deg                               
 
-                if self.callback_dict['post_process_callback'] is not None and  cv2_img is not None:
-                        try:
-                            cv2_img_status = nepi_sdk.convert_msg2dict(self.status_msg)
-                            cv2_img = self.callback_dict['post_process_callback'](cv2_img, cv2_img_status, navpose_dict)
-                        except Exception as e:
-                            self.msg_if.pub_debug("Failed to post_process_callback: " + str(e) , throttle_s = 5)
-
+                ###########
+                if self.callback_dict.get('post_process_callback', None) is not None and  post_process_callback is None:
+                        post_process_callback = self.callback_dict['post_process_callback']
+                if post_process_callback is not None and cv2_img is not None:
+                    try:
+                        cv2_img_status = nepi_sdk.convert_msg2dict(self.status_msg)
+                        cv2_img = post_process_callback(cv2_img, cv2_img_status, navpose_dict)
+                    except Exception as e:
+                        self.msg_if.pub_debug("Failed to post_process_callback: " + str(e) , throttle_s = 5)
+                ########################################
                 if cv2_img is not None:
                     [height,width] = cv2_img.shape[0:2]
                     [self.height_proc,self.width_proc] = [height,width]
-
+                    self.msg_if.pub_debug("Got Processed Image size: " + str([height,width]) , throttle_s = 5)
 
                     last_width = self.status_msg.width_px
                     last_height = self.status_msg.height_px

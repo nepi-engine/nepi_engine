@@ -933,8 +933,8 @@ class RBXRobotIF(DeviceIF):
             options_updated_callback = None,
             get_source_status_callback = self.connect_img_if.get_status_dict,
             get_source_navpose_callback = self.connect_img_if.get_navpose_dict,
-            pre_process_callback = self.process_if.pre_process_image_function,
-            post_process_callback = self.process_if.post_process_image_function
+            pre_process_callback = self.process_if.pre_process_results_image,
+            post_process_callback = self.process_if.post_process_results_image
         )
 
         self.image_if = ColorImageIF(namespace = self.node_namespace,
@@ -945,7 +945,7 @@ class RBXRobotIF(DeviceIF):
                         navpose_if = self.navpose_if
                         )
         self.if_dict['image_if'] = self.image_if
-        
+
         self.process_if.set_process_if_dict('image_if',self.image_if)
 
         #########################
