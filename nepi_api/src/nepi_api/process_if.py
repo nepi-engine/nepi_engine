@@ -203,14 +203,14 @@ class ProcessIF(NodeIF):
 
     admin_enabled = False
 
-    pre_process_results_image = None
-    post_process_results_image = None
-    process_image_controls_if = None
-    last_process_image_controls_dict = dict()
-    process_image_dict = dict()
-    process_image_dict['controls_dict'] = dict()
-    process_image_dict['data_dict'] = dict()
-    process_image_dict['config_dict'] = dict()
+    # pre_process_results_image = None
+    # post_process_results_image = None
+    # process_image_controls_if = None
+    # last_process_image_controls_dict = dict()
+    # process_image_dict = dict()
+    # process_image_dict['controls_dict'] = dict()
+    # process_image_dict['data_dict'] = dict()
+    # process_image_dict['config_dict'] = dict()
 
     data_dict = dict()
     blank_data_dict = dict()
@@ -1182,7 +1182,9 @@ class ProcessIF(NodeIF):
             process_ready = self.wait_for_process_ready()
             if process_ready == True:
                 try:
-                    [self.data_dict, self.controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, self.controls_dict, self.states_dict, self.results_dict, self.process_if_dict)
+                    controls_dict = nepi_controls.get_values_dict(self.controls_dict)
+                    [self.data_dict, controls_dict, self.states_dict, results_dict] = self.process_function(self.data_dict, controls_dict, self.states_dict, self.results_dict, self.process_if_dict)
+
                     self.results_dict = results_dict
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to process results: " + str(e), throttle_s = 10 )
@@ -1217,72 +1219,72 @@ class ProcessIF(NodeIF):
         return values_dict
 
 
-    ###################
-    # Process Results Image
+    # ###################
+    # # Process Results Image
 
 
 
-    def pre_process_results_image(self, cv2_img, cv2_img_status_dict, cv2_img_navpose_dict):
-        if self.pre_process_results_image is None:
-            results_cv2_img = cv2_img
-        else:
-            results_cv2_img = copy.deepcopy(cv2_img)
-            process_image_dict = self.process_image_dict
-            if self.process_image_controls_if is not None:
-                try:
-                    process_image_dict['controls_dict'] = nepi_controls.get_values_dict(self.process_image_controls_if.get_controls_dict())
-                except:
-                    pass
-            try:
-                [results_cv2_img, process_image_dict] = self.pre_process_results_image(results_cv2_img, cv2_img_status_dict, cv2_img_navpose_dict,
-                                                               process_image_dict, self.results_dict, self.process_if_dict)
-
-                
-                try:
-                    controls_dict = self.process_image_dict['controls_dict'] 
-                    for control_name in controls_dict.keys():
-                        self.process_image_controls_if.set_control_value(control_name, controls_dict[control_name])
-                except:
-                    pass
-
-                self.process_image_dict['data_dict'] = process_image_dict['data_dict']
-                self.process_image_dict['config_dict'] = process_image_dict['config_dict']
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to process results image: " + str(e), throttle_s = 10 )
-        return results_cv2_img
-
-
-    def post_process_results_image(self, cv2_img, cv2_img_status_dict, cv2_img_navpose_dict):
-        if self.post_process_results_image is None:
-            results_cv2_img = cv2_img
-        else:
-            results_cv2_img = copy.deepcopy(cv2_img)
-            process_image_dict = self.process_image_dict
-            if self.process_image_controls_if is not None:
-                try:
-                    process_image_dict['controls_dict'] = nepi_controls.get_values_dict(self.process_image_controls_if.get_controls_dict())
-                except:
-                    pass
-            try:
-                [results_cv2_img, process_image_dict] = self.post_process_results_image(results_cv2_img, cv2_img_status_dict, cv2_img_navpose_dict,
-                                                               process_image_dict, self.results_dict, self.process_if_dict)
+    # def pre_process_results_image(self, cv2_img, cv2_img_status_dict, cv2_img_navpose_dict):
+    #     if self.pre_process_results_image is None:
+    #         results_cv2_img = cv2_img
+    #     else:
+    #         results_cv2_img = copy.deepcopy(cv2_img)
+    #         process_image_dict = self.process_image_dict
+    #         if self.process_image_controls_if is not None:
+    #             try:
+    #                 process_image_dict['controls_dict'] = nepi_controls.get_values_dict(self.process_image_controls_if.get_controls_dict())
+    #             except:
+    #                 pass
+    #         try:
+    #             [results_cv2_img, process_image_dict] = self.pre_process_results_image(results_cv2_img, cv2_img_status_dict, cv2_img_navpose_dict,
+    #                                                            process_image_dict, self.results_dict, self.process_if_dict)
 
                 
-                try:
-                    controls_dict = self.process_image_dict['controls_dict'] 
-                    for control_name in controls_dict.keys():
-                        self.process_image_controls_if.set_control_value(control_name, controls_dict[control_name])
-                except:
-                    pass
+    #             try:
+    #                 controls_dict = self.process_image_dict['controls_dict'] 
+    #                 for control_name in controls_dict.keys():
+    #                     self.process_image_controls_if.set_control_value(control_name, controls_dict[control_name])
+    #             except:
+    #                 pass
 
-                self.process_image_dict['data_dict'] = process_image_dict['data_dict']
-                self.process_image_dict['config_dict'] = process_image_dict['config_dict']
-            except Exception as e:
-                self.msg_if.pub_warn("Failed to process results image: " + str(e), throttle_s = 10 )
-        return results_cv2_img
+    #             self.process_image_dict['data_dict'] = process_image_dict['data_dict']
+    #             self.process_image_dict['config_dict'] = process_image_dict['config_dict']
+    #         except Exception as e:
+    #             self.msg_if.pub_warn("Failed to process results image: " + str(e), throttle_s = 10 )
+    #     return results_cv2_img
 
-    ##################
-    # Misc Functions
+
+    # def post_process_results_image(self, cv2_img, cv2_img_status_dict, cv2_img_navpose_dict):
+    #     if self.post_process_results_image is None:
+    #         results_cv2_img = cv2_img
+    #     else:
+    #         results_cv2_img = copy.deepcopy(cv2_img)
+    #         process_image_dict = self.process_image_dict
+    #         if self.process_image_controls_if is not None:
+    #             try:
+    #                 process_image_dict['controls_dict'] = nepi_controls.get_values_dict(self.process_image_controls_if.get_controls_dict())
+    #             except:
+    #                 pass
+    #         try:
+    #             [results_cv2_img, process_image_dict] = self.post_process_results_image(results_cv2_img, cv2_img_status_dict, cv2_img_navpose_dict,
+    #                                                            process_image_dict, self.results_dict, self.process_if_dict)
+
+                
+    #             try:
+    #                 controls_dict = self.process_image_dict['controls_dict'] 
+    #                 for control_name in controls_dict.keys():
+    #                     self.process_image_controls_if.set_control_value(control_name, controls_dict[control_name])
+    #             except:
+    #                 pass
+
+    #             self.process_image_dict['data_dict'] = process_image_dict['data_dict']
+    #             self.process_image_dict['config_dict'] = process_image_dict['config_dict']
+    #         except Exception as e:
+    #             self.msg_if.pub_warn("Failed to process results image: " + str(e), throttle_s = 10 )
+    #     return results_cv2_img
+
+    # ##################
+    # # Misc Functions
 
 
 
@@ -1548,33 +1550,6 @@ class ProcessIF(NodeIF):
                     self.selected_process = selected_process
                     #self.msg_if.pub_debug("Process Selected: " + str(self.selected_process) )
                     success = self.set_selected_process(self.selected_process, check_updates = False)
-
-                    # Update Process Image Data
-                    if success == True:
-                        try:
-                            self.pre_process_results_image = self.process_module.pre_process_results_image
-                        except:
-                            pass
-
-                        try:
-                            self.post_process_results_image = self.process_module.post_process_results_image
-                        except:
-                            pass
-
-                        try:
-                            process_image_dict = self.process_module.process_image_dict
-                            last_process_image_controls_dict = process_image_dict.get('controls_dict', dict()).keys()
-                            self.process_image_controls_if.remove_controls(last_process_image_controls_dict)
-                            init_image_controls = process_image_dict.get('controls_dict', dict())
-                            self.process_image_controls_if.add_controls(init_image_controls)
-                        except:
-                            pass
-                        
-                        try:
-                            self.process_image_settings_dict = self.process_module.process_image_settings
-                        except:
-                            pass
-
 
                 except Exception as e:
                     self.msg_if.pub_warn("Failed to reload process class: " + str(e) )
