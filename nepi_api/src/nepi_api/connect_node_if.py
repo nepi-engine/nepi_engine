@@ -225,7 +225,7 @@ class ConnectNodeIF(NodeIF):
         self.topic_dict['display_name'] = topic_display
         self.topic_dict['type'] = 'connect'
         self.topic_dict['sub_type'] = sub_type
-        self.topic_dict['group'] = node_name
+        self.topic_dict['group'] = self.node_name
         self.topic_dict['sub_group'] = ''
         self.topic_dict['status_msg_type'] = status_msg.__class__.__name__
         self.topic_dict['data_msg_type'] = ''

@@ -490,7 +490,7 @@ NAVPOSE_CONNECT_STATUS_MSG_CLASS = NavPoseStatus
 NAVPOSE_CONNECT_DATA_MSG = NavPose
 NAVPOSE_CONNECT_NAME = 'connect_navpose'
 
-
+NAVPOSE_CONNECT_DEFAULT_FILTER_LIST = ['navposes']
 class ConnectNavPoseIF(ConnectSystemIF):
 
     # ADD Additional Connect Callback Functions
@@ -506,12 +506,14 @@ class ConnectNavPoseIF(ConnectSystemIF):
                 connect_data = True,
                 data_callback = None,
                 navpose_callback = None,
-                filter_topic_list = [],
+                filter_topic_list = NAVPOSE_CONNECT_DEFAULT_FILTER_LIST,
                 show_selector = True,
                 show_controls = True,
                 show_data = True,
                 msg_if = None,
-                node_if = None
+                node_if = None,
+                transform_if = None,
+                navpose_if = None
                 ):
         ####  IF INIT SETUP ####
         self.class_name = type(self).__name__
@@ -536,8 +538,12 @@ class ConnectNavPoseIF(ConnectSystemIF):
 
         self.msg_if = msg_if
         self.node_if = node_if
+
+        self.transform_if = transform_if
+        self.navpose_if = navpose_if
+
+        
         self.connect_name = connect_name
-        self.connect_topic_controls_dict = connect_topic_controls_dict
 
         if namespace is None:
             namespace = self.node_namespace
@@ -580,9 +586,13 @@ class ConnectNavPoseIF(ConnectSystemIF):
                 show_controls = show_controls,
                 show_data = show_data,
                 msg_if = msg_if,
-                node_if = node_if
+                node_if = node_if,
                 )
         ####  IF INIT SETUP ####
+
+        nepi_sdk.sleep(1)
+        self.set_if('transform_if', self.transform_if)
+        self.set_if('navpose_if', self.navpose_if)
 
         self.msg_if.pub_info("IF Initialization Complete")
         ###############################

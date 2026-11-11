@@ -357,7 +357,9 @@ class DeviceIF(NodeIF):
                                     namespace = self.node_namespace,
                                     navpose_callback = self._pubNavposeCb,
                                     msg_if = self.msg_if,
-                                    node_if = self.node_if)
+                                    node_if = self.node_if,
+                                    transform_if = self.transform_if,
+                                    navpose_if = self.navpose_if)
             # The source's data is republished on this device's own navpose topic, so
             # selecting that topic as the source would feed every message back to itself
             self.connect_navpose_if.exclude_namespaces_list.append(self.navpose_if.get_namespace())
