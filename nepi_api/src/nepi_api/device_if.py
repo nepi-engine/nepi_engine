@@ -224,7 +224,7 @@ class DeviceIF(NodeIF):
 
         # Call the parent class constructor
         super().__init__(id = self.ID,
-                namespace = nepi_sdk.create_namespace(self.node_namespace, nepi_sdk.get_clean_name(device_name)),
+                namespace = self.node_namespace,
                 name = self.ID,
                 status_msg = copy.deepcopy(self.STATUS_MSG),
                 data_msg = copy.deepcopy(self.DATA_MSG),
