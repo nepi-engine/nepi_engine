@@ -370,7 +370,7 @@ class DeviceIF(NodeIF):
                 self.connect_navpose_if.set_selected_topic('None')
         self.connect_if_dict['connect_navpose_if'] = self.connect_navpose_if
         connect_navpose_namespace = self.connect_navpose_if.get_namespace()
-        self.msg_if.pub_info("Using Node and Connect Navpose Namespace", data = [self.node_namespace, connect_navpose_namespace], color = 'BLUE')
+        self.msg_if.pub_debug("Using Node and Connect Navpose Namespace", data = [self.node_namespace, connect_navpose_namespace], color = 'BLUE')
         nepi_sdk.sleep(0.1)
         ##############################
         # Start Device IF Processes
