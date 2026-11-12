@@ -41,7 +41,7 @@ from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
 
-from nepi_sdk import nepi_process_rbx
+# from nepi_sdk import nepi_process_rbx
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image
