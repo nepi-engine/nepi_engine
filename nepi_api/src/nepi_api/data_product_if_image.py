@@ -2209,7 +2209,7 @@ class BaseImageIF(DataProductIF):
         else:
             status_msg.navpose_msg = self.get_navpose_msg()
 
-        if self.self.source_navpose_topic is not None:
+        if self.source_navpose_topic is not None:
             status_msg.navpose_topic = self.source_navpose_topic
 
 

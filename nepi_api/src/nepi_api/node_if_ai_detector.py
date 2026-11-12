@@ -972,7 +972,7 @@ class AiDetectorIF:
         self.msg_if.pub_debug("Setting init values to param values" )
         if self.node_if is not None:
             self.imaging_enabled = self.node_if.get_param('imaging_enabled')
-            self.enabled = self.node_if.get_param('enabled')
+            self.enabled = True #self.node_if.get_param('enabled')
             self.selected_classes = self.node_if.get_param('selected_classes')
             self.selected_classes_targets = self.node_if.get_param('selected_classes')
             self.threshold = self.node_if.get_param('threshold')
