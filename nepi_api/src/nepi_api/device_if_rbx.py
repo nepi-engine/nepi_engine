@@ -2584,17 +2584,17 @@ class RBXRobotIF(DeviceIF):
     #     nepi_sdk.start_timer_process(next_process_delay, self.processCb, oneshot = True)
 
 
-    # def blankImagePubCb(self, timer):
-    #     img_connected = False
-    #     try:
-    #        img_connected = self.connect_img_if.check_connection()
-    #     except:
-    #        pass
-    #     if img_connected == False:
-    #         try:
-    #             self.image_if.publish_cv2_img(self.image_blank)
-    #         except:
-    #             pass      
+    def blankImagePubCb(self, timer):
+        img_connected = False
+        try:
+           img_connected = self.connect_img_if.check_connection()
+        except:
+           pass
+        if img_connected == False:
+            try:
+                self.image_if.publish_cv2_img(self.image_blank)
+            except:
+                pass      
 
 
     def imageCb(self,data_dict):
