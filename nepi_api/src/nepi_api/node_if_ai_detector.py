@@ -788,8 +788,15 @@ class AiDetectorIF:
 
         
 
+        # states_name must NOT be 'targets': with namespace=None StatesIF lands on
+        # <node>/<states_name>, and <node>/targets is TargetsIF's namespace. Both then
+        # publish <node>/targets/status (SystemStatesStatus vs TargetsStatus); the
+        # States pub advertises first and wins, so the RUI's TargetsStatus subscription
+        # never receives a message (AI Detection Manager stuck on "Loading...", no
+        # image sources selectable). States discovery (nepi_states) is by msg type,
+        # not by this name, so the namespace is free to move.
         self.states_if_targets = StatesIF(
-                        states_name = 'targets',
+                        states_name = 'states',
                         get_states_dict_function = self.get_targets_states,
                         
                             msg_if = self.msg_if)
