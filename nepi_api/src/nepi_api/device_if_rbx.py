@@ -435,8 +435,8 @@ class RBXRobotIF(DeviceIF):
         # Instance Copies of Class State
         ##############################
         self.caps_dict = copy.deepcopy(self.caps_dict)
-        self.process_update_dict = copy.deepcopy(self.process_update_dict)
-        self.process_data_dict = copy.deepcopy(self.process_data_dict)
+        # self.process_update_dict = copy.deepcopy(self.process_update_dict)
+        # self.process_data_dict = copy.deepcopy(self.process_data_dict)
 
         ##############################
         # Update Class Variables
