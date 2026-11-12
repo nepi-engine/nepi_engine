@@ -780,7 +780,8 @@ class AiDetectorImgPub:
                                                 timestamp = timestamp,
                                                 width_deg = width_deg,
                                                 height_deg = height_deg,
-                                                add_overlay_text_list = add_overlay_text_list
+                                                add_overlay_text_list = add_overlay_text_list,
+                                                source_status_dict = status_dict
                                                 )
                     except Exception as e:
                         self.msg_if.pub_warn("Failed to publish image for source: " + str(source_topic) + " : " + str(e), throttle_s = 5)

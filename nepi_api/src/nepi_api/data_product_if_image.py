@@ -2842,6 +2842,8 @@ class BaseImageIF(DataProductIF):
         if self.callback_dict['get_source_status_callback'] is not None and  source_status_dict is None:
                 try:
                     source_status_dict = self.callback_dict['get_source_status_callback']()
+                    if source_navpose_dict is None:
+                        source_navpose_dict = source_status_dict.get(navpose_msg, None)
                 except Exception as e:
                     self.msg_if.pub_debug("Failed to get_source_status_callback: " + str(e) , throttle_s = 5)
         if source_status_dict is None:
