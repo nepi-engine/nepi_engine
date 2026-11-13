@@ -612,7 +612,12 @@ class NodeIF:
         else:
             namespace = self.node_namespace
 
-        self.namespace = nepi_sdk.create_namespace(namespace,self.name)
+        namespace = namespace.replace('/' + name, '') 
+        namespace = namespace.replace('/' + self.name, '') 
+
+        self.msg_if.pub_debug("Creating Node IF with name and namespace", data = [self.name, namespace], color = 'BLUE')
+
+        self.namespace = nepi_sdk.create_namespace(namespace,self.name).lower()
         self.node_if_prefix = self.namespace.replace(self.node_namespace + '/','') + '/'
 
 

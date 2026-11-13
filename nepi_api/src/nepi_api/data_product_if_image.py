@@ -421,6 +421,7 @@ class BaseImageIF(DataProductIF):
     stream_compression_ratio = 0.5
 
     source_status_dict = None
+    source_navpose_topic = None
     source_navpose_dict = None
 
     
@@ -2208,6 +2209,9 @@ class BaseImageIF(DataProductIF):
         else:
             status_msg.navpose_msg = self.get_navpose_msg()
 
+        if self.source_navpose_topic is not None:
+            status_msg.navpose_topic = self.source_navpose_topic
+
 
         status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
         status_msg.auto_adjust_ratio = self.controls_dict['auto_adjust_ratio']
@@ -2842,12 +2846,18 @@ class BaseImageIF(DataProductIF):
         if self.callback_dict['get_source_status_callback'] is not None and  source_status_dict is None:
                 try:
                     source_status_dict = self.callback_dict['get_source_status_callback']()
+
                 except Exception as e:
                     self.msg_if.pub_debug("Failed to get_source_status_callback: " + str(e) , throttle_s = 5)
         if source_status_dict is None:
             source_status_dict = dict()
+        self.source_navpose_topic = source_status_dict.get('navpose_topic', None)
 
-        
+        if source_navpose_dict is None:
+            source_navpose_dict = source_status_dict.get('navpose_msg', None)
+            
+
+
         if self.callback_dict['get_source_navpose_callback'] is not None and  source_navpose_dict is None:
                 try:
                     source_navpose_dict = self.callback_dict['get_source_navpose_callback']()
@@ -4872,9 +4882,11 @@ class BaseImageIF(DataProductIF):
             self.stabilize_rotate_deg = 0
         else:
             if navpose_dict.get('has_pan_tilt', False):
-                stab_adjust_rotate_deg = 1 * navpose_dict.get('pan_tilt_roll_deg',0)
+                stab_adjust_rotate_deg = navpose_dict.get('pan_tilt_roll_deg',0)
             else:
-                stab_adjust_rotate_deg = 1 * navpose_dict.get('roll_deg',0)
+                stab_adjust_rotate_deg = navpose_dict.get('roll_deg',0)
+            if stab_adjust_rotate_deg == -999:
+                stab_adjust_rotate_deg = 0
             self.stabilize_rotate_deg = stab_adjust_rotate_deg
             if abs(stab_adjust_rotate_deg) > 0.01:
                 #self.msg_if.pub_debug("Stabilize Adjusting Rotate with degrees: " + str([stab_adjust_rotate_deg]) , throttle_s = 5)

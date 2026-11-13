@@ -41,7 +41,7 @@ from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
 
-from nepi_sdk import nepi_process_rbx
+# from nepi_sdk import nepi_process_rbx
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image
@@ -435,8 +435,8 @@ class RBXRobotIF(DeviceIF):
         # Instance Copies of Class State
         ##############################
         self.caps_dict = copy.deepcopy(self.caps_dict)
-        self.process_update_dict = copy.deepcopy(self.process_update_dict)
-        self.process_data_dict = copy.deepcopy(self.process_data_dict)
+        # self.process_update_dict = copy.deepcopy(self.process_update_dict)
+        # self.process_data_dict = copy.deepcopy(self.process_data_dict)
 
         ##############################
         # Update Class Variables
@@ -2584,17 +2584,17 @@ class RBXRobotIF(DeviceIF):
     #     nepi_sdk.start_timer_process(next_process_delay, self.processCb, oneshot = True)
 
 
-    # def blankImagePubCb(self, timer):
-    #     img_connected = False
-    #     try:
-    #        img_connected = self.connect_img_if.check_connection()
-    #     except:
-    #        pass
-    #     if img_connected == False:
-    #         try:
-    #             self.image_if.publish_cv2_img(self.image_blank)
-    #         except:
-    #             pass      
+    def blankImagePubCb(self, timer):
+        img_connected = False
+        try:
+           img_connected = self.connect_img_if.check_connection()
+        except:
+           pass
+        if img_connected == False:
+            try:
+                self.image_if.publish_cv2_img(self.image_blank)
+            except:
+                pass      
 
 
     def imageCb(self,data_dict):

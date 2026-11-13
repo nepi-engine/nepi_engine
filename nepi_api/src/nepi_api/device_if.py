@@ -224,7 +224,7 @@ class DeviceIF(NodeIF):
 
         # Call the parent class constructor
         super().__init__(id = self.ID,
-                namespace = nepi_sdk.create_namespace(self.node_namespace, nepi_sdk.get_clean_name(device_name)),
+                namespace = self.node_namespace,
                 name = self.ID,
                 status_msg = copy.deepcopy(self.STATUS_MSG),
                 data_msg = copy.deepcopy(self.DATA_MSG),
@@ -370,7 +370,7 @@ class DeviceIF(NodeIF):
                 self.connect_navpose_if.set_selected_topic('None')
         self.connect_if_dict['connect_navpose_if'] = self.connect_navpose_if
         connect_navpose_namespace = self.connect_navpose_if.get_namespace()
-        self.msg_if.pub_info("Using Node and Connect Navpose Namespace", data = [self.node_namespace, connect_navpose_namespace], color = 'BLUE')
+        self.msg_if.pub_debug("Using Node and Connect Navpose Namespace", data = [self.node_namespace, connect_navpose_namespace], color = 'BLUE')
         nepi_sdk.sleep(0.1)
         ##############################
         # Start Device IF Processes
