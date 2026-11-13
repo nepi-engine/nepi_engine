@@ -506,7 +506,7 @@ class ControlsIF(NodeIF):
                 controls_description = None,
                 controls_init_dict = dict(),
                 save_params = True,
-                controls_updated_callback = None, # if not None: Calls function with with control_name when msg is recieved, after changine controls_dict and publishing status
+                controls_updated_callback = None, # if not None: called as function(control_name, update_value) when set_control_value changes a value, after updating controls_dict and publishing status. Not called for init, reset, factory reset or reset_controls changes
                 info_dict = dict(),
                 msg_if = None,
                 node_if = None,
