@@ -29,6 +29,7 @@ from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from geographic_msgs.msg import GeoPoint
+from geometry_msgs.msg import Twist
 
 from nepi_interfaces.msg import SaveDataRate
 # 3.4.0 PORT: DeviceRBXInfo is gone; its fields ride in DeviceRBXStatus, see report
@@ -687,6 +688,29 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         msg.duration_s = duration_s
         self.node_if.publish_pub(pub_name, msg)
 
+    def set_teleop_velocity(self, linear_x, linear_y, linear_z, angular_z):
+        """Send one teleop velocity command to the selected RBX device.
+
+        Ratios from -1 to 1 in the body FLU frame, passed through unchanged to
+        the device's set_teleop_velocity topic: x forward, y left, z up, and
+        angular z counter-clockwise. The device acts on it only while its
+        teleop controls are ready, and a driver may time a command out, so a
+        caller holding a velocity sends it every cycle.
+
+        Args:
+            linear_x (float): Forward ratio, -1 to 1.
+            linear_y (float): Left ratio, -1 to 1.
+            linear_z (float): Up ratio, -1 to 1.
+            angular_z (float): Counter-clockwise turn ratio, -1 to 1.
+        """
+        pub_name = 'set_teleop_velocity'
+        msg = Twist()
+        msg.linear.x = linear_x
+        msg.linear.y = linear_y
+        msg.linear.z = linear_z
+        msg.angular.z = angular_z
+        self.node_if.publish_pub(pub_name, msg)
+
     def goto_pose(self, roll_deg, pitch_deg, yaw_deg):
         """Command the RBX device to move to an absolute orientation pose.
 
@@ -978,6 +1002,12 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 'namespace': self.selected_topic,
                 'topic': 'goto_velocity',
                 'msg': GotoVelocity,
+                'qsize': 1,
+            },
+            'set_teleop_velocity': {
+                'namespace': self.selected_topic,
+                'topic': 'set_teleop_velocity',
+                'msg': Twist,
                 'qsize': 1,
             },
             'go_stop': {
