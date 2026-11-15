@@ -73,7 +73,7 @@ DEBUG_LEVELS = ['LOW','MED','HIGH']
 
 NEPI_FOLDER='/opt/nepi'
 
-ADMIN_RESTRICTED = False
+ADMIN_RESTRICTED = True
 
 class SystemMgr():
 
