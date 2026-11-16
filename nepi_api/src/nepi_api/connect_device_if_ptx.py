@@ -34,9 +34,8 @@ from nepi_interfaces.msg import PanTiltLimits, PanTiltPosition, SingleAxisTimedM
 
 from nepi_api.messages_if import MsgIF
 
-from nepi_api.connect_node_if import ConnectNodeIF
+from nepi_api.connect_device_if import ConnectDeviceIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
-
 
 
 
@@ -47,26 +46,17 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 
 CONNECT_ID='PTX'
 CONNECT_STATUS_MSG='DevicePTXStatus'
+CONNECT_STATUS_MSG_CLASS=DevicePTXStatus
 CONNECT_NAME='ptx_connect'
 
 
 CONNECTED_TIMEOUT = 2
 
 
-class ConnectPTXDeviceIF(ConnectNodeIF):
+class ConnectPTXDeviceIF(ConnectDeviceIF):
 
     # ADD Additional Connect Callback Functions
 
-
-    msg_if = None
-    ready = False
-    namespace = '~'
-
-    node_if = None
-
-    status_msg = None
-    connected = False
-    last_status_time = 0
     save_data_status_msg = None
     navpose_msg = None
     pan_tilt_position = [0,0]
@@ -74,18 +64,14 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
     pan_moving = False
     tilt_moving = False
 
-    statusCb = None # Backwards Compatibility
     panTiltCb = None # Backwards Compatibility
     stopPanCb = None # Backwards Compatibility
     stopTiltCb = None # Backwards Compatibility
 
     speed_max_dps = 10
 
-    connect_topic_subs_dict = None
-    connect_topic_pubs_dict = None
     #######################
     ### IF Initialization
-
     def __init__(self,
                 connect_name = CONNECT_NAME,
                 namespace = None,
@@ -102,180 +88,177 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
-        super().__init__(
-                connect_id = CONNECT_ID,
-                connect_status_msg = CONNECT_STATUS_MSG,
-                connect_name = connect_name,
-                namespace = namespace,
-                exclude_namespaces_list = exclude_namespaces_list,
-                auto_select_enabled = auto_select_enabled,
-                selected_topic = selected_topic,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = self.msg_if,
-                node_if = self.node_if
-                )
-   
-
-
-        ##############################    
+        ##############################
         # Initialize Class Variables
-
-        # NodeIF.__init__ leaves this IF's own ConnectIFStatus in self.status_msg.
-        # The device status is None until the selected device publishes one.
-        self.status_msg = None
-
-        self.statusCb = statusCb
+        # Everything this class owns is set before ConnectDeviceIF.__init__, which
+        # starts the timers and subscriptions that reach it.
         self.panTiltCb = panTiltCb
         self.stopPanCb = stopPanCb
         self.stopTiltCb = stopTiltCb
 
+        # Controls Config Dict ####################
+        # One publisher per device control topic. The 'unknown' namespace is the
+        # sentinel ConnectDeviceIF replaces with the selected device on each
+        # selection, and it prefixes each key with self.node_if_prefix.
+        connect_topic_controls_dict = {
+            'speed_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'pan_speed_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_pan_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'tilt_speed_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_tilt_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'stop_moving': {
+                'namespace': 'unknown',
+                'topic': 'stop_moving',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'stop_pan': {
+                'namespace': 'unknown',
+                'topic': 'stop_pan',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'stop_tilt': {
+                'namespace': 'unknown',
+                'topic': 'stop_tilt',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'goto_to_position': {
+                'namespace': 'unknown',
+                'topic': 'goto_position',
+                'msg': PanTiltPosition,
+                'qsize': 1,
+            },
+            'goto_to_pan_position': {
+                'namespace': 'unknown',
+                'topic': 'goto_pan_position',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'goto_to_tilt_position': {
+                'namespace': 'unknown',
+                'topic': 'goto_tilt_position',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'goto_pan_ratio': {
+                'namespace': 'unknown',
+                'topic': 'goto_pan_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'goto_tilt_ratio': {
+                'namespace': 'unknown',
+                'topic': 'goto_tilt_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'jog_timed_pan': {
+                'namespace': 'unknown',
+                'topic': 'jog_timed_pan',
+                'msg': SingleAxisTimedMove,
+                'qsize': 1,
+            },
+            'jog_timed_tilt': {
+                'namespace': 'unknown',
+                'topic': 'jog_timed_tilt',
+                'msg': SingleAxisTimedMove,
+                'qsize': 1,
+            },
+            'jog_timed_pan_speed_ratio': {
+                'namespace': 'unknown',
+                'topic': 'jog_timed_pan_speed_ratio',
+                'msg': SingleAxisTimedSpeedMove,
+                'qsize': 1,
+            },
+            'jog_timed_tilt_speed_ratio': {
+                'namespace': 'unknown',
+                'topic': 'jog_timed_tilt_speed_ratio',
+                'msg': SingleAxisTimedSpeedMove,
+                'qsize': 1,
+            },
+            'reverse_pan_enabled': {
+                'namespace': 'unknown',
+                'topic': 'set_reverse_pan_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'reverse_tilt_enabled': {
+                'namespace': 'unknown',
+                'topic': 'set_reverse_tilt_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'set_soft_limits': {
+                'namespace': 'unknown',
+                'topic': 'set_soft_limits',
+                'msg': PanTiltLimits,
+                'qsize': 1,
+            },
+            'go_home': {
+                'namespace': 'unknown',
+                'topic': 'go_home',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'set_home_position': {
+                'namespace': 'unknown',
+                'topic': 'set_home_position',
+                'msg': PanTiltPosition,
+                'qsize': 1,
+            },
+            'set_home_position_here': {
+                'namespace': 'unknown',
+                'topic': 'set_home_position_here',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        }
 
-        ##############################
-        # Start updater process
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)        
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        super().__init__(
+                connect_id = CONNECT_ID,
+                connect_name = connect_name,
+                namespace = namespace,
+                connect_status_msg = CONNECT_STATUS_MSG,
+                connect_status_msg_class = CONNECT_STATUS_MSG_CLASS,
+                exclude_namespaces_list = exclude_namespaces_list,
+                auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
+                statusCb = statusCb,
+                connect_topic_controls_dict = connect_topic_controls_dict,
+                show_selector = show_selector,
+                show_controls = show_controls,
+                show_data = show_data,
+                msg_if = msg_if,
+                node_if = node_if
+                )
+        ####  IF INIT SETUP ####
         ###############################
 
         ##############################
         # Start NodeIF Processes
         if type(self) is ConnectPTXDeviceIF:
             self.start()
-    
+
 
     #######################
     # Class Public Methods
     #######################
 
-
-    def get_ready_state(self):
-        """Return the ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.ready  
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected PTX device.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.selected_topic
-
-    def check_connection(self):
-        """Check whether the device is currently connected.
-
-        Returns:
-            bool: True if a status message has been received within the connection timeout window,
-                False otherwise.
-        """
-        return self.connected
-
-    def wait_for_connection(self, timeout = float('inf') ):
-        """Block until the device is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.connected
-
-
-    def check_status_connection(self):
-        """Check whether the status topic from the device is currently connected.
-
-        Returns:
-            bool: True if status messages are being received, False otherwise.
-        """
-        return self.connected
-
-    def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until the device status topic is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the status connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for status connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
-            else:
-                self.msg_if.pub_info("Status Connected")
-        return self.connected
-
-    def get_status_dict(self):
-        """Return the latest device status as a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the most recent DevicePTXStatus message,
-                or None if no status has been received yet.
-        """
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-    
-    def get_status_msg(self):
-        """Return the latest device status as a msg.
-
-        Returns:
-            dict: A msg representation of the most recent DevicePTXStatus message,
-                or None if no status has been received yet.
-        """
-        return self.status_msg
 
     # def get_navpose_dict(self):
     #     navpose_dict = None
@@ -604,21 +587,6 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         msg = Empty()
         self.node_if.publish_pub(pub_name,msg)  
 
-    def save_config(self):
-        """Publish a save configuration command to persist current settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'save_config',Empty())
-
-    def reset_config(self):
-        """Publish a reset configuration command to restore the last saved settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'reset_config',Empty())
-
-    def factory_reset_config(self):
-        """Publish a factory reset command to restore factory default settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'factory_reset_config',Empty())
-
     #################
     ## Save Data Functions
 
@@ -700,11 +668,6 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
     # Class Private Methods
     ###############################
    
-    # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
-    # job: it runs the same check, and also clears connected_topic so its next cycle
-    # tears down and resubscribes. Running a second copy here raced that chain, and
-    # the device state below was cleared only when this copy won. This chain keeps
-    # the device-specific state in step with the connection.
     def updaterCb(self,timer):
         if self.connected == True:
             self.pan_moving = abs(self.pan_tilt_position[0] - self.last_pan_tilt_position[0]) > 0.1
@@ -714,207 +677,15 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             self.navpose_msg = None
             self.pan_moving = False
             self.tilt_moving = False
-
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-
+        super().updaterCb(timer)
 
 
     def subscribe_topic(self, topic):
-        self.msg_if.pub_debug("subscribe_pt_topic Called")
+        success = super().subscribe_topic(topic)
 
-        success = False
-        success = self.unsubscribe_topic()
-
-        # Subscribers Config Dict ####################
-        self.connect_topic_subs_dict = {
-            self.node_if_prefix + 'status_sub': {
-                'namespace': self.selected_topic,
-                'topic': 'status',
-                'msg': DevicePTXStatus,
-                'qsize': 10,
-                'callback': self._statusCb
-            },
-            # No pan_tilt subscriber: 3.4 PTX devices publish no pan_tilt topic, and
-            # the position rides in the status msg instead (see _statusCb).
-            self.node_if_prefix + 'stop_pan_callback': {
-                'topic': 'stop_pan_callback',
-                'msg': Empty,
-                'namespace': self.selected_topic,
-                'qsize': 5,
-                'callback': self._stopPanCb, 
-                'callback_args': ()
-            },
-            self.node_if_prefix + 'stop_tilt_callback': {
-                'msg': Empty,
-                'namespace': self.selected_topic,
-                'topic': 'stop_tilt_callback',
-                'qsize': 5,
-                'callback': self._stopTiltCb, 
-                'callback_args': ()
-            }
-        }
-
-
-
-        # Publishers Config Dict ####################
-        self.connect_topic_pubs_dict = {
-            self.node_if_prefix + 'speed_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_speed_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'pan_speed_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_pan_speed_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'tilt_speed_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_tilt_speed_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'stop_moving': {
-                'namespace': self.selected_topic,
-                'topic': 'stop_moving',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'stop_pan': {
-                'namespace': self.selected_topic,
-                'topic': 'stop_pan',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'stop_tilt': {
-                'namespace': self.selected_topic,
-                'topic': 'stop_tilt',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_to_position': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_position',
-                'msg': PanTiltPosition,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_to_pan_position': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_pan_position',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_to_tilt_position': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_tilt_position',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_pan_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_pan_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_tilt_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_tilt_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'jog_timed_pan': {
-                'namespace': self.selected_topic,
-                'topic': 'jog_timed_pan',
-                'msg': SingleAxisTimedMove,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'jog_timed_tilt': {
-                'namespace': self.selected_topic,
-                'topic': 'jog_timed_tilt',
-                'msg': SingleAxisTimedMove,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'jog_timed_pan_speed_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'jog_timed_pan_speed_ratio',
-                'msg': SingleAxisTimedSpeedMove,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'jog_timed_tilt_speed_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'jog_timed_tilt_speed_ratio',
-                'msg': SingleAxisTimedSpeedMove,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'reverse_pan_enabled': {
-                'namespace': self.selected_topic,
-                'topic': 'set_reverse_pan_enable',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'reverse_tilt_enabled': {
-                'namespace': self.selected_topic,
-                'topic': 'set_reverse_tilt_enable',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_soft_limits': {
-                'namespace': self.selected_topic,
-                'topic': 'set_soft_limits',
-                'msg': PanTiltLimits,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'go_home': {
-                'namespace': self.selected_topic,
-                'topic': 'go_home',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_home_position': {
-                'namespace': self.selected_topic,
-                'topic': 'set_home_position',
-                'msg': PanTiltPosition,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_home_position_here': {
-                'namespace': self.selected_topic,
-                'topic': 'set_home_position_here',
-                'msg': Empty,
-                'qsize': 1,
-            }
-
-
-        }
-
-        # Config and save data topics live under the device's node namespace, one
-        # level above the device IF namespace: DeviceIF builds <node>/<id>, while the
-        # node's NodeConfigsIF and the device's SaveDataIF sit at <node>.
-        device_node_namespace = os.path.dirname(self.selected_topic)
-        self.connect_topic_pubs_dict.update({
-            self.node_if_prefix + 'save_config': {
-                'namespace': device_node_namespace,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'reset_config': {
-                'namespace': device_node_namespace,
-                'topic': 'reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'factory_reset_config': {
-                'namespace': device_node_namespace,
-                'topic': 'factory_reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            }
-        })
-        save_data_namespace = nepi_sdk.create_namespace(device_node_namespace, 'save_data')
-        self.connect_topic_pubs_dict.update({
+        # Save data topics: the device's SaveDataIF sits at <node>/save_data.
+        save_data_namespace = nepi_sdk.create_namespace(self.device_node_namespace, 'save_data')
+        save_data_pubs_dict = {
             self.node_if_prefix + 'save_data_enable': {
                 'namespace': save_data_namespace,
                 'topic': 'save_data_enable',
@@ -938,64 +709,49 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 'topic': 'snapshot_trigger',
                 'msg': Empty,
                 'qsize': 1,
-            }
-        })
-        self.connect_topic_pubs_dict[self.node_if_prefix + 'save_data_reset'] = {
+            },
+            self.node_if_prefix + 'save_data_reset': {
                 'namespace': save_data_namespace,
                 'topic': 'reset_save_data',
                 'msg': Empty,
                 'qsize': 1,
             }
-        self.connect_topic_subs_dict[self.node_if_prefix + 'save_data_status_sub'] = {
+        }
+        save_data_subs_dict = {
+            self.node_if_prefix + 'save_data_status_sub': {
                 'namespace': save_data_namespace,
                 'topic': 'status',
                 'msg': SaveDataStatus,
                 'qsize': 1,
                 'callback': self._saveDataStatusCb
+            },
+            # No 3.4 PTX device publishes these two; kept so a device that does
+            # still reaches stopPanCb and stopTiltCb.
+            self.node_if_prefix + 'stop_pan_callback': {
+                'namespace': self.selected_topic,
+                'topic': 'stop_pan_callback',
+                'msg': Empty,
+                'qsize': 5,
+                'callback': self._stopPanCb,
+                'callback_args': ()
+            },
+            self.node_if_prefix + 'stop_tilt_callback': {
+                'namespace': self.selected_topic,
+                'topic': 'stop_tilt_callback',
+                'msg': Empty,
+                'qsize': 5,
+                'callback': self._stopTiltCb,
+                'callback_args': ()
             }
+        }
+        self._registerConnectTopics(pubs_dict = save_data_pubs_dict, subs_dict = save_data_subs_dict)
 
-        if self.node_if is not None:
-            self.node_if.register_pubs(self.connect_topic_pubs_dict)
-            self.node_if.register_subs(self.connect_topic_subs_dict)
-            self.connecting = True
-            self.connected = False 
-            self.connected_topic = 'None'
-            self.status_msg = None
-            
         return success
-    
 
 
-    
     def unsubscribe_topic(self):
-        success = False
-        # Gate on what is registered too. ConnectNodeIF's staleness check clears
-        # connecting and connected without unregistering anything, and a gate on
-        # those two alone let the next subscribe_topic register over live
-        # subscribers, leaving the old ones running.
-        if self.connecting == True or self.connected == True or \
-                self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:
-            self.msg_if.pub_debug("unsubscribe_topic Called")
-
-            if self.node_if is not None:
-                if self.connect_topic_subs_dict is not None:
-                    for sub_name in self.connect_topic_subs_dict.keys():
-                        self.node_if.unregister_sub(sub_name)
-            self.connect_topic_subs_dict = None
-
-            if self.node_if is not None:
-                if self.connect_topic_pubs_dict is not None:
-                    for pub_name in self.connect_topic_pubs_dict.keys():
-                        self.node_if.unregister_pub(pub_name)
-            self.connect_topic_pubs_dict = None
-            
-            nepi_sdk.sleep(1)
-            self.connecting = False 
-            self.connected = False 
-            self.connected_topic = 'None'
-            self.status_msg = None
-            self.save_data_status_msg = None
-            success = True
+        success = super().unsubscribe_topic()
+        self.save_data_status_msg = None
         return success
 
 
@@ -1004,14 +760,6 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
 
 
     def _statusCb(self,status_msg):
-        self.last_status_time = nepi_utils.get_time()
-        if self.connected == False:
-            self._announceConnected('PTX')
-            self.connecting = False
-            self.connected_topic = self.selected_topic
-        self.connected = True
-        self.status_msg = status_msg
-
         # Cache only a usable max: the jog_timed_speed_dps_* methods divide by it.
         if status_msg.speed_max_dps > 0:
             self.speed_max_dps = status_msg.speed_max_dps
@@ -1019,9 +767,8 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         self.pan_tilt_position = [status_msg.pan_now_deg, status_msg.tilt_now_deg]
         if self.panTiltCb is not None:
             self.panTiltCb(self.pan_tilt_position[0], self.pan_tilt_position[1])
-        if self.statusCb is not None:
-            status_dict = self.get_status_dict()
-            self.statusCb(status_dict)
+        super()._statusCb(status_msg)
+
 
     def _stopPanCb(self,msg):    
         #self.msg_if.pub_warn("Got Stop Pan msg: " + str(msg))

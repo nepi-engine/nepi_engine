@@ -33,9 +33,8 @@ from nepi_interfaces.msg import DeviceLSXStatus
 
 from nepi_api.messages_if import MsgIF
 
-from nepi_api.connect_node_if import ConnectNodeIF
+from nepi_api.connect_device_if import ConnectDeviceIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
-
 
 
 
@@ -46,32 +45,19 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 
 CONNECT_ID='LSX'
 CONNECT_STATUS_MSG='DeviceLSXStatus'
+CONNECT_STATUS_MSG_CLASS=DeviceLSXStatus
 CONNECT_NAME='lsx_connect'
 
 
 CONNECTED_TIMEOUT = 2
 
 
-class ConnectLSXDeviceIF(ConnectNodeIF):
+class ConnectLSXDeviceIF(ConnectDeviceIF):
 
     # ADD Additional Connect Callback Functions
 
-
-    msg_if = None
-    ready = False
-    namespace = '~'
-
-    node_if = None
-
-    status_msg = None
-    connected = False
-    last_status_time = 0
     save_data_status_msg = None
 
-    statusCb = None # Backwards Compatibility
-
-    connect_topic_subs_dict = None
-    connect_topic_pubs_dict = None
     #######################
     ### IF Initialization
     def __init__(self,
@@ -87,46 +73,91 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ##############################
+        # Initialize Class Variables
+        # Everything this class owns is set before ConnectDeviceIF.__init__, which
+        # starts the timers and subscriptions that reach it.
+
+        # Controls Config Dict ####################
+        # One publisher per device control topic. The 'unknown' namespace is the
+        # sentinel ConnectDeviceIF replaces with the selected device on each
+        # selection, and it prefixes each key with self.node_if_prefix.
+        # The device subscribes standby on 'set_empty'; set_standby mirrors that.
+        connect_topic_controls_dict = {
+            'set_standby': {
+                'namespace': 'unknown',
+                'topic': 'set_empty',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'turn_on_off': {
+                'namespace': 'unknown',
+                'topic': 'turn_on_off',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'set_intensity_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_intensity_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'set_color': {
+                'namespace': 'unknown',
+                'topic': 'set_color',
+                'msg': String,
+                'qsize': 1,
+            },
+            'set_kelvin': {
+                'namespace': 'unknown',
+                'topic': 'set_kelvin',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'set_blink_interval': {
+                'namespace': 'unknown',
+                'topic': 'set_blink_interval',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'set_strobe_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_strobe_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'set_navpose_frame': {
+                'namespace': 'unknown',
+                'topic': 'set_navpose_frame',
+                'msg': String,
+                'qsize': 1,
+            },
+            'reset_controls': {
+                'namespace': 'unknown',
+                'topic': 'reset_controls',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        }
+
         super().__init__(
                 connect_id = CONNECT_ID,
-                connect_status_msg = CONNECT_STATUS_MSG,
                 connect_name = connect_name,
                 namespace = namespace,
+                connect_status_msg = CONNECT_STATUS_MSG,
+                connect_status_msg_class = CONNECT_STATUS_MSG_CLASS,
                 exclude_namespaces_list = exclude_namespaces_list,
                 auto_select_enabled = auto_select_enabled,
                 selected_topic = selected_topic,
+                statusCb = statusCb,
+                connect_topic_controls_dict = connect_topic_controls_dict,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
-                msg_if = self.msg_if,
-                node_if = self.node_if
+                msg_if = msg_if,
+                node_if = node_if
                 )
         ####  IF INIT SETUP ####
-
-        self.wait_for_connect_ready()
-
-
-
-        ##############################
-        # Initialize Class Variables
-
-        # NodeIF.__init__ leaves this IF's own ConnectIFStatus in self.status_msg.
-        # The device status is None until the selected device publishes one.
-        self.status_msg = None
-
-        self.statusCb = statusCb
-
-
-        ##############################
-        # Start updater process
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
         ###############################
 
         ##############################
@@ -139,128 +170,6 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
     # Class Public Methods
     #######################
 
-
-    def get_ready_state(self):
-        """Return the ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.ready
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected LSX device.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.selected_topic
-
-    def check_connection(self):
-        """Check whether the device is currently connected.
-
-        Returns:
-            bool: True if a status message has been received within the connection timeout window,
-                False otherwise.
-        """
-        return self.connected
-
-    def wait_for_connection(self, timeout = float('inf') ):
-        """Block until the device is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.connected
-
-
-    def check_status_connection(self):
-        """Check whether the status topic from the device is currently connected.
-
-        Returns:
-            bool: True if status messages are being received, False otherwise.
-        """
-        return self.connected
-
-    def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until the device status topic is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the status connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for status connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
-            else:
-                self.msg_if.pub_info("Status Connected")
-        return self.connected
-
-    def get_status_dict(self):
-        """Return the latest device status as a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the most recent DeviceLSXStatus message,
-                or None if no status has been received yet.
-        """
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-    def get_status_msg(self):
-        """Return the latest device status as a msg.
-
-        Returns:
-            dict: A msg representation of the most recent DeviceLSXStatus message,
-                or None if no status has been received yet.
-        """
-        return self.status_msg
 
     def check_on_off_state(self):
         """Return the current on/off state of the connected LSX device.
@@ -300,7 +209,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         """
         # NOTE: device_if_lsx subscribes standby on the 'set_empty' topic; this
         # publisher intentionally mirrors that device topic so the command reaches
-        # the device. See the connect pubs dict below.
+        # the device. See the controls dict in __init__.
         pub_name = self.node_if_prefix + 'set_standby'
         msg = standby
         self.node_if.publish_pub(pub_name, msg)
@@ -382,21 +291,6 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
-    def save_config(self):
-        """Publish a save configuration command to persist current settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'save_config',Empty())
-
-    def reset_config(self):
-        """Publish a reset configuration command to restore the last saved settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'reset_config',Empty())
-
-    def factory_reset_config(self):
-        """Publish a factory reset command to restore factory default settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'factory_reset_config',Empty())
-
     #################
     ## Save Data Functions
 
@@ -473,122 +367,12 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
     # Class Private Methods
     ###############################
 
-    # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
-    # job: it runs the same check, and also clears connected_topic so its next cycle
-    # tears down and resubscribes. Running a second copy here raced that chain, and
-    # the device state below was cleared only when this copy won. This chain keeps
-    # the device-specific state in step with the connection.
-    def updaterCb(self,timer):
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-
-
-
     def subscribe_topic(self, topic):
-        self.msg_if.pub_debug("subscribe_lsx_topic Called")
+        success = super().subscribe_topic(topic)
 
-        success = False
-        success = self.unsubscribe_topic()
-
-        # Subscribers Config Dict ####################
-        self.connect_topic_subs_dict = {
-            self.node_if_prefix + 'status_sub': {
-                'namespace': self.selected_topic,
-                'topic': 'status',
-                'msg': DeviceLSXStatus,
-                'qsize': 10,
-                'callback': self._statusCb
-            }
-        }
-
-
-
-        # Publishers Config Dict ####################
-        self.connect_topic_pubs_dict = {
-            self.node_if_prefix + 'set_standby': {
-                'namespace': self.selected_topic,
-                'topic': 'set_empty',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'turn_on_off': {
-                'namespace': self.selected_topic,
-                'topic': 'turn_on_off',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_intensity_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_intensity_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_color': {
-                'namespace': self.selected_topic,
-                'topic': 'set_color',
-                'msg': String,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_kelvin': {
-                'namespace': self.selected_topic,
-                'topic': 'set_kelvin',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_blink_interval': {
-                'namespace': self.selected_topic,
-                'topic': 'set_blink_interval',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_strobe_enable': {
-                'namespace': self.selected_topic,
-                'topic': 'set_strobe_enable',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_navpose_frame': {
-                'namespace': self.selected_topic,
-                'topic': 'set_navpose_frame',
-                'msg': String,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'reset_controls': {
-                'namespace': self.selected_topic,
-                'topic': 'reset_controls',
-                'msg': Empty,
-                'qsize': 1,
-            }
-
-
-        }
-
-        # Config and save data topics live under the device's node namespace, one
-        # level above the device IF namespace: DeviceIF builds <node>/<id>, while the
-        # node's NodeConfigsIF and the device's SaveDataIF sit at <node>.
-        device_node_namespace = os.path.dirname(self.selected_topic)
-        self.connect_topic_pubs_dict.update({
-            self.node_if_prefix + 'save_config': {
-                'namespace': device_node_namespace,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'reset_config': {
-                'namespace': device_node_namespace,
-                'topic': 'reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'factory_reset_config': {
-                'namespace': device_node_namespace,
-                'topic': 'factory_reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            }
-        })
-        save_data_namespace = nepi_sdk.create_namespace(device_node_namespace, 'save_data')
-        self.connect_topic_pubs_dict.update({
+        # Save data topics: the device's SaveDataIF sits at <node>/save_data.
+        save_data_namespace = nepi_sdk.create_namespace(self.device_node_namespace, 'save_data')
+        save_data_pubs_dict = {
             self.node_if_prefix + 'save_data_enable': {
                 'namespace': save_data_namespace,
                 'topic': 'save_data_enable',
@@ -613,74 +397,27 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
                 'msg': Empty,
                 'qsize': 1,
             }
-        })
-        self.connect_topic_subs_dict[self.node_if_prefix + 'save_data_status_sub'] = {
+        }
+        save_data_subs_dict = {
+            self.node_if_prefix + 'save_data_status_sub': {
                 'namespace': save_data_namespace,
                 'topic': 'status',
                 'msg': SaveDataStatus,
                 'qsize': 1,
                 'callback': self._saveDataStatusCb
             }
-
-        if self.node_if is not None:
-            self.node_if.register_pubs(self.connect_topic_pubs_dict)
-            self.node_if.register_subs(self.connect_topic_subs_dict)
-            self.connecting = True
-            self.connected = False
-            self.connected_topic = 'None'
-            self.status_msg = None
+        }
+        self._registerConnectTopics(pubs_dict = save_data_pubs_dict, subs_dict = save_data_subs_dict)
 
         return success
 
 
-
-
-
     def unsubscribe_topic(self):
-        success = False
-        # Gate on what is registered too. ConnectNodeIF's staleness check clears
-        # connecting and connected without unregistering anything, and a gate on
-        # those two alone let the next subscribe_topic register over live
-        # subscribers, leaving the old ones running.
-        if self.connecting == True or self.connected == True or \
-                self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:
-            self.msg_if.pub_debug("unsubscribe_topic Called")
-
-            if self.node_if is not None:
-                if self.connect_topic_subs_dict is not None:
-                    for sub_name in self.connect_topic_subs_dict.keys():
-                        self.node_if.unregister_sub(sub_name)
-            self.connect_topic_subs_dict = None
-
-            if self.node_if is not None:
-                if self.connect_topic_pubs_dict is not None:
-                    for pub_name in self.connect_topic_pubs_dict.keys():
-                        self.node_if.unregister_pub(pub_name)
-            self.connect_topic_pubs_dict = None
-
-            nepi_sdk.sleep(1)
-            self.connecting = False
-            self.connected = False
-            self.connected_topic = 'None'
-            self.status_msg = None
-            self.save_data_status_msg = None
-            success = True
+        success = super().unsubscribe_topic()
+        self.save_data_status_msg = None
         return success
 
 
     def _saveDataStatusCb(self,status_msg):
         self.save_data_status_msg = status_msg
 
-
-    def _statusCb(self,status_msg):
-        self.last_status_time = nepi_utils.get_time()
-        if self.connected == False:
-            self._announceConnected('LSX')
-            self.connecting = False
-            self.connected_topic = self.selected_topic
-        self.connected = True
-        self.status_msg = status_msg
-
-        if self.statusCb is not None:
-            status_dict = self.get_status_dict()
-            self.statusCb(status_dict)

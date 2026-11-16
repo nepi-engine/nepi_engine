@@ -32,7 +32,7 @@ from nepi_interfaces.srv import DeviceSVXStatusQuery, DeviceSVXStatusQueryReques
 
 from nepi_api.messages_if import MsgIF
 
-from nepi_api.connect_node_if import ConnectNodeIF
+from nepi_api.connect_device_if import ConnectDeviceIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
 from nepi_api.connect_node_if import ConnectNodeServicesIF
 
@@ -43,13 +43,14 @@ from nepi_api.connect_node_if import ConnectNodeServicesIF
 
 # Auto-discovering connect interface for the SVX (servo) device interface,
 # modeled on ConnectPTXDeviceIF. One SVX device = one servo, so this is PTX
-# collapsed to a single axis. It subclasses ConnectNodeIF, which owns the
-# <node>/svx_connect connect namespace (ConnectIFStatus selector state plus the
-# select_topic subscriber), auto-discovers the devices publishing
+# collapsed to a single axis. It subclasses ConnectDeviceIF, whose ConnectNodeIF
+# parent owns the <node>/svx_connect connect namespace (ConnectIFStatus selector
+# state plus the select_topic subscriber), auto-discovers the devices publishing
 # nepi_interfaces/DeviceSVXStatus, and connects to the selected device.
 #
-# Open loop: reported position is the last commanded value; nothing is measured.
-# The API speaks degrees, matching device_if_svx.py.
+# The reported position is the device's pos_now, which an open-loop servo driver
+# reports as the last commanded value. The API speaks degrees, matching
+# device_if_svx.py.
 #
 # Registry keys carry self.node_if_prefix (this connect's own namespace below the
 # node, e.g. 'pan_servo/'), the convention every NodeIF-based connect uses. A
@@ -60,31 +61,20 @@ from nepi_api.connect_node_if import ConnectNodeServicesIF
 
 CONNECT_ID='SVX'
 CONNECT_STATUS_MSG='DeviceSVXStatus'
+CONNECT_STATUS_MSG_CLASS=DeviceSVXStatus
 CONNECT_NAME='svx_connect'
 
 
 CONNECTED_TIMEOUT = 2
 
 
-class ConnectSVXDeviceIF(ConnectNodeIF):
+class ConnectSVXDeviceIF(ConnectDeviceIF):
 
     # ADD Additional Connect Callback Functions
 
-
-    msg_if = None
-    ready = False
-    namespace = '~'
-
-    node_if = None
-
-    status_msg = None
-    connected = False
-    last_status_time = 0
     position_deg = 0
     last_position_deg = 0
     moving = False
-
-    statusCb = None # Backwards Compatibility
 
     speed_max_dps = 10
     # Last speed ratio reported by the device, or the last one commanded through this
@@ -92,8 +82,6 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
     # set_max_speed_ratio() can answer without a status msg.
     speed_ratio = 0.5
 
-    connect_topic_subs_dict = None
-    connect_topic_pubs_dict = None
     connect_topic_srvs_dict = None
     con_services_if = None
     #######################
@@ -111,46 +99,96 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
+        ##############################
+        # Initialize Class Variables
+        # Everything this class owns is set before ConnectDeviceIF.__init__, which
+        # starts the timers and subscriptions that reach it.
+
+        # Controls Config Dict ####################
+        # One publisher per device control topic. The 'unknown' namespace is the
+        # sentinel ConnectDeviceIF replaces with the selected device on each
+        # selection, and it prefixes each key with self.node_if_prefix.
+        connect_topic_controls_dict = {
+            'goto_position': {
+                'namespace': 'unknown',
+                'topic': 'goto_position',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'set_speed_ratio': {
+                'namespace': 'unknown',
+                'topic': 'set_speed_ratio',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'set_speed_max_dps': {
+                'namespace': 'unknown',
+                'topic': 'set_speed_max',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'set_reverse_enable': {
+                'namespace': 'unknown',
+                'topic': 'set_reverse_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'set_spin_direction': {
+                'namespace': 'unknown',
+                'topic': 'set_direction',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'move_direction': {
+                'namespace': 'unknown',
+                'topic': 'jog_timed_speed_ratio',
+                'msg': SingleAxisTimedSpeedMove,
+                'qsize': 1,
+            },
+            'stop_moving': {
+                'namespace': 'unknown',
+                'topic': 'stop_moving',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'go_home': {
+                'namespace': 'unknown',
+                'topic': 'go_home',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'set_home_position': {
+                'namespace': 'unknown',
+                'topic': 'set_home_position',
+                'msg': Float32,
+                'qsize': 1,
+            },
+            'set_home_position_here': {
+                'namespace': 'unknown',
+                'topic': 'set_home_position_here',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        }
+
         super().__init__(
                 connect_id = CONNECT_ID,
-                connect_status_msg = CONNECT_STATUS_MSG,
                 connect_name = connect_name,
                 namespace = namespace,
+                connect_status_msg = CONNECT_STATUS_MSG,
+                connect_status_msg_class = CONNECT_STATUS_MSG_CLASS,
                 exclude_namespaces_list = exclude_namespaces_list,
                 auto_select_enabled = auto_select_enabled,
                 selected_topic = selected_topic,
+                statusCb = statusCb,
+                connect_topic_controls_dict = connect_topic_controls_dict,
                 show_selector = show_selector,
                 show_controls = show_controls,
                 show_data = show_data,
-                msg_if = self.msg_if,
-                node_if = self.node_if
+                msg_if = msg_if,
+                node_if = node_if
                 )
         ####  IF INIT SETUP ####
-
-        self.wait_for_connect_ready()
-
-
-
-        ##############################
-        # Initialize Class Variables
-
-        # NodeIF.__init__ leaves this IF's own ConnectIFStatus in self.status_msg.
-        # The device status is None until the selected device publishes one.
-        self.status_msg = None
-
-        self.statusCb = statusCb
-
-
-        ##############################
-        # Start updater process
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
         ###############################
 
         ##############################
@@ -163,45 +201,6 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
     # Class Public Methods
     #######################
 
-
-    def get_ready_state(self):
-        """Return the ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.ready
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected SVX device.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.selected_topic
 
     def set_selected_topic(self, selected_topic):
         """Select which discovered SVX device this interface connects to, and report the result.
@@ -222,89 +221,6 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         """
         super().set_selected_topic(selected_topic)
         return self.selected_topic
-
-    def check_connection(self):
-        """Check whether the device is currently connected.
-
-        Returns:
-            bool: True if a status message has been received within the connection timeout window,
-                False otherwise.
-        """
-        return self.connected
-
-    def wait_for_connection(self, timeout = float('inf') ):
-        """Block until the device is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.connected
-
-
-    def check_status_connection(self):
-        """Check whether the status topic from the device is currently connected.
-
-        Returns:
-            bool: True if status messages are being received, False otherwise.
-        """
-        return self.connected
-
-    def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until the device status topic is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the status connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for status connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
-            else:
-                self.msg_if.pub_info("Status Connected")
-        return self.connected
-
-    def get_status_dict(self):
-        """Return the latest device status as a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the most recent DeviceSVXStatus message,
-                or None if no status has been received yet.
-        """
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-    def get_status_msg(self):
-        """Return the latest device status as a msg.
-
-        Returns:
-            DeviceSVXStatus: The most recent DeviceSVXStatus message, or None if no status
-                has been received yet.
-        """
-        return self.status_msg
 
     def get_capabilities(self):
         """Query and return the SVX device capabilities report.
@@ -713,21 +629,6 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         """
         self.msg_if.pub_warn("Device reset is not supported by the connected SVX device", throttle_s = 5.0)
 
-    def save_config(self):
-        """Publish a save configuration command to persist current settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'save_config',Empty())
-
-    def reset_config(self):
-        """Publish a reset configuration command to restore the last saved settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'reset_config',Empty())
-
-    def factory_reset_config(self):
-        """Publish a factory reset command to restore factory default settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'factory_reset_config',Empty())
-
     ###############################
     # Class Private Methods
     ###############################
@@ -758,112 +659,17 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         return True
 
 
-    # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
-    # job: it runs the same check, and also clears connected_topic so its next cycle
-    # tears down and resubscribes. Running a second copy here raced that chain, and
-    # the device state below was cleared only when this copy won. This chain keeps
-    # the device-specific state in step with the connection.
     def updaterCb(self,timer):
         if self.connected == True:
             self.moving = abs(self.position_deg - self.last_position_deg) > 0.1
             self.last_position_deg = self.position_deg
         else:
             self.moving = False
-
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-
+        super().updaterCb(timer)
 
 
     def subscribe_topic(self, topic):
-        self.msg_if.pub_debug("subscribe_svx_topic Called")
-
-        success = False
-        success = self.unsubscribe_topic()
-
-        # Subscribers Config Dict ####################
-        self.connect_topic_subs_dict = {
-            self.node_if_prefix + 'status_sub': {
-                'namespace': self.selected_topic,
-                'topic': 'status',
-                'msg': DeviceSVXStatus,
-                'qsize': 10,
-                'callback': self._statusCb
-            }
-        }
-
-
-
-        # Publishers Config Dict ####################
-        # One publisher per DeviceSVXIF control topic this connect drives. The config
-        # topics are added below, under the device's node namespace.
-        self.connect_topic_pubs_dict = {
-            self.node_if_prefix + 'goto_position': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_position',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_speed_ratio': {
-                'namespace': self.selected_topic,
-                'topic': 'set_speed_ratio',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_speed_max_dps': {
-                'namespace': self.selected_topic,
-                'topic': 'set_speed_max',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_reverse_enable': {
-                'namespace': self.selected_topic,
-                'topic': 'set_reverse_enable',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_spin_direction': {
-                'namespace': self.selected_topic,
-                'topic': 'set_direction',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'move_direction': {
-                'namespace': self.selected_topic,
-                'topic': 'jog_timed_speed_ratio',
-                'msg': SingleAxisTimedSpeedMove,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'stop_moving': {
-                'namespace': self.selected_topic,
-                'topic': 'stop_moving',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'go_home': {
-                'namespace': self.selected_topic,
-                'topic': 'go_home',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_home_position': {
-                'namespace': self.selected_topic,
-                'topic': 'set_home_position',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_home_position_here': {
-                'namespace': self.selected_topic,
-                'topic': 'set_home_position_here',
-                'msg': Empty,
-                'qsize': 1,
-            }
-            # No set_speed_dps, set_continuous_mode or reset_device publishers: the
-            # 3.4 SVX device subscribes none of them.
-
-
-        }
-
+        success = super().subscribe_topic(topic)
 
         # Services Config Dict ####################
         # Client proxies, held in this connect's own ConnectNodeServicesIF: the node_if
@@ -885,99 +691,27 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
                 'resp': DeviceInfoQueryResponse()
             }
         }
-
-        # Config and save data topics live under the device's node namespace, one
-        # level above the device IF namespace: DeviceIF builds <node>/<id>, while the
-        # node's NodeConfigsIF and the device's SaveDataIF sit at <node>.
-        device_node_namespace = os.path.dirname(self.selected_topic)
-        self.connect_topic_pubs_dict.update({
-            self.node_if_prefix + 'save_config': {
-                'namespace': device_node_namespace,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'reset_config': {
-                'namespace': device_node_namespace,
-                'topic': 'reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'factory_reset_config': {
-                'namespace': device_node_namespace,
-                'topic': 'factory_reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            }
-        })
-
-        if self.node_if is not None:
-            self.node_if.register_pubs(self.connect_topic_pubs_dict)
-            self.node_if.register_subs(self.connect_topic_subs_dict)
-            if self.con_services_if is None:
-                self.con_services_if = ConnectNodeServicesIF(msg_if = self.msg_if)
-            self.con_services_if.add_services(self.connect_topic_srvs_dict)
-            self.connecting = True
-            self.connected = False
-            self.connected_topic = 'None'
-            self.status_msg = None
+        if self.con_services_if is None:
+            self.con_services_if = ConnectNodeServicesIF(msg_if = self.msg_if)
+        self.con_services_if.add_services(self.connect_topic_srvs_dict)
 
         return success
 
 
-
-
-
     def unsubscribe_topic(self):
-        success = False
-        # Gate on what is registered too. ConnectNodeIF's staleness check clears
-        # connecting and connected without unregistering anything, and a gate on
-        # those two alone let the next subscribe_topic register over live
-        # subscribers, leaving the old ones running.
-        if self.connecting == True or self.connected == True or \
-                self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:
-            self.msg_if.pub_debug("unsubscribe_topic Called")
-
-            if self.node_if is not None:
-                if self.connect_topic_subs_dict is not None:
-                    for sub_name in self.connect_topic_subs_dict.keys():
-                        self.node_if.unregister_sub(sub_name)
-            self.connect_topic_subs_dict = None
-
-            if self.node_if is not None:
-                if self.connect_topic_pubs_dict is not None:
-                    for pub_name in self.connect_topic_pubs_dict.keys():
-                        self.node_if.unregister_pub(pub_name)
-            self.connect_topic_pubs_dict = None
-
-            if self.con_services_if is not None:
-                self.con_services_if.unregister_services()
-            self.connect_topic_srvs_dict = None
-
-            nepi_sdk.sleep(1)
-            self.connecting = False
-            self.connected = False
-            self.connected_topic = 'None'
-            self.status_msg = None
-            self.moving = False
-            success = True
+        success = super().unsubscribe_topic()
+        if self.con_services_if is not None:
+            self.con_services_if.unregister_services()
+        self.connect_topic_srvs_dict = None
+        self.moving = False
         return success
 
 
     def _statusCb(self,status_msg):
-        self.last_status_time = nepi_utils.get_time()
-        if self.connected == False:
-            self._announceConnected('SVX')
-            self.connecting = False
-            self.connected_topic = self.selected_topic
-        self.connected = True
-        self.status_msg = status_msg
-
         # Cache only a usable max: move_direction_speed and set_speed_dps divide by it.
         if status_msg.speed_max > 0:
             self.speed_max_dps = status_msg.speed_max
         self.speed_ratio = status_msg.speed_ratio
         self.position_deg = status_msg.pos_now
-        if self.statusCb is not None:
-            status_dict = self.get_status_dict()
-            self.statusCb(status_dict)
+        super()._statusCb(status_msg)
+

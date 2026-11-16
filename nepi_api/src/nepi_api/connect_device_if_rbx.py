@@ -43,10 +43,9 @@ from nepi_interfaces.srv import DeviceRBXStatusQuery, DeviceRBXStatusQueryReques
 
 from nepi_api.messages_if import MsgIF
 
-from nepi_api.connect_node_if import ConnectNodeIF
+from nepi_api.connect_device_if import ConnectDeviceIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
 from nepi_api.connect_node_if import ConnectNodeServicesIF
-
 
 
 
@@ -57,31 +56,21 @@ from nepi_api.connect_node_if import ConnectNodeServicesIF
 
 CONNECT_ID='RBX'
 CONNECT_STATUS_MSG='DeviceRBXStatus'
+CONNECT_STATUS_MSG_CLASS=DeviceRBXStatus
 CONNECT_NAME='rbx_connect'
 
 
 CONNECTED_TIMEOUT = 2
 
 
-class ConnectRBXDeviceIF(ConnectNodeIF):
+class ConnectRBXDeviceIF(ConnectDeviceIF):
 
     # ADD Additional Connect Callback Functions
 
-
-    msg_if = None
-    ready = False
-    namespace = '~'
-
-    node_if = None
-
-    status_msg = None
     info_msg = None
     motors_status_msg = None
-    connected = False
-    last_status_time = 0
     save_data_status_msg = None
 
-    statusCb = None # Backwards Compatibility
     infoCb = None # Backwards Compatibility
     motorStatusCb = None # Backwards Compatibility
 
@@ -90,8 +79,6 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
     dataCB = None
 
-    connect_topic_subs_dict = None
-    connect_topic_pubs_dict = None
     #######################
     ### IF Initialization
     def __init__(self,
@@ -109,48 +96,140 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 msg_if = None,
                 node_if = None
                 ):
-        self.msg_if = msg_if
-        self.node_if = node_if
-        super().__init__(
-                connect_id = CONNECT_ID,
-                connect_status_msg = CONNECT_STATUS_MSG,
-                connect_name = connect_name,
-                namespace = namespace,
-                exclude_namespaces_list = exclude_namespaces_list,
-                auto_select_enabled = auto_select_enabled,
-                selected_topic = selected_topic,
-                show_selector = show_selector,
-                show_controls = show_controls,
-                show_data = show_data,
-                msg_if = self.msg_if,
-                node_if = self.node_if
-                )
-        ####  IF INIT SETUP ####
-
-        self.wait_for_connect_ready()
-
-
-
         ##############################
         # Initialize Class Variables
-
-        # NodeIF.__init__ leaves this IF's own ConnectIFStatus in self.status_msg.
-        # The device status is None until the selected device publishes one.
-        self.status_msg = None
-
-        self.statusCb = statusCb
+        # Everything this class owns is set before ConnectDeviceIF.__init__, which
+        # starts the timers and subscriptions that reach it.
         self.infoCb = infoCb
         self.dataCB = dataCB
 
+        # Controls Config Dict ####################
+        # One publisher per device control topic. The 'unknown' namespace is the
+        # sentinel ConnectDeviceIF replaces with the selected device on each
+        # selection, and it prefixes each key with self.node_if_prefix.
+        connect_topic_controls_dict = {
+            'set_state': {
+                'namespace': 'unknown',
+                'topic': 'set_state',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'set_mode': {
+                'namespace': 'unknown',
+                'topic': 'set_mode',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'setup_action': {
+                'namespace': 'unknown',
+                'topic': 'setup_action',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'go_action': {
+                'namespace': 'unknown',
+                'topic': 'go_action',
+                'msg': Int32,
+                'qsize': 1,
+            },
+            'set_goto_error_bounds': {
+                'namespace': 'unknown',
+                'topic': 'set_goto_error_bounds',
+                'msg': ErrorBounds,
+                'qsize': 1,
+            },
+            'set_goto_timeout': {
+                'namespace': 'unknown',
+                'topic': 'set_goto_timeout',
+                'msg': UInt32,
+                'qsize': 1,
+            },
+            'go_home': {
+                'namespace': 'unknown',
+                'topic': 'go_home',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'set_home': {
+                'namespace': 'unknown',
+                'topic': 'set_home',
+                'msg': GeoPoint,
+                'qsize': 1,
+            },
+            'set_home_current': {
+                'namespace': 'unknown',
+                'topic': 'set_home_current',
+                'msg': GotoLocation,
+                'qsize': 1,
+            },
+            'goto_location': {
+                'namespace': 'unknown',
+                'topic': 'goto_location',
+                'msg': GotoLocation,
+                'qsize': 1,
+            },
+            'goto_position': {
+                'namespace': 'unknown',
+                'topic': 'goto_position',
+                'msg': GotoPosition,
+                'qsize': 1,
+            },
+            'goto_pose': {
+                'namespace': 'unknown',
+                'topic': 'goto_pose',
+                'msg': GotoPose,
+                'qsize': 1,
+            },
+            'goto_velocity': {
+                'namespace': 'unknown',
+                'topic': 'goto_velocity',
+                'msg': GotoVelocity,
+                'qsize': 1,
+            },
+            'set_teleop_velocity': {
+                'namespace': 'unknown',
+                'topic': 'set_teleop_velocity',
+                'msg': Twist,
+                'qsize': 1,
+            },
+            'go_stop': {
+                'namespace': 'unknown',
+                'topic': 'go_stop',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            'enable_image_overlay': {
+                'namespace': 'unknown',
+                'topic': 'enable_image_overlay',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            'set_process_name': {
+                'namespace': 'unknown',
+                'topic': 'set_process_name',
+                'msg': String,
+                'qsize': 1,
+            }
+        }
 
-        ##############################
-        # Start updater process
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-        ##############################
-        # Complete Initialization
-        self.ready = True
-        self.msg_if.pub_info("IF Initialization Complete")
+        super().__init__(
+                connect_id = CONNECT_ID,
+                connect_name = connect_name,
+                namespace = namespace,
+                connect_status_msg = CONNECT_STATUS_MSG,
+                connect_status_msg_class = CONNECT_STATUS_MSG_CLASS,
+                exclude_namespaces_list = exclude_namespaces_list,
+                auto_select_enabled = auto_select_enabled,
+                selected_topic = selected_topic,
+                statusCb = statusCb,
+                connect_topic_controls_dict = connect_topic_controls_dict,
+                show_selector = show_selector,
+                show_controls = show_controls,
+                show_data = show_data,
+                msg_if = msg_if,
+                node_if = node_if
+                )
+        ####  IF INIT SETUP ####
         ###############################
 
         ##############################
@@ -163,128 +242,6 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     # Class Public Methods
     #######################
 
-
-    def get_ready_state(self):
-        """Return the ready state of the interface.
-
-        Returns:
-            bool: True if the interface has completed initialization, False otherwise.
-        """
-        return self.ready
-
-    def wait_for_ready(self, timeout = float('inf') ):
-        """Block until the interface is ready or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the interface became ready, False if the timeout was reached.
-        """
-        success = False
-        if self.ready is not None:
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.ready == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.ready == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.ready
-
-    def get_namespace(self):
-        """Return the fully-resolved ROS namespace for the connected RBX device.
-
-        Returns:
-            str: The fully-qualified namespace string used for topic and service resolution.
-        """
-        return self.selected_topic
-
-    def check_connection(self):
-        """Check whether the device is currently connected.
-
-        Returns:
-            bool: True if a status message has been received within the connection timeout window,
-                False otherwise.
-        """
-        return self.connected
-
-    def wait_for_connection(self, timeout = float('inf') ):
-        """Block until the device is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to Connect")
-            else:
-                self.msg_if.pub_info("Connected")
-        return self.connected
-
-
-    def check_status_connection(self):
-        """Check whether the status topic from the device is currently connected.
-
-        Returns:
-            bool: True if status messages are being received, False otherwise.
-        """
-        return self.connected
-
-    def wait_for_status_connection(self, timeout = float('inf') ):
-        """Block until the device status topic is connected or the timeout expires.
-
-        Args:
-            timeout (float, optional): Maximum number of seconds to wait. Defaults to float('inf').
-
-        Returns:
-            bool: True if the status connection was established, False if the timeout was reached.
-        """
-        if self.node_if is not None and self.selected_topic != 'None':
-            self.msg_if.pub_info("Waiting for status connection")
-            timer = 0
-            time_start = nepi_sdk.get_time()
-            while self.connected == False and timer < timeout and not nepi_sdk.is_shutdown():
-                nepi_sdk.sleep(.1)
-                timer = nepi_sdk.get_time() - time_start
-            if self.connected == False:
-                self.msg_if.pub_info("Failed to connect to status msg")
-            else:
-                self.msg_if.pub_info("Status Connected")
-        return self.connected
-
-    def get_status_dict(self):
-        """Return the latest device status as a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the most recent DeviceRBXStatus message,
-                or None if no status has been received yet.
-        """
-        status_dict = None
-        if self.status_msg is not None:
-            status_dict = nepi_sdk.convert_msg2dict(self.status_msg)
-        return status_dict
-
-    def get_status_msg(self):
-        """Return the latest device status as a msg.
-
-        Returns:
-            DeviceRBXStatus: The most recent DeviceRBXStatus message,
-                or None if no status has been received yet.
-        """
-        return self.status_msg
 
     def get_info_dict(self):
         """Return the latest device info as a dictionary.
@@ -798,21 +755,6 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         """
         self.msg_if.pub_warn("Info update requests are not supported by the connected RBX device; its info rides in its status", throttle_s = 5.0)
 
-    def save_config(self):
-        """Publish a save configuration command to persist current settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'save_config',Empty())
-
-    def reset_config(self):
-        """Publish a reset configuration command to restore the last saved settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'reset_config',Empty())
-
-    def factory_reset_config(self):
-        """Publish a factory reset command to restore factory default settings on the device.
-        """
-        self.node_if.publish_pub(self.node_if_prefix + 'factory_reset_config',Empty())
-
     #################
     ## Save Data Functions
 
@@ -889,215 +831,19 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     # Class Private Methods
     ###############################
 
-    # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
-    # job: it runs the same check, and also clears connected_topic so its next cycle
-    # tears down and resubscribes. Running a second copy here raced that chain, and
-    # the device state below was cleared only when this copy won. This chain keeps
-    # the device-specific state in step with the connection.
     def updaterCb(self,timer):
         if self.connected == False:
             self.info_msg = None
             self.motors_status_msg = None
-
-        nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
-
-
+        super().updaterCb(timer)
 
 
     def subscribe_topic(self, topic):
-        self.msg_if.pub_debug("subscribe_rbx_topic Called")
+        success = super().subscribe_topic(topic)
 
-        success = False
-        success = self.unsubscribe_topic()
-
-        # Subscribers Config Dict ####################
-        self.connect_topic_subs_dict = {
-            self.node_if_prefix + 'status_sub': {
-                'namespace': self.selected_topic,
-                'topic': 'status',
-                'msg': DeviceRBXStatus,
-                'qsize': 10,
-                'callback': self._statusCb
-            },
-            # 3.4.0 PORT: no info topic in 3.4; _statusCb feeds _infoCb, see report
-            # 'info_sub': {
-            #     'namespace': self.selected_topic,
-            #     'topic': 'info',
-            #     'msg': DeviceRBXInfo,
-            #     'qsize': 1,
-            #     'callback': self._infoCb,
-            #     'callback_args': ()
-            # },
-            # 3.4.0 PORT: motors are per-motor SVX, see report
-            # 'motor_status_sub': {
-            #     'namespace': self.selected_topic,
-            #     'topic': 'motor_status',
-            #     'msg': MotorsStatus,
-            #     'qsize': 10,
-            #     'callback': self._motorStatusCb,
-            #     'callback_args': ()
-            # }
-        }
-
-
-
-        # Publishers Config Dict ####################
-        self.connect_topic_pubs_dict = {
-            self.node_if_prefix + 'set_state': {
-                'namespace': self.selected_topic,
-                'topic': 'set_state',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_mode': {
-                'namespace': self.selected_topic,
-                'topic': 'set_mode',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'setup_action': {
-                'namespace': self.selected_topic,
-                'topic': 'setup_action',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'go_action': {
-                'namespace': self.selected_topic,
-                'topic': 'go_action',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_goto_error_bounds': {
-                'namespace': self.selected_topic,
-                'topic': 'set_goto_error_bounds',
-                'msg': ErrorBounds,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_goto_timeout': {
-                'namespace': self.selected_topic,
-                'topic': 'set_goto_timeout',
-                'msg': UInt32,
-                'qsize': 1,
-            },
-            # 3.4.0 PORT: motors are per-motor SVX, see report
-            # 'set_motor_control': {
-            #     'namespace': self.selected_topic,
-            #     'topic': 'set_motor_control',
-            #     'msg': MotorControl,
-            #     'qsize': 20,
-            # },
-            self.node_if_prefix + 'go_home': {
-                'namespace': self.selected_topic,
-                'topic': 'go_home',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_home': {
-                'namespace': self.selected_topic,
-                'topic': 'set_home',
-                'msg': GeoPoint,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_home_current': {
-                'namespace': self.selected_topic,
-                'topic': 'set_home_current',
-                'msg': GotoLocation,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_location': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_location',
-                'msg': GotoLocation,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_position': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_position',
-                'msg': GotoPosition,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_pose': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_pose',
-                'msg': GotoPose,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'goto_velocity': {
-                'namespace': self.selected_topic,
-                'topic': 'goto_velocity',
-                'msg': GotoVelocity,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_teleop_velocity': {
-                'namespace': self.selected_topic,
-                'topic': 'set_teleop_velocity',
-                'msg': Twist,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'go_stop': {
-                'namespace': self.selected_topic,
-                'topic': 'go_stop',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'enable_image_overlay': {
-                'namespace': self.selected_topic,
-                'topic': 'enable_image_overlay',
-                'msg': Bool,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'set_process_name': {
-                'namespace': self.selected_topic,
-                'topic': 'set_process_name',
-                'msg': String,
-                'qsize': 1,
-            }
-            # No set_image_topic, set_navpose_frame, publish_status or publish_info
-            # publishers: the 3.4 RBX device subscribes none of them.
-
-
-        }
-
-        # Services Config Dict ####################
-        # Client proxies, held in this connect's own ConnectNodeServicesIF: the node_if
-        # is a NodeClassIF, whose services registry builds servers only (it reads each
-        # entry's 'callback') and has no call_service. Unregistered on teardown.
-        self.connect_topic_srvs_dict = {
-            self.node_if_prefix + 'status_query': {
-                'namespace': self.selected_topic,
-                'topic': 'status_query',
-                'srv': DeviceRBXStatusQuery,
-                'req': DeviceRBXStatusQueryRequest(),
-                'resp': DeviceRBXStatusQueryResponse()
-            }
-        }
-
-        # Config and save data topics live under the device's node namespace, one
-        # level above the device IF namespace: DeviceIF builds <node>/<id>, while the
-        # node's NodeConfigsIF and the device's SaveDataIF sit at <node>.
-        device_node_namespace = os.path.dirname(self.selected_topic)
-        self.connect_topic_pubs_dict.update({
-            self.node_if_prefix + 'save_config': {
-                'namespace': device_node_namespace,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'reset_config': {
-                'namespace': device_node_namespace,
-                'topic': 'reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            self.node_if_prefix + 'factory_reset_config': {
-                'namespace': device_node_namespace,
-                'topic': 'factory_reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            }
-        })
-        save_data_namespace = nepi_sdk.create_namespace(device_node_namespace, 'save_data')
-        self.connect_topic_pubs_dict.update({
+        # Save data topics: the device's SaveDataIF sits at <node>/save_data.
+        save_data_namespace = nepi_sdk.create_namespace(self.device_node_namespace, 'save_data')
+        save_data_pubs_dict = {
             self.node_if_prefix + 'save_data_enable': {
                 'namespace': save_data_namespace,
                 'topic': 'save_data_enable',
@@ -1122,68 +868,45 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 'msg': Empty,
                 'qsize': 1,
             }
-        })
-        self.connect_topic_subs_dict[self.node_if_prefix + 'save_data_status_sub'] = {
+        }
+        save_data_subs_dict = {
+            self.node_if_prefix + 'save_data_status_sub': {
                 'namespace': save_data_namespace,
                 'topic': 'status',
                 'msg': SaveDataStatus,
                 'qsize': 1,
                 'callback': self._saveDataStatusCb
             }
+        }
+        self._registerConnectTopics(pubs_dict = save_data_pubs_dict, subs_dict = save_data_subs_dict)
 
-        if self.node_if is not None:
-            self.node_if.register_pubs(self.connect_topic_pubs_dict)
-            self.node_if.register_subs(self.connect_topic_subs_dict)
-            if self.con_services_if is None:
-                self.con_services_if = ConnectNodeServicesIF(msg_if = self.msg_if)
-            self.con_services_if.add_services(self.connect_topic_srvs_dict)
-            self.connecting = True
-            self.connected = False
-            self.connected_topic = 'None'
-            self.status_msg = None
-            self.info_msg = None
-            self.motors_status_msg = None
-
+        # Services Config Dict ####################
+        # Client proxies, held in this connect's own ConnectNodeServicesIF: the node_if
+        # is a NodeClassIF, whose services registry builds servers only (it reads each
+        # entry's 'callback') and has no call_service. Unregistered on teardown.
+        self.connect_topic_srvs_dict = {
+            self.node_if_prefix + 'status_query': {
+                'namespace': self.selected_topic,
+                'topic': 'status_query',
+                'srv': DeviceRBXStatusQuery,
+                'req': DeviceRBXStatusQueryRequest(),
+                'resp': DeviceRBXStatusQueryResponse()
+            }
+        }
+        if self.con_services_if is None:
+            self.con_services_if = ConnectNodeServicesIF(msg_if = self.msg_if)
+        self.con_services_if.add_services(self.connect_topic_srvs_dict)
         return success
 
 
-
-
     def unsubscribe_topic(self):
-        success = False
-        # Gate on what is registered too. ConnectNodeIF's staleness check clears
-        # connecting and connected without unregistering anything, and a gate on
-        # those two alone let the next subscribe_topic register over live
-        # subscribers, leaving the old ones running.
-        if self.connecting == True or self.connected == True or \
-                self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:
-            self.msg_if.pub_debug("unsubscribe_topic Called")
-
-            if self.node_if is not None:
-                if self.connect_topic_subs_dict is not None:
-                    for sub_name in self.connect_topic_subs_dict.keys():
-                        self.node_if.unregister_sub(sub_name)
-            self.connect_topic_subs_dict = None
-
-            if self.node_if is not None:
-                if self.connect_topic_pubs_dict is not None:
-                    for pub_name in self.connect_topic_pubs_dict.keys():
-                        self.node_if.unregister_pub(pub_name)
-            self.connect_topic_pubs_dict = None
-
-            if self.con_services_if is not None:
-                self.con_services_if.unregister_services()
-            self.connect_topic_srvs_dict = None
-
-            nepi_sdk.sleep(1)
-            self.connecting = False
-            self.connected = False
-            self.connected_topic = 'None'
-            self.status_msg = None
-            self.save_data_status_msg = None
-            self.info_msg = None
-            self.motors_status_msg = None
-            success = True
+        success = super().unsubscribe_topic()
+        if self.con_services_if is not None:
+            self.con_services_if.unregister_services()
+        self.connect_topic_srvs_dict = None
+        self.save_data_status_msg = None
+        self.info_msg = None
+        self.motors_status_msg = None
         return success
 
 
@@ -1192,21 +915,13 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
 
     def _statusCb(self,status_msg):
-        self.last_status_time = nepi_utils.get_time()
-        if self.connected == False:
-            self._announceConnected('RBX')
-            self.connecting = False
-            self.connected_topic = self.selected_topic
-        self.connected = True
-        self.status_msg = status_msg
-
-        status_dict = self.get_status_dict()
-        if self.statusCb is not None:
-            self.statusCb(status_dict)
+        super()._statusCb(status_msg)
         if self.dataCB is not None:
+            status_dict = self.get_status_dict()
             self.dataCB(status_dict)
         # 3.4.0 PORT: the DeviceRBXInfo fields ride in DeviceRBXStatus, see report
         self._infoCb(status_msg)
+
 
     def _infoCb(self,info_msg):
         self.info_msg = info_msg
