@@ -31,7 +31,7 @@ from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float3
 from geographic_msgs.msg import GeoPoint
 from geometry_msgs.msg import Twist
 
-from nepi_interfaces.msg import SaveDataRate
+from nepi_interfaces.msg import SaveDataRate, SaveDataStatus
 # 3.4.0 PORT: DeviceRBXInfo is gone; its fields ride in DeviceRBXStatus, see report
 from nepi_interfaces.msg import DeviceRBXStatus
 # 3.4.0 PORT: motors are per-motor SVX, see report
@@ -45,6 +45,7 @@ from nepi_api.messages_if import MsgIF
 
 from nepi_api.connect_node_if import ConnectNodeIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.connect_node_if import ConnectNodeServicesIF
 
 
 
@@ -78,12 +79,14 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     motors_status_msg = None
     connected = False
     last_status_time = 0
+    save_data_status_msg = None
 
     statusCb = None # Backwards Compatibility
     infoCb = None # Backwards Compatibility
     motorStatusCb = None # Backwards Compatibility
 
     connect_topic_srvs_dict = None
+    con_services_if = None
 
     dataCB = None
 
@@ -130,6 +133,10 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
         ##############################
         # Initialize Class Variables
+
+        # NodeIF.__init__ leaves this IF's own ConnectIFStatus in self.status_msg.
+        # The device status is None until the selected device publishes one.
+        self.status_msg = None
 
         self.statusCb = statusCb
         self.infoCb = infoCb
@@ -309,8 +316,8 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                 is selected or the call failed.
         """
         resp = None
-        if self.node_if is not None:
-            resp = self.node_if.call_service('rbx_capabilities_query', DeviceRBXStatusQueryRequest())
+        if self.con_services_if is not None:
+            resp = self.con_services_if.call_service(self.node_if_prefix + 'status_query', DeviceRBXStatusQueryRequest())
         return resp
 
     def get_goto_capabilities(self):
@@ -526,7 +533,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             state_ind (int): Index into the device's enumerated state options.
         """
-        pub_name = 'set_state'
+        pub_name = self.node_if_prefix + 'set_state'
         msg = state_ind
         self.node_if.publish_pub(pub_name, msg)
 
@@ -536,7 +543,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             mode_ind (int): Index into the device's enumerated mode options.
         """
-        pub_name = 'set_mode'
+        pub_name = self.node_if_prefix + 'set_mode'
         msg = mode_ind
         self.node_if.publish_pub(pub_name, msg)
 
@@ -546,7 +553,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             action_ind (int): Index into the device's enumerated setup action options.
         """
-        pub_name = 'setup_action'
+        pub_name = self.node_if_prefix + 'setup_action'
         msg = action_ind
         self.node_if.publish_pub(pub_name, msg)
 
@@ -556,7 +563,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             action_ind (int): Index into the device's enumerated go action options.
         """
-        pub_name = 'go_action'
+        pub_name = self.node_if_prefix + 'go_action'
         msg = action_ind
         self.node_if.publish_pub(pub_name, msg)
 
@@ -569,7 +576,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             min_stabilize_time_s (float): Minimum time in seconds that error values must
                 stay within bounds before a goal is considered reached.
         """
-        pub_name = 'set_goto_error_bounds'
+        pub_name = self.node_if_prefix + 'set_goto_error_bounds'
         msg = ErrorBounds()
         msg.max_distance_error_m = max_distance_error_m
         msg.max_rotation_error_deg = max_rotation_error_deg
@@ -582,7 +589,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             timeout_s (int): Command timeout in seconds.
         """
-        pub_name = 'set_goto_timeout'
+        pub_name = self.node_if_prefix + 'set_goto_timeout'
         msg = timeout_s
         self.node_if.publish_pub(pub_name, msg)
 
@@ -603,7 +610,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     def go_home(self):
         """Command the RBX device to move to its configured home location.
         """
-        pub_name = 'go_home'
+        pub_name = self.node_if_prefix + 'go_home'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
@@ -615,7 +622,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             longitude (float): Home longitude in degrees. Pass -999 to keep the current value.
             altitude (float): Home altitude in meters. Pass -999 to keep the current value.
         """
-        pub_name = 'set_home'
+        pub_name = self.node_if_prefix + 'set_home'
         msg = GeoPoint()
         msg.latitude = latitude
         msg.longitude = longitude
@@ -625,7 +632,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     def set_home_current(self):
         """Set the home location to the RBX device's current location.
         """
-        pub_name = 'set_home_current'
+        pub_name = self.node_if_prefix + 'set_home_current'
         msg = GotoLocation()
         self.node_if.publish_pub(pub_name, msg)
 
@@ -638,7 +645,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             altitude_meters (float): Target altitude in meters. Pass -999 to keep the current value.
             yaw_deg (float): Target yaw, ENU yaw in degrees, 0 = east, counter-clockwise positive (-180 to 180). Pass -999 to keep the current value.
         """
-        pub_name = 'goto_location'
+        pub_name = self.node_if_prefix + 'goto_location'
         msg = GotoLocation()
         msg.lat = lat
         msg.long = long
@@ -657,7 +664,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             z_meters (float): Target up offset in meters. Zero keeps the current position on this axis.
             yaw_deg (float): Target body yaw change in degrees (-180 to 180), counter-clockwise positive (turn left). Zero keeps the current yaw.
         """
-        pub_name = 'goto_position'
+        pub_name = self.node_if_prefix + 'goto_position'
         msg = GotoPosition()
         msg.x_meters = x_meters
         msg.y_meters = y_meters
@@ -679,7 +686,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             yaw_degps (float): Yaw rate in degrees per second, positive to port.
             duration_s (float): How long the device holds the command, in seconds.
         """
-        pub_name = 'goto_velocity'
+        pub_name = self.node_if_prefix + 'goto_velocity'
         msg = GotoVelocity()
         msg.x_mps = x_mps
         msg.y_mps = y_mps
@@ -703,7 +710,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             linear_z (float): Up ratio, -1 to 1.
             angular_z (float): Counter-clockwise turn ratio, -1 to 1.
         """
-        pub_name = 'set_teleop_velocity'
+        pub_name = self.node_if_prefix + 'set_teleop_velocity'
         msg = Twist()
         msg.linear.x = linear_x
         msg.linear.y = linear_y
@@ -719,7 +726,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             pitch_deg (float): Target pitch in degrees (-180 to 180). Pass -999 to keep the current value.
             yaw_deg (float): Target yaw, ENU yaw in degrees, 0 = east, counter-clockwise positive (-180 to 180). Pass -999 to keep the current value.
         """
-        pub_name = 'goto_pose'
+        pub_name = self.node_if_prefix + 'goto_pose'
         msg = GotoPose()
         msg.roll_deg = roll_deg
         msg.pitch_deg = pitch_deg
@@ -729,19 +736,20 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
     def go_stop(self):
         """Command the RBX device to stop all motion.
         """
-        pub_name = 'go_stop'
+        pub_name = self.node_if_prefix + 'go_stop'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
     def set_image_topic(self, topic):
         """Set the image topic the RBX device associates with its status overlay.
 
+        The 3.4 RBX device subscribes no matching topic, so nothing is sent and
+        a warning is logged.
+
         Args:
             topic (str): Partial or full ROS namespace string, or '' for a black image background.
         """
-        pub_name = 'set_image_topic'
-        msg = topic
-        self.node_if.publish_pub(pub_name, msg)
+        self.msg_if.pub_warn("Image topic selection is not supported by the connected RBX device: " + str(topic), throttle_s = 5.0)
 
     def enable_image_overlay(self, enable):
         """Enable or disable the status message overlay on the RBX device image.
@@ -749,7 +757,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             enable (bool): True to overlay status on the image, False to disable it.
         """
-        pub_name = 'enable_image_overlay'
+        pub_name = self.node_if_prefix + 'enable_image_overlay'
         msg = enable
         self.node_if.publish_pub(pub_name, msg)
 
@@ -759,48 +767,51 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             name (str): The process name to report in device status.
         """
-        pub_name = 'set_process_name'
+        pub_name = self.node_if_prefix + 'set_process_name'
         msg = name
         self.node_if.publish_pub(pub_name, msg)
 
     def set_navpose_frame(self, navpose_frame):
         """Set the navpose frame for the RBX device.
 
+        The 3.4 RBX device subscribes no matching topic, so nothing is sent and
+        a warning is logged.
+
         Args:
             navpose_frame (str): Desired navpose frame identifier string.
         """
-        pub_name = 'set_navpose_frame'
-        msg = navpose_frame
-        self.node_if.publish_pub(pub_name, msg)
+        self.msg_if.pub_warn("Navpose frame changes are not supported by the connected RBX device: " + str(navpose_frame), throttle_s = 5.0)
 
     def request_status_update(self):
         """Request that the RBX device immediately republish its status message.
+
+        The 3.4 RBX device subscribes no matching topic, so nothing is sent and
+        a warning is logged.
         """
-        pub_name = 'publish_status'
-        msg = Empty()
-        self.node_if.publish_pub(pub_name, msg)
+        self.msg_if.pub_warn("Status update requests are not supported by the connected RBX device; it publishes status on its own timer", throttle_s = 5.0)
 
     def request_info_update(self):
         """Request that the RBX device immediately republish its info message.
+
+        The 3.4 RBX device subscribes no matching topic, so nothing is sent and
+        a warning is logged.
         """
-        pub_name = 'publish_info'
-        msg = Empty()
-        self.node_if.publish_pub(pub_name, msg)
+        self.msg_if.pub_warn("Info update requests are not supported by the connected RBX device; its info rides in its status", throttle_s = 5.0)
 
     def save_config(self):
         """Publish a save configuration command to persist current settings on the device.
         """
-        self.node_if.publish_pub('save_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'save_config',Empty())
 
     def reset_config(self):
         """Publish a reset configuration command to restore the last saved settings on the device.
         """
-        self.node_if.publish_pub('reset_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'reset_config',Empty())
 
     def factory_reset_config(self):
         """Publish a factory reset command to restore factory default settings on the device.
         """
-        self.node_if.publish_pub('factory_reset_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'factory_reset_config',Empty())
 
     #################
     ## Save Data Functions
@@ -809,18 +820,26 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         """Return the list of available save data products for this device.
 
         Returns:
-            list: A list of data product identifiers supported by the save data interface.
+            list: A list of data product identifiers supported by the save data interface,
+                or an empty list if no status has been received.
         """
-        data_products = self.con_save_data_if.get_data_products()
+        # The device reports its save data products in its own status msg: NodeIF
+        # copies save_data_if.get_data_products() into the data_products field.
+        data_products = []
+        if self.status_msg is not None:
+            data_products = list(self.status_msg.data_products)
         return data_products
 
     def get_save_data_status_dict(self):
         """Return the current save data status as a dictionary.
 
         Returns:
-            dict: A dictionary representation of the save data interface status.
+            dict: A dictionary representation of the save data interface status,
+                or None if no save data status has been received.
         """
-        status_dict = self.con_save_data_if.get_status_dict()
+        status_dict = None
+        if self.save_data_status_msg is not None:
+            status_dict = nepi_sdk.convert_msg2dict(self.save_data_status_msg)
         return status_dict
 
     def save_data_enable_pub(self,enable):
@@ -829,7 +848,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             enable (bool): True to enable data saving, False to disable it.
         """
-        self.con_save_data_if.save_data_pub(enable)
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_enable', enable)
 
     def save_data_prefix_pub(self,prefix):
         """Publish an updated filename prefix for saved data files.
@@ -837,7 +856,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
         Args:
             prefix (str): The prefix string to prepend to saved data filenames.
         """
-        self.con_save_data_if.save_data_prefix_pub(prefix)
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_prefix', prefix)
 
     def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
         """Publish an updated save rate for a data product.
@@ -847,33 +866,38 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             data_product (int, optional): Identifier for the specific data product to update.
                 Defaults to SaveDataRate.ALL_DATA_PRODUCTS.
         """
-        self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
+        msg = SaveDataRate()
+        msg.data_product = data_product
+        msg.save_rate_hz = rate_hz
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_rate', msg)
 
     def save_data_snapshot_pub(self):
         """Trigger a one-shot snapshot save of current data on the device.
         """
-        self.con_save_data_if.publish_pub()
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_snapshot', Empty())
 
     def save_data_factory_reset_pub(self):
-        """Publish a factory reset command to restore the save data configuration to defaults.
+        """Request a factory reset of the device's save data configuration.
+
+        The device save data interface subscribes no factory reset topic (its one
+        reset topic restores the last saved config), so nothing is sent and a
+        warning is logged.
         """
-        pub_name = 'factory_reset'
-        msg = Empty()
-        self.con_save_data_if.publish_pub(pub_name,msg)
+        self.msg_if.pub_warn("Save data factory reset is not supported by the connected device", throttle_s = 5.0)
 
     ###############################
     # Class Private Methods
     ###############################
 
+    # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
+    # job: it runs the same check, and also clears connected_topic so its next cycle
+    # tears down and resubscribes. Running a second copy here raced that chain, and
+    # the device state below was cleared only when this copy won. This chain keeps
+    # the device-specific state in step with the connection.
     def updaterCb(self,timer):
-        cur_time = nepi_utils.get_time()
-        last_time = copy.deepcopy(self.last_status_time )
-        if self.connected == True:
-            if (cur_time - last_time) > CONNECTED_TIMEOUT:
-                self.connected = False
-                self.status_msg = None
-                self.info_msg = None
-                self.motors_status_msg = None
+        if self.connected == False:
+            self.info_msg = None
+            self.motors_status_msg = None
 
         nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
@@ -888,7 +912,7 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
         # Subscribers Config Dict ####################
         self.connect_topic_subs_dict = {
-            'status_sub': {
+            self.node_if_prefix + 'status_sub': {
                 'namespace': self.selected_topic,
                 'topic': 'status',
                 'msg': DeviceRBXStatus,
@@ -919,37 +943,37 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
         # Publishers Config Dict ####################
         self.connect_topic_pubs_dict = {
-            'set_state': {
+            self.node_if_prefix + 'set_state': {
                 'namespace': self.selected_topic,
                 'topic': 'set_state',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'set_mode': {
+            self.node_if_prefix + 'set_mode': {
                 'namespace': self.selected_topic,
                 'topic': 'set_mode',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'setup_action': {
+            self.node_if_prefix + 'setup_action': {
                 'namespace': self.selected_topic,
                 'topic': 'setup_action',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'go_action': {
+            self.node_if_prefix + 'go_action': {
                 'namespace': self.selected_topic,
                 'topic': 'go_action',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'set_goto_error_bounds': {
+            self.node_if_prefix + 'set_goto_error_bounds': {
                 'namespace': self.selected_topic,
                 'topic': 'set_goto_error_bounds',
                 'msg': ErrorBounds,
                 'qsize': 1,
             },
-            'set_goto_timeout': {
+            self.node_if_prefix + 'set_goto_timeout': {
                 'namespace': self.selected_topic,
                 'topic': 'set_goto_timeout',
                 'msg': UInt32,
@@ -962,106 +986,84 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             #     'msg': MotorControl,
             #     'qsize': 20,
             # },
-            'go_home': {
+            self.node_if_prefix + 'go_home': {
                 'namespace': self.selected_topic,
                 'topic': 'go_home',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'set_home': {
+            self.node_if_prefix + 'set_home': {
                 'namespace': self.selected_topic,
                 'topic': 'set_home',
                 'msg': GeoPoint,
                 'qsize': 1,
             },
-            'set_home_current': {
+            self.node_if_prefix + 'set_home_current': {
                 'namespace': self.selected_topic,
                 'topic': 'set_home_current',
                 'msg': GotoLocation,
                 'qsize': 1,
             },
-            'goto_location': {
+            self.node_if_prefix + 'goto_location': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_location',
                 'msg': GotoLocation,
                 'qsize': 1,
             },
-            'goto_position': {
+            self.node_if_prefix + 'goto_position': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_position',
                 'msg': GotoPosition,
                 'qsize': 1,
             },
-            'goto_pose': {
+            self.node_if_prefix + 'goto_pose': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_pose',
                 'msg': GotoPose,
                 'qsize': 1,
             },
-            'goto_velocity': {
+            self.node_if_prefix + 'goto_velocity': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_velocity',
                 'msg': GotoVelocity,
                 'qsize': 1,
             },
-            'set_teleop_velocity': {
+            self.node_if_prefix + 'set_teleop_velocity': {
                 'namespace': self.selected_topic,
                 'topic': 'set_teleop_velocity',
                 'msg': Twist,
                 'qsize': 1,
             },
-            'go_stop': {
+            self.node_if_prefix + 'go_stop': {
                 'namespace': self.selected_topic,
                 'topic': 'go_stop',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'set_image_topic': {
-                'namespace': self.selected_topic,
-                'topic': 'set_image_topic',
-                'msg': String,
-                'qsize': 1,
-            },
-            'enable_image_overlay': {
+            self.node_if_prefix + 'enable_image_overlay': {
                 'namespace': self.selected_topic,
                 'topic': 'enable_image_overlay',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'set_process_name': {
+            self.node_if_prefix + 'set_process_name': {
                 'namespace': self.selected_topic,
                 'topic': 'set_process_name',
                 'msg': String,
                 'qsize': 1,
-            },
-            'set_navpose_frame': {
-                'namespace': self.selected_topic,
-                'topic': 'set_navpose_frame',
-                'msg': String,
-                'qsize': 1,
-            },
-            'publish_status': {
-                'namespace': self.selected_topic,
-                'topic': 'publish_status',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            'publish_info': {
-                'namespace': self.selected_topic,
-                'topic': 'publish_info',
-                'msg': Empty,
-                'qsize': 1,
             }
+            # No set_image_topic, set_navpose_frame, publish_status or publish_info
+            # publishers: the 3.4 RBX device subscribes none of them.
 
 
         }
 
         # Services Config Dict ####################
-        # Re-registered on every selection rather than unregistered on teardown:
-        # register_service replaces the keyed entry, which drops the old proxy
-        # and builds one on the newly selected device.
+        # Client proxies, held in this connect's own ConnectNodeServicesIF: the node_if
+        # is a NodeClassIF, whose services registry builds servers only (it reads each
+        # entry's 'callback') and has no call_service. Unregistered on teardown.
         self.connect_topic_srvs_dict = {
-            'rbx_capabilities_query': {
+            self.node_if_prefix + 'status_query': {
                 'namespace': self.selected_topic,
                 'topic': 'status_query',
                 'srv': DeviceRBXStatusQuery,
@@ -1070,11 +1072,71 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
             }
         }
 
+        # Config and save data topics live under the device's node namespace, one
+        # level above the device IF namespace: DeviceIF builds <node>/<id>, while the
+        # node's NodeConfigsIF and the device's SaveDataIF sit at <node>.
+        device_node_namespace = os.path.dirname(self.selected_topic)
+        self.connect_topic_pubs_dict.update({
+            self.node_if_prefix + 'save_config': {
+                'namespace': device_node_namespace,
+                'topic': 'save_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'reset_config': {
+                'namespace': device_node_namespace,
+                'topic': 'reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'factory_reset_config': {
+                'namespace': device_node_namespace,
+                'topic': 'factory_reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        })
+        save_data_namespace = nepi_sdk.create_namespace(device_node_namespace, 'save_data')
+        self.connect_topic_pubs_dict.update({
+            self.node_if_prefix + 'save_data_enable': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_prefix': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_prefix',
+                'msg': String,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_rate': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_rate',
+                'msg': SaveDataRate,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_snapshot': {
+                'namespace': save_data_namespace,
+                'topic': 'snapshot_trigger',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        })
+        self.connect_topic_subs_dict[self.node_if_prefix + 'save_data_status_sub'] = {
+                'namespace': save_data_namespace,
+                'topic': 'status',
+                'msg': SaveDataStatus,
+                'qsize': 1,
+                'callback': self._saveDataStatusCb
+            }
+
         if self.node_if is not None:
             self.node_if.register_pubs(self.connect_topic_pubs_dict)
             self.node_if.register_subs(self.connect_topic_subs_dict)
-            for srv_name in self.connect_topic_srvs_dict.keys():
-                self.node_if.register_service(srv_name, self.connect_topic_srvs_dict[srv_name])
+            if self.con_services_if is None:
+                self.con_services_if = ConnectNodeServicesIF(msg_if = self.msg_if)
+            self.con_services_if.add_services(self.connect_topic_srvs_dict)
             self.connecting = True
             self.connected = False
             self.connected_topic = 'None'
@@ -1089,7 +1151,12 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
 
     def unsubscribe_topic(self):
         success = False
-        if self.connecting == True or self.connected == True:
+        # Gate on what is registered too. ConnectNodeIF's staleness check clears
+        # connecting and connected without unregistering anything, and a gate on
+        # those two alone let the next subscribe_topic register over live
+        # subscribers, leaving the old ones running.
+        if self.connecting == True or self.connected == True or \
+                self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:
             self.msg_if.pub_debug("unsubscribe_topic Called")
 
             if self.node_if is not None:
@@ -1104,15 +1171,24 @@ class ConnectRBXDeviceIF(ConnectNodeIF):
                         self.node_if.unregister_pub(pub_name)
             self.connect_topic_pubs_dict = None
 
+            if self.con_services_if is not None:
+                self.con_services_if.unregister_services()
+            self.connect_topic_srvs_dict = None
+
             nepi_sdk.sleep(1)
             self.connecting = False
             self.connected = False
             self.connected_topic = 'None'
             self.status_msg = None
+            self.save_data_status_msg = None
             self.info_msg = None
             self.motors_status_msg = None
             success = True
         return success
+
+
+    def _saveDataStatusCb(self,status_msg):
+        self.save_data_status_msg = status_msg
 
 
     def _statusCb(self,status_msg):

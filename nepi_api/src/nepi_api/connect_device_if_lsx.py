@@ -28,7 +28,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_interfaces.msg import SaveDataRate
+from nepi_interfaces.msg import SaveDataRate, SaveDataStatus
 from nepi_interfaces.msg import DeviceLSXStatus
 
 from nepi_api.messages_if import MsgIF
@@ -66,6 +66,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
     status_msg = None
     connected = False
     last_status_time = 0
+    save_data_status_msg = None
 
     statusCb = None # Backwards Compatibility
 
@@ -110,6 +111,10 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
 
         ##############################
         # Initialize Class Variables
+
+        # NodeIF.__init__ leaves this IF's own ConnectIFStatus in self.status_msg.
+        # The device status is None until the selected device publishes one.
+        self.status_msg = None
 
         self.statusCb = statusCb
 
@@ -296,7 +301,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         # NOTE: device_if_lsx subscribes standby on the 'set_empty' topic; this
         # publisher intentionally mirrors that device topic so the command reaches
         # the device. See the connect pubs dict below.
-        pub_name = 'set_standby'
+        pub_name = self.node_if_prefix + 'set_standby'
         msg = standby
         self.node_if.publish_pub(pub_name, msg)
 
@@ -306,7 +311,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             turn_on (bool): True to turn the light on, False to turn it off.
         """
-        pub_name = 'turn_on_off'
+        pub_name = self.node_if_prefix + 'turn_on_off'
         msg = turn_on
         self.node_if.publish_pub(pub_name, msg)
 
@@ -316,7 +321,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             intensity_ratio (float): Desired intensity as a ratio from 0.0 (off) to 1.0 (max).
         """
-        pub_name = 'set_intensity_ratio'
+        pub_name = self.node_if_prefix + 'set_intensity_ratio'
         msg = intensity_ratio
         self.node_if.publish_pub(pub_name, msg)
 
@@ -326,7 +331,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             color (str): Desired color setting string supported by the device.
         """
-        pub_name = 'set_color'
+        pub_name = self.node_if_prefix + 'set_color'
         msg = color
         self.node_if.publish_pub(pub_name, msg)
 
@@ -336,7 +341,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             kelvin (int): Desired color temperature in kelvin.
         """
-        pub_name = 'set_kelvin'
+        pub_name = self.node_if_prefix + 'set_kelvin'
         msg = kelvin
         self.node_if.publish_pub(pub_name, msg)
 
@@ -346,7 +351,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             blink_interval (float): Desired blink interval in seconds.
         """
-        pub_name = 'set_blink_interval'
+        pub_name = self.node_if_prefix + 'set_blink_interval'
         msg = blink_interval
         self.node_if.publish_pub(pub_name, msg)
 
@@ -356,7 +361,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             strobe_enable (bool): True to enable strobe, False to disable it.
         """
-        pub_name = 'set_strobe_enable'
+        pub_name = self.node_if_prefix + 'set_strobe_enable'
         msg = strobe_enable
         self.node_if.publish_pub(pub_name, msg)
 
@@ -366,31 +371,31 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             navpose_frame (str): Desired navpose frame identifier string.
         """
-        pub_name = 'set_navpose_frame'
+        pub_name = self.node_if_prefix + 'set_navpose_frame'
         msg = navpose_frame
         self.node_if.publish_pub(pub_name, msg)
 
     def reset_controls(self):
         """Reset the device controls to their default values.
         """
-        pub_name = 'reset_controls'
+        pub_name = self.node_if_prefix + 'reset_controls'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
     def save_config(self):
         """Publish a save configuration command to persist current settings on the device.
         """
-        self.node_if.publish_pub('save_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'save_config',Empty())
 
     def reset_config(self):
         """Publish a reset configuration command to restore the last saved settings on the device.
         """
-        self.node_if.publish_pub('reset_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'reset_config',Empty())
 
     def factory_reset_config(self):
         """Publish a factory reset command to restore factory default settings on the device.
         """
-        self.node_if.publish_pub('factory_reset_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'factory_reset_config',Empty())
 
     #################
     ## Save Data Functions
@@ -399,18 +404,26 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         """Return the list of available save data products for this device.
 
         Returns:
-            list: A list of data product identifiers supported by the save data interface.
+            list: A list of data product identifiers supported by the save data interface,
+                or an empty list if no status has been received.
         """
-        data_products = self.con_save_data_if.get_data_products()
+        # The device reports its save data products in its own status msg: NodeIF
+        # copies save_data_if.get_data_products() into the data_products field.
+        data_products = []
+        if self.status_msg is not None:
+            data_products = list(self.status_msg.data_products)
         return data_products
 
     def get_save_data_status_dict(self):
         """Return the current save data status as a dictionary.
 
         Returns:
-            dict: A dictionary representation of the save data interface status.
+            dict: A dictionary representation of the save data interface status,
+                or None if no save data status has been received.
         """
-        status_dict = self.con_save_data_if.get_status_dict()
+        status_dict = None
+        if self.save_data_status_msg is not None:
+            status_dict = nepi_sdk.convert_msg2dict(self.save_data_status_msg)
         return status_dict
 
     def save_data_enable_pub(self,enable):
@@ -419,7 +432,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             enable (bool): True to enable data saving, False to disable it.
         """
-        self.con_save_data_if.save_data_pub(enable)
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_enable', enable)
 
     def save_data_prefix_pub(self,prefix):
         """Publish an updated filename prefix for saved data files.
@@ -427,7 +440,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
         Args:
             prefix (str): The prefix string to prepend to saved data filenames.
         """
-        self.con_save_data_if.save_data_prefix_pub(prefix)
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_prefix', prefix)
 
     def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
         """Publish an updated save rate for a data product.
@@ -437,32 +450,35 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
             data_product (int, optional): Identifier for the specific data product to update.
                 Defaults to SaveDataRate.ALL_DATA_PRODUCTS.
         """
-        self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
+        msg = SaveDataRate()
+        msg.data_product = data_product
+        msg.save_rate_hz = rate_hz
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_rate', msg)
 
     def save_data_snapshot_pub(self):
         """Trigger a one-shot snapshot save of current data on the device.
         """
-        self.con_save_data_if.publish_pub()
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_snapshot', Empty())
 
     def save_data_factory_reset_pub(self):
-        """Publish a factory reset command to restore the save data configuration to defaults.
+        """Request a factory reset of the device's save data configuration.
+
+        The device save data interface subscribes no factory reset topic (its one
+        reset topic restores the last saved config), so nothing is sent and a
+        warning is logged.
         """
-        pub_name = 'factory_reset'
-        msg = Empty()
-        self.con_save_data_if.publish_pub(pub_name,msg)
+        self.msg_if.pub_warn("Save data factory reset is not supported by the connected device", throttle_s = 5.0)
 
     ###############################
     # Class Private Methods
     ###############################
 
+    # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
+    # job: it runs the same check, and also clears connected_topic so its next cycle
+    # tears down and resubscribes. Running a second copy here raced that chain, and
+    # the device state below was cleared only when this copy won. This chain keeps
+    # the device-specific state in step with the connection.
     def updaterCb(self,timer):
-        cur_time = nepi_utils.get_time()
-        last_time = copy.deepcopy(self.last_status_time )
-        if self.connected == True:
-            if (cur_time - last_time) > CONNECTED_TIMEOUT:
-                self.connected = False
-                self.status_msg = None
-
         nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
 
@@ -476,7 +492,7 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
 
         # Subscribers Config Dict ####################
         self.connect_topic_subs_dict = {
-            'status_sub': {
+            self.node_if_prefix + 'status_sub': {
                 'namespace': self.selected_topic,
                 'topic': 'status',
                 'msg': DeviceLSXStatus,
@@ -489,55 +505,55 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
 
         # Publishers Config Dict ####################
         self.connect_topic_pubs_dict = {
-            'set_standby': {
+            self.node_if_prefix + 'set_standby': {
                 'namespace': self.selected_topic,
                 'topic': 'set_empty',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'turn_on_off': {
+            self.node_if_prefix + 'turn_on_off': {
                 'namespace': self.selected_topic,
                 'topic': 'turn_on_off',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'set_intensity_ratio': {
+            self.node_if_prefix + 'set_intensity_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'set_intensity_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'set_color': {
+            self.node_if_prefix + 'set_color': {
                 'namespace': self.selected_topic,
                 'topic': 'set_color',
                 'msg': String,
                 'qsize': 1,
             },
-            'set_kelvin': {
+            self.node_if_prefix + 'set_kelvin': {
                 'namespace': self.selected_topic,
                 'topic': 'set_kelvin',
                 'msg': Int32,
                 'qsize': 1,
             },
-            'set_blink_interval': {
+            self.node_if_prefix + 'set_blink_interval': {
                 'namespace': self.selected_topic,
                 'topic': 'set_blink_interval',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'set_strobe_enable': {
+            self.node_if_prefix + 'set_strobe_enable': {
                 'namespace': self.selected_topic,
                 'topic': 'set_strobe_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'set_navpose_frame': {
+            self.node_if_prefix + 'set_navpose_frame': {
                 'namespace': self.selected_topic,
                 'topic': 'set_navpose_frame',
                 'msg': String,
                 'qsize': 1,
             },
-            'reset_controls': {
+            self.node_if_prefix + 'reset_controls': {
                 'namespace': self.selected_topic,
                 'topic': 'reset_controls',
                 'msg': Empty,
@@ -546,6 +562,65 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
 
 
         }
+
+        # Config and save data topics live under the device's node namespace, one
+        # level above the device IF namespace: DeviceIF builds <node>/<id>, while the
+        # node's NodeConfigsIF and the device's SaveDataIF sit at <node>.
+        device_node_namespace = os.path.dirname(self.selected_topic)
+        self.connect_topic_pubs_dict.update({
+            self.node_if_prefix + 'save_config': {
+                'namespace': device_node_namespace,
+                'topic': 'save_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'reset_config': {
+                'namespace': device_node_namespace,
+                'topic': 'reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'factory_reset_config': {
+                'namespace': device_node_namespace,
+                'topic': 'factory_reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        })
+        save_data_namespace = nepi_sdk.create_namespace(device_node_namespace, 'save_data')
+        self.connect_topic_pubs_dict.update({
+            self.node_if_prefix + 'save_data_enable': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_prefix': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_prefix',
+                'msg': String,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_rate': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_rate',
+                'msg': SaveDataRate,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_snapshot': {
+                'namespace': save_data_namespace,
+                'topic': 'snapshot_trigger',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        })
+        self.connect_topic_subs_dict[self.node_if_prefix + 'save_data_status_sub'] = {
+                'namespace': save_data_namespace,
+                'topic': 'status',
+                'msg': SaveDataStatus,
+                'qsize': 1,
+                'callback': self._saveDataStatusCb
+            }
 
         if self.node_if is not None:
             self.node_if.register_pubs(self.connect_topic_pubs_dict)
@@ -563,7 +638,12 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
 
     def unsubscribe_topic(self):
         success = False
-        if self.connecting == True or self.connected == True:
+        # Gate on what is registered too. ConnectNodeIF's staleness check clears
+        # connecting and connected without unregistering anything, and a gate on
+        # those two alone let the next subscribe_topic register over live
+        # subscribers, leaving the old ones running.
+        if self.connecting == True or self.connected == True or \
+                self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:
             self.msg_if.pub_debug("unsubscribe_topic Called")
 
             if self.node_if is not None:
@@ -583,8 +663,13 @@ class ConnectLSXDeviceIF(ConnectNodeIF):
             self.connected = False
             self.connected_topic = 'None'
             self.status_msg = None
+            self.save_data_status_msg = None
             success = True
         return success
+
+
+    def _saveDataStatusCb(self,status_msg):
+        self.save_data_status_msg = status_msg
 
 
     def _statusCb(self,status_msg):

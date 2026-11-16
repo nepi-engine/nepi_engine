@@ -28,7 +28,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
-from nepi_interfaces.msg import SaveDataRate, NavPosePanTilt
+from nepi_interfaces.msg import SaveDataRate, SaveDataStatus, NavPosePanTilt
 from nepi_interfaces.msg import DevicePTXStatus
 from nepi_interfaces.msg import PanTiltLimits, PanTiltPosition, SingleAxisTimedMove, SingleAxisTimedSpeedMove
 
@@ -67,6 +67,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
     status_msg = None
     connected = False
     last_status_time = 0
+    save_data_status_msg = None
     navpose_msg = None
     pan_tilt_position = [0,0]
     last_pan_tilt_position = [0,0]
@@ -122,6 +123,10 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
 
         ##############################    
         # Initialize Class Variables
+
+        # NodeIF.__init__ leaves this IF's own ConnectIFStatus in self.status_msg.
+        # The device status is None until the selected device publishes one.
+        self.status_msg = None
 
         self.statusCb = statusCb
         self.panTiltCb = panTiltCb
@@ -287,7 +292,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 has been received.
         """
         if self.status_msg is not None:
-            return [self.status_msg.pan_min_hardstop_deg, self.status_msg.pan_max_hardstop_deg, self.status_msg.tilt_min_hardstop_deg, self.status_msg.pan_max_hardstop_deg]
+            return [self.status_msg.pan_min_hardstop_deg, self.status_msg.pan_max_hardstop_deg, self.status_msg.tilt_min_hardstop_deg, self.status_msg.tilt_max_hardstop_deg]
     
     def get_pan_tilt_soft_limits(self):
         """Return the software softstop limits for pan and tilt axes.
@@ -301,6 +306,12 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             return [self.status_msg.pan_min_softstop_deg, self.status_msg.pan_max_softstop_deg, self.status_msg.tilt_min_softstop_deg, self.status_msg.tilt_max_softstop_deg]
 
     def get_pan_tilt_max_speed_dps(self):
+        """Return the maximum pan/tilt speed in degrees per second.
+
+        Returns:
+            float: The max speed the device last reported, which is what a speed ratio
+                of 1.0 means, or the class default before any status has arrived.
+        """
         return self.speed_max_dps
     
 
@@ -338,7 +349,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         Args:
             speed_ratio (float): Desired motion speed as a ratio from 0.0 (slowest) to 1.0 (fastest).
         """
-        pub_name = 'speed_ratio'
+        pub_name = self.node_if_prefix + 'speed_ratio'
         msg = speed_ratio
         self.node_if.publish_pub(pub_name, msg)
 
@@ -348,7 +359,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         Args:
             speed_ratio (float): Desired pan speed as a ratio from 0.0 (slowest) to 1.0 (fastest).
         """
-        pub_name = 'pan_speed_ratio'
+        pub_name = self.node_if_prefix + 'pan_speed_ratio'
         msg = speed_ratio
         self.node_if.publish_pub(pub_name, msg)
 
@@ -358,28 +369,28 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         Args:
             speed_ratio (float): Desired tilt speed as a ratio from 0.0 (slowest) to 1.0 (fastest).
         """
-        pub_name = 'tilt_speed_ratio'
+        pub_name = self.node_if_prefix + 'tilt_speed_ratio'
         msg = speed_ratio
         self.node_if.publish_pub(pub_name, msg)
 
     def stop_moving(self):
         """Publish a stop command to halt all motion on the PTX device.
         """
-        pub_name = 'stop_moving'
+        pub_name = self.node_if_prefix + 'stop_moving'
         msg = Empty()
         self.node_if.publish_pub(pub_name,msg)
 
     def stop_pan(self):
         """Publish a stop command to halt pan-axis motion on the PTX device.
         """
-        pub_name = 'stop_pan'
+        pub_name = self.node_if_prefix + 'stop_pan'
         msg = Empty()
         self.node_if.publish_pub(pub_name,msg)
 
     def stop_tilt(self):
         """Publish a stop command to halt tilt-axis motion on the PTX device.
         """
-        pub_name = 'stop_tilt'
+        pub_name = self.node_if_prefix + 'stop_tilt'
         msg = Empty()
         self.node_if.publish_pub(pub_name,msg)
 
@@ -391,7 +402,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             pan_deg (float): Target pan angle in degrees.
             tilt_deg (float): Target tilt angle in degrees.
         """
-        pub_name = 'goto_to_position'
+        pub_name = self.node_if_prefix + 'goto_to_position'
         msg = PanTiltPosition()
         msg.pan_deg = pan_deg
         msg.tilt_deg = tilt_deg
@@ -405,7 +416,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         """
         #self.msg_if.pub_warn("connect goto pan pos: " + str(pan_position))
 
-        pub_name = 'goto_to_pan_position'
+        pub_name = self.node_if_prefix + 'goto_to_pan_position'
         msg = pan_position
         self.node_if.publish_pub(pub_name,msg)
         
@@ -415,7 +426,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         Args:
             tilt_position (float): Target tilt angle in degrees.
         """
-        pub_name = 'goto_to_tilt_position'
+        pub_name = self.node_if_prefix + 'goto_to_tilt_position'
         msg = tilt_position
         self.node_if.publish_pub(pub_name,msg)
 
@@ -426,7 +437,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             pan_ratio (float): Target pan position as a ratio from 0.0 to 1.0, where 0.0
                 corresponds to the minimum softstop and 1.0 to the maximum softstop.
         """
-        pub_name = 'goto_pan_ratio'
+        pub_name = self.node_if_prefix + 'goto_pan_ratio'
         msg = pan_ratio
         self.node_if.publish_pub(pub_name,msg)        
 
@@ -437,7 +448,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             tilt_ratio (float): Target tilt position as a ratio from 0.0 to 1.0, where 0.0
                 corresponds to the minimum softstop and 1.0 to the maximum softstop.
         """
-        pub_name = 'goto_tilt_ratio'
+        pub_name = self.node_if_prefix + 'goto_tilt_ratio'
         msg = tilt_ratio
         self.node_if.publish_pub(pub_name,msg)
 
@@ -448,7 +459,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             direction (int): Direction indicator for the pan jog (positive or negative).
             duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
         """
-        pub_name = 'jog_timed_pan'
+        pub_name = self.node_if_prefix + 'jog_timed_pan'
         msg = SingleAxisTimedMove()
         # Direction indicator
         msg.direction = direction
@@ -463,7 +474,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             direction (int): Direction indicator for the tilt jog (positive or negative).
             duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
         """
-        pub_name = 'jog_timed_tilt'
+        pub_name = self.node_if_prefix + 'jog_timed_tilt'
         msg = SingleAxisTimedMove()
         # Direction indicator
         msg.direction = direction
@@ -478,7 +489,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             direction (int): Direction indicator for the pan jog (positive or negative).
             duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
         """
-        pub_name = 'jog_timed_pan_speed_ratio'
+        pub_name = self.node_if_prefix + 'jog_timed_pan_speed_ratio'
         msg = SingleAxisTimedSpeedMove()
         # Direction indicator
         msg.direction = direction
@@ -494,7 +505,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             direction (int): Direction indicator for the tilt jog (positive or negative).
             duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
         """
-        pub_name = 'jog_timed_tilt_speed_ratio'
+        pub_name = self.node_if_prefix + 'jog_timed_tilt_speed_ratio'
         msg = SingleAxisTimedSpeedMove()
         # Direction indicator
         msg.direction = direction
@@ -511,7 +522,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             direction (int): Direction indicator for the pan jog (positive or negative).
             duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
         """
-        pub_name = 'jog_timed_pan_speed_ratio'
+        pub_name = self.node_if_prefix + 'jog_timed_pan_speed_ratio'
         msg = SingleAxisTimedSpeedMove()
         # Direction indicator
         msg.direction = direction
@@ -532,7 +543,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             direction (int): Direction indicator for the tilt jog (positive or negative).
             duration_s (float): Duration of the jog in seconds. Pass -1.0 for an indefinite move.
         """
-        pub_name = 'jog_timed_tilt_speed_ratio'
+        pub_name = self.node_if_prefix + 'jog_timed_tilt_speed_ratio'
         msg = SingleAxisTimedSpeedMove()
         # Direction indicator
         msg.direction = direction
@@ -552,7 +563,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         Args:
             reverse_pan (bool): True to reverse the pan axis direction, False for normal direction.
         """
-        pub_name = 'reverse_pan_enabled'
+        pub_name = self.node_if_prefix + 'reverse_pan_enabled'
         msg = reverse_pan
         self.node_if.publish_pub(pub_name,msg)
 
@@ -562,14 +573,14 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         Args:
             reverse_tilt (bool): True to reverse the tilt axis direction, False for normal direction.
         """
-        pub_name = 'reverse_tilt_enabled'
+        pub_name = self.node_if_prefix + 'reverse_tilt_enabled'
         msg = reverse_tilt
         self.node_if.publish_pub(pub_name,msg)
 
     def go_home(self):
         """Command the PTX device to move to its configured home position.
         """
-        pub_name = 'go_home'
+        pub_name = self.node_if_prefix + 'go_home'
         msg = Empty()
         self.node_if.publish_pub(pub_name,msg)
 
@@ -580,7 +591,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             pan_deg (float): Desired home pan angle in degrees.
             tilt_deg (float): Desired home tilt angle in degrees.
         """
-        pub_name = 'set_home_position'
+        pub_name = self.node_if_prefix + 'set_home_position'
         msg = PanTiltPosition()
         msg.pan_deg = pan_deg
         msg.tilt_deg = tilt_deg
@@ -589,24 +600,24 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
     def set_home_position_here(self):
         """Set the home position to the PTX device's current position.
         """
-        pub_name = 'set_home_position_here'
+        pub_name = self.node_if_prefix + 'set_home_position_here'
         msg = Empty()
         self.node_if.publish_pub(pub_name,msg)  
 
     def save_config(self):
         """Publish a save configuration command to persist current settings on the device.
         """
-        self.node_if.publish_pub('save_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'save_config',Empty())
 
     def reset_config(self):
         """Publish a reset configuration command to restore the last saved settings on the device.
         """
-        self.node_if.publish_pub('reset_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'reset_config',Empty())
 
     def factory_reset_config(self):
         """Publish a factory reset command to restore factory default settings on the device.
         """
-        self.node_if.publish_pub('factory_reset_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'factory_reset_config',Empty())
 
     #################
     ## Save Data Functions
@@ -615,18 +626,26 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         """Return the list of available save data products for this device.
 
         Returns:
-            list: A list of data product identifiers supported by the save data interface.
+            list: A list of data product identifiers supported by the save data interface,
+                or an empty list if no status has been received.
         """
-        data_products = self.con_save_data_if.get_data_products()
+        # The device reports its save data products in its own status msg: NodeIF
+        # copies save_data_if.get_data_products() into the data_products field.
+        data_products = []
+        if self.status_msg is not None:
+            data_products = list(self.status_msg.data_products)
         return data_products
 
     def get_save_data_status_dict(self):
         """Return the current save data status as a dictionary.
 
         Returns:
-            dict: A dictionary representation of the save data interface status.
+            dict: A dictionary representation of the save data interface status,
+                or None if no save data status has been received.
         """
-        status_dict = self.con_save_data_if.get_status_dict()
+        status_dict = None
+        if self.save_data_status_msg is not None:
+            status_dict = nepi_sdk.convert_msg2dict(self.save_data_status_msg)
         return status_dict
 
     def save_data_enable_pub(self,enable):
@@ -635,7 +654,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         Args:
             enable (bool): True to enable data saving, False to disable it.
         """
-        self.con_save_data_if.save_data_pub(enable)
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_enable', enable)
 
     def save_data_prefix_pub(self,prefix):
         """Publish an updated filename prefix for saved data files.
@@ -643,7 +662,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
         Args:
             prefix (str): The prefix string to prepend to saved data filenames.
         """
-        self.con_save_data_if.save_data_prefix_pub(prefix)
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_prefix', prefix)
 
     def save_data_rate_pub(self,rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS):
         """Publish an updated save rate for a data product.
@@ -653,44 +672,49 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             data_product (int, optional): Identifier for the specific data product to update.
                 Defaults to SaveDataRate.ALL_DATA_PRODUCTS.
         """
-        self.con_save_data_if.publish_pub(rate_hz, data_product = SaveDataRate.ALL_DATA_PRODUCTS)
+        msg = SaveDataRate()
+        msg.data_product = data_product
+        msg.save_rate_hz = rate_hz
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_rate', msg)
 
     def save_data_snapshot_pub(self):
         """Trigger a one-shot snapshot save of current data on the device.
         """
-        self.con_save_data_if.publish_pub()
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_snapshot', Empty())
 
     def save_data_reset_pub(self):
-        """Publish a reset command to clear saved data state on the device.
+        """Publish a reset command that restores the device's last saved save data configuration.
         """
-        self.con_save_data_if.publish_pub(pub_name,msg)
+        self.node_if.publish_pub(self.node_if_prefix + 'save_data_reset', Empty())
 
     def save_data_factory_reset_pub(self):
-        """Publish a factory reset command to restore the save data configuration to defaults.
+        """Request a factory reset of the device's save data configuration.
+
+        The device save data interface subscribes no factory reset topic (its one
+        reset topic restores the last saved config), so nothing is sent and a
+        warning is logged.
         """
-        pub_name = 'factory_reset'
-        msg = Empty()
-        self.con_save_data_if.publish_pub(pub_name,msg)
+        self.msg_if.pub_warn("Save data factory reset is not supported by the connected device", throttle_s = 5.0)
 
     ###############################
     # Class Private Methods
     ###############################
    
+    # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
+    # job: it runs the same check, and also clears connected_topic so its next cycle
+    # tears down and resubscribes. Running a second copy here raced that chain, and
+    # the device state below was cleared only when this copy won. This chain keeps
+    # the device-specific state in step with the connection.
     def updaterCb(self,timer):
-        cur_time = nepi_utils.get_time()
-        last_time = copy.deepcopy(self.last_status_time )
-        if self.connected == True:
-            if (cur_time - last_time) > CONNECTED_TIMEOUT:
-                self.connected = False 
-                self.status_msg = None
-                self.navpose_msg = None
-                self.pan_moving = False
-                self.tilt_moving = False
-
         if self.connected == True:
             self.pan_moving = abs(self.pan_tilt_position[0] - self.last_pan_tilt_position[0]) > 0.1
             self.tilt_moving = abs(self.pan_tilt_position[1] - self.last_pan_tilt_position[1]) > 0.1
-  
+            self.last_pan_tilt_position = [self.pan_tilt_position[0], self.pan_tilt_position[1]]
+        else:
+            self.navpose_msg = None
+            self.pan_moving = False
+            self.tilt_moving = False
+
         nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
 
@@ -704,22 +728,16 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
 
         # Subscribers Config Dict ####################
         self.connect_topic_subs_dict = {
-            'status_sub': {
+            self.node_if_prefix + 'status_sub': {
                 'namespace': self.selected_topic,
                 'topic': 'status',
                 'msg': DevicePTXStatus,
                 'qsize': 10,
                 'callback': self._statusCb
             },
-            'pan_tilt_position': {
-                'namespace': self.selected_topic,
-                'topic': 'pan_tilt',
-                'msg': NavPosePanTilt,
-                'qsize': 1,
-                'callback': self._panTiltCb, 
-                'callback_args': ()
-            },
-            'stop_pan_callback': {
+            # No pan_tilt subscriber: 3.4 PTX devices publish no pan_tilt topic, and
+            # the position rides in the status msg instead (see _statusCb).
+            self.node_if_prefix + 'stop_pan_callback': {
                 'topic': 'stop_pan_callback',
                 'msg': Empty,
                 'namespace': self.selected_topic,
@@ -727,7 +745,7 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
                 'callback': self._stopPanCb, 
                 'callback_args': ()
             },
-            'stop_tilt_callback': {
+            self.node_if_prefix + 'stop_tilt_callback': {
                 'msg': Empty,
                 'namespace': self.selected_topic,
                 'topic': 'stop_tilt_callback',
@@ -741,127 +759,127 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
 
         # Publishers Config Dict ####################
         self.connect_topic_pubs_dict = {
-            'speed_ratio': {
+            self.node_if_prefix + 'speed_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'set_speed_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'pan_speed_ratio': {
+            self.node_if_prefix + 'pan_speed_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'set_pan_speed_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'tilt_speed_ratio': {
+            self.node_if_prefix + 'tilt_speed_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'set_tilt_speed_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'stop_moving': {
+            self.node_if_prefix + 'stop_moving': {
                 'namespace': self.selected_topic,
                 'topic': 'stop_moving',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'stop_pan': {
+            self.node_if_prefix + 'stop_pan': {
                 'namespace': self.selected_topic,
                 'topic': 'stop_pan',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'stop_tilt': {
+            self.node_if_prefix + 'stop_tilt': {
                 'namespace': self.selected_topic,
                 'topic': 'stop_tilt',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'goto_to_position': {
+            self.node_if_prefix + 'goto_to_position': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_position',
                 'msg': PanTiltPosition,
                 'qsize': 1,
             },
-            'goto_to_pan_position': {
+            self.node_if_prefix + 'goto_to_pan_position': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_pan_position',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'goto_to_tilt_position': {
+            self.node_if_prefix + 'goto_to_tilt_position': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_tilt_position',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'goto_pan_ratio': {
+            self.node_if_prefix + 'goto_pan_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_pan_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'goto_tilt_ratio': {
+            self.node_if_prefix + 'goto_tilt_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_tilt_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'jog_timed_pan': {
+            self.node_if_prefix + 'jog_timed_pan': {
                 'namespace': self.selected_topic,
                 'topic': 'jog_timed_pan',
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
             },
-            'jog_timed_tilt': {
+            self.node_if_prefix + 'jog_timed_tilt': {
                 'namespace': self.selected_topic,
                 'topic': 'jog_timed_tilt',
                 'msg': SingleAxisTimedMove,
                 'qsize': 1,
             },
-            'jog_timed_pan_speed_ratio': {
+            self.node_if_prefix + 'jog_timed_pan_speed_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'jog_timed_pan_speed_ratio',
                 'msg': SingleAxisTimedSpeedMove,
                 'qsize': 1,
             },
-            'jog_timed_tilt_speed_ratio': {
+            self.node_if_prefix + 'jog_timed_tilt_speed_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'jog_timed_tilt_speed_ratio',
                 'msg': SingleAxisTimedSpeedMove,
                 'qsize': 1,
             },
-            'reverse_pan_enabled': {
+            self.node_if_prefix + 'reverse_pan_enabled': {
                 'namespace': self.selected_topic,
                 'topic': 'set_reverse_pan_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'reverse_tilt_enabled': {
+            self.node_if_prefix + 'reverse_tilt_enabled': {
                 'namespace': self.selected_topic,
                 'topic': 'set_reverse_tilt_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'set_soft_limits': {
+            self.node_if_prefix + 'set_soft_limits': {
                 'namespace': self.selected_topic,
                 'topic': 'set_soft_limits',
                 'msg': PanTiltLimits,
                 'qsize': 1,
             },
-            'go_home': {
+            self.node_if_prefix + 'go_home': {
                 'namespace': self.selected_topic,
                 'topic': 'go_home',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'set_home_position': {
+            self.node_if_prefix + 'set_home_position': {
                 'namespace': self.selected_topic,
                 'topic': 'set_home_position',
                 'msg': PanTiltPosition,
                 'qsize': 1,
             },
-            'set_home_position_here': {
+            self.node_if_prefix + 'set_home_position_here': {
                 'namespace': self.selected_topic,
                 'topic': 'set_home_position_here',
                 'msg': Empty,
@@ -870,6 +888,71 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
 
 
         }
+
+        # Config and save data topics live under the device's node namespace, one
+        # level above the device IF namespace: DeviceIF builds <node>/<id>, while the
+        # node's NodeConfigsIF and the device's SaveDataIF sit at <node>.
+        device_node_namespace = os.path.dirname(self.selected_topic)
+        self.connect_topic_pubs_dict.update({
+            self.node_if_prefix + 'save_config': {
+                'namespace': device_node_namespace,
+                'topic': 'save_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'reset_config': {
+                'namespace': device_node_namespace,
+                'topic': 'reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'factory_reset_config': {
+                'namespace': device_node_namespace,
+                'topic': 'factory_reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        })
+        save_data_namespace = nepi_sdk.create_namespace(device_node_namespace, 'save_data')
+        self.connect_topic_pubs_dict.update({
+            self.node_if_prefix + 'save_data_enable': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_enable',
+                'msg': Bool,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_prefix': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_prefix',
+                'msg': String,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_rate': {
+                'namespace': save_data_namespace,
+                'topic': 'save_data_rate',
+                'msg': SaveDataRate,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'save_data_snapshot': {
+                'namespace': save_data_namespace,
+                'topic': 'snapshot_trigger',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        })
+        self.connect_topic_pubs_dict[self.node_if_prefix + 'save_data_reset'] = {
+                'namespace': save_data_namespace,
+                'topic': 'reset_save_data',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        self.connect_topic_subs_dict[self.node_if_prefix + 'save_data_status_sub'] = {
+                'namespace': save_data_namespace,
+                'topic': 'status',
+                'msg': SaveDataStatus,
+                'qsize': 1,
+                'callback': self._saveDataStatusCb
+            }
 
         if self.node_if is not None:
             self.node_if.register_pubs(self.connect_topic_pubs_dict)
@@ -886,7 +969,12 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
     
     def unsubscribe_topic(self):
         success = False
-        if self.connecting == True or self.connected == True:
+        # Gate on what is registered too. ConnectNodeIF's staleness check clears
+        # connecting and connected without unregistering anything, and a gate on
+        # those two alone let the next subscribe_topic register over live
+        # subscribers, leaving the old ones running.
+        if self.connecting == True or self.connected == True or \
+                self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:
             self.msg_if.pub_debug("unsubscribe_topic Called")
 
             if self.node_if is not None:
@@ -906,31 +994,34 @@ class ConnectPTXDeviceIF(ConnectNodeIF):
             self.connected = False 
             self.connected_topic = 'None'
             self.status_msg = None
+            self.save_data_status_msg = None
             success = True
         return success
 
 
-    def _statusCb(self,status_msg):  
+    def _saveDataStatusCb(self,status_msg):
+        self.save_data_status_msg = status_msg
+
+
+    def _statusCb(self,status_msg):
         self.last_status_time = nepi_utils.get_time()
         if self.connected == False:
-            self._announceConnected('PT')
+            self._announceConnected('PTX')
             self.connecting = False
             self.connected_topic = self.selected_topic
         self.connected = True
         self.status_msg = status_msg
 
-        self.speed_max_dps = status_msg.speed_max_dps
+        # Cache only a usable max: the jog_timed_speed_dps_* methods divide by it.
+        if status_msg.speed_max_dps > 0:
+            self.speed_max_dps = status_msg.speed_max_dps
+        # 3.4 PTX devices publish no pan_tilt topic; the position rides in the status.
+        self.pan_tilt_position = [status_msg.pan_now_deg, status_msg.tilt_now_deg]
+        if self.panTiltCb is not None:
+            self.panTiltCb(self.pan_tilt_position[0], self.pan_tilt_position[1])
         if self.statusCb is not None:
             status_dict = self.get_status_dict()
             self.statusCb(status_dict)
-
-    def _panTiltCb(self,pan_tilt_msg):    
-        #self.msg_if.pub_warn("Connected to PT Position")  
-        self.pan_tilt_position = [pan_tilt_msg.pan_deg, pan_tilt_msg.tilt_deg]
-        if self.panTiltCb is not None:
-            #self.msg_if.pub_warn("panTiltCb: " + str(self.panTiltCb))
-            self.panTiltCb(self.pan_tilt_position[0], self.pan_tilt_position[1])
-    
 
     def _stopPanCb(self,msg):    
         #self.msg_if.pub_warn("Got Stop Pan msg: " + str(msg))

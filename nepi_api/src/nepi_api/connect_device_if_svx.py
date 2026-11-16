@@ -17,6 +17,7 @@
 # - mailto:nepi@numurus.com
 #
 
+import os
 import time
 import copy
 
@@ -33,6 +34,7 @@ from nepi_api.messages_if import MsgIF
 
 from nepi_api.connect_node_if import ConnectNodeIF
 from nepi_api.connect_node_if import ConnectNodeClassIF
+from nepi_api.connect_node_if import ConnectNodeServicesIF
 
 
 #########################################
@@ -49,12 +51,12 @@ from nepi_api.connect_node_if import ConnectNodeClassIF
 # Open loop: reported position is the last commanded value; nothing is measured.
 # The API speaks degrees, matching device_if_svx.py.
 #
-# Registry keys are prefixed 'svx_' throughout. Four of the SVX control topics
-# (stop_moving, go_home, set_home_position, set_home_position_here) are named
-# identically in ConnectPTXDeviceIF, and publish_pub is keyed -- so on a shared
-# node_if an unprefixed key would silently rebind the pan-tilt's publisher, or
-# have its own rebound. ROS names derive from namespace+topic, not the key, so
-# the prefix is wire-invisible.
+# Registry keys carry self.node_if_prefix (this connect's own namespace below the
+# node, e.g. 'pan_servo/'), the convention every NodeIF-based connect uses. A
+# per-class 'svx_' prefix was not enough: a pan/tilt pair holds two SVX connects,
+# and publish_pub is keyed, so on a shared node_if each would rebind the other's
+# publishers. ROS names derive from namespace+topic, not the key, so the prefix is
+# wire-invisible.
 
 CONNECT_ID='SVX'
 CONNECT_STATUS_MSG='DeviceSVXStatus'
@@ -93,6 +95,7 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
     connect_topic_subs_dict = None
     connect_topic_pubs_dict = None
     connect_topic_srvs_dict = None
+    con_services_if = None
     #######################
     ### IF Initialization
     def __init__(self,
@@ -132,6 +135,10 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
 
         ##############################
         # Initialize Class Variables
+
+        # NodeIF.__init__ leaves this IF's own ConnectIFStatus in self.status_msg.
+        # The device status is None until the selected device publishes one.
+        self.status_msg = None
 
         self.statusCb = statusCb
 
@@ -307,8 +314,8 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
                 DeviceSVXStatus in device_status, or None if the call failed.
         """
         resp = None
-        if self.node_if is not None:
-            resp = self.node_if.call_service('svx_status_query', DeviceSVXStatusQueryRequest())
+        if self.con_services_if is not None:
+            resp = self.con_services_if.call_service(self.node_if_prefix + 'status_query', DeviceSVXStatusQueryRequest())
         return resp
 
     def get_device_info(self):
@@ -320,8 +327,8 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
                 or None if the call failed.
         """
         resp = None
-        if self.node_if is not None:
-            resp = self.node_if.call_service('svx_device_info_query', DeviceInfoQueryRequest())
+        if self.con_services_if is not None:
+            resp = self.con_services_if.call_service(self.node_if_prefix + 'device_info_query', DeviceInfoQueryRequest())
         return resp
 
     def get_servo_capabilities(self):
@@ -330,16 +337,18 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         Returns:
             dict: A dictionary with keys has_absolute_positioning, has_adjustable_speed,
                 has_limit_controls, has_homing, has_set_home, and has_spin, or None if no
-                status has been received.
+                status has been received. The keys predate DeviceSVXStatus 3.4 and map
+                onto its has_position_control, has_speed_control, has_limit_controls,
+                has_go_home_control, has_set_home_control and is_spin fields.
         """
         if self.status_msg is not None:
             return {
-                'has_absolute_positioning': self.status_msg.has_absolute_positioning,
-                'has_adjustable_speed': self.status_msg.has_adjustable_speed,
+                'has_absolute_positioning': self.status_msg.has_position_control,
+                'has_adjustable_speed': self.status_msg.has_speed_control,
                 'has_limit_controls': self.status_msg.has_limit_controls,
-                'has_homing': self.status_msg.has_homing,
-                'has_set_home': self.status_msg.has_set_home,
-                'has_spin': self.status_msg.has_spin
+                'has_homing': self.status_msg.has_go_home_control,
+                'has_set_home': self.status_msg.has_set_home_control,
+                'has_spin': self.status_msg.is_spin
             }
 
     def get_servo_soft_limits(self):
@@ -350,7 +359,7 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
                 limits in degrees, or None if no status has been received.
         """
         if self.status_msg is not None:
-            return [self.status_msg.min_softstop_deg, self.status_msg.max_softstop_deg]
+            return [self.status_msg.min_soft_limit, self.status_msg.max_soft_limit]
 
     def get_servo_max_speed_dps(self):
         """Return the servo maximum speed in degrees per second.
@@ -389,7 +398,7 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
             float: The home position in degrees, or None if no status has been received.
         """
         if self.status_msg is not None:
-            return self.status_msg.home_pos_deg
+            return self.status_msg.pos_home
 
     def get_speed_ratio(self):
         """Return the servo speed ratio reported by the connected SVX device.
@@ -403,25 +412,25 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
     def get_speed_dps(self):
         """Return the servo speed in degrees per second reported by the connected SVX device.
 
-        This is the device's own speed_ratio multiplied by its current speed_max_dps,
-        computed on the device rather than at the call site.
+        This is the device's measured speed (speed_now in DeviceSVXStatus), the
+        magnitude of its recent position change per second.
 
         Returns:
-            float: The commanded speed in degrees per second, or None if no status has
+            float: The current speed in degrees per second, or None if no status has
                 been received.
         """
         if self.status_msg is not None:
-            return self.status_msg.speed_now_dps
+            return self.status_msg.speed_now
 
     def get_spin_direction(self):
         """Return the spin direction reported by the connected SVX device.
 
         Returns:
-            int: 1 for clockwise, -1 for counter-clockwise, or None if no status has been
-                received.
+            int: 1 for clockwise, -1 for counter-clockwise (0 if the device cannot report
+                it), or None if no status has been received.
         """
         if self.status_msg is not None:
-            return self.status_msg.spin_direction
+            return self.status_msg.dir_now
 
     def check_moving(self):
         """Check whether the servo is currently in motion.
@@ -439,11 +448,11 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         stays True at a speed ratio of 0.0.
 
         Returns:
-            bool: True if the device is in continuous mode and has not been stopped,
-                False otherwise, or None if no status has been received.
+            bool: True if the device reports continuous mode (is_continous in
+                DeviceSVXStatus), False otherwise, or None if no status has been received.
         """
         if self.status_msg is not None:
-            return self.status_msg.is_spinning
+            return self.status_msg.is_continous
 
 
 
@@ -453,7 +462,7 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         Args:
             position_deg (float): Target position angle in degrees.
         """
-        pub_name = 'svx_goto_position'
+        pub_name = self.node_if_prefix + 'goto_position'
         msg = float(position_deg)
         self.node_if.publish_pub(pub_name, msg)
 
@@ -493,9 +502,11 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
             bool: True if the command was published, False if no device is connected, in
                 which case no motion was started and no stop is owed.
         """
+        # A zero speed, or no known max, keeps the documented "leave the device's
+        # current speed unchanged" meaning: moveDirection reads None that way.
         speed_max_dps = self.speed_max_dps
-        if speed_max_dps is None or speed_max_dps <= 0:
-            speed_ratio = 0.0
+        if speed_max_dps is None or speed_max_dps <= 0 or float(speed_dps) <= 0:
+            speed_ratio = None
         else:
             speed_ratio = float(speed_dps) / float(speed_max_dps)
         return self.moveDirection(direction, speed_ratio)
@@ -513,17 +524,18 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         Args:
             speed_ratio (float): Desired motion speed as a ratio from 0.0 (slowest) to 1.0 (fastest).
         """
-        pub_name = 'svx_set_speed_ratio'
+        pub_name = self.node_if_prefix + 'set_speed_ratio'
         msg = float(speed_ratio)
         self.node_if.publish_pub(pub_name, msg)
 
     def set_speed_dps(self, speed_dps):
         """Publish a speed command to the servo in degrees per second.
 
-        The device converts the value against its current speed_max_dps and clamps the
-        result into the 0.0 to 1.0 ratio range, so a value above speed_max_dps saturates
-        at full speed rather than raising. In continuous mode this is the rotation speed
-        rather than the move speed.
+        The 3.4 SVX device takes speed as a ratio only, so this converts the value
+        against the device's last reported max speed and clamps the result into the
+        0.0 to 1.0 range: a value above the max saturates at full speed rather than
+        raising. In continuous mode this is the rotation speed rather than the move
+        speed.
 
         See also set_speed_ratio() for the same command as a 0.0 to 1.0 dial,
         set_speed_max_dps() and set_max_speed_dps() to change what full speed means, and
@@ -532,8 +544,17 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         Args:
             speed_dps (float): Desired motion speed in degrees per second.
         """
-        pub_name = 'svx_set_speed_dps'
-        msg = float(speed_dps)
+        speed_max_dps = self.speed_max_dps
+        if speed_max_dps is None or speed_max_dps <= 0:
+            speed_ratio = 0.0
+        else:
+            speed_ratio = float(speed_dps) / float(speed_max_dps)
+        if speed_ratio < 0.0:
+            speed_ratio = 0.0
+        if speed_ratio > 1.0:
+            speed_ratio = 1.0
+        pub_name = self.node_if_prefix + 'set_speed_ratio'
+        msg = speed_ratio
         self.node_if.publish_pub(pub_name, msg)
 
     def set_speed_max_dps(self, speed_max_dps):
@@ -549,7 +570,7 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
             speed_max_dps (float): Maximum speed in degrees per second, which is what a
                 speed ratio of 1.0 means.
         """
-        pub_name = 'svx_set_speed_max_dps'
+        pub_name = self.node_if_prefix + 'set_speed_max_dps'
         msg = float(speed_max_dps)
         self.node_if.publish_pub(pub_name, msg)
 
@@ -614,7 +635,7 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
                 ratio = 1.0
             self.speed_ratio = ratio
             if self.node_if is not None:
-                self.node_if.publish_pub('svx_set_speed_ratio', ratio)
+                self.node_if.publish_pub(self.node_if_prefix + 'set_speed_ratio', ratio)
         return self.speed_ratio
 
     def set_reverse_enable(self, reverse_enable):
@@ -623,24 +644,21 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         Args:
             reverse_enable (bool): True to reverse the axis direction, False for normal direction.
         """
-        pub_name = 'svx_set_reverse_enable'
+        pub_name = self.node_if_prefix + 'set_reverse_enable'
         msg = bool(reverse_enable)
         self.node_if.publish_pub(pub_name, msg)
 
     def set_continuous_mode(self, continuous_enable):
         """Declare the attached servo continuous-rotation or positional.
 
-        Continuous mode is device configuration, not a driver capability: enabling it
-        switches the reported has_spin flag on and makes set_speed_ratio and
-        set_spin_direction drive rotation instead of a position move.
+        The 3.4 SVX device sets continuous mode from its driver and subscribes no
+        topic to change it, so nothing is sent and a warning is logged.
 
         Args:
             continuous_enable (bool): True for a continuous-rotation servo, False for a
                 positional servo.
         """
-        pub_name = 'svx_set_continuous_mode'
-        msg = bool(continuous_enable)
-        self.node_if.publish_pub(pub_name, msg)
+        self.msg_if.pub_warn("Continuous mode changes are not supported by the connected SVX device: " + str(continuous_enable), throttle_s = 5.0)
 
     def set_spin_direction(self, spin_direction):
         """Set the spin direction for the servo.
@@ -648,14 +666,15 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         Args:
             spin_direction (int): Intended direction, 1 = clockwise, -1 = counter-clockwise.
         """
-        pub_name = 'svx_set_spin_direction'
-        msg = int(spin_direction)
+        # The device's set_direction topic is Float32 and uses only the sign
+        pub_name = self.node_if_prefix + 'set_spin_direction'
+        msg = float(spin_direction)
         self.node_if.publish_pub(pub_name, msg)
 
     def stop_moving(self):
         """Publish a stop command to halt motion on the servo.
         """
-        pub_name = 'svx_stop_moving'
+        pub_name = self.node_if_prefix + 'stop_moving'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
@@ -665,7 +684,7 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         For a continuous servo the home degree is the neutral pulse, so this is also
         the stop command.
         """
-        pub_name = 'svx_go_home'
+        pub_name = self.node_if_prefix + 'go_home'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
@@ -675,45 +694,47 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         Args:
             position_deg (float): Desired home position angle in degrees.
         """
-        pub_name = 'svx_set_home_position'
+        pub_name = self.node_if_prefix + 'set_home_position'
         msg = float(position_deg)
         self.node_if.publish_pub(pub_name, msg)
 
     def set_home_position_here(self):
         """Set the home position to the servo's current position.
         """
-        pub_name = 'svx_set_home_position_here'
+        pub_name = self.node_if_prefix + 'set_home_position_here'
         msg = Empty()
         self.node_if.publish_pub(pub_name, msg)
 
     def reset_device(self):
         """Command the servo device to reset to its default state.
+
+        The 3.4 SVX device subscribes no reset topic, so nothing is sent and a
+        warning is logged.
         """
-        pub_name = 'svx_reset_device'
-        msg = Empty()
-        self.node_if.publish_pub(pub_name, msg)
+        self.msg_if.pub_warn("Device reset is not supported by the connected SVX device", throttle_s = 5.0)
 
     def save_config(self):
         """Publish a save configuration command to persist current settings on the device.
         """
-        self.node_if.publish_pub('svx_save_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'save_config',Empty())
 
     def reset_config(self):
         """Publish a reset configuration command to restore the last saved settings on the device.
         """
-        self.node_if.publish_pub('svx_reset_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'reset_config',Empty())
 
     def factory_reset_config(self):
         """Publish a factory reset command to restore factory default settings on the device.
         """
-        self.node_if.publish_pub('svx_factory_reset_config',Empty())
+        self.node_if.publish_pub(self.node_if_prefix + 'factory_reset_config',Empty())
 
     ###############################
     # Class Private Methods
     ###############################
 
     # Shared body of move_direction/move_direction_speed. speed_ratio None means "leave
-    # the device's speed alone", which the device reads as a ratio of 0.0.
+    # the device's speed alone". The 3.4 device hands the message's ratio straight to
+    # its driver, so that case sends the device's own last reported ratio, not 0.0.
     #
     # duration_s is always -1.0 (indefinite): the caller owns the timed stop, and the
     # device has no move timer. Success is reported as "published", not as the return of
@@ -725,31 +746,29 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         msg = SingleAxisTimedSpeedMove()
         msg.direction = 1 if float(direction) >= 0 else -1
         if speed_ratio is None:
-            msg.speed_ratio = 0.0
-        else:
-            ratio = float(speed_ratio)
-            if ratio < 0.0:
-                ratio = 0.0
-            if ratio > 1.0:
-                ratio = 1.0
-            msg.speed_ratio = ratio
+            speed_ratio = self.speed_ratio
+        ratio = float(speed_ratio)
+        if ratio < 0.0:
+            ratio = 0.0
+        if ratio > 1.0:
+            ratio = 1.0
+        msg.speed_ratio = ratio
         msg.duration_s = -1.0
-        self.node_if.publish_pub('svx_move_direction', msg)
+        self.node_if.publish_pub(self.node_if_prefix + 'move_direction', msg)
         return True
 
 
+    # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
+    # job: it runs the same check, and also clears connected_topic so its next cycle
+    # tears down and resubscribes. Running a second copy here raced that chain, and
+    # the device state below was cleared only when this copy won. This chain keeps
+    # the device-specific state in step with the connection.
     def updaterCb(self,timer):
-        cur_time = nepi_utils.get_time()
-        last_time = copy.deepcopy(self.last_status_time )
-        if self.connected == True:
-            if (cur_time - last_time) > CONNECTED_TIMEOUT:
-                self.connected = False
-                self.status_msg = None
-                self.moving = False
-
         if self.connected == True:
             self.moving = abs(self.position_deg - self.last_position_deg) > 0.1
             self.last_position_deg = self.position_deg
+        else:
+            self.moving = False
 
         nepi_sdk.start_timer_process(1.0, self.updaterCb, oneshot = True)
 
@@ -764,7 +783,7 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
 
         # Subscribers Config Dict ####################
         self.connect_topic_subs_dict = {
-            'svx_status_sub': {
+            self.node_if_prefix + 'status_sub': {
                 'namespace': self.selected_topic,
                 'topic': 'status',
                 'msg': DeviceSVXStatus,
@@ -776,123 +795,89 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
 
 
         # Publishers Config Dict ####################
-        # One publisher per SVX control topic, plus the three config topics
-        # NodeConfigsIF subscribes on the same device namespace.
+        # One publisher per DeviceSVXIF control topic this connect drives. The config
+        # topics are added below, under the device's node namespace.
         self.connect_topic_pubs_dict = {
-            'svx_goto_position': {
+            self.node_if_prefix + 'goto_position': {
                 'namespace': self.selected_topic,
                 'topic': 'goto_position',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'svx_set_speed_ratio': {
+            self.node_if_prefix + 'set_speed_ratio': {
                 'namespace': self.selected_topic,
                 'topic': 'set_speed_ratio',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'svx_set_speed_dps': {
+            self.node_if_prefix + 'set_speed_max_dps': {
                 'namespace': self.selected_topic,
-                'topic': 'set_speed_dps',
+                'topic': 'set_speed_max',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'svx_set_speed_max_dps': {
-                'namespace': self.selected_topic,
-                'topic': 'set_speed_max_dps',
-                'msg': Float32,
-                'qsize': 1,
-            },
-            'svx_set_reverse_enable': {
+            self.node_if_prefix + 'set_reverse_enable': {
                 'namespace': self.selected_topic,
                 'topic': 'set_reverse_enable',
                 'msg': Bool,
                 'qsize': 1,
             },
-            'svx_set_continuous_mode': {
+            self.node_if_prefix + 'set_spin_direction': {
                 'namespace': self.selected_topic,
-                'topic': 'set_continuous_mode',
-                'msg': Bool,
+                'topic': 'set_direction',
+                'msg': Float32,
                 'qsize': 1,
             },
-            'svx_set_spin_direction': {
+            self.node_if_prefix + 'move_direction': {
                 'namespace': self.selected_topic,
-                'topic': 'set_spin_direction',
-                'msg': Int32,
-                'qsize': 1,
-            },
-            'svx_move_direction': {
-                'namespace': self.selected_topic,
-                'topic': 'move_direction',
+                'topic': 'jog_timed_speed_ratio',
                 'msg': SingleAxisTimedSpeedMove,
                 'qsize': 1,
             },
-            'svx_stop_moving': {
+            self.node_if_prefix + 'stop_moving': {
                 'namespace': self.selected_topic,
                 'topic': 'stop_moving',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'svx_go_home': {
+            self.node_if_prefix + 'go_home': {
                 'namespace': self.selected_topic,
                 'topic': 'go_home',
                 'msg': Empty,
                 'qsize': 1,
             },
-            'svx_set_home_position': {
+            self.node_if_prefix + 'set_home_position': {
                 'namespace': self.selected_topic,
                 'topic': 'set_home_position',
                 'msg': Float32,
                 'qsize': 1,
             },
-            'svx_set_home_position_here': {
+            self.node_if_prefix + 'set_home_position_here': {
                 'namespace': self.selected_topic,
                 'topic': 'set_home_position_here',
                 'msg': Empty,
                 'qsize': 1,
-            },
-            'svx_reset_device': {
-                'namespace': self.selected_topic,
-                'topic': 'reset_device',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            'svx_save_config': {
-                'namespace': self.selected_topic,
-                'topic': 'save_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            'svx_reset_config': {
-                'namespace': self.selected_topic,
-                'topic': 'reset_config',
-                'msg': Empty,
-                'qsize': 1,
-            },
-            'svx_factory_reset_config': {
-                'namespace': self.selected_topic,
-                'topic': 'factory_reset_config',
-                'msg': Empty,
-                'qsize': 1,
             }
+            # No set_speed_dps, set_continuous_mode or reset_device publishers: the
+            # 3.4 SVX device subscribes none of them.
 
 
         }
 
 
         # Services Config Dict ####################
-        # Re-registered on every selection rather than unregistered on teardown:
-        # register_service replaces the keyed entry, which drops the old proxy and
-        # builds one on the newly selected device.
+        # Client proxies, held in this connect's own ConnectNodeServicesIF: the node_if
+        # is a NodeClassIF, whose services registry builds servers only (it reads each
+        # entry's 'callback') and has no call_service. Unregistered on teardown.
         self.connect_topic_srvs_dict = {
-            'svx_status_query': {
+            self.node_if_prefix + 'status_query': {
                 'namespace': self.selected_topic,
                 'topic': 'status_query',
                 'srv': DeviceSVXStatusQuery,
                 'req': DeviceSVXStatusQueryRequest(),
                 'resp': DeviceSVXStatusQueryResponse()
             },
-            'svx_device_info_query': {
+            self.node_if_prefix + 'device_info_query': {
                 'namespace': self.selected_topic,
                 'topic': 'device_info_query',
                 'srv': DeviceInfoQuery,
@@ -901,11 +886,37 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
             }
         }
 
+        # Config and save data topics live under the device's node namespace, one
+        # level above the device IF namespace: DeviceIF builds <node>/<id>, while the
+        # node's NodeConfigsIF and the device's SaveDataIF sit at <node>.
+        device_node_namespace = os.path.dirname(self.selected_topic)
+        self.connect_topic_pubs_dict.update({
+            self.node_if_prefix + 'save_config': {
+                'namespace': device_node_namespace,
+                'topic': 'save_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'reset_config': {
+                'namespace': device_node_namespace,
+                'topic': 'reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            },
+            self.node_if_prefix + 'factory_reset_config': {
+                'namespace': device_node_namespace,
+                'topic': 'factory_reset_config',
+                'msg': Empty,
+                'qsize': 1,
+            }
+        })
+
         if self.node_if is not None:
             self.node_if.register_pubs(self.connect_topic_pubs_dict)
             self.node_if.register_subs(self.connect_topic_subs_dict)
-            for srv_name in self.connect_topic_srvs_dict.keys():
-                self.node_if.register_service(srv_name, self.connect_topic_srvs_dict[srv_name])
+            if self.con_services_if is None:
+                self.con_services_if = ConnectNodeServicesIF(msg_if = self.msg_if)
+            self.con_services_if.add_services(self.connect_topic_srvs_dict)
             self.connecting = True
             self.connected = False
             self.connected_topic = 'None'
@@ -919,7 +930,12 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
 
     def unsubscribe_topic(self):
         success = False
-        if self.connecting == True or self.connected == True:
+        # Gate on what is registered too. ConnectNodeIF's staleness check clears
+        # connecting and connected without unregistering anything, and a gate on
+        # those two alone let the next subscribe_topic register over live
+        # subscribers, leaving the old ones running.
+        if self.connecting == True or self.connected == True or \
+                self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:
             self.msg_if.pub_debug("unsubscribe_topic Called")
 
             if self.node_if is not None:
@@ -934,8 +950,8 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
                         self.node_if.unregister_pub(pub_name)
             self.connect_topic_pubs_dict = None
 
-            # Service proxies are left registered here and replaced by the next
-            # subscribe_topic; see the services dict above.
+            if self.con_services_if is not None:
+                self.con_services_if.unregister_services()
             self.connect_topic_srvs_dict = None
 
             nepi_sdk.sleep(1)
@@ -957,9 +973,11 @@ class ConnectSVXDeviceIF(ConnectNodeIF):
         self.connected = True
         self.status_msg = status_msg
 
-        self.speed_max_dps = status_msg.speed_max_dps
+        # Cache only a usable max: move_direction_speed and set_speed_dps divide by it.
+        if status_msg.speed_max > 0:
+            self.speed_max_dps = status_msg.speed_max
         self.speed_ratio = status_msg.speed_ratio
-        self.position_deg = status_msg.position_now_deg
+        self.position_deg = status_msg.pos_now
         if self.statusCb is not None:
             status_dict = self.get_status_dict()
             self.statusCb(status_dict)
