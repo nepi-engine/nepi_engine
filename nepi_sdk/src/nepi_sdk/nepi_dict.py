@@ -44,7 +44,7 @@ logger = nepi_sdk.sdk_logger
 
 def convert_values_dict2msg(input_dict):
     output_msg = ValuesDict()
-
+    is_list = True
     key_names = []
     entry_msgs = []
     for key_name in input_dict.keys():
@@ -54,27 +54,32 @@ def convert_values_dict2msg(input_dict):
             is_list = isinstance(values,list)
             success = True
             if isinstance(values,list) == False:
+                is_list = False
                 values = [values]
 
             if len(values) > 0:
-                entry_type = {'str':'Strings','bool':'Bools','int':'Ints','float':'Floats'}.get(values[0].__class__.__name__,'')
+
+                if is_list == False:
+                    entry_type = {'str':'String','bool':'Bool','int':'Int','float':'Float'}.get(values[0].__class__.__name__,'')
+                else:
+                    entry_type = {'str':'Strings','bool':'Bools','int':'Ints','float':'Floats'}.get(values[0].__class__.__name__,'')
 
                 for value in values:
                     entry_value = None
 
-                    if entry_type == 'Strings':
+                    if entry_type == 'String' or entry_type == 'Strings':
                         entry_value = str(value)
 
-                    elif entry_type == 'Bools':
+                    elif entry_type == 'Bool' or entry_type == 'Bools':
                         if isinstance(value, bool):
                             entry_value = str(value)
 
-                    elif entry_type == 'Ints':
+                    elif entry_type == 'Int' or entry_type == 'Ints':
                         if isinstance(value, int):
                             entry_value = str(value)
                         elif isinstance(value, float):
-                            entry_value = str(int(value))
-                    elif entry_type == 'Floats':
+                            entry_value = str(int(float(value)))
+                    elif entry_type == 'Float' or entry_type == 'Floats':
                         if isinstance(value, float):
                             entry_value = str(value)
 
@@ -87,9 +92,7 @@ def convert_values_dict2msg(input_dict):
                 key_names.append(str(key_name))
                 entry_msg = Value()
                 entry_msg.name = str(key_name)
-                entry_msg.display_name = str(key_name).replace('_',' ').capitalize()
                 entry_msg.type = entry_type
-                entry_msg.is_list = is_list
                 entry_msg.values = entry_values
                 entry_msgs.append(entry_msg)
 
@@ -107,28 +110,40 @@ def convert_values_msg2dict(input_msg):
         entry_msg = input_msg.entries[i]
         entry_name = entry_msg.name
         entry_type = entry_msg.type
-        is_list = entry_msg.is_list
-        values = []
+        values = None
         success = True
         for entry_value in entry_msg.values:
             try:
                         value = None
-                        if entry_type == 'Strings':
+                        if entry_type == 'String':
                             value = entry_value
-                        elif entry_type == 'Bools':
+                        elif entry_type == 'Bool':
                             value = entry_value == 'True' or entry_value == 'true'
-                        elif entry_type == 'Ints':
+                        elif entry_type == 'Int':
                             value = int(float(entry_value))
-                        elif entry_type == 'Floats':
+                        elif entry_type == 'Float':
                             value = float(entry_value)
-                        if value is not None:
-                            values.append(value)
-            except:
-                success = False
 
-        if success == True:
-            if len(values) == 1 and is_list == False:
-                output_dict[key_name] = values[0]
+                        if value is not None:
+                            values = value
+                            break
+                        else:
+                            if entry_type == 'Strings':
+                                value = entry_value
+                            elif entry_type == 'Bools':
+                                value = entry_value == 'True' or entry_value == 'true'
+                            elif entry_type == 'Ints':
+                                value = int(float(entry_value))
+                            elif entry_type == 'Floats':
+                                value = float(entry_value)
+                            if value is not None:
+                                values.append(value)
+            except:
+                pass
+
+        if values is not None:
+            if isinstance(values,list) == False:
+                output_dict[key_name] = values
             elif len(values) > 0:
                 output_dict[key_name] = values
        

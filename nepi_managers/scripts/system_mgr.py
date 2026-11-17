@@ -69,7 +69,7 @@ from nepi_api.system_if import SettingsIF, StatesIF, TriggersIF, SaveDataIF
 
 BYTES_PER_MEGABYTE = 2**20
 
-DEBUG_LEVELS = ['LOW','MED','HIGH']
+DEBUG_LEVELS = ['LOW','MED','HIGH','ALL']
 
 NEPI_FOLDER='/opt/nepi'
 

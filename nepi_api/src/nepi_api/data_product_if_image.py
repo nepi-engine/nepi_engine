@@ -230,7 +230,8 @@ class BaseImageIF(DataProductIF):
         has_zoom_3d = False,
         has_rotate_3d = False,
         has_tilt_3d = False,
-        has_camera_3d = False
+        has_camera_3d = False,
+        has_stabilize = True
         )
 
     DEFAULT_FILTERS_DICT = dict()
@@ -413,7 +414,7 @@ class BaseImageIF(DataProductIF):
         live_adjust_x_deg = 0,
         live_adjust_y_deg = 0,
     )
-
+    has_stabilize = True
     stabilize_enabled = False
     stabilize_rotate_deg = 0
 
@@ -747,7 +748,7 @@ class BaseImageIF(DataProductIF):
             'stabilize_enabled': {
                 'name': 'stabilize_enabled',
                 'namespace': self.namespace,
-                'factory_val': self.stabilize_enabled
+                'factory_val': self.stabilize_enabled and self.caps_dict['has_stabilize']
             },   
 
         }
@@ -2184,17 +2185,17 @@ class BaseImageIF(DataProductIF):
             self.status_msg.source_ref_description = source_status_dict.get('end_ref_description', self.data_source_description)
 
         if source_status_dict is not None:
-            is_stabilized = source_status_dict.get('stabilize_enabled', False)
+            is_stabilized = source_status_dict.get('stabilize_enabled', False) 
             if is_stabilized == True:
                 self.status_msg.stabilize_disabled = True
                 self.status_msg.stabilize_enabled = True
                 self.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
             else:       
                 self.status_msg.stabilize_disabled = False
-                self.status_msg.stabilize_enabled = self.stabilize_enabled   
+                self.status_msg.stabilize_enabled = self.stabilize_enabled and self.caps_dict['has_stabilize']
         else:       
             self.status_msg.stabilize_disabled = False
-            self.status_msg.stabilize_enabled = self.stabilize_enabled
+            self.status_msg.stabilize_enabled = self.stabilize_enabled and self.caps_dict['has_stabilize']
         self.status_msg.stabilize_rotate_deg = self.stabilize_rotate_deg  
 
         source_navpose_dict = self.source_navpose_dict
@@ -2961,7 +2962,7 @@ class BaseImageIF(DataProductIF):
                     else:
                         cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
                         self.status_msg.stabilize_disabled = False
-                        self.status_msg.stabilize_enabled = self.stabilize_enabled
+                        self.status_msg.stabilize_enabled = self.stabilize_enabled and self.caps_dict['has_stabilize']
                     self.status_msg.stabilize_rotate_deg = self.stabilize_rotate_deg                               
 
                 ###########
@@ -3042,7 +3043,7 @@ class BaseImageIF(DataProductIF):
                                     r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
                                     x_deg = self.live_adjust_dict['live_adjust_x_deg']
                                     y_deg = self.live_adjust_dict['live_adjust_y_deg']
-                                if self.stabilize_enabled == True:
+                                if self.stabilize_enabled == True and self.caps_dict['has_stabilize']:
                                     r_deg = r_deg + self.stabilize_rotate_deg
                                 if r_deg != 0 or x_deg != 0 or y_deg != 0:
                                     x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
@@ -3135,7 +3136,7 @@ class BaseImageIF(DataProductIF):
                                     r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
                                     x_deg = self.live_adjust_dict['live_adjust_x_deg']
                                     y_deg = self.live_adjust_dict['live_adjust_y_deg']
-                                if self.stabilize_enabled == True:
+                                if self.stabilize_enabled == True and self.caps_dict['has_stabilize']:
                                     r_deg = r_deg + self.stabilize_rotate_deg
                                 if r_deg != 0 or x_deg != 0 or y_deg != 0:
                                     x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
@@ -4592,7 +4593,7 @@ class BaseImageIF(DataProductIF):
     #############################
 
     def set_stabilize_enable(self,enabled):
-        self.stabilize_enabled = enabled
+        self.stabilize_enabled = enabled  and self.caps_dict['has_stabilize']
         if self.node_if is not None:
             self.node_if.set_param(self.node_if_prefix +  'stabilize_enabled', self.stabilize_enabled)
 
@@ -4877,7 +4878,7 @@ class BaseImageIF(DataProductIF):
 
 
         ########### Rotate Adjust
-        stabilize_enabled = self.stabilize_enabled
+        stabilize_enabled = self.stabilize_enabled and self.caps_dict['has_stabilize']
         if stabilize_enabled == False:
             self.stabilize_rotate_deg = 0
         else:
@@ -4925,7 +4926,7 @@ class BaseImageIF(DataProductIF):
             r_deg = self.live_adjust_dict['live_adjust_rotate_deg']
             x_deg = self.live_adjust_dict['live_adjust_x_deg']
             y_deg = self.live_adjust_dict['live_adjust_y_deg']
-        if self.stabilize_enabled == True:
+        if self.stabilize_enabled == True and self.caps_dict['has_stabilize']:
             r_deg = r_deg + self.stabilize_rotate_deg
         if r_deg != 0 or x_deg != 0 or y_deg != 0:
             x_ratio_adj = x_ratio_adj + (width / 2) * ( x_deg / (self.width_deg / 2)) / width
