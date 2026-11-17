@@ -1422,9 +1422,23 @@ def apply_update_msg( controls_dict, msg, debug = False):
       if index is not None: 
  
         value = value[0]
+        # get_value returns the NATIVE value: a scalar for the single-value
+        # types, a tuple for ColorRGB, None if the read failed. len() raised on
+        # the scalar and item assignment on the tuple, so every indexed edit the
+        # RUI sends (text, int, float and per-component boxes) died here. List
+        # it first -- list(), not get_value_list(), set_value re-cleans and
+        # re-lists whatever it is handed. None stays None, so it falls to the
+        # out-of-range branch below and the control is left unchanged.
         values = get_value(controls_dict, name)
-        values_len = len(values)
-        if values_len > index:
+        if values is not None:
+          if isinstance(values, (list, tuple)):
+            values = list(values)
+          else:
+            values = [values]
+        values_len = len(values) if values is not None else 0
+        # index >= 0 as well: the same bounds test get_value and set_value use,
+        # and without it a negative index on a failed (None) read still indexed.
+        if index >= 0 and values_len > index:
           values[index] = value
           update_value = values
         else:
@@ -1434,8 +1448,11 @@ def apply_update_msg( controls_dict, msg, debug = False):
         update_value = value
 
     if debug == True:
-      logger.log_debug("Setting Update Msg value: " + str([name, update_value])) 
+      logger.log_debug("Setting Update Msg value: " + str([name, update_value]))
 
+    # Bound before the branch: a rejected update skips it, and the debug log
+    # below then read an unassigned name (NameError, debug runs only).
+    updated_value = None
     if update_value is not None:
       controls_dict = set_value(controls_dict, name, update_value, debug = debug)
       updated_value = get_value(controls_dict, name)
