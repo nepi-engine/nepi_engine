@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -351,8 +351,8 @@ class DeviceIF(NodeIF):
             # No default source. ConnectSystemIF passes its namespace argument through
             # as the connect's selected_topic, and ConnectNodeIF restores the saved
             # selection only when that default is "None". Passing node_namespace here
-            # made every device select itself (not a navpose topic, so its navpose
-            # never published) and threw away the operator's saved pick on restart.
+            # would make every device select itself (not a navpose topic, so its navpose
+            # never publishes) and throw away the operator's saved pick on restart.
             self.connect_navpose_if = ConnectNavPoseIF(
                                     namespace = self.node_namespace,
                                     navpose_callback = self._pubNavposeCb,
@@ -363,7 +363,7 @@ class DeviceIF(NodeIF):
             # The source's data is republished on this device's own navpose topic, so
             # selecting that topic as the source would feed every message back to itself
             self.connect_navpose_if.exclude_namespaces_list.append(self.navpose_if.get_namespace())
-            # Configs saved under the old default hold the node namespace as the
+            # A saved config can hold the node namespace as the
             # selection. Clear it, persisted value included, so the device starts
             # unselected instead of stuck on a topic that can never connect.
             if self.connect_navpose_if.get_selected_topic() == self.node_namespace:

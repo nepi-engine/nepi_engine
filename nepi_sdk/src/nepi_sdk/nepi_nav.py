@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -1119,8 +1119,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['has_altitude'] = True
           navpose_dict['time_altitude'] = npdata_dict['time_altitude']
 
-          # Transform dicts have no 'altitude_m' key, so a direct assignment here raised
-          # KeyError on every frame with a transform and skipped depth and pan/tilt;
+          # Transform dicts have no 'altitude_m' key;
           # altitude_m is set from the rotated point below.
           npx = 0
           invert = -1 if transform_dict['y_invert'] else 1
@@ -1580,9 +1579,8 @@ def convert_rpy2quat(rpy_attitude_deg):
   pitch_rad = math.radians(rpy_attitude_deg[1]) 
   yaw_rad = math.radians(rpy_attitude_deg[2])
   # Static xyz (sxyz), the same convention convert_quat2rpy reads back with
-  # euler_from_quaternion's default. The "ryzx" (pitch, yaw, roll) form used
-  # before only agreed with it when at most one angle was non-zero, so a
-  # combined roll/pitch/yaw target read back as a different attitude.
+  # euler_from_quaternion's default. The "ryzx" (pitch, yaw, roll) form
+  # agrees with it only when at most one angle is non-zero.
   xyzw_attitude = tf.transformations.quaternion_from_euler(roll_rad,pitch_rad,yaw_rad,axes="sxyz")
   #xyzw_attitude = tf.transformations.quaternion_from_euler(pitch_rad, yaw_rad, roll_rad, axes="ryzx")
   return xyzw_attitude
@@ -1611,7 +1609,7 @@ def convert_yaw_body2enu(yaw_body_deg,cur_heading_deg):
   # cur_heading_deg is a compass heading (0 = north, clockwise positive), whose
   # ENU yaw is 90 - heading. Body yaw is counter-clockwise positive, the same
   # sense as ENU yaw, so it adds. Heading 0, body yaw 0 gives 90 (north);
-  # heading 90, body yaw 10 gives 10. The old -heading form was off by 90 deg.
+  # heading 90, body yaw 10 gives 10.
   cur_yaw_enu_deg = 90 - cur_heading_deg
   yaw_enu_deg =  cur_yaw_enu_deg + yaw_body_deg
   # Wrap to (-180, 180]
@@ -1632,8 +1630,7 @@ def convert_point_body2enu(point_body_m,yaw_enu_deg):
   
 ### Function to Convert from ENU Frame to Point from Body
 def convert_point_enu2body(point_enu_m,yaw_enu_deg):
-  # Inverse of convert_point_body2enu: rotate by -yaw. Adding yaw here made a
-  # body2enu/enu2body round trip rotate the point by 2*yaw.
+  # Inverse of convert_point_body2enu: rotate by -yaw.
   point_bearing_body_deg = math.degrees(math.atan2(point_enu_m[1],point_enu_m[0])) - yaw_enu_deg
   point_bearing_body_rad = math.radians(point_bearing_body_deg)
   xy_enu_m = math.sqrt(point_enu_m[0]**2 + point_enu_m[1]**2)

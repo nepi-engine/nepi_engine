@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -60,7 +60,7 @@ logger = nepi_sdk.sdk_logger
 STANDARD_IMAGE_SIZES = ['630 x 900','720 x 1080','955 x 600','1080 x 1440','1024 x 768 ','1980 x 2520','2048 x 1536','2580 x 2048','3648 x 2736']
 
 
-# Label font, hoisted out of the draw loop. Nothing about it varies per frame.
+# Label font. Nothing about it varies per frame.
 OVERLAY_FONT = cv2.FONT_HERSHEY_SIMPLEX
 OVERLAY_FONT_COLOR = (255, 255, 255)
 OVERLAY_LINE_TYPE = cv2.LINE_AA
@@ -690,9 +690,8 @@ def rotate_degrees(cv2_img, deg=0):
         # input (same width and height) so the display box never changes dimensions or
         # aspect ratio. Uncovered corners are filled with solid black (borderValue=0,
         # BORDER_CONSTANT). getRotationMatrix2D treats a POSITIVE angle as
-        # counter-clockwise, so we negate to keep the original clockwise direction
-        # (matching the old cv2.ROTATE_90_CLOCKWISE behavior for 90 deg; 180 and
-        # 270 likewise render as before).
+        # counter-clockwise, so we negate to rotate clockwise, the same direction
+        # ROTATE_DICT uses (cv2.ROTATE_90_CLOCKWISE for 90 deg).
         #logger.log_warn("Live Adjust Rotating degrees: " + str(deg))
         height, width = cv2_img.shape[:2]
         center = (width / 2.0, height / 2.0)

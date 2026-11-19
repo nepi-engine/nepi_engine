@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -1572,7 +1572,7 @@ class ProcessIF(NodeIF):
     def _updateSettingCb(self,msg):
         #self.msg_if.pub_debug("Received setting update msg: " + str(msg) )
         setting_name = msg.name
-        # Same fix as SettingsIF._updateSettingCb: apply_update_msg writes
+        # Same as SettingsIF._updateSettingCb: apply_update_msg writes
         # through the dict it is handed.
 
         settings_controls_dict = copy.deepcopy(self.settings_controls_dict)
@@ -1595,7 +1595,7 @@ class ProcessIF(NodeIF):
     def _updateControlCb(self,msg):
         self.msg_if.pub_debug("Received control update msg: " + str(msg)  )
         control_name = msg.name
-        # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
+        # Same as ControlsIF._updateControlCb: apply_update_msg writes
         # through the dict it is handed.
 
         controls_dict = copy.deepcopy(self.controls_dict)

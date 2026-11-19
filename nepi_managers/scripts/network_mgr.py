@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -854,10 +854,9 @@ class NetworkMgr:
             try:
                 #with self.wifi_lock:
                 # timeout needed -- on hardware/environments where wlan0 can't
-                # actually scan (e.g. no real WiFi radio), this call blocked
-                # forever with no timeout, pegging a full CPU core
-                # indefinitely and leaving self.wifi_scanning stuck True so
-                # every later scan attempt was silently skipped too.
+                # actually scan (e.g. no real WiFi radio), this call blocks
+                # forever without one, pegging a full CPU core and leaving
+                # self.wifi_scanning stuck True so every later scan is skipped.
                 scan_result = subprocess.check_output(network_scan_cmd, text=True, timeout=10)
                 #self.msg_if.pub_debug("Got WiFi scan results: " + str(scan_result))
             except Exception as e:

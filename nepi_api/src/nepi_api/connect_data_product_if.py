@@ -134,8 +134,8 @@ class ConnectDataProductIF(ConnectNodeIF):
                 node_if = None
                 ):
 
-        # Raise rather than return. A bare return here left a half-built object with
-        # msg_if still None, so the real failure surfaced much later as an
+        # Raise rather than return. A bare return here would leave a half-built object with
+        # msg_if still None, so the real failure would surface much later as an
         # AttributeError on NoneType somewhere unrelated to the missing argument.
         if connect_status_msg is None:
             raise ValueError(str(type(self).__name__) +

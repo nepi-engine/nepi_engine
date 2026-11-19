@@ -305,7 +305,7 @@ class ConnectDeviceIF(ConnectNodeIF):
 
     # Staleness (no status inside CONNECTED_TIMEOUT) is ConnectNodeIF._updaterCb's
     # job: it runs that check, and also clears connected_topic so its next cycle
-    # tears down and resubscribes. A second copy here raced that chain, so this
+    # tears down and resubscribes. A second copy here would race that chain, so this
     # chain does none of it. A subclass that keeps device-specific state in step
     # with the connection overrides this and calls super(), which re-arms it.
     def updaterCb(self,timer):
@@ -390,7 +390,7 @@ class ConnectDeviceIF(ConnectNodeIF):
         success = False
         # Gate on what is registered too. ConnectNodeIF's staleness check clears
         # connecting and connected without unregistering anything, and a gate on
-        # those two alone let the next subscribe_topic register over live
+        # those two alone would let the next subscribe_topic register over live
         # subscribers, leaving the old ones running.
         if self.connecting == True or self.connected == True or \
                 self.connect_topic_subs_dict is not None or self.connect_topic_pubs_dict is not None:

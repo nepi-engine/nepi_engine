@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -87,7 +87,7 @@ class AiDetectorIF:
 
     # A detector must never consume its own overlay outputs as an input image
     # source; skip these product basenames even if a stale/explicit selection
-    # lists them (they now resolve as real topics under the image namespace).
+    # lists them (they resolve as real topics under the image namespace).
     OUTPUT_IMG_PRODUCTS = ['targets_image']
 
     BLANK_SIZE_DICT = { 'h': 350, 'w': 700, 'c': 3}
@@ -982,10 +982,10 @@ class AiDetectorIF:
             self.use_last_image = self.node_if.get_param('use_last_image')
 
             # Restore the auto-select flags directly, the way every other value in
-            # this method is restored. Routing them through setAutoSelectEnable ran
-            # its first statement -- self.selected_sources = [] -- and wiped the
+            # this method is restored. Routing them through setAutoSelectEnable would run
+            # its first statement -- self.selected_sources = [] -- and wipe the
             # selection that had just been read back on the line above, so a saved
-            # image source always came back empty.
+            # image source would always come back empty.
             auto_select_enabled = self.node_if.get_param('auto_select_enabled')
             self.auto_select_enabled = auto_select_enabled
             self.auto_select_active = auto_select_enabled
@@ -2420,7 +2420,6 @@ class AiDetectorIF:
         
         #self.msg_if.pub_debug("Publishing Targeting Status Msg: " + str(targeting_status_msg), throttle_s = 5)
         # TargetsStatus is published on <node_ns>/targets/status by TargetsIF
-        # (same wire topic/type as the removed 'targeting_status' inline pub).
         targets_if = getattr(self, 'targets_if', None)
         if targets_if is not None:
             targets_if.publish_status(targeting_status_msg)

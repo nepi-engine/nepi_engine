@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -262,7 +262,7 @@ class NPXDeviceIF(DeviceIF):
 
             # Probe the telemetry source once for its capability flags. The callback is
             # retained either way: a source that is not connected yet is not a broken
-            # source, and disabling it here is what made a device whose bridge or link
+            # source, and disabling it here would make a device whose bridge or link
             # comes up later report has_position = False for the life of the node.
             callback_dict = dict()
             self.getNavPoseCb = getNavPoseCb
@@ -282,7 +282,7 @@ class NPXDeviceIF(DeviceIF):
                     callback_dict['get_navpose'] = self.getNavPoseCb
             else:
                 # No telemetry callback at all. Nothing to learn later, so the flags are
-                # already final and the NavPose IF is created inline as it always was.
+                # already final and the NavPose IF is created inline.
                 self.navpose_caps_known = True
 
 

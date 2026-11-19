@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -948,9 +948,7 @@ class NepiDriversMgr(object):
               else:
                  self.msg_if.pub_debug("Set Option not in settings dict keys : " + str(setting_name) + " : " + str(options_dict.keys()))
         # Return every option's current value. SettingsIF replaces its whole dict with
-        # this return, and the stored settings_dict only holds defaults, so returning it
-        # with just this option set showed every other option at its default. SettingsIF
-        # init sets each option in turn at startup, so a saved stream_urls showed blank.
+        # this return, and the stored settings_dict only holds defaults.
         settings_dict = self.getSettingsFunction(driver_name)
 
       #self.msg_if.pub_debug("Set Drivers Dict : " + str(self.drvs_dict))
@@ -998,8 +996,8 @@ class NepiDriversMgr(object):
         if value is None:
           value = option_dict['default']
 
-        # A Selections option holds a list. A value saved before the option
-        # became one is a plain string ('a,b'), which the Selections control
+        # A Selections option holds a list. A saved value can be a plain
+        # string ('a,b'), which the Selections control
         # would clean to nothing selected -- and a driver reading nothing
         # selected stops every node it runs. Normalized here, and stored back
         # below, so the next config save writes the list form.

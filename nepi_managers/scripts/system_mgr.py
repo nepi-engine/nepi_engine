@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -962,12 +962,9 @@ class SystemMgr():
             # Keep the value __init__ already resolved from the system config
             # (NEPI_STORAGE) whenever the param server has nothing usable yet.
             # get_param() returns None when the param is not on the server, and
-            # os.statvfs(None) below then raised TypeError inside __init__, so
-            # system_mgr died and took the platform with it (every other manager
-            # waits on it, and the RUI blocks on its status topic). Confirmed live
-            # after an in-place `supervisorctl restart nepi_engine`: the restart
-            # wipes the param server and this read can lose the race against the
-            # params being re-registered. Intermittent, hence a fallback.
+            # os.statvfs(None) below raises TypeError inside __init__. An in-place
+            # `supervisorctl restart nepi_engine` wipes the param server, and this
+            # read can lose the race against the params being re-registered.
             storage_folder_param = self.node_if.get_param("storage_folder")
             if storage_folder_param:
                 self.storage_folder = storage_folder_param
@@ -1083,8 +1080,7 @@ class SystemMgr():
         settings_dict = dict()
         if config_dict is not None:
             # Plain init dict handed to create_controls_dict, as the drivers do. A bare
-            # BLANK_CONTROL_DICT copy has no 'length' key, which get_clean_value reads,
-            # so every RUI update raised KeyError in SettingsIF and was dropped.
+            # BLANK_CONTROL_DICT copy has no 'length' key, which get_clean_value reads.
             init_settings_dict = dict()
             for key in config_dict.keys():
                 setting_dict = dict()

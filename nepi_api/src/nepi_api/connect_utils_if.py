@@ -39,7 +39,7 @@ from nepi_interfaces.msg import ControlsStatus, UpdateControl
 from nepi_interfaces.msg import DataStatus
 from nepi_interfaces.msg import UpdateBool, UpdateOrder
 # ListIF publishes the type utils_if imports as ListIFStatus, which is
-# SelectorStatus on the wire (ListIFStatus.msg was renamed SelectorStatus.msg)
+# SelectorStatus on the wire
 from nepi_interfaces.msg import SelectorStatus
 
 from nepi_api.messages_if import MsgIF

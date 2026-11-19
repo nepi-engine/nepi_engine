@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -895,16 +895,16 @@ class NodeIF:
                 node_if.register_subs(self.node_subs_dict)
                 # Register the persisted selection param on the shared node_if too.
 
-                # A short settle, as after every interface's registrations (0.1 s, was 1 s).
+                # A short settle, as after every interface's registrations (0.1 s).
                 # Master registration completes inside the register calls; only peer
                 # connections finish afterwards. No construction path publishes anything
                 # but latched, 1 Hz status, so nothing relies on a longer wait, and at 1 s
-                # per interface drivers_mgr's ~19 settings IFs took ~45 s to start.
+                # per interface drivers_mgr's ~19 settings IFs would take ~45 s to start.
                 nepi_sdk.sleep(0.1)
             except Exception as e:
                 # Warn, not debug: returning here leaves if_ready False, so the
                 # caller's wait_for_ready() (infinite timeout) blocks forever and
-                # that IF never publishes. At debug level that was invisible.
+                # that IF never publishes. At debug level that would be invisible.
                 self.msg_if.pub_warn(str(self.class_name) + " " + self.namespace +
                                      ": Failed to register on shared node_if, IF will not become ready: " +
                                      type(e).__name__ + ": " + str(e))
@@ -1088,10 +1088,9 @@ class NodeIF:
                 nepi_sdk.wait()
                 self.node_if = None
             else:
-                # These were SUBS_DICT/PUBS_DICT, which this class never
+                # Not SUBS_DICT/PUBS_DICT, which this class never
                 # defines -- it builds controls_node_subs_dict and
-                # controls_node_pubs_dict. The shared-node_if branch therefore
-                # raised AttributeError instead of unregistering anything.
+                # controls_node_pubs_dict.
                 if self.node_subs_dict is not None:
                         for sub_name in self.node_subs_dict.keys():
                             self.node_if.unregister_sub(sub_name)
@@ -2296,9 +2295,8 @@ class NodeParamsIF:
     def getNestedInitVal(self, ns_param_dict, param_key):
         # A param key may contain '/' ('home_position/pan_deg'), and get_params returns
         # the namespace as a NESTED dict, so a slashed key never matches a top-level
-        # key. Matching against the top level made every slashed param fall through to
-        # its factory_val and then overwrite the correctly reloaded server value, which
-        # is why svx and ptx home position could not survive a restart. Walk the
+        # key. Matching against the top level would make every slashed param fall through to
+        # its factory_val and then overwrite the correctly reloaded server value. Walk the
         # segments instead. A flat key still resolves on the first pass.
         val = ns_param_dict
         for key in param_key.split('/'):
@@ -2811,10 +2809,10 @@ class NodePublishersIF:
     def register_pubs(self,pubs_dict = None):
         # A no-arg call means "re-advertise what is already registered", which is
         # what every caller that stops and restarts publishing does. Guarding the
-        # whole body on pubs_dict made that call a silent no-op: _unregisterPub
+        # whole body on pubs_dict would make that call a silent no-op: _unregisterPub
         # leaves the entry in pubs_dict with 'pub' set to None, and only
         # _initializePubs builds a publisher for an entry in that state, so the
-        # topic stayed off the wire for the life of the node.
+        # topic would stay off the wire for the life of the node.
         with self.pubs_lock:
             if pubs_dict is not None:
                 self.pubs_dict.update(pubs_dict)
@@ -2944,10 +2942,10 @@ class NodeSubscribersIF:
         # Guards subs_dict against concurrent registration from sub-IFs sharing
         # this NodeClassIF (see NodeParamsIF.params_lock). _initializeSubs()
         # iterates subs_dict while create_subscriber() blocks on the ROS master,
-        # which is exactly the window a second thread's register_subs() hit:
+        # which is exactly the window a second thread's register_subs() hits:
         # ZED's color_image and depth_map threads both build image IFs on the
-        # IDX node_if at once, one raised "dictionary changed size during
-        # iteration", and that IF's wait_for_ready() then blocked forever.
+        # IDX node_if at once. Unguarded, one raises "dictionary changed size during
+        # iteration", and that IF's wait_for_ready() then blocks forever.
         self.subs_lock = threading.RLock()
         self.subs_dict = subs_dict
         if self.subs_dict is None:
@@ -3195,9 +3193,8 @@ class NodeClassIF:
             self.configs_dict = configs_dict
             # Copy and override rather than rebuild from scratch, so alt_namespace,
             # clear_params, manage_configs and anything else the caller set survive the
-            # injection. The rebuilt literal this replaced carried only namespace and
-            # silently dropped alt_namespace, which reset_params and delete_config_all
-            # both read. Copying also keeps NodeConfigsIF's own 'namespace' default
+            # injection; reset_params and delete_config_all both read alt_namespace.
+            # Copying also keeps NodeConfigsIF's own 'namespace' default
             # assignment off the caller's dict.
             configs_dict = dict(configs_dict)
             configs_dict['init_callback'] = self._initConfigCb

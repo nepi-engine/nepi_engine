@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -684,9 +684,9 @@ class BaseImageIF(DataProductIF):
             },
             # The three 3-D render ratios and the render background sit beside
             # cam_fov/cam_view/cam_pos/cam_rot in controls_dict and are resolved by
-            # the same renderer, but had no keys here, so set_zoom_3d_ratio,
-            # set_rotate_3d_ratio, set_tilt_3d_ratio and setWhiteBgCb all wrote into
-            # a name node_if did not know and the writes were dropped silently.
+            # the same renderer, so they need keys here: set_zoom_3d_ratio,
+            # set_rotate_3d_ratio, set_tilt_3d_ratio and setWhiteBgCb write to them,
+            # and node_if silently drops a write to a name it does not know.
             # use_wbg is only in PointcloudImageIF's DEFAULT_CONTROLS_DICT, hence the
             # get() default here.
             'zoom_3d_ratio': {
@@ -2522,7 +2522,7 @@ class BaseImageIF(DataProductIF):
 
             self.controls_dict['window_ratios'] = [0,1,0,1]
             # Read the range window back rather than hardcoding 0/1. Both keys are
-            # registered and both write paths persist them, so hardcoding here threw
+            # registered and both write paths persist them, so hardcoding here would throw
             # away a correctly saved range window on every restart.
             self.controls_dict['start_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'start_range_ratio', 0)
             self.controls_dict['stop_range_ratio'] = self.node_if.get_param(self.node_if_prefix +  'stop_range_ratio', 1)
@@ -5261,9 +5261,9 @@ class BaseImageIF(DataProductIF):
         max_ratio = msg.stop_range
         if min_ratio < max_ratio and min_ratio >= 0 and max_ratio <= 1:
             # controls_dict is what publish_status reports and what the renderer
-            # resolves from; a param write alone left the slider snapping back to the
-            # old value in the status published on the next line, and the image never
-            # re-ranged. Same shape as the setWhiteBgCb note below.
+            # resolves from; a param write alone would leave the slider snapping back to the
+            # old value in the status published on the next line, and the image would never
+            # re-range. Same shape as the setWhiteBgCb note below.
             self.controls_dict['start_range_ratio'] = min_ratio
             self.controls_dict['stop_range_ratio'] = max_ratio
             self.node_if.set_param(self.node_if_prefix +  'start_range_ratio', min_ratio)
@@ -5274,7 +5274,7 @@ class BaseImageIF(DataProductIF):
     def setWhiteBgCb(self,msg):
         enable = msg.data
         # controls_dict is what the renderer resolves from; a param write alone
-        # left this toggle inert until the next node restart.
+        # would leave this toggle inert until the next node restart.
         self.controls_dict['use_wbg'] = enable
         self.node_if.set_param(self.node_if_prefix +  'use_wbg', enable)
         self.publish_status()

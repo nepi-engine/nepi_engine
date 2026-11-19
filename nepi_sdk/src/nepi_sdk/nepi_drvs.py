@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -107,9 +107,8 @@ def getDriversDict(search_path):
 
                       # Make sure they are strings. A Selections option (a
                       # multi-select) holds a LIST of strings instead: str() of
-                      # its list stored the list's repr, "['a', 'b']", which is
-                      # none of its options, so the option reached the RUI with
-                      # nothing selected and reached the driver garbled.
+                      # its list would store the list's repr, "['a', 'b']", which is
+                      # none of its options.
                       for option_name in options_dict.keys():
                         if new_dict['DISCOVERY_DICT']['OPTIONS'][option_name].get('type') == 'Selections':
                           new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'] = getSelectionsList(new_dict['DISCOVERY_DICT']['OPTIONS'][option_name]['default'])
@@ -137,7 +136,7 @@ def getSelectionsList(value):
   # The value of a Selections (multi-select) driver option as a list of
   # strings. Also accepts a comma-separated string, which is how a value saved
   # while the option was a single Selection reads back ('a,b'), and the str()
-  # of a list ("['a', 'b']"), which is what this module stored before, so a
+  # of a list ("['a', 'b']"), which older saved values hold, so a
   # saved value keeps its meaning instead of cleaning to nothing selected.
   if value is None:
     return []

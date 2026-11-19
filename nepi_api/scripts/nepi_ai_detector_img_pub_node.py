@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -467,7 +467,7 @@ class AiDetectorImgPub:
 
 
         # Create detections image publisher
-        # name sets the last namespace segment (data_product no longer does)
+        # name sets the last namespace segment (data_product does not)
         img_if = ColorImageIF(name = 'targets_image',
                         namespace = pub_namespace ,
                         data_product = 'targets_image',

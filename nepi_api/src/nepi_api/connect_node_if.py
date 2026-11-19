@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -383,8 +383,8 @@ class ConnectNodeIF(NodeIF):
 
         status_msg.available_topics = available_topics
         # Path names, not node names: a selector must distinguish one device's
-        # data products from each other. Device connect classes see no change --
-        # their topics reduce to the node name either way. See
+        # data products from each other. Device connect topics reduce to the
+        # node name either way. See
         # get_available_path_names().
         available_names = self.get_available_path_names(available_topics)
         status_msg.available_names = available_names
@@ -394,15 +394,9 @@ class ConnectNodeIF(NodeIF):
             # Auto-select fills an EMPTY selection only. A selection that IS set but
             # not yet discovered must be left alone: available_topics is populated
             # incrementally as sibling device nodes come up, so grabbing
-            # available_topics[0] here silently repointed a restored selection at
-            # whichever device happened to appear first. On a two-axis node that
-            # landed both axes on the same servo -- ptx_servos_node restored pan
-            # channel 0 and tilt channel 1 from config, then this method moved tilt
-            # to channel 0 before channel 1 was discovered, and the node adopted the
-            # wrong topic on its next updateConnectsHandler cycle. Nothing rewrote
-            # the param when that happened, so the config file still held the
-            # operator's real choice while the live selection had already moved on,
-            # which is why the selection looked like it never saved.
+            # available_topics[0] here would repoint a restored selection at
+            # whichever device happened to appear first, which on a two-axis node
+            # lands both axes on the same servo.
             if selected_topic == 'None' and len(available_topics) > 0 and self.auto_select_enabled == True:
                 selected_topic = available_topics[0]
                 self.selected_topic = selected_topic
@@ -513,13 +507,12 @@ class ConnectNodeIF(NodeIF):
     
     def set_selected_topic(self, selected_topic):
         # An undiscovered topic cannot be selected. Reject it WITHOUT persisting:
-        # the old code fell through and wrote the param plus save_config() even
-        # though self.selected_topic was left unchanged. Callers that re-assert a
+        # callers that re-assert a
         # derived selection every cycle (applyDerivedTargetsImageSelection in the
         # obstacles app) guard on get_selected_topic(), which never reports the
-        # rejected value, so each cycle re-entered here -- hammering the param
-        # server and rewriting the config file at 1 Hz, and filling the log with
-        # "Failed to set param ... Connection refused" whenever the master was
+        # rejected value, so each cycle re-enters here, and persisting would hammer the param
+        # server and rewrite the config file at 1 Hz, and fill the log with
+        # "Failed to set param ... Connection refused" whenever the master is
         # down. Rejection must be cheap and quiet; the caller's re-assert loop is
         # intentional and self-corrects once the topic is discovered.
         if selected_topic not in self.available_topics and selected_topic != "None":
@@ -669,10 +662,10 @@ class ConnectNodeIF(NodeIF):
         interface token (``/nepi/device/zed2_14/idx``, and ``.../motors`` for
         ConnectMotorIF, whose _updaterCb strips '/motor_status' rather than
         '/status'), so stripping that token leaves the node name alone and the
-        label is byte-identical to get_available_names(). That is why this can
-        replace the label source for every connect class at once.
+        label is byte-identical to get_available_names(). That is why this is
+        the label source for every connect class.
 
-        get_available_names() is left in place and unchanged for callers that
+        get_available_names() serves callers that
         want the owning node name on its own.
 
         Args:
@@ -781,9 +774,9 @@ class ConnectNodeIF(NodeIF):
         if self.connected_topic is not None:
             if self.connected_topic not in self.available_topics:
                 success = self.unsubscribe_topic()
-        # Honor auto_select_enabled here too. This path ignored the flag, so a
-        # consumer that disabled auto-select (a pan/tilt pair, where auto-selecting
-        # the first servo is guaranteed wrong for at least one axis) still got one
+        # Honor auto_select_enabled here too, so a
+        # consumer that disables auto-select (a pan/tilt pair, where auto-selecting
+        # the first servo is guaranteed wrong for at least one axis) does not get one
         # picked for it one second after startup.
         if selected_topic == 'None' and len(self.available_topics) > 0 and self.auto_select_enabled == True:
             self.selected_topic = self.available_topics[0]
@@ -1659,8 +1652,7 @@ class ConnectNodeClassIF:
         # set_param never fail. Config management (which is what actually makes
         # params persist across restarts, via the config manager) is only wired
         # when a params_dict is provided, so connect interfaces that pass no
-        # params_dict keep their previous lightweight, non-config-managed
-        # behavior unchanged.
+        # params_dict stay lightweight and non-config-managed.
         if params_dict is not None and configs_dict is not None:
             # Inject our own config callbacks that reload params first, mirroring
             # NodeClassIF, so a config-manager reload repopulates the params.

@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -815,12 +815,11 @@ class NavPoseIF(NodeIF):
 # SettingsIF
 #######################################
 
-# The device-side settings contract, unchanged by the move onto nepi_controls.
+# The device-side settings contract.
 # A driver (or system_mgr, for the system config) describes its settings as
 # string-valued dicts and hands SettingsIF two functions to read and write them.
 # SettingsIF converts that form to and from a nepi_controls controls dict, which
-# is what it publishes -- so the capability report that used to require a
-# SettingsCapabilitiesQuery round trip now rides the status message.
+# is what it publishes -- so the capability report rides the status message.
 
 
 def SET_NONE_SETTINGS_FUNCTION(setting):
@@ -837,8 +836,7 @@ class SettingsIF(NodeIF):
     factory, default and set tier. This interface keeps the string-valued
     settings dict contract that drivers implement, holds the live state as a
     nepi_settings settings dict, and publishes it as a SettingsStatus message
-    on '<namespace>/settings/status'. The capability information that the
-    retired SettingsCapabilitiesQuery service used to return (type, options,
+    on '<namespace>/settings/status'. The capability information (type, options,
     bounds, default) is carried in that status message.
 
     ROS interface, all under '<namespace>/<settings_name>':
@@ -1125,7 +1123,7 @@ class SettingsIF(NodeIF):
                     if setting_name in init_settings_dict.keys():
                         setting_value = settings_params_dict[setting_name]
                         # set_value's fourth parameter is `index`, not a second
-                        # copy of the value: passing setting_value twice used the
+                        # copy of the value: passing setting_value twice would use the
                         # value as an array index into itself.
                         init_settings_dict = nepi_controls.set_value(init_settings_dict, setting_name, setting_value)
         else:
@@ -1870,9 +1868,9 @@ class SaveDataIF(NodeIF):
             # Prefixed keys, matching how the params are registered in PARAMS_DICT
             # and how set_save_rate()/update_filename_dict()/register_data_product()
             # write them back. get_param() returns None for a name it does not know,
-            # so the unprefixed name wiped filename_dict on every config init, reset
+            # so an unprefixed name would wipe filename_dict on every config init, reset
             # and factory reset -- and save() no-ops entirely when filename_dict is
-            # None, so nothing was ever written to disk.
+            # None, so nothing would ever be written to disk.
             save_rate_dict = self.get_param('save_rate_dict')
             if save_rate_dict is not None:
                 for data_product in self.save_rate_dict.keys():
@@ -2929,8 +2927,8 @@ class TransformIF(NodeIF):
             # Prefixed keys, matching how the params are registered in PARAMS_DICT and
             # how set_transform()/set_source_description()/set_end_description()
             # write them back. get_param() returns None for a name it does not know,
-            # so the unprefixed names wiped the transform_dict on every config init, reset
-            # and factory reset -- saved 3D transforms never restored.
+            # so unprefixed names would wipe the transform_dict on every config init, reset
+            # and factory reset, and saved 3D transforms would never restore.
             transform_dict = self.get_param('transform')
             if transform_dict is not None:
                 # Merge: the defaults already in self.transform_dict, saved values on top

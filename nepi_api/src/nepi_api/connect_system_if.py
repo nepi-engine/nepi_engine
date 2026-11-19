@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -142,8 +142,8 @@ class ConnectSystemIF(ConnectNodeIF):
                 node_if = None
                 ):
 
-        # Raise rather than return. A bare return here left a half-built object with
-        # msg_if still None, so the real failure surfaced much later as an
+        # Raise rather than return. A bare return here would leave a half-built object with
+        # msg_if still None, so the real failure would surface much later as an
         # AttributeError on NoneType somewhere unrelated to the missing argument.
         if connect_status_msg is None:
             raise ValueError(str(type(self).__name__) +
@@ -535,11 +535,9 @@ class ConnectNavPoseIF(ConnectSystemIF):
             self.msg_if = msg_if
         self.msg_if.pub_info("Starting " + str(self.class_name) + " Initialization Processes")
 
-        # Forward by keyword. These arguments used to be passed positionally into a
+        # Forward by keyword into a
         # signature whose 3rd and 6th slots are connect_status_msg/connect_data_msg,
-        # so every argument landed in the wrong slot and connect_status_msg received
-        # None, which tripped the guard in ConnectDataIF.__init__ and left the
-        # instance dead. msg_if and node_if never arrived at all.
+        # so positional arguments would land in the wrong slots.
 
         self.msg_if = msg_if
         self.node_if = node_if
@@ -682,7 +680,7 @@ class ConnectNavPoseIF(ConnectSystemIF):
 
     def update_status_msg(self, status_msg):
         # ConnectNodeIF builds a fresh ConnectIFStatus that leaves navpose_topic and
-        # transform_topic blank, so the RUI NavPose Connect panel had no topic to show.
+        # transform_topic blank, so the RUI NavPose Connect panel would have no topic to show.
         # Report the host's own NavPoseIF/TransformIF, which this connect feeds.
         status_msg = super().update_status_msg(status_msg)
         navpose_if = getattr(self, 'navpose_if', None)
@@ -701,7 +699,7 @@ class ConnectNavPoseIF(ConnectSystemIF):
         # A NavPose Manager frame publishes its status at <frame>/status but its NavPose
         # at <frame>/navpose (navpose_mgr.addNavpose), unlike a device NavPoseIF, which
         # publishes both at <device>/navpose. Discovery finds a frame by its status topic,
-        # so subscribing at the frame namespace itself showed Connected but never got a pose.
+        # so subscribing at the frame namespace itself would show Connected but never get a pose.
         if str(selected_topic).startswith(self.navpose_frames_namespace + '/'):
             return 'navpose'
         return ''
@@ -1018,7 +1016,7 @@ class ConnectSaveDataIF:
 
 
 
-# Settings are controls dicts now, so setting types are the control types
+# Settings are controls dicts, so setting types are the control types
 SETTING_TYPES = nepi_controls.CONTROL_TYPES
 
 '''
@@ -1081,8 +1079,7 @@ class ConnectSettingsIF:
         self.SRVS_DICT = None
 
         # Pubs Config Dict ####################
-        # 'reset_settings' is the topic SettingsIF subscribes; the previous
-        # 'reset'/'factory_reset' topics had no subscriber on the far end.
+        # 'reset_settings' is the topic SettingsIF subscribes.
         self.PUBS_DICT = {
             'setting_update_pub': {
                 'msg': UpdateControl,
@@ -1172,7 +1169,7 @@ class ConnectSettingsIF:
     def get_has_capabilities_updating(self):
         """Return True if the remote node supports runtime capability setting updates.
 
-        Always False: the runtime cap-update topic was retired along with the
+        Always False: there is no runtime cap-update topic and no
         capabilities query service. Capability changes are made node-side and
         appear in the next status message.
         """
@@ -1198,8 +1195,8 @@ class ConnectSettingsIF:
     def update_cap_setting(self, cap_setting_dict):
         """Publish a capability setting update if the remote node supports it, and return success.
 
-        Always returns False. Kept so a caller written against the old client
-        still resolves; the remote cap-update topic no longer exists.
+        Always returns False; there is no remote cap-update topic. Kept so
+        existing callers still resolve.
 
         Args:
             cap_setting_dict (dict): Ignored.

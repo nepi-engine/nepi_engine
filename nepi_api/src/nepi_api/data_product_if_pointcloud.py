@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -311,9 +311,9 @@ class PointcloudIF(DataProductIF):
             },
             # setRotateRatioCb/setTiltRatioCb are wired to the live set_rotate_ratio
             # and set_tilt_ratio topics below and PointcloudStatus declares matching
-            # fields, but neither key was registered: the writes were dropped, the
-            # factory_reset_param calls in resetRenderControls were no-ops, and the
-            # status fields never left 0.0.
+            # fields, so both keys must be registered: without them the writes are dropped, the
+            # factory_reset_param calls in resetRenderControls are no-ops, and the
+            # status fields never leave 0.0.
             'rotate_ratio': {
                 'name': 'rotate_ratio',
                 'namespace': self.namespace,
@@ -835,7 +835,7 @@ class PointcloudIF(DataProductIF):
             # query, by far the most expensive of the three, and is not viable at frame rate on
             # a full-resolution stereo cloud of ~2M points. Decimate first, then filter.
             # Each stage is a no-op at its factory value, so a device that never sets these
-            # controls sees the pointcloud it saw before.
+            # controls sees the unprocessed pointcloud.
             pre_process_pc = o3d_pc
 
             # Read the controls once per publish call, never per point
@@ -1245,14 +1245,14 @@ class PointcloudImageIF(BaseImageIF):
         stop_range_ratio = 1.0,
         # [x_min, x_max, y_min, y_max] as ratios: [0,1,0,1] is the full frame. A
         # [0,0,0,0] here is a zero-area window, and the crop step then divides by
-        # (x_max - x_min) == 0. init() force-corrects it at startup, so the bad value
-        # only ever surfaced through reset_renders, which restores the constructor
+        # (x_max - x_min) == 0. init() force-corrects it at startup, so a bad value here
+        # would surface only through reset_renders, which restores the constructor
         # baseline captured before init() ran. Every other image IF uses [0,1,0,1].
         window_ratios = [0,1,0,1],
         # Camera distance, and the mapping is inverted: for a negative cam_pos x the
         # renderer uses (1 - zoom_3d_ratio) as the multiplier on cam_pos, so 0 is the
         # FARTHEST view (full -5 m) and larger values move the camera in. A 0 here
-        # started every pointcloud pinned to the far end of its range, which reads as
+        # would start every pointcloud pinned to the far end of its range, which reads as
         # "zoomed way out". 0.5 is the neutral midpoint, matching how every other
         # ratio control in this file defaults, and puts the camera at -2.5 m with
         # equal headroom to scroll in or out.
@@ -1435,7 +1435,7 @@ class PointcloudImageIF(BaseImageIF):
         # set_rotate_3d_ratio, set_tilt_3d_ratio, setCamFovCb, setCamViewCb,
         # setCamPositionCb, setCamRotationCb, setWhiteBgCb) and the interactive
         # drag/scroll/click handlers all update it, and publish_status reports it.
-        # Rendering from anything else is what made the ROS and RUI controls inert.
+        # Rendering from anything else would leave the ROS and RUI controls inert.
         # A caller-supplied render_dict overrides for this frame only and is not
         # persisted, so it cannot become a competing source of truth.
         resolved = copy.deepcopy(self.controls_dict)
@@ -1455,11 +1455,7 @@ class PointcloudImageIF(BaseImageIF):
         rotate_ratio = resolved.get('rotate_3d_ratio', 0.5)
         tilt_ratio = resolved.get('tilt_3d_ratio', 0.5)
         cam_fov = resolved.get('cam_fov', self.DEFAULT_CONTROLS_DICT['cam_fov'])
-        # Read each camera vector once. These previously read the same key twice as
-        # a "base" plus an "offset" and summed them, which doubled every value
-        # (cam_pos [-5,0,0] rendered as [-10,0,0]) and made a camera position set
-        # over ROS arrive at twice what was asked for. The offsets_dict those three
-        # lines were written against does not exist.
+        # Read each camera vector once.
         cam_view = list(resolved.get('cam_view', self.DEFAULT_CONTROLS_DICT['cam_view']))
         cam_pos = list(resolved.get('cam_pos', self.DEFAULT_CONTROLS_DICT['cam_pos']))
         cam_rot = list(resolved.get('cam_rot', self.DEFAULT_CONTROLS_DICT['cam_rot']))

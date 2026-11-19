@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -90,20 +90,13 @@ def update_status_msg( status_msg, settings_dict):
       if setting_type in nepi_controls.CONTROL_TYPES:
 
         # Convert value to a string list for the Control msg. The settings dict
-        # already holds every value as a one-entry-per-value list, so the old
-        # [str(value)] on the non-list types wrapped a list that was already a
-        # list: an Int published as the string "['0']" instead of '0', which is
-        # what the RUI rendered verbatim and what its parseFloat turned into NaN.
-        # It also wrote that back into the LIVE settings dict, so each publish
-        # re-wrapped the value the device reads from. This function reports; it
-        # does not edit.
+        # already holds every value as a one-entry-per-value list.
+        # This function reports; it does not edit.
         msg_value = nepi_controls.get_value_list(setting_dict['value'])
 
         if setting_type in nepi_controls.TRIGGER_TYPES:
           # Held as the time it was last fired, reported as seconds since, -999
-          # for never. 'Trigger' is the retired spelling of this type -- the
-          # equality test never matched 'Button', and comparing the list itself
-          # to 0 raised TypeError, so a button never reached the status message.
+          # for never. 'Trigger' is the retired spelling of this type.
           fired_at = 0
           try:
             fired_at = float(msg_value[0])
@@ -130,7 +123,7 @@ def update_status_msg( status_msg, settings_dict):
           types_list.append(setting_type)
           msgs_list.append(setting_msg)
       else:
-        # Same silent fall-through as create_controls_dict: a control that made
+        # Same fall-through as create_controls_dict: a control that made
         # it into the dict but carries a type this list does not know is simply
         # left out of the status message, so the RUI never sees it.
         logger.log_debug("update_status_msg: left control '" + str(name) +
@@ -138,7 +131,7 @@ def update_status_msg( status_msg, settings_dict):
                         "' out of the status message: type is not one of " + str(nepi_controls.CONTROL_TYPES),
                         throttle_s = 5)
     except Exception as e:
-      # Dropped the control from the published status with no log. Throttled,
+      # A failure here drops the control from the published status. Throttled,
       # unlike create_controls_dict: this runs on every status publish, not once
       # at registration.
       logger.log_debug("update_status_msg: left control '" + str(name) +

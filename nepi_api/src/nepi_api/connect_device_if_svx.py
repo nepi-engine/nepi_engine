@@ -54,7 +54,7 @@ from nepi_api.connect_node_if import ConnectNodeServicesIF
 #
 # Registry keys carry self.node_if_prefix (this connect's own namespace below the
 # node, e.g. 'pan_servo/'), the convention every NodeIF-based connect uses. A
-# per-class 'svx_' prefix was not enough: a pan/tilt pair holds two SVX connects,
+# per-class 'svx_' prefix is not enough: a pan/tilt pair holds two SVX connects,
 # and publish_pub is keyed, so on a shared node_if each would rebind the other's
 # publishers. ROS names derive from namespace+topic, not the key, so the prefix is
 # wire-invisible.
@@ -253,7 +253,7 @@ class ConnectSVXDeviceIF(ConnectDeviceIF):
         Returns:
             dict: A dictionary with keys has_absolute_positioning, has_adjustable_speed,
                 has_limit_controls, has_homing, has_set_home, and has_spin, or None if no
-                status has been received. The keys predate DeviceSVXStatus 3.4 and map
+                status has been received. The keys differ from DeviceSVXStatus 3.4 and map
                 onto its has_position_control, has_speed_control, has_limit_controls,
                 has_go_home_control, has_set_home_control and is_spin fields.
         """
@@ -519,8 +519,8 @@ class ConnectSVXDeviceIF(ConnectDeviceIF):
 
         WARNING: despite its name this sets the speed ratio and not any maximum. It
         publishes on the same set_speed_ratio topic that set_speed_ratio() does and
-        changes nothing about speed_max_dps. Confusing it with set_max_speed_dps() has
-        already caused a defect. The name is kept only because live external call sites
+        changes nothing about speed_max_dps. Confusing it with set_max_speed_dps() causes
+        defects. The name is kept only because live external call sites
         outside this workspace depend on it.
 
         See also set_speed_ratio() for the same command without the misleading name,

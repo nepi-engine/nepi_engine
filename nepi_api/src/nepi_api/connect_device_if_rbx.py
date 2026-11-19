@@ -32,9 +32,9 @@ from geographic_msgs.msg import GeoPoint
 from geometry_msgs.msg import Twist
 
 from nepi_interfaces.msg import SaveDataRate, SaveDataStatus
-# 3.4.0 PORT: DeviceRBXInfo is gone; its fields ride in DeviceRBXStatus, see report
+# The DeviceRBXInfo fields ride in DeviceRBXStatus
 from nepi_interfaces.msg import DeviceRBXStatus
-# 3.4.0 PORT: motors are per-motor SVX, see report
+# Motors are per-motor SVX
 #from nepi_interfaces.msg import MotorStatus, MotorsStatus
 from nepi_interfaces.msg import ErrorBounds
 from nepi_interfaces.msg import GotoPose, GotoPosition, GotoLocation, GotoVelocity
@@ -299,7 +299,7 @@ class ConnectRBXDeviceIF(ConnectDeviceIF):
             'has_goto_velocity': caps.has_goto_velocity
         }
 
-    # 3.4.0 PORT: motors are per-motor SVX, see report
+    # Motors are per-motor SVX
     #def get_motors_status_dict(self):
         #"""Return the latest multi-motor status as a dictionary.
 
@@ -449,7 +449,7 @@ class ConnectRBXDeviceIF(ConnectDeviceIF):
         if self.status_msg is not None:
             return self.status_msg.errors_prev
 
-    # 3.4.0 PORT: motors are per-motor SVX, see report
+    # Motors are per-motor SVX
     #def get_motor_control_settings(self):
         #"""Return the current manual motor control settings.
 
@@ -550,7 +550,7 @@ class ConnectRBXDeviceIF(ConnectDeviceIF):
         msg = timeout_s
         self.node_if.publish_pub(pub_name, msg)
 
-    # 3.4.0 PORT: motors are per-motor SVX, see report
+    # Motors are per-motor SVX
     #def set_motor_control(self, motor_ind, speed_ratio):
         #"""Command a single motor's speed ratio in manual control mode.
 
@@ -919,7 +919,7 @@ class ConnectRBXDeviceIF(ConnectDeviceIF):
         if self.dataCB is not None:
             status_dict = self.get_status_dict()
             self.dataCB(status_dict)
-        # 3.4.0 PORT: the DeviceRBXInfo fields ride in DeviceRBXStatus, see report
+        # The DeviceRBXInfo fields ride in DeviceRBXStatus
         self._infoCb(status_msg)
 
 

@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -37,8 +37,8 @@ from nepi_sdk import nepi_data
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64
 
-# ListIFStatus.msg was renamed SelectorStatus.msg in nepi_interfaces (776c92c, same
-# fields). The old name no longer exists, so importing it made this module unimportable.
+# nepi_interfaces has no ListIFStatus msg; SelectorStatus carries the ListIF status
+# fields, and importing ListIFStatus would make this module unimportable.
 from nepi_interfaces.msg import SelectorStatus as ListIFStatus
 from nepi_interfaces.msg import ControlsStatus, UpdateControl
 from nepi_interfaces.msg import DataStatus
@@ -709,7 +709,7 @@ class ControlsIF(NodeIF):
             # Prefixed key, matching how the param is registered and how
             # set_control_value()/set_control_options()/set_control_bounds()
             # write it back. get_param() returns None for a name it does not
-            # know, so the unprefixed name wiped the controls dict on every
+            # know, so an unprefixed name would wipe the controls dict on every
             # config init, reset and factory reset, leaving ControlsStatus with
             # empty control lists and the RUI with an empty controls box.
 
@@ -959,9 +959,9 @@ class ControlsIF(NodeIF):
         if self.node_if is not None and self.save_params == True and controls_dict is not None:
             param_name = 'controls_dict'
             # Param only. set_value also setattr()s any name this class declares,
-            # and controls_dict is one, so it replaced the live controls dict with
+            # and controls_dict is one, so it would replace the live controls dict with
             # this flat {control_name: value} form -- the next status publish then
-            # indexed a str/float/int as a control entry and dropped every control
+            # would index a str/float/int as a control entry and drop every control
             # of the set. set_param applies the same node_if_prefix set_value does.
             self.set_param(param_name, params_dict)
 
@@ -982,9 +982,9 @@ class ControlsIF(NodeIF):
         self.msg_if.pub_debug("Received control update msg: " + str(msg) )
         control_name = msg.name
         # apply_update_msg writes through the dict it is handed, so passing
-        # self.controls_dict applied the update before set_control_value ever
-        # ran -- its "did anything change" test then compared the new dict with
-        # itself, and no status, callback or param save came out of an update.
+        # self.controls_dict would apply the update before set_control_value ever
+        # ran -- its "did anything change" test would then compare the new dict with
+        # itself, and no status, callback or param save would come out of an update.
         controls_dict = copy.deepcopy(self.controls_dict)
         controls_dict = nepi_controls.apply_update_msg(controls_dict, msg)
         control_value = nepi_controls.get_value(controls_dict, control_name )
@@ -1411,7 +1411,7 @@ class DataIF(NodeIF):
     def _updateDatumCb(self,msg):
         self.msg_if.pub_debug("Received datum update msg: " + str(msg) )
         datum_name = msg.name
-        # Same fix as ControlsIF._updateControlCb: apply_update_msg writes
+        # Same as ControlsIF._updateControlCb: apply_update_msg writes
         # through the dict it is handed.
         data_dict = copy.deepcopy(self.data_dict)
         data_dict = nepi_data.apply_update_msg(data_dict, msg)

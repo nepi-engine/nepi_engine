@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -192,7 +192,7 @@ def create_data_dict(init_dict, id = None, name = None, display_name = None, des
   try:
     names = [name for name in init_dict.keys() if name not in DATA_META_KEYS]
   except Exception as e:
-    # Dropped every datum at once, with no log line. Not throttled: this runs
+    # A failure here drops every datum at once. Not throttled: this runs
     # once per data value at registration, so a throttle would hide it.
     logger.log_debug("create_data_dict: could not read datum names from init dict: " +
                     type(e).__name__ + ": " + str(e))
@@ -258,11 +258,8 @@ def create_data_dict(init_dict, id = None, name = None, display_name = None, des
         max_bound = -999
 
 
-        # Membership test, not equality against the name of the list. As an
-        # equality test this was never true, so min_bound/max_bound stayed at
-        # the -999 sentinel for every Int and Float datum and a device's
-        # reported bounds (v4l2 hands them over as init_datum_dict['bounds'])
-        # were discarded.
+        # A device's reported bounds arrive as init_datum_dict['bounds'] (v4l2
+        # hands them over that way).
         if input_type in BOUND_TYPES:
           if input_type == 'ColorRGB':
                 min_bound = 0
@@ -302,10 +299,8 @@ def create_data_dict(init_dict, id = None, name = None, display_name = None, des
         #############
         # Clean Value
         value = None
-        # Membership in the list, not a substring test against its name. As a
-        # substring test this was never true, so a Trigger never got its [0]
-        # seed: it fell through to the default branch, came out length 0, and
-        # was dropped as invalid below.
+        # A Trigger gets a [0] seed: through the default branch it comes out
+        # length 0 and is dropped as invalid below.
         if input_type in TRIGGER_TYPES:
           value = [0]
         else:
@@ -320,8 +315,6 @@ def create_data_dict(init_dict, id = None, name = None, display_name = None, des
               values = [str(item) for item in value]
             value = values
         if value is None or isinstance(value, list) == False:
-          # Third drop path, and it was the last silent one: no exception to
-          # catch, so nothing was logged.
           logger.log_debug("create_data_dict: dropped datum '" + str(name) +
                           "' of declared type '" + str(input_type) +
                           "': no default or value to seed it with")
@@ -367,8 +360,7 @@ def create_data_dict(init_dict, id = None, name = None, display_name = None, des
 
         check_dict = dict()
         # Keyed by the cleaned name, which is what get_clean_value looks up --
-        # it cleans the name before indexing, so a raw key it could not find
-        # came back None and the datum was dropped for no stated reason.
+        # it cleans the name before indexing.
         check_name = datum_dict['name']
         check_dict[check_name] = copy.deepcopy(datum_dict)
 
@@ -381,13 +373,8 @@ def create_data_dict(init_dict, id = None, name = None, display_name = None, des
                           "': value " + str(check_value) + " is not valid for the datum")
           continue
 
-        # Store the LIST form of the cleaned value. This took len() of
-        # get_clean_value's return, which is the NATIVE form: len(3) and
-        # len(True) raise TypeError, so every Int and Bool was dropped, and a
-        # String's length became its character count -- len('/dev/ttyUSB0') is
-        # 12 against a one-entry value list -- which is what walked
-        # get_clean_value's range(datum_length) off the end of current_value
-        # and killed drivers_mgr from its set_value call.
+        # Store the LIST form of the cleaned value. get_clean_value returns
+        # the NATIVE form.
         value = get_value_list(clean_value)
         datum_dict['value'] = value
         datum_dict['default'] = value
@@ -415,15 +402,8 @@ def create_data_dict(init_dict, id = None, name = None, display_name = None, des
         # Add to dict
         data_dict[name] = datum_dict
     except Exception as e:
-      # A failing datum is still skipped and the loop still continues, exactly
-      # as before -- the only change is that the failure is now audible. This
-      # bare except:pass is why every other defect in this file went unnoticed:
-      # a datum that raised here vanished from the dict with no error, no log
-      # line, and no absence anyone could see except in the RUI.
-      #
       # Not throttled. A data value registers all of its data in one pass,
-      # so a throttle window would report the first failure and swallow the rest
-      # -- which is the behavior being fixed.
+      # so a throttle window would report the first failure and swallow the rest.
       declared_type = '<unreadable>'
       try:
         declared_type = str(init_dict[name]['type'])
@@ -483,11 +463,7 @@ def get_clean_value(data_dict, datum_name, datum_value = None):
         return value
 
       # Callers hand this the NATIVE value -- set_value from a driver, the
-      # DataIF/SettingsIF wrappers, apply_update_msg. Iterating that
-      # directly raised TypeError on an int (SettingsIF.init died here on
-      # drivers_mgr's stored settings) and, worse, silently split a bare string
-      # into one entry per CHARACTER, which is where the mismatched lengths and
-      # the walk off the end of current_value came from.
+      # DataIF/SettingsIF wrappers, apply_update_msg.
       datum_value = get_value_list(datum_value)
 
   
@@ -548,16 +524,11 @@ def get_clean_value(data_dict, datum_name, datum_value = None):
 
             try:
               add_value  = round(float(add_value), round_f)
-              # Named round_to, not round: binding the name `round` shadowed the
-              # builtin, so round(add_value, round) raised "'int' object is not
-              # callable" on the very next line. The except below swallowed it and
-              # handed back cur_value, so EVERY Float update silently reverted to
-              # the value already held.
+              # Named round_to, not round: binding the name `round` would shadow
+              # the builtin used below.
               round_to = datum_dict['round']
               if round_to >= 0:
                 add_value = round(add_value,round_to)
-              # Clamps to min_bound. This assigned max_bound, so a value below the
-              # minimum came back as the MAXIMUM.
               if float(min_bound) != -999 and add_value < min_bound:
                 add_value = min_bound
               if float(max_bound) != -999 and add_value > max_bound:
@@ -568,9 +539,7 @@ def get_clean_value(data_dict, datum_name, datum_value = None):
 
           elif datum_type in TRIGGER_TYPES: ###########################################################
               # The stored value is the time the datum last fired; get_value
-              # reports seconds since, and reads <= 0 as "never fired". float()
-              # of the whole datum_value list raised TypeError on every path
-              # into here, so a Trigger could only ever hold 0.
+              # reports seconds since, and reads <= 0 as "never fired".
               try:
                 add_value = float(add_value)
               except:
@@ -683,11 +652,8 @@ def set_value(data_dict, datum_name, update_value, index = None,  check_valid = 
         except:
           pass
 
-      # Validate when asked to validate. The test was inverted, so the default
-      # path (check_valid = True) wrote the raw wire value straight into the dict
-      # -- handing a driver's setSettingFunction ['False'] for a Bool and ['5']
-      # for an Int -- while a caller passing check_valid = False to SKIP the check
-      # got it run. drivers_mgr's discovery pass is that caller.
+      # Validate when asked to validate. A caller passing check_valid = False
+      # skips the check; drivers_mgr's discovery pass is that caller.
       if check_valid == True:
         #logger.log_debug("Checking set datum value: " + str(update_value))
         update_value = get_clean_value(data_dict, datum_name, update_value)
@@ -851,8 +817,8 @@ def get_hidden(data_dict, datum_name):
   return display_hidden
 
 def set_hidden(data_dict, datum_name, display_hidden):
-  # str() here wrote the strings 'True'/'False' into Datum.display_hidden, a bool
-  # field. convert_dict2msg then rejected the dict and the datum vanished
+  # Datum.display_hidden is a bool field. A string here makes
+  # convert_dict2msg reject the dict, and the datum vanishes
   # from the status message instead of being display_hidden in it.
   display_hidden = (display_hidden == True)
   if datum_name in data_dict.keys():
@@ -997,18 +963,13 @@ def convert_data_dict2msg(data_dict, id = None, name = None, display_name = None
       datum_type = datum_dict['type']
       if datum_type in DATUM_TYPES:
 
-        # Convert value to a string list for the Datum msg. This used to write
-        # msg_value/msg_default BACK into the live data dict, and for the
-        # single-value types [str(value)] wrapped a value that was already a
-        # one-entry list -- so every status publish re-wrapped it and the dict
-        # ended up holding the string "['0']" in place of '0'. The dict the
+        # Convert value to a string list for the Datum msg. The dict the
         # device reads from is not this function's to edit.
         msg_value = get_value_list(datum_dict['value'])
 
         if datum_type in TRIGGER_TYPES:
           # A Trigger holds the time it was last fired; the status reports seconds
-          # since, or -999 for never. Comparing the list itself to 0 raised
-          # TypeError and left every Trigger out of the published status.
+          # since, or -999 for never.
           fired_at = 0
           try:
             fired_at = float(msg_value[0])
@@ -1035,7 +996,7 @@ def convert_data_dict2msg(data_dict, id = None, name = None, display_name = None
           names_list.append(name)
           msgs_list.append(datum_msg)
       else:
-        # Same silent fall-through as create_data_dict: a datum that made
+        # Same fall-through as create_data_dict: a datum that made
         # it into the dict but carries a type this list does not know is simply
         # left out of the status message, so the RUI never sees it.
         logger.log_debug("update_status_msg: left datum '" + str(name) +
@@ -1043,7 +1004,7 @@ def convert_data_dict2msg(data_dict, id = None, name = None, display_name = None
                         "' out of the status message: type is not one of " + str(DATUM_TYPES),
                         throttle_s = 5)
     except Exception as e:
-      # Dropped the datum from the published status with no log. Throttled,
+      # A failure here drops the datum from the published status. Throttled,
       # unlike create_data_dict: this runs on every status publish, not once
       # at registration.
       logger.log_debug("update_status_msg: left datum '" + str(name) +

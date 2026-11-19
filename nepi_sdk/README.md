@@ -1,10 +1,19 @@
 <!--
-Copyright (c) 2024 Numurus, LLC <https://www.numurus.com>.
+Copyright (c) 2024 Numurus <https://www.numurus.com>.
 
-This file is part of nepi-engine
-(see https://github.com/nepi-engine).
+This file is part of nepi engine (nepi_engine) repo
+(see https://github.com/nepi-engine/nepi_engine)
 
-License: 3-clause BSD, see https://opensource.org/licenses/BSD-3-Clause
+License: NEPI Engine repo source-code and NEPI Images that use this source-code
+are licensed under the "Numurus Software License",
+which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
+
+Redistributions in source code must retain this top-level comment block.
+Plagiarizing this software to sidestep the license obligations is illegal.
+
+Contact Information:
+====================
+- mailto:nepi@numurus.com
 -->
 # nepi_sdk
 This repository contains foundational NEPI Engine ROS and support modules. In particular, abstract base classes, ROS-independent "drivers", full system and device command and control nodes, and anything that doesn't serve a very specialized purpose in the NEPI edge ecosystem is included in this repository. Along with _nepi_interfaces_, the present repository can be considered the foundation of the NEPI edge ecosystem, with most other submodules in the ecosystem relying heavily on this one.

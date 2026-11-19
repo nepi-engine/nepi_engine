@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -34,9 +34,9 @@ from nepi_sdk import nepi_system
 # libraries' own native TLS usage exhausts the process's static TLS block, so
 # open3d's OpenMP extension (libgomp.so.1) then fails importing with
 # "cannot allocate memory in static TLS block" -- 100% reproducible in this
-# order, 100% avoided by importing open3d (via nepi_pc) first. This broke
+# order, 100% avoided by importing open3d (via nepi_pc) first. The wrong order breaks
 # EVERY RBXRobotIF-based driver (rbx_sim, rbx_ardupilot, ...) on this
-# platform. Order matters here; do not "clean up" back to alphabetical.
+# platform. Order matters here; do not "clean up" to alphabetical.
 from nepi_sdk import nepi_pc
 from nepi_sdk import nepi_img
 from nepi_sdk import nepi_nav
@@ -454,8 +454,8 @@ class RBXRobotIF(DeviceIF):
 
 
         # Copy the has_*_control axis flags into caps_dict unconditionally (the
-        # class-level caps_dict starts empty, so the old "already a key" filter
-        # dropped every one). NodeIF fills status fields by name from caps_dict,
+        # class-level caps_dict starts empty, so an "already a key" filter
+        # would drop every one). NodeIF fills status fields by name from caps_dict,
         # so only keys that are DeviceRBXStatus fields are copied.
         if axisCapabilities is not None:
           for key in axisCapabilities.keys():
@@ -1016,7 +1016,7 @@ class RBXRobotIF(DeviceIF):
         # nepi_sdk.start_timer_process(1, self.processCb, oneshot = True)
         # Refresh the current_* control attributes from this device's navpose.
         # The goto convergence loops, takeoff checks and home location all read
-        # current_*; without this timer they stayed at their [0,0,0] defaults.
+        # current_*; without this timer they would stay at their [0,0,0] defaults.
         nepi_sdk.start_timer_process(self.update_navpose_interval_sec, self._updateNavposeTimerCb)
         ####################################
         self.ready = True
@@ -1110,8 +1110,8 @@ class RBXRobotIF(DeviceIF):
 
         # The option lists live in caps_dict under 'states'/'modes'/
         # 'setup_actions'/'go_actions', which are not the status field names,
-        # so NodeIF's name-matched status fill never set them and the RUI's
-        # state, mode and action selectors (NepiDeviceRBX.js) stayed empty.
+        # so NodeIF's name-matched status fill never sets them and the RUI's
+        # state, mode and action selectors (NepiDeviceRBX.js) would stay empty.
         status_msg.state_options = list(self.caps_dict['states'])
         status_msg.mode_options = list(self.caps_dict['modes'])
         status_msg.setup_action_options = list(self.caps_dict['setup_actions'])
@@ -1220,8 +1220,7 @@ class RBXRobotIF(DeviceIF):
     ###############################
     def _updateNavposeTimerCb(self, timer):
         # Periodic bridge from the device's own navpose to the current_* control
-        # attributes (see setup note). The now-dead navposesSysCb used to be the
-        # only caller of _updateCurrentNavpose.
+        # attributes (see setup note).
         self._updateCurrentNavpose()
 
     def _updateCurrentNavpose(self):
@@ -1336,7 +1335,7 @@ class RBXRobotIF(DeviceIF):
                     self.rbx_cmd_success_current = False
                     # Clear the previous run's error before starting. Nothing else
                     # clears last_error_message, so a failed action (e.g. a LAUNCH
-                    # that would not ARM) stayed on the RUI even after a later
+                    # that would not ARM) would stay on the RUI even after a later
                     # attempt succeeded. Cleared at action START, not on success,
                     # so an error raised DURING the action -- including FCU prearm
                     # text relayed by update_error_msg -- survives to be read.
@@ -1501,8 +1500,8 @@ class RBXRobotIF(DeviceIF):
         self.msg_if.pub_info(stop_msg)
         # No time.sleep(1) here, unlike the goto callbacks: this callback has no
         # "another command is active" check to debounce, and a one-second delay
-        # on a stop let a running goto loop keep driving toward its old target
-        # for that whole second before the stop was even issued.
+        # on a stop would let a running goto loop keep driving toward its old target
+        # for that whole second before the stop is even issued.
         if self.process_data_dict['has_go_stop'] == True or  self.goStopFunction is not None:
             self.status_msg.process_current = "Stop"
             self.rbx_cmd_success_current = False
@@ -1675,10 +1674,10 @@ class RBXRobotIF(DeviceIF):
         self.msg_if.pub_info(position_cmd_msg)
         time.sleep(1)
         # Gated on autonomous readiness like gotoPoseCb/gotoVelocityCb/
-        # gotoLocationCb. The old "manual_control_mode_ready is False" gate was
+        # gotoLocationCb. A "manual_control_mode_ready is False" gate would be
         # inverted: a driver whose manual controls are always ready (rbx_ardupilot)
         # could never goto position, and ones gated on a live connection
-        # (rbx_gazebo, custom_robot) only accepted it while disconnected.
+        # (rbx_gazebo, custom_robot) would only accept it while disconnected.
         if self.autonomousControlsReadyFunction() is True or self.process_data_dict['has_goto_position'] == True:
             setpoint_data=[position_cmd_msg.x_meters,position_cmd_msg.y_meters,position_cmd_msg.z_meters,position_cmd_msg.yaw_deg]
             if self.status_msg.ready is False:
@@ -1744,8 +1743,7 @@ class RBXRobotIF(DeviceIF):
   
     def setCurrentAsDefault(self):
         if self.settings_if is not None:
-          # initialize_settings() has never existed on SettingsIF -- this raised
-          # AttributeError on every setCurrentAsDefault(). init() is the method.
+          # SettingsIF has no initialize_settings(); init() is the method.
           self.settings_if.init(do_updates = False)
         pass # We only use the param server, no member variables to apply to param server
    
@@ -2137,9 +2135,8 @@ class RBXRobotIF(DeviceIF):
       self.msg_if.pub_info("Starting Setpoint Location Global Process" )
       # Exactly latitude 0, longitude 0 is an unset target -- a GoTo Location
       # form still at its 0 defaults, or a home that was never set -- not a
-      # destination. Confirmed on the bench 2026-11-10: an RUI GoTo Location
-      # sent with untouched fields was accepted and drove the vehicle and its
-      # fake GPS toward 0,0, about 12,400 km away. Refused here so every caller
+      # destination.
+      # Refused here so every caller
       # is covered (RUI, driver go-home, apps). A held axis is -999, never 0.
       if float(setpoint_location[0]) == 0.0 and float(setpoint_location[1]) == 0.0:
         self.update_error_msg("Refusing GoTo Location to latitude 0, longitude 0: the target is unset")
@@ -2268,7 +2265,7 @@ class RBXRobotIF(DeviceIF):
           else:
             yaw_errors.append(max_yaw_enu_error_deg) # append last
         # Reset timer if past. Same bound as the checks above: a fixed 1 s
-        # reset never let the timer pass a min_stabilize_time_s above 1 s, so
+        # reset would never let the timer pass a min_stabilize_time_s above 1 s, so
         # such a goto could never complete.
         if stabilize_timer > self.status_msg.error_bounds.min_stabilize_time_s:
           stabilize_timer=0 # Reset timer

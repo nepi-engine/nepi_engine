@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -532,9 +532,8 @@ class ScriptsManager(object):
                         # Update the cumulative run time whether exited on success or error
                         self.script_counters[script]['cumulative_run_time'] += 1 #(nepi_sdk.get_msg_stamp() - nepi_sdk.msg_stamp_from_sec(process['start_time'])).to_sec()
                         process['logfile'].close()
-            # Pace the loop -- previously only slept when a script had just
-            # completed, so with zero scripts configured (or none completing)
-            # this spun unbounded, pegging a full CPU core permanently.
+            # Pace the loop -- with zero scripts configured (or none completing)
+            # it would otherwise spin unbounded, pegging a full CPU core.
             nepi_sdk.wait()
 
 

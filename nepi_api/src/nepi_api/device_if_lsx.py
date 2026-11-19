@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -45,7 +45,7 @@ from nepi_api.node_if import NodeClassIF
 
 from nepi_api.device_if import DeviceIF
 
-# NavPose ConnectNavPosesIF retired (class removed from connect_data_if); LSX has no navpose source.
+# connect_data_if has no ConnectNavPosesIF class; LSX has no navpose source.
 #from nepi_api.connect_data_if import ConnectNavPosesIF
 
 
@@ -635,8 +635,8 @@ class LSXDeviceIF(DeviceIF):
         # NodeConfigsIF, whose __init__ calls reset_config() -> this class's
         # resetCb -> initCb(do_updates=True) -> here, all while the
         # 'self.node_if = NodeClassIF(...)' assignment is still evaluating.
-        # initCb and resetCb each guard on node_if for that reason; this did not,
-        # so every param read below raised AttributeError on None. The premature
+        # initCb and resetCb each guard on node_if for that reason, and so does this:
+        # every param read below would raise AttributeError on None. The premature
         # call is redundant anyway -- initCb(do_updates=True) runs again right
         # after node_if is assigned, which is when the device actually gets pushed.
         if self.node_if is None:
@@ -664,8 +664,7 @@ class LSXDeviceIF(DeviceIF):
 
     def setCurrentAsDefault(self):
         if self.settings_if is not None:
-          # initialize_settings() has never existed on SettingsIF -- this raised
-          # AttributeError on every setCurrentAsDefault(). init() is the method.
+          # SettingsIF has no initialize_settings(); init() is the method.
           self.settings_if.init(do_updates = False)
         pass # We only use the param server, no member variables to apply to param server
     

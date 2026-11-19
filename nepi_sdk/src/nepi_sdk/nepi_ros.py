@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -714,8 +714,8 @@ class logger:
         # Daemon threads: these loops only end on rospy shutdown, and the
         # module-level sdk_logger starts them at import, before init_node. A
         # process that dies before init_node completes never reaches rospy
-        # shutdown, so non-daemon threads here kept it alive forever (Python
-        # exit waits on them); orphaned *_img_pub processes were found that way.
+        # shutdown, so non-daemon threads here would keep it alive forever (Python
+        # exit waits on them).
         sub_updater_thread = threading.Thread(target=self.subUpdaterCb)
         sub_updater_thread.daemon = True
         sub_updater_thread.start()
@@ -1721,7 +1721,7 @@ def create_subscriber(sub_namespace, msg, callback, queue_size = 10, callback_ar
   # app, where leaving it unset put the two cameras hundreds of ms apart while
   # rostopic delay showed both stamps ~11 ms old.
   #
-  # Passed to rospy only when set, so the default path stays exactly as it was.
+  # Passed to rospy only when set.
   if queue_size is None:
     queue_size = 1
   sub = None

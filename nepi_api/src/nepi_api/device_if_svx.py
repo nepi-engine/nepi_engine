@@ -1005,9 +1005,9 @@ class DeviceSVXIF(DeviceIF):
         # Re-read the max here rather than trusting the single sample taken in __init__.
         # getSpeedMaxCb can legitimately report a placeholder before the driver's own
         # devices have connected -- SVX_servos_node returns a fallback until its SVX
-        # interfaces come up -- and sampling once at construction latched that placeholder
+        # interfaces come up -- and sampling once at construction would latch that placeholder
         # permanently. Because supplying getSpeedMaxCb also sets set_max_disabled,
-        # nothing downstream could correct it: the reported max was both wrong and locked.
+        # nothing downstream can correct it.
         # Only a positive value is accepted, so a transient None or 0 cannot poison it.
         if self.getSpeedMaxCb is not None:
             speed_max = self.getSpeedMaxCb()
@@ -1122,9 +1122,9 @@ class DeviceSVXIF(DeviceIF):
         
     
             # Restore the reverse flags BEFORE deriving the direction multipliers from
-            # them. Reading the params after this derivation left reverse_int/rti computed from
-            # the pre-restore value while status_msg reported the restored one, so a
-            # restored reverse axis read correct on the page and still moved the wrong
+            # them. Reading the params after this derivation would leave reverse_int/rti computed from
+            # the pre-restore value while status_msg reports the restored one, so a
+            # restored reverse axis would read correct on the page and still move the wrong
             # way.
             reverse = self.node_if.get_param(self.node_if_prefix + 'reverse')
             if reverse is not None:
