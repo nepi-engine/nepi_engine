@@ -249,9 +249,36 @@ def create_controls_dict(init_dict, id = None, name = None, display_name = None,
     names = []
 
   for i, name in enumerate(names):
+
+    # Convert to control init dict entry if needed
+    is_list = True
+    if isinstance(init_dict[name], dict) == False:
+      
+      values = init_dict[name]
+      if isinstance(values,list) == False:
+          is_list = False
+          values = [values]
+      if len(values) > 0:
+          try:
+            if is_list == False:
+                entry_type = {'str':'String','bool':'Bool','int':'Int','float':'Float'}.get(values[0].__class__.__name__,'')
+            else:
+                entry_type = {'str':'Strings','bool':'Bools','int':'Ints','float':'Floats'}.get(values[0].__class__.__name__,'')
+          except:
+            entry_type = 'None'
+            continue
+      else:
+          entry_type = 'None'
+          continue       
+      init_dict[name] = dict()
+      init_dict[name]['type'] = entry_type
+      init_dict[name]['default'] = values
+      init_dict[name]['display_hidden'] = False
+
+    # Process control init dict entry
     try:
       init_control_dict = init_dict[name]
-      input_type = init_control_dict['type']
+      input_type = init_control_dict.get('type', 'None')
       if input_type == 'None':
         continue
       if input_type == 'Discrete':
