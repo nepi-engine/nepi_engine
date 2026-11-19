@@ -6,7 +6,7 @@
 # (see https://github.com/nepi-engine/nepi_engine)
 #
 # License: NEPI Engine repo source-code and NEPI Images that use this source-code
-# are licensed under the "Numurus Software License", 
+# are licensed under the "Numurus Software License",
 # which can be found at: <https://numurus.com/wp-content/uploads/Numurus-Software-License-Terms.pdf>
 #
 # Redistributions in source code must retain this top-level comment block.
@@ -1004,9 +1004,9 @@ class PTXActuatorIF(DeviceIF):
         # Re-read the max here rather than trusting the single sample taken in __init__.
         # getSpeedMaxCb can legitimately report a placeholder before the driver's own
         # devices have connected -- ptx_servos_node returns a fallback until its SVX
-        # interfaces come up -- and sampling once at construction latched that placeholder
+        # interfaces come up -- and sampling once at construction would latch that placeholder
         # permanently. Because supplying getSpeedMaxCb also sets set_max_dps_disabled,
-        # nothing downstream could correct it: the reported max was both wrong and locked.
+        # nothing downstream can correct it.
         # Only a positive value is accepted, so a transient None or 0 cannot poison it.
         if self.getSpeedMaxCb is not None:
             speed_max_dps = self.getSpeedMaxCb()
@@ -1098,11 +1098,7 @@ class PTXActuatorIF(DeviceIF):
             # Restore on the same predicates the three write paths are gated on:
             # _setSpeedRatio writes when has_adjustable_speed is True, and
             # _setPanSpeedRatio/_setTiltSpeedRatio write when
-            # has_seperate_pan_tilt_speed is True. Gating the restore on
-            # has_adjustable_speed == False was the exact inverse, so on the units
-            # where the operator can move the speed it was saved and never read back.
-            # It also left speed_ratios assigned under one guard and consumed under a
-            # sibling guard -- a NameError on any driver with per-axis speed callbacks.
+            # has_seperate_pan_tilt_speed is True.
             if self.has_adjustable_speed == True or self.has_seperate_pan_tilt_speed == True:
                 speed_ratios = self.node_if.get_param(self.node_if_prefix + 'speed_ratios')
                 if speed_ratios is not None and len(speed_ratios) == 2:
@@ -1131,9 +1127,9 @@ class PTXActuatorIF(DeviceIF):
         
     
             # Restore the reverse flags BEFORE deriving the direction multipliers from
-            # them. Reading the params after this derivation left rpi/rti computed from
-            # the pre-restore value while status_msg reported the restored one, so a
-            # restored reverse axis read correct on the page and still moved the wrong
+            # them. Reading the params after this derivation would leave rpi/rti computed from
+            # the pre-restore value while status_msg reports the restored one, so a
+            # restored reverse axis would read correct on the page and still move the wrong
             # way.
             reverse_pan_enabled = self.node_if.get_param(self.node_if_prefix + 'reverse_pan_enabled')
             if reverse_pan_enabled is not None:
@@ -1411,7 +1407,8 @@ class PTXActuatorIF(DeviceIF):
 
     def _setSpeedRatio(self,speed_ratio):
         if self.has_adjustable_speed == True:
-            speed_cur = math.floor(self.getSpeedRatioCb())
+            # No floor(): the callback returns a 0-1 ratio, which floor() would log as 0.00
+            speed_cur = self.getSpeedRatioCb()
             
             self.msg_if.pub_warn("new speed ratio " + "%.2f" % speed_ratio)
             self.msg_if.pub_warn("cur speed ratio " + "%.2f" % speed_cur)
