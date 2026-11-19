@@ -1224,7 +1224,8 @@ class PointcloudImageIF(BaseImageIF):
         has_zoom_3d = True,
         has_rotate_3d = True,
         has_tilt_3d = True,
-        has_camera_3d = True
+        has_camera_3d = True,
+        has_stabilize = True
         )
 
     DEFAULT_FILTERS_DICT = dict()

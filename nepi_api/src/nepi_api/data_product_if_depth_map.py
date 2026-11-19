@@ -896,7 +896,8 @@ class DepthMapImageIF(BaseImageIF):
         has_zoom_3d = False,
         has_rotate_3d = False,
         has_tilt_3d = False,
-        has_camera_3d = False
+        has_camera_3d = False,
+        has_stabilize = True
         )
 
     DEFAULT_FILTERS_DICT = dict()
