@@ -361,7 +361,7 @@ def convert_control_group_dict2msg(input_dict, key_name = 'topic_dict'):
     controls_dict = input_dict.get('controls_dict',dict())
     if controls_dict is not None:
         try:
-            output_msg.controls_msg = nepi_controls.convert_controls_dict2msg(controls_dict)
+            output_msg.controls_dict = convert_values_dict2msg(nepi_controls.get_values(controls_dict))
         except:
             pass
 
@@ -370,7 +370,7 @@ def convert_control_group_dict2msg(input_dict, key_name = 'topic_dict'):
     data_dict = input_dict.get('data_dict',dict())
     if data_dict is not None:
         try:
-            output_msg.data_msg = nepi_data.convert_data_dict2msg(data_dict)
+            output_msg.data_dict = convert_values_dict2msg(nepi_controls.get_values(data_dict))
         except:
             pass
 

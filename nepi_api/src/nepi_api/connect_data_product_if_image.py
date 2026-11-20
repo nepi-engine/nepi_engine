@@ -2637,6 +2637,12 @@ class ConnectImagesAllIF:
                 'topic': 'set_live_adjust_y_deg',
                 'msg': Float32,
                 'qsize': 1,
+            },
+            'all_set_stabilize_enable': {
+                'namespace': self.all_namespace,
+                'topic': 'set_stabilize_enable',
+                'msg': Bool,
+                'qsize': 1,
             }
         }
 

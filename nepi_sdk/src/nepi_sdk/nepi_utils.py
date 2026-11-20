@@ -1049,6 +1049,31 @@ def rotate_point(x, y, degrees):
     
     return new_x, new_y
 
+def transform_point (x, y, degrees=0, x_shift=0, y_shift=0):
+    """
+    Rotates a point in the xy-plane counterclockwise through an angle about the origin
+    https://en.wikipedia.org/wiki/Rotation_matrix
+    :param x: x coordinate
+    :param y: y coordinate
+    :param x_shift: x-axis shift from origin (0, 0)
+    :param y_shift: y-axis shift from origin (0, 0)
+    :param angle: The rotation angle in degrees
+    :param units: DEGREES (default) or RADIANS
+    :return: Tuple of rotated x and y
+    """
+
+    # Shift to origin (0,0)
+    x = x - x_shift
+    y = y - y_shift
+
+    # Convert degrees to radians
+    angle = math.radians(degrees)
+
+    # Rotation matrix multiplication to get rotated x & y
+    new_x = (x * math.cos(angle)) - (y * math.sin(angle)) + x_shift
+    new_y = (x * math.sin(angle)) + (y * math.cos(angle)) + y_shift
+
+    return new_x, new_y
 ##################
 ## Misc Check Functions
 

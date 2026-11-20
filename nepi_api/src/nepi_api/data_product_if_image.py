@@ -231,7 +231,7 @@ class BaseImageIF(DataProductIF):
         has_rotate_3d = False,
         has_tilt_3d = False,
         has_camera_3d = False,
-        has_stabilize = True
+        has_stabilize = False
         )
 
     DEFAULT_FILTERS_DICT = dict()
@@ -283,6 +283,7 @@ class BaseImageIF(DataProductIF):
     BLANK_CROSSHAIR_DICT = dict(
         x_deg_offset = 0,
         y_deg_offset = 0,
+        rotate_deg = 0,
         color_rgb = (0,255,0),
         msg_str = ''
     )
@@ -290,6 +291,7 @@ class BaseImageIF(DataProductIF):
     BLANK_TARGET_DICT = dict(
         x_deg_offset = 0,
         y_deg_offset = 0,
+        rotate_deg = 0,
         color_rgb = (0,255,0),
         msg_str = ''
     )
@@ -414,7 +416,7 @@ class BaseImageIF(DataProductIF):
         live_adjust_x_deg = 0,
         live_adjust_y_deg = 0,
     )
-    has_stabilize = True
+    has_stabilize = False
     stabilize_enabled = False
     stabilize_rotate_deg = 0
 
@@ -1809,8 +1811,8 @@ class BaseImageIF(DataProductIF):
 
         #########################
         update_subs_dict.update( {
-            'set_stabilize_enable': {
-            'namespace': self.namespace,
+            'all_set_stabilize_enable': {
+            'namespace': self.all_namespace,
             'topic': 'set_stabilize_enable',
             'msg': Bool,
             'qsize': 5,
@@ -2389,6 +2391,7 @@ class BaseImageIF(DataProductIF):
                 crosshair_msg.g = crosshair_dict['color_rgb'][1]
                 crosshair_msg.b = crosshair_dict['color_rgb'][2]
 
+                crosshair_msg.rotate_deg = crosshair_dict['rotate_deg']
 
                 crosshair_msg.msg_str = str(crosshair_dict['msg_str'])
                 crosshairs_msg_list.append(crosshair_msg)
@@ -2454,6 +2457,8 @@ class BaseImageIF(DataProductIF):
                 target_msg.r = target_dict['color_rgb'][0]
                 target_msg.g = target_dict['color_rgb'][1]
                 target_msg.b = target_dict['color_rgb'][2]
+
+                target_msg.rotate_deg = target_dict['rotate_deg']
 
 
                 target_msg.msg_str = str(target_dict['msg_str'])
@@ -3064,6 +3069,7 @@ class BaseImageIF(DataProductIF):
 
 
                                 crosshair_rbg = crosshair_dict['color_rgb']
+                                crosshair_deg = crosshair_dict['rotate_deg']
                                 crosshair_msg = crosshair_dict['msg_str']
 
                                 overlay_text = []
@@ -3083,6 +3089,7 @@ class BaseImageIF(DataProductIF):
                                 cv2_img = nepi_img.overlay_crosshair(cv2_img, 
                                                         x_px = x_pixel , y_px = y_pixel, 
                                                         color_rgb = crosshair_rbg, 
+                                                        rotate_deg = crosshair_deg,
                                                         size_ratio =  crosshairs_size_ratio,
                                                         thickness_ratio = crosshairs_thickness_ratio,
                                                         text_list = overlay_text,
@@ -3156,6 +3163,7 @@ class BaseImageIF(DataProductIF):
 
 
                                 target_rbg = target_dict['color_rgb']
+                                target_deg = target_dict['rotate_deg']
                                 target_msg = target_dict['msg_str']
 
                                 overlay_text = []
@@ -3175,6 +3183,7 @@ class BaseImageIF(DataProductIF):
                                 cv2_img = nepi_img.overlay_target(cv2_img, 
                                                         x_px = x_pixel , y_px = y_pixel, 
                                                         color_rgb = target_rbg, 
+                                                        rotate_deg = target_deg,
                                                         size_ratio =  targets_size_ratio,
                                                         thickness_ratio = targets_thickness_ratio,
                                                         text_list = overlay_text,
@@ -4220,7 +4229,7 @@ class BaseImageIF(DataProductIF):
             self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
-    def add_crosshair_pixels(self, x_pixel, y_pixel, name = None, color_rgb = None, msg_str = ''):
+    def add_crosshair_pixels(self, x_pixel, y_pixel, name = None, color_rgb = None, msg_str = '', rotate_deg = 0):
         """Append a crosshair overlay at pixel location.
 
         Args:
@@ -4230,10 +4239,10 @@ class BaseImageIF(DataProductIF):
         y_ratio = float(y_pixel / self.height_org)
         x_deg =  -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
         y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
-        self.add_crosshair_degs(x_deg, y_deg, name, color_rgb, msg_str)
+        self.add_crosshair_degs(x_deg, y_deg, name, color_rgb, msg_str, rotate_deg)
 
 
-    def add_crosshair_ratios(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
+    def add_crosshair_ratios(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = '', rotate_deg = 0):
         """Append a crosshair overlay at pixel location.
 
         Args:
@@ -4244,10 +4253,10 @@ class BaseImageIF(DataProductIF):
         x_deg = -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
         y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
         self.msg_if.pub_debug("Adding Crosshair ratio to degs: " + str([x_ratio,y_ratio,x_deg,y_deg]) , throttle_s = 5)
-        self.add_crosshair_degs(x_deg, y_deg, name, color_rgb, msg_str)
+        self.add_crosshair_degs(x_deg, y_deg, name, color_rgb, msg_str,rotate_deg)
 
 
-    def add_crosshair_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = ''):
+    def add_crosshair_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = '', rotate_deg = 0):
         """Append a crosshair overlay at degs offset location.
 
         Args:
@@ -4266,6 +4275,7 @@ class BaseImageIF(DataProductIF):
         crosshair_dict['x_deg_offset'] = round(x_deg, 2)
         crosshair_dict['y_deg_offset'] = round(y_deg, 2)
         crosshair_dict['color_rgb'] = color_rgb
+        crosshair_dict['rotate_deg'] = rotate_deg
         crosshair_dict['msg_str'] = msg_str
         #self.msg_if.pub_debug("Adding Crosshair: " + str(crosshair_dict) )
         needs_update = True
@@ -4448,20 +4458,20 @@ class BaseImageIF(DataProductIF):
             self.node_if.set_param(self.node_if_prefix +  'overlays_dict', self.overlays_dict)
 
 
-    def add_target_pixels(self, x_pixel, y_pixel, name = None, color_rgb = None, msg_str = ''):
+    def add_target_pixels(self, x_pixel, y_pixel, name = None, color_rgb = None, msg_str = '', rotate_deg = 0):
         """Append a target overlay at pixel location.
 
-        Args:
+        Args:,
             x pixel, y pixel, target name str.
         """
         x_ratio = float(x_pixel / self.width_org) 
         y_ratio = float(y_pixel / self.height_org)
         x_deg =  -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
         y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
-        self.add_target_degs(x_deg, y_deg, name, color_rgb, msg_str)
+        self.add_target_degs(x_deg, y_deg, name, color_rgb, msg_str, rotate_deg = rotate_deg)
 
 
-    def add_target_ratios(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = ''):
+    def add_target_ratios(self, x_ratio, y_ratio, name = None, color_rgb = None, msg_str = '', rotate_deg = 0):
         """Append a target overlay at pixel location.
 
         Args:
@@ -4471,10 +4481,10 @@ class BaseImageIF(DataProductIF):
         y_ratio = nepi_utils.check_ratio(y_ratio)
         x_deg =  -1 * round(  ((x_ratio - 0.5) * self.width_deg),1)
         y_deg = round(  ((y_ratio - 0.5) * self.height_deg),1)  
-        self.add_target_degs(x_deg, y_deg, name, color_rgb, msg_str)
+        self.add_target_degs(x_deg, y_deg, name, color_rgb, msg_str, rotate_deg = rotate_deg)
 
 
-    def add_target_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = ''):
+    def add_target_degs(self, x_deg, y_deg, name = None, color_rgb = None, msg_str = '', rotate_deg = 0):
         """Append a target overlay at degs offset location.
 
         Args:
@@ -4493,6 +4503,7 @@ class BaseImageIF(DataProductIF):
         target_dict['x_deg_offset'] = round(x_deg)
         target_dict['y_deg_offset'] = round(y_deg)
         target_dict['color_rgb'] = color_rgb
+        target_dict['rotate_deg'] = rotate_deg
         target_dict['msg_str'] = msg_str
         #self.msg_if.pub_debug("Adding Target: " + str(target_dict) )
         needs_update = True
@@ -5424,9 +5435,10 @@ class BaseImageIF(DataProductIF):
         r = msg.r
         g = msg.g
         b = msg.b
+        rotate_deg = msg.rotate_deg
         msg_str = msg.msg_str
         #self.click_crosshair_enabled = False
-        self.add_crosshair_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_crosshair_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str, rotate_deg = rotate_deg)
 
     def _addCrosshairRatiosCb(self,msg):
         name = msg.name
@@ -5437,9 +5449,10 @@ class BaseImageIF(DataProductIF):
         r = msg.r
         g = msg.g
         b = msg.b
+        rotate_deg = msg.rotate_deg
         msg_str = msg.msg_str
         #self.click_crosshair_enabled = False
-        self.add_crosshair_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_crosshair_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str, rotate_deg = rotate_deg)
 
 
     def _addCrosshairDegreesCb(self,msg):
@@ -5453,9 +5466,10 @@ class BaseImageIF(DataProductIF):
         r = msg.r
         g = msg.g
         b = msg.b
+        rotate_deg = msg.rotate_deg
         msg_str = msg.msg_str
         #self.click_crosshair_enabled = False
-        self.add_crosshair_degs(x_deg, y_deg, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_crosshair_degs(x_deg, y_deg, name = name, color_rgb = (r,g,b), msg_str = msg_str, rotate_deg = rotate_deg)
 
     def _removeCrosshairCb(self,msg):
         name = msg.data
@@ -5531,9 +5545,10 @@ class BaseImageIF(DataProductIF):
         r = msg.r
         g = msg.g
         b = msg.b
+        rotate_deg = msg.rotate_deg
         msg_str = msg.msg_str
         #self.click_target_enabled = False
-        self.add_target_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_target_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str, rotate_deg = rotate_deg)
 
     def _addTargetRatiosCb(self,msg):
         name = msg.name
@@ -5544,9 +5559,10 @@ class BaseImageIF(DataProductIF):
         r = msg.r
         g = msg.g
         b = msg.b
+        rotate_deg = msg.rotate_deg
         msg_str = msg.msg_str
         #self.click_target_enabled = False
-        self.add_target_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_target_ratios(x_ratio, y_ratio, name = name, color_rgb = (r,g,b), msg_str = msg_str, rotate_deg = rotate_deg)
 
 
     def _addTargetDegreesCb(self,msg):
@@ -5560,9 +5576,10 @@ class BaseImageIF(DataProductIF):
         r = msg.r
         g = msg.g
         b = msg.b
+        rotate_deg = msg.rotate_deg
         msg_str = msg.msg_str
         #self.click_target_enabled = False
-        self.add_target_degs(x_deg, y_deg, name = name, color_rgb = (r,g,b), msg_str = msg_str)
+        self.add_target_degs(x_deg, y_deg, name = name, color_rgb = (r,g,b), msg_str = msg_str, rotate_deg = rotate_deg)
 
     def _removeTargetCb(self,msg):
         name = msg.data
@@ -5657,7 +5674,8 @@ class BaseImageIF(DataProductIF):
 
     ########################################
     def _setStabilizeEnableCb(self,msg):
-        enabled = msg.data
+        has_stabilize = self.caps_dict.get('has_stabilize',False)
+        enabled = msg.data and has_stabilize
         self.set_stabilize_enable(enabled)
 
 ##################################################
@@ -5701,7 +5719,7 @@ class ColorImageIF(BaseImageIF):
         has_rotate_3d = False,
         has_tilt_3d = False,
         has_camera_3d = False,
-        has_stabilize = True
+        has_stabilize = False
         )
 
     DEFAULT_FILTERS_DICT = dict(
@@ -5740,6 +5758,7 @@ class ColorImageIF(BaseImageIF):
                 data_ref_description = None,
                 perspective = 'pov',
                 init_overlay_text_list = [],
+                caps_dict = dict(),
                 options_dict = dict(),
                 callback_dict = dict(),
                 live_adjustments_disabled = False,
@@ -5752,7 +5771,7 @@ class ColorImageIF(BaseImageIF):
                 navpose_if = None,
                 ):
 
-
+        self.DEFAULT_CAPS_DICT.update(caps_dict)
         # Call the parent class constructor
         super().__init__(
                 name,

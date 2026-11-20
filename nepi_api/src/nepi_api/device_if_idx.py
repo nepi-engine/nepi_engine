@@ -1223,7 +1223,9 @@ class IDXDeviceIF(DeviceIF):
             dp_dict = self.data_products_dict[data_product]
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
-
+            caps_dict = {
+                'has_stabilize': True
+            }
             #img_pub = nepi_sdk.create_publisher(pub_namespace, Image, queue_size = 10)
             if data_product == 'color_image':
                 self.msg_if.pub_debug("Creating ColorImageIF for data product: " + data_product)
@@ -1232,6 +1234,7 @@ class IDXDeviceIF(DeviceIF):
                             data_source_description = self.data_source_description,
                             data_ref_description = self.data_ref_description,
                             perspective = self.perspective,
+                            caps_dict = caps_dict,
                             msg_if = self.msg_if,
                             node_if = self.node_if,
                             save_data_if = self.save_data_if,
@@ -1339,11 +1342,14 @@ class IDXDeviceIF(DeviceIF):
             dp_get_data = dp_dict['get_data']
             dp_stop_data = dp_dict['stop_data']
 
-
+            caps_dict = {
+                'has_stabilize': True
+            }
             dp_namespace = self.namespace
             self.depthmap_if = DepthMapIF(namespace = dp_namespace,
                         data_source_description = self.data_source_description,
                         data_ref_description = self.data_ref_description,
+                        caps_dict = caps_dict,
                         pub_image = True,
                         init_overlay_text_list = [],
                         msg_if = self.msg_if,

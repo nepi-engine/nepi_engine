@@ -2664,7 +2664,7 @@ class TransformIF(NodeIF):
             subs_dict = None
         else:
             subs_dict = {
-                'clear_navpose_frame_transform': {
+                'clear_transform': {
                     'namespace': self.namespace,
                     'topic': 'clear_transform',
                     'msg': Empty,
@@ -2672,7 +2672,7 @@ class TransformIF(NodeIF):
                     'callback': self._clearFrame3dTransformCb, 
                     'callback_args': ()
                 },
-                'set_navpose_frame_transform': {
+                'set_transform': {
                     'namespace': self.namespace,
                     'topic': 'set_transform',
                     'msg': Transform,
@@ -2680,7 +2680,7 @@ class TransformIF(NodeIF):
                     'callback': self._setFrame3dTransformCb,
                     'callback_args': ()
                 },
-                'set_source_ref_description': {
+                'set_source_ref': {
                     'namespace': self.namespace,
                     'topic': 'set_source_ref',
                     'msg': String,
@@ -2955,15 +2955,21 @@ class TransformIF(NodeIF):
     def _setFrame3dTransformCb(self, msg):
         self.msg_if.pub_debug("Received Frame Transform update message: " + str(msg) )
         transform_msg = msg
-        # The stored transform is a 7-element signed list; fold the per-axis
-        # invert flags into the sign so the stored/republished value is unambiguous.
-        x = -transform_msg.x_m if transform_msg.x_invert else transform_msg.x_m
-        y = -transform_msg.y_m if transform_msg.y_invert else transform_msg.y_m
-        z = -transform_msg.z_m if transform_msg.z_invert else transform_msg.z_m
-        roll = -transform_msg.roll_deg if transform_msg.roll_invert else transform_msg.roll_deg
-        pitch = -transform_msg.pitch_deg if transform_msg.pitch_invert else transform_msg.pitch_deg
-        yaw = -transform_msg.yaw_deg if transform_msg.yaw_invert else transform_msg.yaw_deg
-        heading = -transform_msg.heading_deg if transform_msg.heading_invert else transform_msg.heading_deg
+
+        x = transform_msg.x_m
+        self.transform_dict['x_invert'] = transform_msg.x_invert
+        y = transform_msg.y_m
+        self.transform_dict['y_invert'] = transform_msg.y_invert
+        z = transform_msg.z_m
+        self.transform_dict['z_invert'] = transform_msg.z_invert
+        roll = transform_msg.roll_deg
+        self.transform_dict['roll_invert'] = transform_msg.roll_invert
+        pitch = transform_msg.pitch_deg
+        self.transform_dict['pitch_invert'] = transform_msg.pitch_invert
+        yaw = transform_msg.yaw_deg
+        self.transform_dict['yaw_invert'] = transform_msg.yaw_invert
+        heading = transform_msg.heading_deg
+        self.transform_dict['heading_invert'] = transform_msg.heading_invert
         transform_list = [x, y, z, roll, pitch, yaw, heading]
 
         transform_dict = copy.deepcopy(self.transform_dict)

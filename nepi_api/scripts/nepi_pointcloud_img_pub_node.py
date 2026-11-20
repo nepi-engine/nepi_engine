@@ -28,7 +28,7 @@ import threading
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_pc
-from nepi_sdk import nepi_img
+from nepi_sdk import nepi_nav
 
 from std_msgs.msg import UInt8, Int32, Float32, Bool, Empty, String, Header
 from sensor_msgs.msg import Image
@@ -81,6 +81,7 @@ class PointcloudImgPub:
 
     width_deg = 100
     height_deg = 70
+    navpose_dict = None
 
     min_range_m = 0
     max_range_m = 1
@@ -176,7 +177,9 @@ class PointcloudImgPub:
                         )
 
         nepi_sdk.sleep(1)
-
+        caps_dict = {
+            'has_stabilize': True
+        }
         
         # Setup Pointcloud Image IF (renders and publishes the pointcloud image)
         self.image_if = PointcloudImageIF(namespace = self.pointcloud_namespace,
@@ -184,6 +187,7 @@ class PointcloudImgPub:
                         data_source_description = 'pointcloud',
                         data_ref_description = 'sensor',
                         perspective = 'pov',
+                        caps_dict = caps_dict,
                         init_overlay_text_list = [],
                         save_data_if = self.save_data_if,
                         msg_if = self.msg_if
@@ -239,6 +243,7 @@ class PointcloudImgPub:
         self.max_range_m = msg.range_min_max_m.stop_range
         self.width_deg = msg.width_deg
         self.height_deg = msg.height_deg
+        self.navpose_dict = nepi_nav.convert_msg2dict(msg.navpose_msg)
 
 
     def pointcloudCb(self, msg):
@@ -302,7 +307,8 @@ class PointcloudImgPub:
                                     min_range_m = self.min_range_m,
                                     max_range_m = self.max_range_m,
                                     timestamp = timestamp,
-                                    frame_id = frame_id
+                                    frame_id = frame_id,
+                                    source_navpose_dict = self.navpose_dict
                                     )
         except Exception as e:
             self.msg_if.pub_warn("Failed to render pointcloud image: " + str(e), throttle_s = 5)

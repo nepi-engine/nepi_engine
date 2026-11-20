@@ -1787,6 +1787,7 @@ class AiDetectorIF:
         if source_topic in self.imgs_info_dict.keys():
             self.imgs_info_dict[source_topic]['width_deg'] = status_msg.width_deg
             self.imgs_info_dict[source_topic]['height_deg'] = status_msg.height_deg
+            self.imgs_info_dict[source_topic]['stabilize_rotate_deg'] = status_msg.stabilize_rotate_deg
             self.imgs_info_dict[source_topic]['navpose_msg'] = status_msg.navpose_msg
             self.imgs_info_dict[source_topic]['depth_map_topic'] = status_msg.depth_map_topic
             self.imgs_info_dict[source_topic]['pointcloud_topic'] = status_msg.pointcloud_topic
@@ -2112,9 +2113,11 @@ class AiDetectorIF:
                 if source_topic in self.imgs_info_dict.keys():
                     image_fov_vert = self.imgs_info_dict[source_topic]['height_deg']
                     image_fov_horz = self.imgs_info_dict[source_topic]['width_deg']
+                    image_rotate_deg = self.imgs_info_dict[source_topic]['stabilize_rotate_deg']
                 else:
                     image_fov_vert = 70
                     image_fov_horz = 100
+                    image_rotate_deg = 0
 
                 object_loc_y_pix = float(detect_dict['ymin'] + ((detect_dict['ymax'] - detect_dict['ymin']))  / 2) 
                 object_loc_x_pix = float(detect_dict['xmin'] + ((detect_dict['xmax'] - detect_dict['xmin']))  / 2)
@@ -2177,7 +2180,9 @@ class AiDetectorIF:
 
                     # Range, Bearing, Nav, and Pose Data ENU Reference Frame
                     target_msg.range_m = target_range_m
-                    target_msg.azimuth_deg = horz_angle_deg
+                    #self.msg_if.pub_debug("Adjusting Horz and Vert Angles", data = [horz_angle_deg,vert_angle_deg,image_rotate_deg], throttle_s = 5)
+                    [horz_angle_deg,vert_angle_deg] = nepi_utils.rotate_point(horz_angle_deg,vert_angle_deg,image_rotate_deg)
+                    target_msg.azimuth_deg = horz_angle_deg 
                     target_msg.elevation_deg = vert_angle_deg   
                     targets_msg_list.append(target_msg)
                 except Exception as e:

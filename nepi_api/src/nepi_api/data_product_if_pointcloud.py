@@ -1321,6 +1321,7 @@ class PointcloudImageIF(BaseImageIF):
                 data_source_description = None,
                 data_ref_description = None,
                 perspective = 'pov',
+                caps_dict = dict(),
                 init_overlay_text_list = [],
                 options_dict = None,
                 callback_dict = None,
@@ -1334,7 +1335,7 @@ class PointcloudImageIF(BaseImageIF):
                 navpose_if = None,
                 ):
 
-
+        self.DEFAULT_CAPS_DICT.update(caps_dict)
         # Call the parent class constructor
         super().__init__(
                 name,
@@ -1385,7 +1386,11 @@ class PointcloudImageIF(BaseImageIF):
                             img_height = None,
                             timestamp = None,
                             frame_id = 'sensor',
-                            pub_twice = False
+                            pub_twice = False,
+                            source_status_dict = None,
+                            source_navpose_dict = None,
+                            pre_process_callback = None,
+                            post_process_callback = None
                             ):
         """Render an Open3D pointcloud to an image and publish it.
 
@@ -1518,7 +1523,11 @@ class PointcloudImageIF(BaseImageIF):
                                 min_range_m = min_range_m,
                                 max_range_m = max_range_m,
                                 timestamp = timestamp,
-                                pub_twice = pub_twice
+                                pub_twice = pub_twice,
+                                source_status_dict = source_status_dict,
+                                source_navpose_dict = source_navpose_dict,
+                                pre_process_callback = pre_process_callback,
+                                post_process_callback = post_process_callback
                                 )
         self.is_processing = False
         return o3d_pc, cv2_img

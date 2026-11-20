@@ -1064,7 +1064,9 @@ def overlay_rectangle(cv2_img,bot_left_px, top_right_px, color=(255,0,0), alpha 
       cv2_img = cv2.addWeighted(overlay, alpha, cv2_img, 1 - alpha, 0)
       return cv2_img
 
-def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5, thickness_ratio = 0.5, size=None, thickness=None,  text_list = [], text_ratio = 0.5):
+def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), rotate_deg = 0,
+                      size_ratio = 0.5, thickness_ratio = 0.5, size=None, thickness=None,  
+                      text_list = [], text_ratio = 0.5):
     """Draws a crosshair on an image at a given (x_px, y_px) position."""
     # Draw vertical line
     # if size is None or thickness is None:
@@ -1100,7 +1102,9 @@ def overlay_crosshair(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0
     return cv2_img
 
 
-def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), size_ratio = 0.5, thickness_ratio = 0.5, size=None, thickness=None,  text_list = [], text_ratio = 0.5):
+def overlay_target(cv2_img, x_px, y_px, color_rgb=(0, 255, 0), rotate_deg = 0,
+                   size_ratio = 0.5, thickness_ratio = 0.5, size=None, thickness=None,  
+                   text_list = [], text_ratio = 0.5):
     """Draws a crosshair on an image at a given (x_px, y_px) position."""
     # Draw vertical line
     # if size is None or thickness is None:
