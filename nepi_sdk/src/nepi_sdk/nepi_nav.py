@@ -1068,7 +1068,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['longitude'] = tr_geo.longitude
 
 
-        if npdata_dict['has_heading'] == True:
+        if npdata_dict['has_heading'] == True or transform_dict['heading_deg'] != 0:
           navpose_dict['has_heading'] = True
           navpose_dict['time_heading'] = npdata_dict['time_heading']
           invert = -1 if transform_dict['heading_invert'] else 1

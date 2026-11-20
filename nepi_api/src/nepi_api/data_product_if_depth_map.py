@@ -989,7 +989,11 @@ class DepthMapImageIF(BaseImageIF):
                             width_deg = 100,
                             height_deg = 70,
                             timestamp = None,
-                            pub_twice = False
+                            pub_twice = False,
+                            source_status_dict = None,
+                            source_navpose_dict = None,
+                            pre_process_callback = None,
+                            post_process_callback = None
                             ):
         """Convert a depth map to a colorized image and publish it.
 
@@ -1031,7 +1035,11 @@ class DepthMapImageIF(BaseImageIF):
                                     min_range_m = min_range_m, 
                                     max_range_m = max_range_m,
                                     timestamp = timestamp,
-                                    pub_twice = pub_twice
+                                    pub_twice = pub_twice,
+                                    source_status_dict = source_status_dict,
+                                    source_navpose_dict = source_navpose_dict,
+                                    pre_process_callback = pre_process_callback,
+                                    post_process_callback = post_process_callback
                                  )
             
             return cv2_img
