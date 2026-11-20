@@ -1321,6 +1321,7 @@ class PointcloudImageIF(BaseImageIF):
                 data_source_description = None,
                 data_ref_description = None,
                 perspective = 'pov',
+                caps_dict = dict(),
                 init_overlay_text_list = [],
                 options_dict = None,
                 callback_dict = None,
@@ -1334,7 +1335,7 @@ class PointcloudImageIF(BaseImageIF):
                 navpose_if = None,
                 ):
 
-
+        self.DEFAULT_CAPS_DICT.update(caps_dict)
         # Call the parent class constructor
         super().__init__(
                 name,

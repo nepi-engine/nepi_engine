@@ -189,6 +189,7 @@ class DepthMapIF(DataProductIF):
                 init_overlay_text_list = [],
                 options_dict = None,
                 callback_dict = None,
+                caps_dict = dict(),
                 live_adjustments_disabled = False,
                 aspect_adjustment_disabled = False,
                 info_dict = dict(),
@@ -226,7 +227,7 @@ class DepthMapIF(DataProductIF):
         ##################
         update_info_dict = info_dict
         ##################        
-        update_caps_dict = dict()
+        update_caps_dict = caps_dict
         # try:
         #     update_caps_dict.udpate(caps_dict)
         # except:
@@ -385,6 +386,7 @@ class DepthMapIF(DataProductIF):
                         init_overlay_text_list = init_overlay_text_list,
                         options_dict = options_dict,
                         callback_dict = callback_dict,
+                        caps_dict = caps_dict,
                         live_adjustments_disabled = self.live_adjustments_disabled,
                         aspect_adjustment_disabled = self.aspect_adjustment_disabled,
                         msg_if = self.msg_if,
@@ -930,6 +932,7 @@ class DepthMapImageIF(BaseImageIF):
                 data_ref_description = None,
                 perspective = 'pov',
                 init_overlay_text_list = [],
+                caps_dict = dict(),
                 options_dict = dict(),
                 callback_dict = dict(),
                 live_adjustments_disabled = False,
@@ -941,8 +944,8 @@ class DepthMapImageIF(BaseImageIF):
                 transform_if = None,
                 navpose_if = None,
                 ):
-        
-            
+
+        self.DEFAULT_CAPS_DICT.update(caps_dict)
         # Call the parent class constructor
         super().__init__(
                 name,

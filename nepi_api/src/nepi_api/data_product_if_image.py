@@ -231,7 +231,7 @@ class BaseImageIF(DataProductIF):
         has_rotate_3d = False,
         has_tilt_3d = False,
         has_camera_3d = False,
-        has_stabilize = True
+        has_stabilize = False
         )
 
     DEFAULT_FILTERS_DICT = dict()
@@ -416,7 +416,7 @@ class BaseImageIF(DataProductIF):
         live_adjust_x_deg = 0,
         live_adjust_y_deg = 0,
     )
-    has_stabilize = True
+    has_stabilize = False
     stabilize_enabled = False
     stabilize_rotate_deg = 0
 
@@ -5718,7 +5718,7 @@ class ColorImageIF(BaseImageIF):
         has_rotate_3d = False,
         has_tilt_3d = False,
         has_camera_3d = False,
-        has_stabilize = True
+        has_stabilize = False
         )
 
     DEFAULT_FILTERS_DICT = dict(
@@ -5757,6 +5757,7 @@ class ColorImageIF(BaseImageIF):
                 data_ref_description = None,
                 perspective = 'pov',
                 init_overlay_text_list = [],
+                caps_dict = dict(),
                 options_dict = dict(),
                 callback_dict = dict(),
                 live_adjustments_disabled = False,
@@ -5769,7 +5770,7 @@ class ColorImageIF(BaseImageIF):
                 navpose_if = None,
                 ):
 
-
+        self.DEFAULT_CAPS_DICT.update(caps_dict)
         # Call the parent class constructor
         super().__init__(
                 name,

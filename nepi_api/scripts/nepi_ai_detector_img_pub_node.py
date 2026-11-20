@@ -463,9 +463,11 @@ class AiDetectorImgPub:
         img_sub = nepi_sdk.create_subscriber(source_topic,Image, self.imageCb, queue_size = 1, callback_args= (source_topic))
         img_status_topic = nepi_sdk.create_namespace(source_topic, 'status')
         self.msg_if.pub_debug('Subscribing to image status topic: ' + img_status_topic)
-        img_stutus_sub = nepi_sdk.create_subscriber(img_status_topic,ImageStatus, self.imageStatusCb, queue_size = 1, callback_args= (source_topic))
+        img_status_sub = nepi_sdk.create_subscriber(img_status_topic,ImageStatus, self.imageStatusCb, queue_size = 1, callback_args= (source_topic))
 
-
+        caps_dict = {
+            'has_stabilize': False
+        }
         # Create detections image publisher
         # name sets the last namespace segment (data_product does not)
         img_if = ColorImageIF(name = 'targets_image',
@@ -474,6 +476,7 @@ class AiDetectorImgPub:
                         data_source_description = 'image',
                         data_ref_description = 'image',
                         perspective = 'pov',
+                        caps_dict = caps_dict,
                         save_data_if = self.save_data_if,
                         init_overlay_text_list = [],
                         live_adjustments_disabled = True,
@@ -487,7 +490,7 @@ class AiDetectorImgPub:
         self.img_node_lock.acquire()
         self.img_node_dict[source_topic] = {
                                         'img_sub': img_sub,
-                                        'img_status_sub': img_stutus_sub,
+                                        'img_status_sub': img_status_sub,
                                         'img_pub': img_pub,
                                         'img_if': img_if,
 

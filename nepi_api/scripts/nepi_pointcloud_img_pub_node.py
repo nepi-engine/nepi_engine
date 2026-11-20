@@ -177,7 +177,9 @@ class PointcloudImgPub:
                         )
 
         nepi_sdk.sleep(1)
-
+        caps_dict = {
+            'has_stabilize': True
+        }
         
         # Setup Pointcloud Image IF (renders and publishes the pointcloud image)
         self.image_if = PointcloudImageIF(namespace = self.pointcloud_namespace,
@@ -185,6 +187,7 @@ class PointcloudImgPub:
                         data_source_description = 'pointcloud',
                         data_ref_description = 'sensor',
                         perspective = 'pov',
+                        caps_dict = caps_dict,
                         init_overlay_text_list = [],
                         save_data_if = self.save_data_if,
                         msg_if = self.msg_if
