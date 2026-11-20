@@ -161,12 +161,16 @@ class PTXActuatorIF(DeviceIF):
 
     # Define some member variables
     pan_now_deg = 0.0
-    pan_goal_deg = 0.0
+    # Goals start at -999 (no goal: status reports the current position) until the
+    # first real position read seeds them. See the seed step in the status publisher.
+    pan_goal_deg = -999
+    pan_goal_seeded = False
     pan_home_pos_deg = 0.0
     min_pan_softstop_deg = 0.0
     max_pan_softstop_deg = 0.0
     tilt_now_deg = 0.0
-    tilt_goal_deg = 0.0
+    tilt_goal_deg = -999
+    tilt_goal_seeded = False
     tilt_home_pos_deg = 0.0
     min_tilt_softstop_deg = 0.0
     max_tilt_softstop_deg = 0.0
@@ -900,6 +904,19 @@ class PTXActuatorIF(DeviceIF):
             pan_deg = nepi_utils.get_sign(pan_deg) * (math.floor( abs(pan_deg * 10**(place)) ) / 10**(place))
             tilt_deg = nepi_utils.get_sign(tilt_deg) * (math.floor( abs(tilt_deg * 10**(place)) ) / 10**(place))
             self.current_position = [pan_deg ,tilt_deg]
+
+            # Seed each goal once from the first real read of its axis, so the goal
+            # sliders open where the head is rather than at 0 deg. A driver's
+            # position_times entry stays 0 until it has read that axis. A goal that
+            # a command set first is left alone.
+            if self.pan_goal_seeded == False and self.position_times[0] > 0:
+                if self.pan_goal_deg == -999:
+                    self.pan_goal_deg = pan_deg
+                self.pan_goal_seeded = True
+            if self.tilt_goal_seeded == False and self.position_times[1] > 0:
+                if self.tilt_goal_deg == -999:
+                    self.tilt_goal_deg = tilt_deg
+                self.tilt_goal_seeded = True
             #self.msg_if.pub_warn("Checking for time change: " + str([self.position_times[0],self.pan_time_history[-1]]))
             if self.position_times[0] != self.pan_time_history[-1]:
                 self.pan_pos_history.append(pan_deg)
