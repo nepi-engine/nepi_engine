@@ -295,6 +295,7 @@ class DeviceSVXIF(DeviceIF):
                 settings_if = None,
                 save_data_if = None,
                 connect_navpose_if = None,
+                namespace = None, # None ==> <node>/svx; a node hosting several servos passes one per servo, e.g. <node>/pan
                 ):
 
         ##############################
@@ -538,7 +539,8 @@ class DeviceSVXIF(DeviceIF):
                 node_if = node_if,
                 settings_if = settings_if,
                 save_data_if = save_data_if,
-                connect_navpose_if = connect_navpose_if
+                connect_navpose_if = connect_navpose_if,
+                namespace = namespace
                 )
 
         ready = self.wait_for_ready()

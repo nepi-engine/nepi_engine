@@ -118,7 +118,8 @@ class DeviceIF(NodeIF):
                 node_if = None,
                 settings_if = None,
                 save_data_if = None,
-                connect_navpose_if = None
+                connect_navpose_if = None,
+                namespace = None
                 ):
 
         ##############################
@@ -222,9 +223,17 @@ class DeviceIF(NodeIF):
         ###########
         # NODE IF SETUP
 
+        # None puts the device at <node>/<id>. A node hosting several devices of one
+        # type (a pan tilt's per-axis servos, a robot's per-motor servos) passes a
+        # namespace for each, e.g. <node>/pan, so each lands at <node>/pan/<id> with
+        # its own topics, services, params and node_if keys. The Settings, SaveData,
+        # Transform, NavPose and ConnectNavPose IFs below stay at the node namespace.
+        if namespace is None:
+            namespace = self.node_namespace
+
         # Call the parent class constructor
         super().__init__(id = self.ID,
-                namespace = self.node_namespace,
+                namespace = namespace,
                 name = self.ID,
                 status_msg = copy.deepcopy(self.STATUS_MSG),
                 data_msg = copy.deepcopy(self.DATA_MSG),

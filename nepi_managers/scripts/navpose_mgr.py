@@ -658,7 +658,21 @@ class NavPoseMgr(object):
             self.navposes_settings_dict = navposes_settings_dict
             self.navposes_settings_dict_lock.release()
             #self.msg_if.pub_debug("Updated NavPoses Dict with navposes_settings_dict: " + str(self.navposes_settings_dict))
-            
+
+            # Saved fixed navposes, merged over a blank navpose so a dict saved before
+            # a navpose key existed still carries every key.
+            saved_fixed_dict = self.node_if.get_param('navposes_fixed_dict')
+            navposes_fixed_dict = dict()
+            if isinstance(saved_fixed_dict, dict):
+                for frame in saved_fixed_dict.keys():
+                    navpose_fixed = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+                    if isinstance(saved_fixed_dict[frame], dict):
+                        navpose_fixed.update(saved_fixed_dict[frame])
+                    navposes_fixed_dict[frame] = navpose_fixed
+            self.navposes_fixed_dict_lock.acquire()
+            self.navposes_fixed_dict = navposes_fixed_dict
+            self.navposes_fixed_dict_lock.release()
+
 
             self.frame_nav = self.node_if.get_param('frame_nav')
             self.frame_alt = self.node_if.get_param('frame_alt')
