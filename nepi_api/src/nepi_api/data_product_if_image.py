@@ -1811,8 +1811,8 @@ class BaseImageIF(DataProductIF):
 
         #########################
         update_subs_dict.update( {
-            'set_stabilize_enable': {
-            'namespace': self.namespace,
+            'all_set_stabilize_enable': {
+            'namespace': self.all_namespace,
             'topic': 'set_stabilize_enable',
             'msg': Bool,
             'qsize': 5,
@@ -5674,7 +5674,8 @@ class BaseImageIF(DataProductIF):
 
     ########################################
     def _setStabilizeEnableCb(self,msg):
-        enabled = msg.data
+        has_stabilize = self.caps_dict.get('has_stabilize',False)
+        enabled = msg.data and has_stabilize
         self.set_stabilize_enable(enabled)
 
 ##################################################

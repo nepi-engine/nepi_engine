@@ -1161,10 +1161,6 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
             pt_transform_dict = BLANK_TRANSFORM_DICT
           navpose_dict = update_navpose_dict_pantilt(navpose_dict,pt_transform_dict)
 
-          navpose_dict['pan_tilt_heading_deg'] = npdata_dict['pan_tilt_heading_deg']
-          navpose_dict['pan_tilt_x_m'] = npdata_dict['pan_tilt_x_m']
-          navpose_dict['pan_tilt_y_m'] = npdata_dict['pan_tilt_y_m']
-          navpose_dict['pan_tilt_z_m'] = npdata_dict['pan_tilt_z_m']
 
       except Exception as e:
         success = False
