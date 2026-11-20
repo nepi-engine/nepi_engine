@@ -2423,6 +2423,20 @@ class NavPoseMgr(object):
                 if navpose_reset_dict != nepi_nav.BLANK_NAVPOSE_DICT:
                     navpose_solution = nepi_nav.update_navpose_dict_from_offsets(navpose_solution, navpose_reset_dict)
 
+                ###############
+                ## Apply Pan Tilt Frame
+                # The pan_tilt_* fields computed when a pan_tilt component message arrives
+                # see only that component, so they are recomputed here from the merged
+                # solution to combine the frame's heading, orientation and position with
+                # the pan and tilt.
+                if navpose_solution['has_pan_tilt'] == True:
+                    pt_transform = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
+                    if navpose_settings_dict.get('apply_transforms', True) == True:
+                        pt_connect = navpose_settings_dict['connect_dict'].get('pan_tilt', dict())
+                        type_name = 'update' if navpose_update_dict.get('has_pan_tilt', False) == True else 'init'
+                        pt_transform = pt_connect.get(type_name + '_transform', pt_transform)
+                    navpose_solution = nepi_nav.update_navpose_dict_pantilt(navpose_solution, pt_transform)
+
 
                 #############################
                 ### Update Navposes Solutions
