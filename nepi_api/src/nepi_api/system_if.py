@@ -715,7 +715,7 @@ class NavPoseIF(NodeIF):
                 pub_name = 'pan_tilt_pub'
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
-                msg.timestamp = np_dict['time_depth']
+                msg.timestamp = np_dict['time_pan_tilt']
                 msg.pan_deg = np_dict['pan_deg']
                 msg.tilt_deg = np_dict['tilt_deg']
                 self.publish_msg(pub_name,msg)
