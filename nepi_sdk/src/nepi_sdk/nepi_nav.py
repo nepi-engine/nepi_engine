@@ -315,6 +315,48 @@ BLANK_NAVPOSE_TRACK_DICT = {
     'tilt_deg': 0.0
 }
 
+
+BLANK_TRANSFORM_DICT = {
+    'source_ref_description': '',
+    'end_ref_description': '',
+
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+
+    'x_invert': False,
+    'y_invert': False,
+    'z_invert': False,
+  
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+
+    'roll_invert': False,
+    'pitch_invert': False,
+    'yaw_invert': False,
+
+    'heading_deg': 0.0,
+    'heading_invert': False,
+
+
+    'x_m_offset': 0.0,
+    'y_m_offset': 0.0,
+    'z_m_offset': 0.0,
+    'roll_deg_offset': 0.0,
+    'pitch_deg_offset': 0.0,
+    'yaw_deg_offset': 0.0,
+    'heading_deg_offset': 0.0,
+
+}
+
+
+BLANK_TRANSFORM_LIST = [0,0,0,0,0,0,0]
+
+
+
 def clear_navpose_dict_comp(comp_name,npdata_dict):
     success = False
     try:
@@ -577,43 +619,43 @@ def update_navpose_dict_from_offsets(npdata_dict_org, np_offsets_dict):
     return npdata_dict_org
 
 
-def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None):
+def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None, pt_transform_dict = None):
     msg_type = msg._type
-    
+    update_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
     if name == 'location':
       if msg_type == 'nepi_interfaces/NavPoseLocation':
         try:
-          navpose_dict['has_location'] = True
-          navpose_dict['time_location'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
-          navpose_dict['latitude'] = msg.latitude
-          navpose_dict['longitude'] = msg.longitude
-          navpose_dict['location_m_per_sec'] = msg.location_m_per_sec
+          update_dict['has_location'] = True
+          update_dict['time_location'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
+          update_dict['latitude'] = msg.latitude
+          update_dict['longitude'] = msg.longitude
+          update_dict['location_m_per_sec'] = msg.location_m_per_sec
         except:
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
         try:
-          navpose_dict['has_location'] = True
-          navpose_dict['time_location'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
-          navpose_dict['latitude'] = msg.latitude
-          navpose_dict['longitude'] = msg.longitude
+          update_dict['has_location'] = True
+          update_dict['time_location'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
+          update_dict['latitude'] = msg.latitude
+          update_dict['longitude'] = msg.longitude
         except:
           pass
       elif msg_type == 'geographic_msgs/GeoPoint':
         try:
-          navpose_dict['has_location'] = True
-          navpose_dict['time_location'] = nepi_utils.get_time()
-          navpose_dict['latitude'] = msg.latitude
-          navpose_dict['longitude'] = msg.longitude
+          update_dict['has_location'] = True
+          update_dict['time_location'] = nepi_utils.get_time()
+          update_dict['latitude'] = msg.latitude
+          update_dict['longitude'] = msg.longitude
         except:
           pass
 
     if name == 'heading':
       if msg_type == 'nepi_interfaces/NavPoseHeading':
         try:
-          navpose_dict['has_heading'] = True
-          navpose_dict['time_heading'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
-          navpose_dict['heading_deg'] = msg.heading_deg
-          navpose_dict['heading_m_per_sec'] = msg.heading_m_per_sec
+          update_dict['has_heading'] = True
+          update_dict['time_heading'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
+          update_dict['heading_deg'] = msg.heading_deg
+          update_dict['heading_m_per_sec'] = msg.heading_m_per_sec
         except:
           pass
      
@@ -621,14 +663,14 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
     if name == 'orientation':
       if msg_type == 'nepi_interfaces/NavPoseOrientation':
         try:
-          navpose_dict['has_orientation'] = True
-          navpose_dict['time_orientation'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
-          navpose_dict['roll_deg'] = msg.roll_deg
-          navpose_dict['pitch_deg'] = msg.pitch_deg
-          navpose_dict['yaw_deg'] = msg.yaw_deg
-          navpose_dict['roll_deg_per_sec'] = msg.roll_deg_per_sec
-          navpose_dict['pitch_deg_per_sec'] = msg.pitch_deg_per_sec
-          navpose_dict['yaw_deg_per_sec'] = msg.yaw_deg_per_sec
+          update_dict['has_orientation'] = True
+          update_dict['time_orientation'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
+          update_dict['roll_deg'] = msg.roll_deg
+          update_dict['pitch_deg'] = msg.pitch_deg
+          update_dict['yaw_deg'] = msg.yaw_deg
+          update_dict['roll_deg_per_sec'] = msg.roll_deg_per_sec
+          update_dict['pitch_deg_per_sec'] = msg.pitch_deg_per_sec
+          update_dict['yaw_deg_per_sec'] = msg.yaw_deg_per_sec
         except:
           pass
       elif msg_type == 'nav_msgs/Odometry':
@@ -636,11 +678,11 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           data = msg.pose.pose.orientation
           quat = [data.x,data.y,data.z,data.w]
           [roll,pitch,yaw] = convert_quat2rpy(quat)
-          navpose_dict['has_orientation'] = True
-          navpose_dict['time_orientation'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
-          navpose_dict['roll_deg'] = roll
-          navpose_dict['pitch_deg'] = pitch
-          navpose_dict['yaw_deg'] = yaw
+          update_dict['has_orientation'] = True
+          update_dict['time_orientation'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
+          update_dict['roll_deg'] = roll
+          update_dict['pitch_deg'] = pitch
+          update_dict['yaw_deg'] = yaw
         except:
           pass
       elif msg_type == 'geometry_msgs/Pose':
@@ -648,11 +690,11 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           data = msg.orientation
           quat = [data.x,data.y,data.z,data.w]
           [roll,pitch,yaw] = convert_quat2rpy(quat)
-          navpose_dict['has_orientation'] = True
-          navpose_dict['time_orientation'] = nepi_utils.get_time()
-          navpose_dict['roll_deg'] = roll
-          navpose_dict['pitch_deg'] = pitch
-          navpose_dict['yaw_deg'] = yaw
+          update_dict['has_orientation'] = True
+          update_dict['time_orientation'] = nepi_utils.get_time()
+          update_dict['roll_deg'] = roll
+          update_dict['pitch_deg'] = pitch
+          update_dict['yaw_deg'] = yaw
         except:
           pass
       elif msg_type == 'geometry_msgs/Quaternion':
@@ -660,64 +702,64 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
           data = msg
           quat = [data.x,data.y,data.z,data.w]
           [roll,pitch,yaw] = convert_quat2rpy(quat)
-          navpose_dict['has_orientation'] = True
-          navpose_dict['time_orientation'] = nepi_utils.get_time()
-          navpose_dict['roll_deg'] = roll
-          navpose_dict['pitch_deg'] = pitch
-          navpose_dict['yaw_deg'] = yaw
+          update_dict['has_orientation'] = True
+          update_dict['time_orientation'] = nepi_utils.get_time()
+          update_dict['roll_deg'] = roll
+          update_dict['pitch_deg'] = pitch
+          update_dict['yaw_deg'] = yaw
         except:
           pass
 
     if name == 'position':
       if msg_type == 'nepi_interfaces/NavPosePosition':
         try:
-          navpose_dict['has_position'] = True
-          navpose_dict['time_position'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
-          navpose_dict['x_m'] = msg.x_m
-          navpose_dict['y_m'] = msg.y_m
-          navpose_dict['z_m'] = msg.y_m
-          navpose_dict['x_m_per_sec'] = msg.x_m_per_sec
-          navpose_dict['y_m_per_sec'] = msg.y_m_per_sec
-          navpose_dict['z_m_per_sec'] = msg.z_m_per_sec
+          update_dict['has_position'] = True
+          update_dict['time_position'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
+          update_dict['x_m'] = msg.x_m
+          update_dict['y_m'] = msg.y_m
+          update_dict['z_m'] = msg.y_m
+          update_dict['x_m_per_sec'] = msg.x_m_per_sec
+          update_dict['y_m_per_sec'] = msg.y_m_per_sec
+          update_dict['z_m_per_sec'] = msg.z_m_per_sec
           # The component msg carries no velocity flag. Its publisher writes
           # -999 when it has none (data_if.py position_pub), so that is the
           # flag -- otherwise a position-only source's 0.0 would come back
           # through navpose_mgr as a real reading.
-          navpose_dict['has_velocity'] = (msg.x_m_per_sec != -999)
-          navpose_dict['time_velocity'] = navpose_dict['time_position']
+          update_dict['has_velocity'] = (msg.x_m_per_sec != -999)
+          update_dict['time_velocity'] = update_dict['time_position']
         except:
           pass
       elif msg_type == 'nav_msgs/Odometry':
         try:
           data = msg.pose.pose.position
           pos = [data.x,data.y,data.z]
-          navpose_dict['has_position'] = True
-          navpose_dict['time_position'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
-          navpose_dict['x_m'] = pos[0]
-          navpose_dict['y_m'] = pos[1]
-          navpose_dict['z_m'] = pos[2]
+          update_dict['has_position'] = True
+          update_dict['time_position'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
+          update_dict['x_m'] = pos[0]
+          update_dict['y_m'] = pos[1]
+          update_dict['z_m'] = pos[2]
         except:
           pass
       elif msg_type == 'geometry_msgs/Pose':
         try:
           data = msg.position
           pos = [data.x,data.y,data.z]
-          navpose_dict['has_position'] = True
-          navpose_dict['time_position'] = nepi_utils.get_time()
-          navpose_dict['x_m'] = pos[0]
-          navpose_dict['y_m'] = pos[1]
-          navpose_dict['z_m'] = pos[2]
+          update_dict['has_position'] = True
+          update_dict['time_position'] = nepi_utils.get_time()
+          update_dict['x_m'] = pos[0]
+          update_dict['y_m'] = pos[1]
+          update_dict['z_m'] = pos[2]
         except:
           pass
       elif msg_type == 'geometry_msgs/Point':
         try:
           data = msg
           pos = [data.x,data.y,data.z]
-          navpose_dict['has_position'] = True
-          navpose_dict['time_position'] = nepi_utils.get_time()
-          navpose_dict['x_m'] = pos[0]
-          navpose_dict['y_m'] = pos[1]
-          navpose_dict['z_m'] = pos[2]
+          update_dict['has_position'] = True
+          update_dict['time_position'] = nepi_utils.get_time()
+          update_dict['x_m'] = pos[0]
+          update_dict['y_m'] = pos[1]
+          update_dict['z_m'] = pos[2]
         except:
           pass
 
@@ -725,90 +767,85 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
     if name == 'altitude':
       if msg_type == 'nepi_interfaces/NavPosePosition':
         try:
-          navpose_dict['has_altitude'] = True
-          navpose_dict['time_altitude'] = msg.timestamp
-          navpose_dict['altitude_m'] = msg.y_m
+          update_dict['has_altitude'] = True
+          update_dict['time_altitude'] = msg.timestamp
+          update_dict['altitude_m'] = msg.y_m
         except:
           pass
       elif msg_type == 'nepi_interfaces/NavPoseAltitude':
         try:
-          navpose_dict['has_altitude'] = True
-          navpose_dict['time_altitude'] = msg.timestamp
-          navpose_dict['altitude_m'] = msg.altitude_m
-          navpose_dict['altitude_m_per_sec'] = msg.altitude_m_per_sec
+          update_dict['has_altitude'] = True
+          update_dict['time_altitude'] = msg.timestamp
+          update_dict['altitude_m'] = msg.altitude_m
+          update_dict['altitude_m_per_sec'] = msg.altitude_m_per_sec
         except:
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
         try:
-          navpose_dict['has_altitude'] = True
-          navpose_dict['time_altitude'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
-          navpose_dict['altitude_m'] = msg.altitude
+          update_dict['has_altitude'] = True
+          update_dict['time_altitude'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
+          update_dict['altitude_m'] = msg.altitude
         except:
           pass
       elif msg_type == 'geographic_msgs/GeoPoint':
         try:
-          navpose_dict['has_altitude'] = True
-          navpose_dict['time_altitude'] = nepi_utils.get_time()
-          navpose_dict['altitude_m'] = msg.altitude
+          update_dict['has_altitude'] = True
+          update_dict['time_altitude'] = nepi_utils.get_time()
+          update_dict['altitude_m'] = msg.altitude
         except:
           pass
 
     if name == 'depth':
       if msg_type == 'nepi_interfaces/NavPoseDepth':
         try:
-          navpose_dict['has_depth'] = True
-          navpose_dict['time_depth'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
-          navpose_dict['depth_m'] = msg.depth_m
-          navpose_dict['depth_m_per_sec'] = msg.depth_m_per_sec
+          update_dict['has_depth'] = True
+          update_dict['time_depth'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
+          update_dict['depth_m'] = msg.depth_m
+          update_dict['depth_m_per_sec'] = msg.depth_m_per_sec
         except:
           pass
       elif msg_type == 'nepi_interfaces/NavPoseAltitude':
         try:
-          navpose_dict['has_depth'] = True
-          navpose_dict['time_depth'] = msg.timestamp
-          navpose_dict['depth_m'] = 0 - msg.altitude_m
-          navpose_dict['depth_m_per_sec'] = 0 - msg.altitude_m_per_sec
+          update_dict['has_depth'] = True
+          update_dict['time_depth'] = msg.timestamp
+          update_dict['depth_m'] = 0 - msg.altitude_m
+          update_dict['depth_m_per_sec'] = 0 - msg.altitude_m_per_sec
         except:
           pass
       elif msg_type == 'sensor_msgs/NavSatFix':
         try:
-          navpose_dict['has_depth'] = True
-          navpose_dict['time_depth'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
-          navpose_dict['depth_m'] = 0 - msg.altitude
+          update_dict['has_depth'] = True
+          update_dict['time_depth'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
+          update_dict['depth_m'] = 0 - msg.altitude
         except:
           pass
       elif msg_type == 'geographic_msgs/GeoPoint':
         try:
-          navpose_dict['has_depth'] = True
-          navpose_dict['time_depth'] = nepi_utils.get_time()
-          navpose_dict['depth_m'] = 0 - msg.altitude
+          update_dict['has_depth'] = True
+          update_dict['time_depth'] = nepi_utils.get_time()
+          update_dict['depth_m'] = 0 - msg.altitude
         except:
           pass
 
     if name == 'pan_tilt':
       if msg_type == 'nepi_interfaces/NavPosePanTilt':
         try:
-          navpose_dict['has_pan_tilt'] = True
-          navpose_dict['time_pan_tilt'] = msg.timestamp
-          navpose_dict['pan_deg'] = msg.pan_deg
-          navpose_dict['tilt_deg'] = msg.tilt_deg
+          update_dict['has_pan_tilt'] = True
+          update_dict['time_pan_tilt'] = msg.timestamp
+          update_dict['pan_deg'] = msg.pan_deg
+          update_dict['tilt_deg'] = msg.tilt_deg
         except:
           pass
+
+    if transform_dict is not None:
+        #logger.log_warn("Updating NavPose Dict", data = [name,update_dict,transform_dict], throttle_s = 5.0)
+        update_dict = transform_navpose_dict(update_dict,transform_dict,pt_transform_dict)
+
+    navpose_dict = update_navpose_dict_from_dict(navpose_dict,update_dict)
+
       
 
-    if name == 'pan_tilt':
-      if transform_dict is None:
-        transform_dict = BLANK_TRANSFORM_DICT
-      navpose_dict = update_navpose_dict_pantilt(navpose_dict,transform_dict)
-    else:
-      if transform_dict is not None:
-        if transform_dict != BLANK_TRANSFORM_DICT:
-          #logger.log_warn("navpose_dict befor: " + str([navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg']]),)
 
-          navpose_dict = transform_navpose_dict(navpose_dict,transform_dict)
-          #logger.log_warn("navpose_dict after: " + str([navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg']]), throttle_s = 5.0)
-
-          #logger.log_warn("navpose_dict: " + str(navpose_dict), throttle_s = 5.0)
 
     return navpose_dict
 
@@ -816,50 +853,11 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None)
 #######################
 # Transpose Functions
 
-BLANK_TRANSFORM_DICT = {
-    'source_ref_description': '',
-    'end_ref_description': '',
-
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 0.0,
-    'y_m': 0.0,
-    'z_m': 0.0,
-
-    'x_invert': False,
-    'y_invert': False,
-    'z_invert': False,
-  
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 0.0,
-    'pitch_deg': 0.0,
-    'yaw_deg': 0.0,
-
-    'roll_invert': False,
-    'pitch_invert': False,
-    'yaw_invert': False,
-
-    'heading_deg': 0.0,
-    'heading_invert': False,
-
-
-    'x_m_offset': 0.0,
-    'y_m_offset': 0.0,
-    'z_m_offset': 0.0,
-    'roll_deg_offset': 0.0,
-    'pitch_deg_offset': 0.0,
-    'yaw_deg_offset': 0.0,
-    'heading_deg_offset': 0.0,
-
-}
-
-
-BLANK_TRANSFORM_LIST = [0,0,0,0,0,0,0]
-
-
 def check_transform_dict(transform_dict):
-  for key in BLANK_TRANSFORM_DICT.keys():
+  blank_transform = copy.deepcopy(BLANK_TRANSFORM_DICT)
+  for key in blank_transform.keys():
     if key not in transform_dict.keys():
-      transform_dict[key] = BLANK_TRANSFORM_DICT[key]
+      transform_dict[key] = blank_transform[key]
   return transform_dict
 
 
@@ -1036,16 +1034,16 @@ def transform_object_pose(current_pose, rpy_rotation, units='deg'):
 
 
 def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None):
-  #logger.log_warn("passing transform_dict: " + str(transform_dict), throttle_s = 5.0)
+  # logger.log_warn("Transforming NavPose Dict", data = [npdata_dict,transform_dict], throttle_s = 5.0)
   #logger.log_warn("passing transform_dict: " + str(npdata_dict), throttle_s = 5.0)
-  #logger.log_warn("passing transform_dict: " + str(pt_transform_dict), throttle_s = 5.0)
+
 
   success = True
   navpose_dict = copy.deepcopy(npdata_dict)
   if navpose_dict is None:
     success = False
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
-  elif transform_dict != BLANK_TRANSFORM_DICT:
+  if transform_dict is not None:
       [x,y,z] = [transform_dict['x_m'] + transform_dict.get('x_m_offset',0),
                   transform_dict['y_m'] + transform_dict.get('y_m_offset',0),
                   transform_dict['z_m'] + transform_dict.get('z_m_offset',0)
@@ -1148,23 +1146,24 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           
           navpose_dict['depth_m'] = npy
 
-
         if npdata_dict['has_pan_tilt'] == True:
-          navpose_dict['has_pan_tilt'] = True
-          navpose_dict['time_pan_tilt'] = npdata_dict['time_pan_tilt']
-
-          invert = -1 if transform_dict['yaw_invert'] else 1
-          navpose_dict['pan_deg'] = npdata_dict['pan_deg'] * invert  + transform_dict['yaw_deg']
-          invert = -1 if transform_dict['pitch_invert'] else 1
-          navpose_dict['tilt_deg'] = npdata_dict['tilt_deg'] * invert  + transform_dict['pitch_deg']
-          if pt_transform_dict is None:
-            pt_transform_dict = BLANK_TRANSFORM_DICT
-          navpose_dict = update_navpose_dict_pantilt(navpose_dict,pt_transform_dict)
-
-
+            navpose_dict['has_pan_tilt'] = True
+            navpose_dict['time_pan_tilt'] = npdata_dict['time_pan_tilt']
+            if transform_dict is None:
+              transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
+            invert = -1 if transform_dict['yaw_invert'] else 1
+            navpose_dict['pan_deg'] = npdata_dict['pan_deg'] * invert  + transform_dict['yaw_deg']
+            invert = -1 if transform_dict['pitch_invert'] else 1
+            navpose_dict['tilt_deg'] = npdata_dict['tilt_deg'] * invert  + transform_dict['pitch_deg']
+           
       except Exception as e:
         success = False
         logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
+
+
+      if npdata_dict['has_pan_tilt'] == True and pt_transform_dict is not None:
+        navpose_dict = update_navpose_dict_pantilt(navpose_dict, pt_transform_dict)
+
   return navpose_dict
 
 
@@ -1879,10 +1878,12 @@ def update_navpose_dict_pantilt(npdata_dict, transform_dict):
         heading_deg = 0
       
       npdata_dict['pan_tilt_heading_deg'] = heading_deg + npdata_dict['pan_deg']
-
-
       pt_transform = update_transform_from_pantilt(transform_dict,npdata_dict['pan_deg'],npdata_dict['tilt_deg'])
-
+      # logger.log_warn("Updated PT Navpose tranform", data = [transform_dict, pt_transform], throttle_s = 5.0)
+      # logger.log_warn("Got PanTilt z navpose transform, pan, and tilt pt_transform", data = [npdata_dict['z_m'],transform_dict['z_m'],
+      #                                                                                npdata_dict['pan_deg'],npdata_dict['tilt_deg'] ,
+      #                                                                                npdata_dict['z_m'], pt_transform['z_m']], 
+      #                                                                                throttle_s = 5.0)
       x = pt_transform['x_m']
       y = pt_transform['y_m']
       z = pt_transform['z_m']
@@ -1891,7 +1892,7 @@ def update_navpose_dict_pantilt(npdata_dict, transform_dict):
       yaw = pt_transform['yaw_deg']
 
       try:
-
+        pass
         if npdata_dict['has_orientation'] == True:
           npdata_dict['pan_tilt_roll_deg'] = npdata_dict['roll_deg'] + roll
           npdata_dict['pan_tilt_pitch_deg'] = npdata_dict['pitch_deg'] + pitch
@@ -1913,5 +1914,5 @@ def update_navpose_dict_pantilt(npdata_dict, transform_dict):
 
       except Exception as e:
         success = False
-        logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
+        logger.log_warn("Failed to Calculate PanTilt Transform dict: " + str(e), throttle_s = 5.0)
   return npdata_dict
