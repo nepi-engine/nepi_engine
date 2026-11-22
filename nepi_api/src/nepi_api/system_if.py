@@ -555,6 +555,7 @@ class NavPoseIF(NodeIF):
         Returns:
             dict: The processed nav pose dictionary in NEPI standard frames.
         """
+        #self.msg_if.pub_warn("Got NavPose To Publish", data = navpose_dict , throttle_s = 10)
         np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         if navpose_dict is None and self.status_msg is not None:
             return np_dict
@@ -565,7 +566,7 @@ class NavPoseIF(NodeIF):
                     np_dict[key] = navpose_dict[key]
 
 
-            #self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = 30)
+            #self.msg_if.pub_warn("Got Updated NavPose To Publish", data = navpose_dict , throttle_s = 10)
 
             if timestamp == None:
                 timestamp = nepi_utils.get_time()
@@ -614,7 +615,8 @@ class NavPoseIF(NodeIF):
 
             ###################################
             # Transform in Frame
-            tnp_dict = np_dict
+            #self.msg_if.pub_warn("Got NavPose To Tranform", data = navpose_dict , throttle_s = 10)
+            tnp_dict = copy.deepcopy(np_dict)
             if self.transform_if is not None:
                 transform_dict = self.transform_if.get_transform_dict()
                 if transform_dict is not None:
@@ -625,8 +627,8 @@ class NavPoseIF(NodeIF):
             if tnp_dict is None:
                 self.msg_if.pub_debug("Failed to tranform navpose dict" , throttle_s = 30)
             else:
-                np_dict = tnp_dict
-
+                np_dict = copy.deepcopy(tnp_dict)
+            #self.msg_if.pub_warn("Using Transformed NavPose", data = np_dict , throttle_s = 10)
 
 
             ###################################
@@ -2780,13 +2782,12 @@ class TransformIF(NodeIF):
                     allowed = allowed and self.has_offsets == True
                 if allowed == True:
                     try:
-                        self.transform_dict[name] = float(value)
+                        self.transform_dict[name] = round(float(value),3)
                     except:
                         pass
         if transform_dict != self.transform_dict:
             self.publish_transform()
             self.set_value('transform',self.transform_dict)
-
 
 
     def update_transforms_from_list(self,transform_list):
@@ -2958,6 +2959,7 @@ class TransformIF(NodeIF):
     def _setFrame3dTransformCb(self, msg):
         self.msg_if.pub_debug("Received Frame Transform update message: " + str(msg) )
         transform_msg = msg
+        transform_dict = copy.deepcopy(self.transform_dict)
 
         x = transform_msg.x_m
         self.transform_dict['x_invert'] = transform_msg.x_invert
@@ -2975,10 +2977,10 @@ class TransformIF(NodeIF):
         self.transform_dict['heading_invert'] = transform_msg.heading_invert
         transform_list = [x, y, z, roll, pitch, yaw, heading]
 
-        transform_dict = copy.deepcopy(self.transform_dict)
-        self.transform_dict = nepi_nav.update_transform_dict_from_list(transform_dict, transform_list)
+        self.transform_dict = nepi_nav.update_transform_dict_from_list(self.transform_dict, transform_list)
         if transform_dict != self.transform_dict:
             self.publish_transform()
+            #self.msg_if.pub_warn("Updating Tranform Param", data = [self.transform_dict], throttle_s = 5)
             self.set_value('transform',self.transform_dict)
 
 

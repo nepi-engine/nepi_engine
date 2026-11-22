@@ -1328,6 +1328,7 @@ class NodeIF:
     def set_param(self,name, value):
             success = False
             if self.node_if is not None:
+                #self.msg_if.pub_warn("Setting Param", data = [name,value], throttle_s = 5)
                 success = self.node_if.set_param(self.node_if_prefix +  name, value)
             return success
 
@@ -1385,6 +1386,7 @@ class NodeIF:
 
             ##########################
             # try and set param if set_param == True
+            #self.msg_if.pub_warn("Setting Param", data = [set_param,name,value], throttle_s = 5)
             if set_param == True:
                 self.set_param(name,value)
             return success

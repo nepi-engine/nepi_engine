@@ -930,8 +930,11 @@ class PTXActuatorIF(DeviceIF):
                     speeds = []
                     for i in range(len(self.pan_pos_history) - 1):
                         delta_time = self.pan_time_history[i+1] - self.pan_time_history[i]
-                        speed = (self.pan_pos_history[i+1] - self.pan_pos_history[i]) / delta_time
-                        speeds.append(speed)
+                        try:
+                            speed = (self.pan_pos_history[i+1] - self.pan_pos_history[i]) / delta_time
+                            speeds.append(speed)
+                        except:
+                            pass
                     self.speed_pan_dps = sum(speeds) / len(speeds)
                     #self.msg_if.pub_warn("Got Pan Speed: " + str(self.speed_pan_dps))
 
