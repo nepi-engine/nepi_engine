@@ -1685,6 +1685,13 @@ class NodeIF:
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
 
+    def get_navpose(self):
+        if self.navpose_if is not None:
+            navpose = self.navpose_if.get_navpose()
+        else:
+            navpose = copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
+        return navpose
+
     def get_blank_navpose_dict(self):
         """Return a deep copy of the blank nav pose dictionary template.
 

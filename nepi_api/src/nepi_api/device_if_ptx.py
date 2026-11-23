@@ -954,8 +954,8 @@ class PTXActuatorIF(DeviceIF):
 
             #self.msg_if.pub_warn("Using PT position: " + str(self.current_position[0]) + " : " + str(self.current_position[1]))
 
-            status_msg.speed_pan_dps = abs(self.speed_pan_dps)
-            status_msg.speed_tilt_dps = abs(self.speed_tilt_dps)
+            status_msg.speed_pan_dps = self.speed_pan_dps 
+            status_msg.speed_tilt_dps = self.speed_tilt_dps
 
 
             pan_now_deg_adj = self.getPanAdj(pan_deg)

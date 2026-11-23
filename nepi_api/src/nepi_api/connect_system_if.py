@@ -655,6 +655,26 @@ class ConnectNavPoseIF(ConnectSystemIF):
         self.data_lock.release()
         return navpose_dict
 
+    def get_navpose(self):
+        """Return a deep copy of the most recently received nav pose dictionary.
+
+        Mirrors data_if.NavPoseIF.get_navpose_dict, which is the contract the
+        data_if image, depth map and pointcloud classes call against whichever
+        navpose interface they hold -- a server-side NavPoseIF when one is passed
+        in, or a ConnectNavPoseIF built from a namespace when one is not.
+
+        Returns:
+            dict: The last nav pose data dictionary, or None if no NavPose message
+                has arrived from the connected source yet.
+        """
+        if self.data_dict is None:
+            return None
+        self.data_lock.acquire()
+        navpose_dict = copy.deepcopy(self.data_dict)
+        self.data_lock.release()
+        navpose = nepi_nav.get_navpose_from_dict(navpose_dict)
+        return navpose    
+
 
     #################
     ## Control Functions

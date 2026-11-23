@@ -142,6 +142,7 @@ class NavPoseIF(NodeIF):
 
     navpose_msg = NavPose()
     navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+    navpose = copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
     navpose_frame = 'None'
 
@@ -183,6 +184,7 @@ class NavPoseIF(NodeIF):
         ##############################
         self.IF_DICT = dict(self.IF_DICT)
         self.navpose_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose = copy.deepcopy(self.navpose)
         self.navpose_settings_dict = copy.deepcopy(self.navpose_settings_dict)
         self.pub_msg_dict = dict(self.pub_msg_dict)
         self.time_list = copy.deepcopy(self.time_list)
@@ -482,7 +484,14 @@ class NavPoseIF(NodeIF):
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
 
+    def get_navpose(self):
+        """Return a deep copy of the most recently published nav pose dictionary.
 
+        Returns:
+            dict: The last nav pose data dictionary.
+        """
+        navpose = copy.deepcopy(self.navpose)
+        return navpose
 
     ###############################
     # Class Public Methods
@@ -564,6 +573,12 @@ class NavPoseIF(NodeIF):
             for key in np_dict.keys():
                 if key in navpose_dict.keys():
                     np_dict[key] = navpose_dict[key]
+                try:
+                    if int(float(np_dict[key])) == -999:
+                        np_dict[key] = 0
+                except:
+                    pass
+
 
 
             #self.msg_if.pub_warn("Got Updated NavPose To Publish", data = navpose_dict , throttle_s = 10)
@@ -634,7 +649,8 @@ class NavPoseIF(NodeIF):
             ###################################
             # Update Class Data and Status Msg     
             ###################################          
-            self.navpose_dict  = np_dict
+            self.navpose_dict  = copy.deepcopy(np_dict)
+            self.navpose = nepi_nav.get_navpose_from_dict(np_dict)
 
             self.status_msg.frame_nav = np_dict['frame_nav']
             self.status_msg.frame_altitude = np_dict['frame_altitude']
@@ -667,6 +683,7 @@ class NavPoseIF(NodeIF):
                 # gps_fix pub
                 msg.timestamp = np_dict['time_heading']
                 msg.heading_deg = np_dict['heading_deg']
+                msg.heading_deg_per_sec = np_dict['heading_deg_per_sec']
                 msg.heading_m_per_sec = np_dict['heading_m_per_sec']
                 self.publish_msg(pub_name,msg)
 
@@ -723,6 +740,8 @@ class NavPoseIF(NodeIF):
                 msg.timestamp = np_dict['time_pan_tilt']
                 msg.pan_deg = np_dict['pan_deg']
                 msg.tilt_deg = np_dict['tilt_deg']
+                msg.pan_deg_per_sec = np_dict['pan_deg_per_sec']
+                msg.tilt_deg_per_sec = np_dict['tilt_deg_per_sec']
                 self.publish_msg(pub_name,msg)
 
             ###################################

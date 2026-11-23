@@ -2170,6 +2170,8 @@ class NavPoseMgr(object):
                                 if apply_transforms == True:
                                     transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
                                     pt_transform_dict = navposes_settings_dict[frame_name]['connect_dict']['pan_tilt'][type_name + '_transform']
+                                    if comp_name == 'pan_tilt':
+                                        transform_dict = None
 
 
                                 #self.msg_if.pub_warn("Processing NavPose Init using transform", data = [comp_name,transform_dict], throttle_s = 5.0)
@@ -2202,15 +2204,17 @@ class NavPoseMgr(object):
                             if apply_transforms == True:
                                 transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
                                 pt_transform_dict = navposes_settings_dict[frame_name]['connect_dict']['pan_tilt'][type_name + '_transform']
+                                if comp_name == 'pan_tilt':
+                                    transform_dict = None
 
                             navpose_update_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_update_dict.keys():
                                 navpose_update_dict = navposes_update_dict[frame_name]
 
-                            #self.msg_if.pub_warn("Processing NavPose Update using transform", data = [comp_name,transform_dict], throttle_s = 5.0)
+                            #self.msg_if.pub_warn("Processing NavPose Update using transform", data = [comp_name], throttle_s = 5.0)
                             navpose_update_dict = nepi_nav.update_navpose_dict_from_msg(comp_name, navpose_update_dict, msg, 
                                                                                         transform_dict=transform_dict, pt_transform_dict = pt_transform_dict)
-
+                            #self.msg_if.pub_warn("Got Update Dict", data = [comp_name,navpose_update_dict], throttle_s = 5.0)
                             self.navposes_update_dict_lock.acquire()
                             self.navposes_update_dict[frame_name] = navpose_update_dict
                             self.navposes_update_dict_lock.release()
@@ -2234,6 +2238,8 @@ class NavPoseMgr(object):
                             if apply_transforms == True:
                                 transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
                                 pt_transform_dict = navposes_settings_dict[frame_name]['connect_dict']['pan_tilt'][type_name + '_transform']
+                                if comp_name == 'pan_tilt':
+                                    transform_dict = None
 
                             navpose_offset_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
                             if frame_name in navposes_offset_dict.keys():
@@ -2267,10 +2273,12 @@ class NavPoseMgr(object):
                             type_name = 'reset'
 
                             transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
-                            pt_transform_dict = None
-                            if apply_transforms == True:
-                                transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
-                                pt_transform_dict = navposes_settings_dict[frame_name]['connect_dict']['pan_tilt'][type_name + '_transform']
+                            # pt_transform_dict = None
+                            # if apply_transforms == True:
+                            #     transform_dict = navposes_settings_dict[frame_name]['connect_dict'][comp_name][type_name + '_transform']
+                            #     pt_transform_dict = navposes_settings_dict[frame_name]['connect_dict']['pan_tilt'][type_name + '_transform']
+                            #     if comp_name == 'pan_tilt':
+                            #         transform_dict = None
 
                             # self.msg_if.pub_debug("Got reset source dict now last: " + str([navpose_source_dict['has_orientation'],navpose_source_dict['pitch_deg'],
                             #                                                         last_navpose_source_dict['has_orientation'],last_navpose_source_dict['pitch_deg']]))
@@ -2453,11 +2461,11 @@ class NavPoseMgr(object):
                 # the pan and tilt.
                 if navpose_solution['has_pan_tilt'] == True:
                     pt_transform = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
-                    if navpose_settings_dict.get('apply_transforms', True) == True:
-                        pt_connect = navpose_settings_dict['connect_dict'].get('pan_tilt', dict())
-                        type_name = 'update' if navpose_update_dict.get('has_pan_tilt', False) == True else 'init'
-                        pt_transform = pt_connect.get(type_name + '_transform', pt_transform)
-                    navpose_solution = nepi_nav.update_navpose_dict_pantilt(navpose_solution, pt_transform)
+                    # if navpose_settings_dict.get('apply_transforms', True) == True:
+                    #     pt_connect = navpose_settings_dict['connect_dict'].get('pan_tilt', dict())
+                    #     type_name = 'update' if navpose_update_dict.get('has_pan_tilt', False) == True else 'init'
+                    #     pt_transform = pt_connect.get(type_name + '_transform', pt_transform)
+                    navpose_solution = nepi_nav.transform_navpose_dict(navpose_solution, None, pt_transform)
 
 
                 #############################
@@ -2466,6 +2474,7 @@ class NavPoseMgr(object):
                 self.navposes_solution_dict[frame_name] = navpose_solution
                 self.navposes_solution_dict_lock.release()
                 navpose_solution_msg = nepi_nav.convert_navpose_dict2msg(navpose_solution)
+                # self.msg_if.pub_warn("Got Navpose msg", data = navpose_solution_msg, throttle_s = 5)
                 navposes_solution_msg.navpose_frames.append(frame_name)
                 navposes_solution_msg.navposes.append(navpose_solution_msg)
     
@@ -2479,13 +2488,14 @@ class NavPoseMgr(object):
                 timer = nepi_utils.get_time() - last_time
 
                 if last_navposes_save_dict != navpose_solution or timer > heartbeat_delay:
-
+                    self.navposes_pub_times_dict[frame_name]['last_time'] = nepi_utils.get_time()
                     self.navposes_pubs_dict_lock.acquire()
 
                     if frame_name in self.navposes_pubs_dict.keys():
+                        #self.msg_if.pub_warn("Publishing Navpose Solution Msg", data = navpose_solution_msg, throttle_s = 5)
                         try:
                             if self.navpose_pubs_published == False:
-                                #self.msg_if.pub_debug("Navpose Solution Msg: " + str(navpose_solution_msg))
+                                #self.msg_if.pub_warn("Publishing Navpose Solution Msg: " + str(navpose_solution_msg), throttle_s = 5)
                                 self.navpose_pubs_published = True
                             self.navposes_pubs_dict[frame_name].publish_pub('navpose',navpose_solution_msg)
                             self.navposes_pubs_dict[frame_name].publish_pub('navpose_fixed',nepi_nav.convert_navpose_dict2msg(navpose_fixed_dict))
@@ -2497,7 +2507,7 @@ class NavPoseMgr(object):
                                 
 
                         except Exception as e:
-                            self.msg_if.pub_debug("Navpose Publishing Failed: " + str(e))
+                            self.msg_if.pub_warn("Navpose Publishing Failed: " + str(e))
 
                     self.navposes_pubs_dict_lock.release()
 
