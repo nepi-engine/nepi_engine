@@ -1565,7 +1565,7 @@ class PTXActuatorIF(DeviceIF):
         self.pan_goal_deg = self.panRatioToDeg(ratio) # Function takes care of reverse conversion
         if self.gotoPanPositionCb is not None:
             #self.msg_if.pub_info("Driving to pan ratio - pan deg:  " + str(self.pan_goal_deg * self.rpi))
-            self.msg_if.pub_info("Calling gotoPanPositionCb with deg :" + str(self.pan_goal_deg))
+            #self.msg_if.pub_info("Calling gotoPanPositionCb with deg :" + str(self.pan_goal_deg))
             self.gotoPanPositionCb(self.pan_goal_deg)
         elif self.gotoPositionCb is not None:
             tilt_goal_deg = self.getTiltAdj(self.tilt_goal_deg)
