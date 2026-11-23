@@ -674,7 +674,7 @@ class NavPoseIF(NodeIF):
                 msg.timestamp = np_dict['time_location']
                 msg.latitude = np_dict['latitude']
                 msg.longitude = np_dict['longitude']
-                msg.location_m_per_sec = np_dict['location_m_per_sec']
+                msg.location_m_per_sec = round(np_dict['location_m_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_heading == True:
@@ -682,9 +682,9 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_heading']
-                msg.heading_deg = np_dict['heading_deg']
-                msg.heading_deg_per_sec = np_dict['heading_deg_per_sec']
-                msg.heading_m_per_sec = np_dict['heading_m_per_sec']
+                msg.heading_deg = round(np_dict['heading_deg'],3)
+                msg.heading_deg_per_sec = round(np_dict['heading_deg_per_sec'],3)
+                msg.heading_m_per_sec = round(np_dict['heading_m_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_orientation == True:
@@ -692,12 +692,12 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_orientation']
-                msg.roll_deg = np_dict['roll_deg']
-                msg.pitch_deg = np_dict['pitch_deg']
-                msg.yaw_deg = np_dict['yaw_deg']
-                msg.roll_deg_per_sec = np_dict['roll_deg_per_sec']
-                msg.pitch_deg_per_sec = np_dict['pitch_deg_per_sec']
-                msg.yaw_deg_per_sec = np_dict['yaw_deg_per_sec']
+                msg.roll_deg = round(np_dict['roll_deg'],3)
+                msg.pitch_deg = round(np_dict['pitch_deg'],3)
+                msg.yaw_deg = round(np_dict['yaw_deg'],3)
+                msg.roll_deg_per_sec = round(np_dict['roll_deg_per_sec'],3)
+                msg.pitch_deg_per_sec = round(np_dict['pitch_deg_per_sec'],3)
+                msg.yaw_deg_per_sec = round(np_dict['yaw_deg_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_position == True:
@@ -705,14 +705,14 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_position']
-                msg.x_m = np_dict['x_m']
-                msg.y_m = np_dict['y_m']
-                msg.z_m = np_dict['z_m']
+                msg.x_m = round(np_dict['x_m'],3)
+                msg.y_m = round(np_dict['y_m'],3)
+                msg.z_m = round(np_dict['z_m'],3)
                 # The component msg has no velocity flag, so -999 is the flag:
                 # nepi_nav.update_navpose_dict_from_msg reads it back that way.
-                msg.x_m_per_sec = np_dict['x_m_per_sec'] if np_dict['has_velocity'] else -999
-                msg.y_m_per_sec = np_dict['y_m_per_sec'] if np_dict['has_velocity'] else -999
-                msg.z_m_per_sec = np_dict['z_m_per_sec'] if np_dict['has_velocity'] else -999
+                msg.x_m_per_sec = round(np_dict['x_m_per_sec'],3) if np_dict['has_velocity'] else -999
+                msg.y_m_per_sec = round(np_dict['y_m_per_sec'],3) if np_dict['has_velocity'] else -999
+                msg.z_m_per_sec = round(np_dict['z_m_per_sec'],3) if np_dict['has_velocity'] else -999
                 self.publish_msg(pub_name,msg)
 
             if self.pub_altitude == True:
@@ -720,8 +720,8 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_altitude']
-                msg.altitude_m = np_dict['altitude_m']
-                msg.altitude_m_per_sec = np_dict['altitude_m_per_sec']
+                msg.altitude_m = round(np_dict['altitude_m'],3)
+                msg.altitude_m_per_sec = round(np_dict['altitude_m_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_depth == True:
@@ -729,8 +729,8 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_depth']
-                msg.depth_m = np_dict['depth_m']
-                msg.depth_m_per_sec = np_dict['depth_m_per_sec']
+                msg.depth_m = round(np_dict['depth_m'],3)
+                msg.depth_m_per_sec = round(np_dict['depth_m_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_pan_tilt == True:
@@ -738,10 +738,10 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_pan_tilt']
-                msg.pan_deg = np_dict['pan_deg']
-                msg.tilt_deg = np_dict['tilt_deg']
-                msg.pan_deg_per_sec = np_dict['pan_deg_per_sec']
-                msg.tilt_deg_per_sec = np_dict['tilt_deg_per_sec']
+                msg.pan_deg = round(np_dict['pan_deg'],3)
+                msg.tilt_deg = round(np_dict['tilt_deg'],3)
+                msg.pan_deg_per_sec = round(np_dict['pan_deg_per_sec'],3)
+                msg.tilt_deg_per_sec = round(np_dict['tilt_deg_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             ###################################

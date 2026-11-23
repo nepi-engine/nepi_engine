@@ -482,11 +482,14 @@ def clear_navpose_dict_comp(comp_name,npdata_dict):
           npdata_dict['time_depth']  = 0.0
           npdata_dict['depth_m']  = 0.0
           npdata_dict['depth_m_per_sec']  = 0.0
+          
       if  comp_name == 'pan_tilt':
           npdata_dict['has_pan_tilt'] = False
           npdata_dict['time_pan_tilt']  = 0.0
           npdata_dict['pan_deg']  = 0.0
           npdata_dict['tilt_deg']  = 0.0
+          npdata_dict['pan_deg_per_sec']  = 0.0
+          npdata_dict['tilt_deg_per_sec']  = 0.0
 
           npdata_dict['pan_tilt_latitude']  = 0.0
           npdata_dict['pan_tilt_longitude']  = 0.0
@@ -571,18 +574,44 @@ def update_navpose_dict_from_dict(npdata_dict_org,npdata_dict_new):
             npdata_dict_org['time_depth'] = npdata_dict_new['time_depth']
             npdata_dict_org['depth_m'] = npdata_dict_new['depth_m']
             npdata_dict_org['depth_m_per_sec'] = npdata_dict_new['depth_m_per_sec']
+
         if npdata_dict_new['has_pan_tilt'] == True:
             npdata_dict_org['has_pan_tilt'] = True
             npdata_dict_org['time_pan_tilt'] = npdata_dict_new['time_pan_tilt']
             npdata_dict_org['pan_deg'] = npdata_dict_new['pan_deg']
             npdata_dict_org['tilt_deg'] = npdata_dict_new['tilt_deg']
+            npdata_dict_org['pan_deg_per_sec'] = npdata_dict_new['pan_deg_per_sec']
+            npdata_dict_org['tilt_deg_per_sec'] = npdata_dict_new['tilt_deg_per_sec']
+
+
+            npdata_dict_org['pan_tilt_latitude'] = npdata_dict_new['pan_tilt_latitude']
+            npdata_dict_org['pan_tilt_longitude'] = npdata_dict_new['pan_tilt_longitude']
+            npdata_dict_org['pan_tilt_location_m_per_sec'] = npdata_dict_new['pan_tilt_location_m_per_sec']
+
             npdata_dict_org['pan_tilt_heading_deg'] = npdata_dict_new['pan_tilt_heading_deg']
-            npdata_dict_org['pan_tilt_x_m'] = npdata_dict_new['pan_tilt_x_m']
-            npdata_dict_org['pan_tilt_y_m'] = npdata_dict_new['pan_tilt_y_m']
-            npdata_dict_org['pan_tilt_z_m'] = npdata_dict_new['pan_tilt_z_m']
+            npdata_dict_org['pan_tilt_heading_deg_per_sec'] = npdata_dict_new['pan_tilt_heading_deg_per_sec']
+            npdata_dict_org['pan_tilt_heading_m_per_sec'] = npdata_dict_new['pan_tilt_heading_m_per_sec']
+
             npdata_dict_org['pan_tilt_roll_deg'] = npdata_dict_new['pan_tilt_roll_deg']
             npdata_dict_org['pan_tilt_pitch_deg'] = npdata_dict_new['pan_tilt_pitch_deg']
             npdata_dict_org['pan_tilt_yaw_deg'] = npdata_dict_new['pan_tilt_yaw_deg']
+            npdata_dict_org['pan_tilt_roll_deg_per_sec'] = npdata_dict_new['pan_tilt_roll_deg_per_sec']
+            npdata_dict_org['pan_tilt_pitch_deg_per_sec'] = npdata_dict_new['pan_tilt_pitch_deg_per_sec']
+            npdata_dict_org['pan_tilt_yaw_deg_per_sec'] = npdata_dict_new['pan_tilt_yaw_deg_per_sec']
+
+            npdata_dict_org['pan_tilt_x_m'] = npdata_dict_new['pan_tilt_x_m']
+            npdata_dict_org['pan_tilt_y_m'] = npdata_dict_new['pan_tilt_y_m']
+            npdata_dict_org['pan_tilt_z_m'] = npdata_dict_new['pan_tilt_z_m']
+
+            npdata_dict_org['pan_tilt_x_m_per_sec'] = npdata_dict_new['pan_tilt_x_m_per_sec']
+            npdata_dict_org['pan_tilt_y_m_per_sec'] = npdata_dict_new['pan_tilt_y_m_per_sec']
+            npdata_dict_org['pan_tilt_z_m_per_sec'] = npdata_dict_new['pan_tilt_z_m_per_sec']
+
+            npdata_dict_org['pan_tilt_altitude_m'] = npdata_dict_new['pan_tilt_altitude_m']
+            npdata_dict_org['pan_tilt_altitude_m_per_sec'] = npdata_dict_new['pan_tilt_altitude_m_per_sec']
+
+            npdata_dict_org['pan_tilt_depth_m'] = npdata_dict_new['pan_tilt_depth_m']
+            npdata_dict_org['pan_tilt_depth_m_per_sec'] = npdata_dict_new['pan_tilt_depth_m_per_sec']
         np_dict = npdata_dict_org
       except:
         pass
