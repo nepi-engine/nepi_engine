@@ -25,6 +25,7 @@ import getpass
 import importlib
 import subprocess
 import shutil
+import signal
 
 
 import numpy as np
@@ -504,22 +505,24 @@ def launchDriverNode(file_name, driver_node_name, device_path = None):
 
 
 def killDriverNode(node_namespace,sub_process):
+    # SIGINT first: roscpp nodes (mavros) handle only SIGINT, so SIGTERM killed
+    # them before they could unregister, and the dead node stayed in the master
+    # for every topic lookup (nav_sim kept binding its GPS to a dead mavros).
+    # rospy maps SIGINT and SIGTERM to the same shutdown handler, so a Python
+    # node shuts down exactly as before. SIGTERM, then SIGKILL, still follow
+    # for a process that ignores SIGINT.
     success = False
-    if sub_process.poll() is None:
-      sub_process.terminate()
-      terminate_timeout = 3
-      node_dead = False
-      while (terminate_timeout > 0):
-        time.sleep(1)
-        if sub_process.poll() is None:
-          terminate_timeout -= 1
-        else:
-          node_dead = True
-          break
-      if not node_dead:
-        # Escalate it
-        sub_process.kill()
-        time.sleep(1)
+    for stop_signal, wait_sec in [(signal.SIGINT, 3), (signal.SIGTERM, 2), (signal.SIGKILL, 1)]:
+      if sub_process.poll() is not None:
+        break
+      try:
+        sub_process.send_signal(stop_signal)
+      except Exception:
+        pass
+      wait_time = 0
+      while wait_time < wait_sec and sub_process.poll() is None:
+        time.sleep(0.2)
+        wait_time += 0.2
     if sub_process.poll() is not None:
       success = True
     return success

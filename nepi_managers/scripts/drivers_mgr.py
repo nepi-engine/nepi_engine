@@ -847,17 +847,20 @@ class NepiDriversMgr(object):
               settings_if.init(do_updates = True)
             else:
 
-              settings_namespace = os.path.join(self.node_namespace + '/discovery',driver_name) 
-              discovery_settings_dict['namespace'] = settings_namespace  + '/settings'
+              settings_namespace = os.path.join(self.node_namespace + '/discovery',driver_name)
 
               settings_if = SettingsIF(namespace = settings_namespace,
-                              getSettingsFunction=self.getSettingsFunction, 
-                              setSettingFunction=self.setSettingFunction, 
+                              getSettingsFunction=self.getSettingsFunction,
+                              setSettingFunction=self.setSettingFunction,
                               callback_arg = driver_name,
                               save_params = False,
                               msg_if = self.msg_if,
                               node_if = self.node_if
                               )
+              # Read back from the IF, not built from driver_name: NodeIF lowercases
+              # its namespace, and driver names are upper case (RBX_PX4), so a built
+              # name points the Drivers page at a topic nothing publishes.
+              discovery_settings_dict['namespace'] = settings_if.get_namespace()
               self.discovery_settings_dict[driver_name]['settings_if'] = settings_if
 
     return True

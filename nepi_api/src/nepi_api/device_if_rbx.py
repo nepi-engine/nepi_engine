@@ -435,8 +435,11 @@ class RBXRobotIF(DeviceIF):
         # Instance Copies of Class State
         ##############################
         self.caps_dict = copy.deepcopy(self.caps_dict)
-        # self.process_update_dict = copy.deepcopy(self.process_update_dict)
-        # self.process_data_dict = copy.deepcopy(self.process_data_dict)
+        # The process module is disabled, but set home, go home, stop, the go
+        # actions and every goto still read process_data_dict. All its has_*
+        # flags are False, so each falls through to the driver's own function.
+        self.process_update_dict = copy.deepcopy(self.BLANK_PROCESS_UPDATE_DICT)
+        self.process_data_dict = copy.deepcopy(self.BLANK_PROCESS_DATA_DICT)
 
         ##############################
         # Update Class Variables
