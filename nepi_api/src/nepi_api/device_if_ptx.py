@@ -124,7 +124,7 @@ class PTXActuatorIF(DeviceIF):
     FACTORY_CONTROLS_DICT = {
                 'reverse_pan_enabled' : False,
                 'reverse_tilt_enabled' : False,
-                'speed_ratio' : 0.5
+                'speed_ratio' : 1.0
     }
 
 

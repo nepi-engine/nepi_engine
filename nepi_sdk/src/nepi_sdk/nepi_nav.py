@@ -1334,7 +1334,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
 
   #logger.log_warn("Transforming PT NavPose", data = navpose_dict , throttle_s = 10)
-  if navpose_dict['has_pan_tilt'] == True and pt_transform_dict is not None:
+  if navpose_dict['has_pan_tilt'] == True:
+      if pt_transform_dict is None:
+        pt_transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
       try:
         #logger.log_warn("Transforming PT NavPose", data = [navpose_dict, pt_transform_dict], throttle_s = 10)
         invert = -1 if pt_transform_dict['yaw_invert'] else 1
@@ -1380,9 +1382,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         tz = pt_transform_dict['z_m'] + pt_transform_dict.get('z_m_offset',0)
         [ax,ay,az]  = rotate_enu_point([tx,ty,tz],tilt_deg,'y')
         [ax,ay,az]  = rotate_enu_point([ax,ay,az],pan_deg,'z')
-        navpose_dict['pan_tilt_x_m'] += ax
-        navpose_dict['pan_tilt_y_m'] += ay
-        navpose_dict['pan_tilt_z_m'] += az
+        navpose_dict['pan_tilt_x_m'] = x_m + ax
+        navpose_dict['pan_tilt_y_m'] = y_m + ay
+        navpose_dict['pan_tilt_z_m'] = z_m + az
 
         ################################
         heading_deg = navpose_dict['heading_deg']
