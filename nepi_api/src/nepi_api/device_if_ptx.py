@@ -27,6 +27,7 @@ import numpy as np
 from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_nav
+from nepi_sdk import nepi_controller
 
 
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
@@ -409,6 +410,19 @@ class PTXActuatorIF(DeviceIF):
         self.calibrateCenterCB = calibrateCenterCB
         if self.calibrateCenterCB is not None:
             self.has_calibration = True
+
+        # Controller Control  #############
+        # An operator-selected sensor_msgs/Joy topic drives pan and tilt; the logic is in
+        # nepi_controller. Its two settings join the driver's, so a driver with no
+        # settings gets a SettingsIF for them alone.
+        self.drvGetSettingsFunction = getSettingsFunction
+        self.drvSetSettingFunction = setSettingFunction
+        getSettingsFunction = self._getControllerSettings
+        setSettingFunction = self._setControllerSetting
+        self.controller_link = nepi_controller.ControllerLink(move = self._controllerMove,
+                stop = lambda: self.stopPanTilt('All'), home = self.goHome, has_home = lambda: self.has_homing,
+                options_changed = lambda: self.settings_if.init(do_updates = False),
+                jog_planner = nepi_controller.PanTiltJogPlanner(use_speed = self.has_timed_speed_positioning))
 
 
 
@@ -853,6 +867,8 @@ class PTXActuatorIF(DeviceIF):
         self.msg_if.pub_info("Starting pt status publisher at hz: " + str(self.status_update_rate))    
         status_pub_delay = float(1.0) / self.status_update_rate
         nepi_sdk.start_timer_process(status_pub_delay, self._publishPTXStatusCb)
+        # After SettingsIF's restore: Controller Control can only switch on from here
+        self.controller_link.start()
         ####################################
         self.ready = True
         self.msg_if.pub_info("Initialization Complete" + ": " + self.node_name, color = 'GREEN')
@@ -1733,3 +1749,41 @@ class PTXActuatorIF(DeviceIF):
 
     def _publishPTXStatusCb(self, timer):
         self.publish_status()
+
+    ###############################
+    # Controller Control: route the controller_ settings, and send the link's
+    # moves down the RUI arrow-button jog path (goto when a driver has no jog)
+
+    def _getControllerSettings(self):
+        settings_dict = None
+        if self.drvGetSettingsFunction is not None:
+            settings_dict = self.drvGetSettingsFunction()
+        return nepi_controller.merge_settings(settings_dict, self.controller_link)
+
+    def _setControllerSetting(self, setting_name, setting_value):
+        if nepi_controller.is_controller_setting(setting_name) or self.drvSetSettingFunction is None:
+            [success, msg] = nepi_controller.update_controller_setting(self.controller_link, setting_name, setting_value)
+            return [success, msg, self._getControllerSettings()]
+        [success, msg, settings_dict] = self.drvSetSettingFunction(setting_name, setting_value)
+        if settings_dict is not None:
+            settings_dict = nepi_controller.merge_settings(settings_dict, self.controller_link)
+        return [success, msg, settings_dict]
+
+    def _controllerMove(self, pan_rate, tilt_rate):
+        if self.has_timed_speed_positioning == True or self.has_timed_positioning == True:
+            for [axis, direction, speed_ratio] in self.controller_link.jog_planner.plan(pan_rate, tilt_rate):
+                if direction == 0:
+                    self.stopPanTilt(axis)
+                elif self.has_timed_speed_positioning == True:
+                    jogCb = self._jogTimedPanSpeedRatioCb if axis == 'pan' else self._jogTimedTiltSpeedRatioCb
+                    jogCb(SingleAxisTimedSpeedMove(direction = direction, speed_ratio = speed_ratio, duration_s = -1))
+                else:
+                    jogCb = self._jogTimedPanCb if axis == 'pan' else self._jogTimedTiltCb
+                    jogCb(SingleAxisTimedMove(direction = direction, duration_s = -1))
+        elif self.gotoPositionCb is not None and self.getPositionCb is not None:
+            step_deg = nepi_controller.GOTO_STEP_DEG
+            pan_deg = nepi_controller.get_goto_target(self.current_position[0], pan_rate * self.rpi, step_deg,
+                                                      self.min_pan_softstop_deg, self.max_pan_softstop_deg)
+            tilt_deg = nepi_controller.get_goto_target(self.current_position[1], tilt_rate * self.rti, step_deg,
+                                                       self.min_tilt_softstop_deg, self.max_tilt_softstop_deg)
+            self.gotPosition(pan_deg, tilt_deg)
