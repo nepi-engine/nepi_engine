@@ -2011,7 +2011,7 @@ class AiDetectorIF:
                 self.process_times.append(process_time)
 
                 ##################################
-                self.publishTargetsData(source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = np_depth_map)
+                self.publishTargetsData(source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = np_depth_map, cv2_img = cv2_img)
                 ##################################
 
                 process_latency = (nepi_sdk.get_time() - timestamp)
@@ -2095,7 +2095,7 @@ class AiDetectorIF:
 
             
 
-    def publishTargetsData(self, source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = None):
+    def publishTargetsData(self, source_topic, img_dict, detect_dict_list, timestamp, np_depth_map = None, cv2_img = None):
         detect_dict_list = self.cleanBoxes(detect_dict_list)
         #self.msg_if.pub_debug("Publisher got img_dict: " + str(img_dict))
         det_count = len(detect_dict_list)
@@ -2133,6 +2133,14 @@ class AiDetectorIF:
                         target_range_m = nepi_img.get_range_from_npDepthMap(np_depth_map, detect_dict)
                     except Exception as e:
                         self.msg_if.pub_debug("Failed to get target depth from np_depth_map: " + str(e))
+
+                # Starts all unset so a file source or a failed computation never publishes zeros
+                target_signature_dict = nepi_img.get_target_signature(None, detect_dict)
+                if cv2_img is not None:
+                    try:
+                        target_signature_dict = nepi_img.get_target_signature(cv2_img, detect_dict)
+                    except Exception as e:
+                        self.msg_if.pub_debug("Failed to get target signature from cv2_img: " + str(e), throttle_s = 5)
 
 
                 ########################
@@ -2184,6 +2192,27 @@ class AiDetectorIF:
                     [horz_angle_deg,vert_angle_deg] = nepi_utils.rotate_point(horz_angle_deg,vert_angle_deg,image_rotate_deg)
                     target_msg.azimuth_deg = horz_angle_deg 
                     target_msg.elevation_deg = vert_angle_deg   
+
+                    # Color Distribution Percent
+                    target_msg.color_black = target_signature_dict['color_black']
+                    target_msg.color_white = target_signature_dict['color_white']
+                    target_msg.color_red = target_signature_dict['color_red']
+                    target_msg.color_blue = target_signature_dict['color_blue']
+                    target_msg.color_yellow = target_signature_dict['color_yellow']
+                    target_msg.color_cyan = target_signature_dict['color_cyan']
+                    target_msg.color_magenta = target_signature_dict['color_magenta']
+                    target_msg.color_green = target_signature_dict['color_green']
+
+                    # Shape Distribution Data in Percent
+                    target_msg.shape_triangle = target_signature_dict['shape_triangle']
+                    target_msg.shape_rectangle = target_signature_dict['shape_rectangle']
+                    target_msg.shape_quadrilateral = target_signature_dict['shape_quadrilateral']
+                    target_msg.shape_pentagon = target_signature_dict['shape_pentagon']
+                    target_msg.shape_hexagon = target_signature_dict['shape_hexagon']
+                    target_msg.shape_circle = target_signature_dict['shape_circle']
+
+                    # Contour Data
+                    target_msg.contour_moments = target_signature_dict['contour_moments']
 
                     targets_msg_list.append(target_msg)
                 except Exception as e:

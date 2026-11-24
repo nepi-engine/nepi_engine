@@ -74,6 +74,10 @@ ROTATE_DICT = {
 '360': '0'
 }
 
+# Target signature keys, named and ordered as the Target.msg fields
+TARGET_COLOR_KEYS = ['color_black','color_white','color_red','color_blue','color_yellow','color_cyan','color_magenta','color_green']
+TARGET_SHAPE_KEYS = ['shape_triangle','shape_rectangle','shape_quadrilateral','shape_pentagon','shape_hexagon','shape_circle']
+
 def get_image_publisher_namespaces(name):
     msg_type = 'sensor_msgs/Image'
     return nepi_sdk.find_topics_by_msg(msg_type)
@@ -1473,6 +1477,317 @@ def pad_to_ratio(cv2_img, ratio , color_bgr = (0,0,0)):
     '''
     
     
+def getTargetRoi(cv2_img, target_box, max_dim = 128):
+    roi = None
+    if cv2_img is not None and cv2_img.dtype == np.uint8:
+        img_height = cv2_img.shape[0]
+        img_width = cv2_img.shape[1]
+        xmin = min(max(int(target_box['xmin']), 0), img_width)
+        xmax = min(max(int(target_box['xmax']), 0), img_width)
+        ymin = min(max(int(target_box['ymin']), 0), img_height)
+        ymax = min(max(int(target_box['ymax']), 0), img_height)
+        if xmax > xmin and ymax > ymin:
+            roi = cv2_img[ymin:ymax, xmin:xmax]
+            if roi.ndim == 3 and roi.shape[2] == 1:
+                roi = np.ascontiguousarray(roi[:,:,0])
+            elif roi.ndim == 3 and roi.shape[2] > 3:
+                roi = np.ascontiguousarray(roi[:,:,:3])
+            roi_height = roi.shape[0]
+            roi_width = roi.shape[1]
+            long_side = max(roi_width, roi_height)
+            if long_side > max_dim:
+                scale = float(max_dim) / long_side
+                roi_size = (max(1, int(round(roi_width * scale))), max(1, int(round(roi_height * scale))))
+                roi = cv2.resize(roi, roi_size, interpolation = cv2.INTER_AREA)
+    return roi
+
+
+def getRoiContours(roi, min_area_ratio = 0.02):
+    contours = []
+    if roi is not None:
+        if roi.ndim == 3:
+            roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        else:
+            roi_gray = roi
+        roi_blur = cv2.GaussianBlur(roi_gray, (3, 3), 0)
+        ret, roi_thresh = cv2.threshold(roi_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # [-2] is the contours list under both the OpenCV 3 and OpenCV 4 return signatures
+        found_contours = cv2.findContours(roi_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
+        min_area = min_area_ratio * roi_gray.shape[0] * roi_gray.shape[1]
+        for contour in found_contours:
+            area = cv2.contourArea(contour)
+            if area > 0 and area >= min_area:
+                contours.append(contour)
+    return contours
+
+
+def getRoiColors(roi, black_v_max = 50, white_s_max = 50, white_v_min = 128):
+    color_dict = dict()
+    for key in TARGET_COLOR_KEYS:
+        color_dict[key] = float(-999)
+    if roi is not None:
+        if roi.ndim == 3:
+            roi_hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+            hue = roi_hsv[:,:,0].reshape(-1)
+            sat = roi_hsv[:,:,1].reshape(-1)
+            val = roi_hsv[:,:,2].reshape(-1)
+        else:
+            # A single channel image has no hue, so every pixel is achromatic
+            val = roi.reshape(-1)
+            hue = np.zeros_like(val)
+            sat = np.zeros_like(val)
+        num_pixels = val.size
+        is_dark = val < black_v_max
+        is_achromatic = ~is_dark & (sat < white_s_max)
+        is_chromatic = ~is_dark & ~is_achromatic
+        num_white = np.count_nonzero(is_achromatic & (val >= white_v_min))
+        num_black = num_pixels - num_white - np.count_nonzero(is_chromatic)
+        # 30 unit OpenCV hue bins centered on red, yellow, green, cyan, blue, magenta
+        hue_bins = ((hue[is_chromatic].astype(np.int32) + 15) // 30) % 6
+        hue_counts = np.bincount(hue_bins, minlength = 6)
+        hue_keys = ['color_red','color_yellow','color_green','color_cyan','color_blue','color_magenta']
+        color_dict['color_black'] = float(num_black * 100.0 / num_pixels)
+        color_dict['color_white'] = float(num_white * 100.0 / num_pixels)
+        for i, key in enumerate(hue_keys):
+            color_dict[key] = float(hue_counts[i] * 100.0 / num_pixels)
+    return color_dict
+
+
+def getContourShapes(contours, epsilon_ratio = 0.03, angle_tol_deg = 15, circle_min = 0.7):
+    shape_areas = dict()
+    for key in TARGET_SHAPE_KEYS:
+        shape_areas[key] = 0.0
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        perimeter = cv2.arcLength(contour, True)
+        if perimeter <= 0:
+            continue
+        approx = cv2.approxPolyDP(contour, epsilon_ratio * perimeter, True)
+        num_vertices = len(approx)
+        circularity = 4 * math.pi * area / (perimeter * perimeter)
+        shape_key = None
+        if num_vertices == 3:
+            shape_key = 'shape_triangle'
+        elif num_vertices == 4:
+            points = approx.reshape(-1, 2).astype(np.float64)
+            is_right = True
+            for i in range(4):
+                vec_prev = points[i - 1] - points[i]
+                vec_next = points[(i + 1) % 4] - points[i]
+                norms = np.linalg.norm(vec_prev) * np.linalg.norm(vec_next)
+                if norms <= 0:
+                    is_right = False
+                    break
+                cos_angle = min(1.0, max(-1.0, float(np.dot(vec_prev, vec_next) / norms)))
+                if abs(math.degrees(math.acos(cos_angle)) - 90) > angle_tol_deg:
+                    is_right = False
+            if is_right == True:
+                shape_key = 'shape_rectangle'
+            else:
+                shape_key = 'shape_quadrilateral'
+        elif num_vertices == 5:
+            shape_key = 'shape_pentagon'
+        elif num_vertices == 6:
+            shape_key = 'shape_hexagon'
+        elif num_vertices > 6 and circularity >= circle_min:
+            shape_key = 'shape_circle'
+        if shape_key is not None:
+            shape_areas[shape_key] += area
+    total_area = sum(shape_areas.values())
+    shape_dict = dict()
+    for key in TARGET_SHAPE_KEYS:
+        if total_area > 0:
+            shape_dict[key] = float(shape_areas[key] * 100.0 / total_area)
+        else:
+            shape_dict[key] = float(-999)
+    return shape_dict
+
+
+def getContourHuMoments(contours):
+    hu_moments = []
+    if len(contours) > 0:
+        largest_contour = max(contours, key = cv2.contourArea)
+        hu_values = cv2.HuMoments(cv2.moments(largest_contour)).flatten()
+        for hu_value in hu_values:
+            if hu_value == 0:
+                log_value = 0.0
+            else:
+                log_value = -math.copysign(1.0, hu_value) * math.log10(abs(hu_value))
+            int_value = int(round(log_value * 1000))
+            hu_moments.append(min(max(int_value, -2147483648), 2147483647))
+    return hu_moments
+
+
+def getSignatureValues(signature_dict, keys):
+    values = []
+    for key in keys:
+        value = signature_dict.get(key, None)
+        if value is None or value == -999:
+            return None
+        values.append(float(value))
+    return values
+
+
+def get_color_distribution(cv2_img, target_box, max_dim = 128, black_v_max = 50, white_s_max = 50, white_v_min = 128):
+    """ Get the color distribution of a target box, in percent of box pixels
+
+    Each pixel lands in exactly one of eight bins, using OpenCV HSV (H 0-179, S and V 0-255).
+    V below black_v_max is black. Otherwise S below white_s_max is white when V is at least
+    white_v_min and black when it is not (there is no gray bin). Every other pixel is binned by
+    hue: red H < 15 or H >= 165, yellow 15-44, green 45-74, cyan 75-104, blue 105-134,
+    magenta 135-164. A single channel image has no hue, so its pixels are black or white only.
+
+    Args:
+        cv2_img (cv2.mat): OpenCV Mat Image, 8 bit BGR or single channel
+        target_box (dict): Box in cv2_img pixels with 'xmin', 'xmax', 'ymin', 'ymax' keys.
+            Clamped to the image bounds.
+        max_dim (int): Longest side in pixels the box crop is downscaled to before analysis.
+            Never upscaled.
+        black_v_max (int): V below this is black
+        white_s_max (int): S below this is achromatic (white or black)
+        white_v_min (int): Achromatic V at or above this is white
+
+    Returns:
+        color_dict (dict): Percent of box pixels for each of color_black, color_white,
+            color_red, color_blue, color_yellow, color_cyan, color_magenta, color_green,
+            summing to 100. Every value is -999 if cv2_img is None or not 8 bit, or the
+            clamped box is empty.
+    """
+    roi = getTargetRoi(cv2_img, target_box, max_dim = max_dim)
+    return getRoiColors(roi, black_v_max = black_v_max, white_s_max = white_s_max, white_v_min = white_v_min)
+
+
+def get_shape_distribution(cv2_img, target_box, max_dim = 128, min_area_ratio = 0.02, epsilon_ratio = 0.03, angle_tol_deg = 15, circle_min = 0.7):
+    """ Get the shape distribution of a target box, in percent of classified contour area
+
+    The box crop is converted to grayscale, lightly blurred and Otsu thresholded, and its
+    external contours are found. Contours smaller than min_area_ratio of the crop are ignored.
+    Each remaining contour is approximated with cv2.approxPolyDP at epsilon_ratio of its
+    perimeter: 3 vertices is a triangle; 4 is a rectangle if every interior angle is within
+    angle_tol_deg of 90, otherwise a quadrilateral; 5 is a pentagon; 6 is a hexagon; more than
+    6 with circularity (4 pi area / perimeter^2) of at least circle_min is a circle. Contours
+    that fit none of these are left out.
+
+    Args:
+        cv2_img (cv2.mat): OpenCV Mat Image, 8 bit BGR or single channel
+        target_box (dict): Box in cv2_img pixels with 'xmin', 'xmax', 'ymin', 'ymax' keys.
+            Clamped to the image bounds.
+        max_dim (int): Longest side in pixels the box crop is downscaled to before analysis.
+            Never upscaled.
+        min_area_ratio (float): Smallest contour area kept, as a ratio of the crop area
+        epsilon_ratio (float): approxPolyDP epsilon as a ratio of the contour perimeter
+        angle_tol_deg (float): Largest deviation from 90 degrees for a rectangle corner
+        circle_min (float): Smallest circularity for a circle
+
+    Returns:
+        shape_dict (dict): Percent of classified contour area for each of shape_triangle,
+            shape_rectangle, shape_quadrilateral, shape_pentagon, shape_hexagon, shape_circle,
+            summing to 100. Every value is -999 if no contour is classified.
+    """
+    roi = getTargetRoi(cv2_img, target_box, max_dim = max_dim)
+    contours = getRoiContours(roi, min_area_ratio = min_area_ratio)
+    return getContourShapes(contours, epsilon_ratio = epsilon_ratio, angle_tol_deg = angle_tol_deg, circle_min = circle_min)
+
+
+def get_contour_moments(cv2_img, target_box, max_dim = 128, min_area_ratio = 0.02):
+    """ Get the Hu moments of the largest contour in a target box, log scaled to ints
+
+    Uses the same contour pass as get_shape_distribution, taking the largest contour that
+    passes the min_area_ratio filter. Each of the 7 OpenCV Hu moments h is encoded as
+    v = 0 if h == 0, otherwise v = -sign(h) * log10(abs(h)), and stored as
+    int(round(v * 1000)) clamped to the int32 range, so 1000 units is one decade.
+
+    Args:
+        cv2_img (cv2.mat): OpenCV Mat Image, 8 bit BGR or single channel
+        target_box (dict): Box in cv2_img pixels with 'xmin', 'xmax', 'ymin', 'ymax' keys.
+            Clamped to the image bounds.
+        max_dim (int): Longest side in pixels the box crop is downscaled to before analysis.
+            Never upscaled.
+        min_area_ratio (float): Smallest contour area kept, as a ratio of the crop area
+
+    Returns:
+        hu_moments (list): 7 ints, or an empty list (the unset value) if no contour qualifies
+    """
+    roi = getTargetRoi(cv2_img, target_box, max_dim = max_dim)
+    contours = getRoiContours(roi, min_area_ratio = min_area_ratio)
+    return getContourHuMoments(contours)
+
+
+def get_target_signature(cv2_img, target_box, max_dim = 128, black_v_max = 50, white_s_max = 50, white_v_min = 128,
+                         min_area_ratio = 0.02, epsilon_ratio = 0.03, angle_tol_deg = 15, circle_min = 0.7):
+    """ Get the color, shape and contour signature of a target box
+
+    Computes get_color_distribution, get_shape_distribution and get_contour_moments from
+    one crop, one resize and one contour pass. See those functions for the arguments,
+    units and unset values. With cv2_img None, returns the all unset signature.
+
+    Args:
+        cv2_img (cv2.mat): OpenCV Mat Image, 8 bit BGR or single channel
+        target_box (dict): Box in cv2_img pixels with 'xmin', 'xmax', 'ymin', 'ymax' keys
+
+    Returns:
+        signature_dict (dict): The eight color_* percents and six shape_* percents (-999
+            when unset) and contour_moments (7 ints, or an empty list when unset), keyed
+            as the matching Target.msg fields
+    """
+    roi = getTargetRoi(cv2_img, target_box, max_dim = max_dim)
+    contours = getRoiContours(roi, min_area_ratio = min_area_ratio)
+    signature_dict = getRoiColors(roi, black_v_max = black_v_max, white_s_max = white_s_max, white_v_min = white_v_min)
+    signature_dict.update(getContourShapes(contours, epsilon_ratio = epsilon_ratio, angle_tol_deg = angle_tol_deg, circle_min = circle_min))
+    signature_dict['contour_moments'] = getContourHuMoments(contours)
+    return signature_dict
+
+
+def get_target_match_score(signature_a, signature_b, color_weight = 0.5, shape_weight = 0.25, moments_weight = 0.25):
+    """ Score how alike two target signatures are
+
+    Compares per-target signatures only; it does no tracking. Components:
+    color = 1 - (sum of abs bin differences) / 200, shape the same over the six shape bins,
+    moments = 1 / (1 + d) with d the mean abs difference of the 7 contour_moments / 1000.
+    A component is dropped if either side is unset (any -999 in its group, or contour_moments
+    empty or not 7 long), and the weights are renormalized over the components left.
+
+    Args:
+        signature_a (dict): get_target_signature dict, or a Target msg converted with
+            nepi_sdk.convert_msg2dict
+        signature_b (dict): Same form as signature_a
+        color_weight (float): Weight of the color component
+        shape_weight (float): Weight of the shape component
+        moments_weight (float): Weight of the contour moments component
+
+    Returns:
+        match_score (float): 0.0 (unlike) to 1.0 (identical), or -999 if no component
+            is set on both sides
+    """
+    weighted_score = 0.0
+    total_weight = 0.0
+
+    colors_a = getSignatureValues(signature_a, TARGET_COLOR_KEYS)
+    colors_b = getSignatureValues(signature_b, TARGET_COLOR_KEYS)
+    if colors_a is not None and colors_b is not None and color_weight > 0:
+        color_diff = sum(abs(a - b) for a, b in zip(colors_a, colors_b))
+        weighted_score += color_weight * max(0.0, 1.0 - color_diff / 200.0)
+        total_weight += color_weight
+
+    shapes_a = getSignatureValues(signature_a, TARGET_SHAPE_KEYS)
+    shapes_b = getSignatureValues(signature_b, TARGET_SHAPE_KEYS)
+    if shapes_a is not None and shapes_b is not None and shape_weight > 0:
+        shape_diff = sum(abs(a - b) for a, b in zip(shapes_a, shapes_b))
+        weighted_score += shape_weight * max(0.0, 1.0 - shape_diff / 200.0)
+        total_weight += shape_weight
+
+    moments_a = signature_a.get('contour_moments', None)
+    moments_b = signature_b.get('contour_moments', None)
+    if moments_a is not None and moments_b is not None and len(moments_a) == 7 and len(moments_b) == 7 and moments_weight > 0:
+        moments_diff = sum(abs(float(a) - float(b)) for a, b in zip(moments_a, moments_b)) / 1000.0 / 7
+        weighted_score += moments_weight * (1.0 / (1.0 + moments_diff))
+        total_weight += moments_weight
+
+    if total_weight > 0:
+        return float(weighted_score / total_weight)
+    return float(-999)
+
+
 ################################
 # Low Light Enhancment Dual Illumination
 # github.com/pvnieo/Low-light-Image-Enhancement
