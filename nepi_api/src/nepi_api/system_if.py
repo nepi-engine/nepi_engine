@@ -636,14 +636,16 @@ class NavPoseIF(NodeIF):
             np_dict['navpose_frame'] = self.node_name + '_frame'
             np_dict['navpose_description'] = self.node_name + '_frame transformed from ' + source_frame
             tnp_dict = copy.deepcopy(np_dict)
+            transform_dict = None
             if self.transform_if is not None:
                 self.transform_if.set_source_description(source_frame)
                 transform_dict = self.transform_if.get_transform_dict()
-                if transform_dict is not None:
-                    if np_dict.get('has_pan_tilt', False) == False:
-                        tnp_dict = nepi_nav.transform_navpose_dict(np_dict, transform_dict)
-                    else:
-                        tnp_dict = nepi_nav.transform_navpose_dict(np_dict, None, pt_transform_dict = transform_dict)
+            if transform_dict is None:
+                transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
+            if np_dict.get('has_pan_tilt', False) == False:
+                tnp_dict = nepi_nav.transform_navpose_dict(np_dict, transform_dict)
+            else:
+                tnp_dict = nepi_nav.transform_navpose_dict(np_dict, None, pt_transform_dict = transform_dict)
             if tnp_dict is None:
                 self.msg_if.pub_debug("Failed to tranform navpose dict" , throttle_s = 30)
             else:
