@@ -847,7 +847,12 @@ class NepiDriversMgr(object):
               settings_if.init(do_updates = True)
             else:
 
+<<<<<<< HEAD
               settings_namespace = os.path.join(self.node_namespace + '/discovery',driver_name)
+=======
+              settings_namespace = os.path.join(self.node_namespace + '/discovery',driver_name.lower()) 
+              discovery_settings_dict['namespace'] = settings_namespace  + '/settings'
+>>>>>>> 6bf50e2475bb718fdb6c94340b5eed0311305bf3
 
               settings_if = SettingsIF(namespace = settings_namespace,
                               getSettingsFunction=self.getSettingsFunction,

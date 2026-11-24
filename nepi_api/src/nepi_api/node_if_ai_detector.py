@@ -2184,6 +2184,7 @@ class AiDetectorIF:
                     [horz_angle_deg,vert_angle_deg] = nepi_utils.rotate_point(horz_angle_deg,vert_angle_deg,image_rotate_deg)
                     target_msg.azimuth_deg = horz_angle_deg 
                     target_msg.elevation_deg = vert_angle_deg   
+
                     targets_msg_list.append(target_msg)
                 except Exception as e:
                     self.msg_if.pub_debug("Failed to get all data from detect dict: " + str(e)) 

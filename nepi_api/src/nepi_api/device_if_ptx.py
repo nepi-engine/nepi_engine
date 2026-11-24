@@ -125,7 +125,7 @@ class PTXActuatorIF(DeviceIF):
     FACTORY_CONTROLS_DICT = {
                 'reverse_pan_enabled' : False,
                 'reverse_tilt_enabled' : False,
-                'speed_ratio' : 0.5
+                'speed_ratio' : 1.0
     }
 
 
@@ -946,8 +946,11 @@ class PTXActuatorIF(DeviceIF):
                     speeds = []
                     for i in range(len(self.pan_pos_history) - 1):
                         delta_time = self.pan_time_history[i+1] - self.pan_time_history[i]
-                        speed = (self.pan_pos_history[i+1] - self.pan_pos_history[i]) / delta_time
-                        speeds.append(speed)
+                        try:
+                            speed = (self.pan_pos_history[i+1] - self.pan_pos_history[i]) / delta_time
+                            speeds.append(speed)
+                        except:
+                            pass
                     self.speed_pan_dps = sum(speeds) / len(speeds)
                     #self.msg_if.pub_warn("Got Pan Speed: " + str(self.speed_pan_dps))
 
@@ -967,8 +970,8 @@ class PTXActuatorIF(DeviceIF):
 
             #self.msg_if.pub_warn("Using PT position: " + str(self.current_position[0]) + " : " + str(self.current_position[1]))
 
-            status_msg.speed_pan_dps = abs(self.speed_pan_dps)
-            status_msg.speed_tilt_dps = abs(self.speed_tilt_dps)
+            status_msg.speed_pan_dps = self.speed_pan_dps 
+            status_msg.speed_tilt_dps = self.speed_tilt_dps
 
 
             pan_now_deg_adj = self.getPanAdj(pan_deg)
@@ -1578,7 +1581,7 @@ class PTXActuatorIF(DeviceIF):
         self.pan_goal_deg = self.panRatioToDeg(ratio) # Function takes care of reverse conversion
         if self.gotoPanPositionCb is not None:
             #self.msg_if.pub_info("Driving to pan ratio - pan deg:  " + str(self.pan_goal_deg * self.rpi))
-            self.msg_if.pub_info("Calling gotoPanPositionCb with deg :" + str(self.pan_goal_deg))
+            #self.msg_if.pub_info("Calling gotoPanPositionCb with deg :" + str(self.pan_goal_deg))
             self.gotoPanPositionCb(self.pan_goal_deg)
         elif self.gotoPositionCb is not None:
             tilt_goal_deg = self.getTiltAdj(self.tilt_goal_deg)

@@ -1328,6 +1328,7 @@ class NodeIF:
     def set_param(self,name, value):
             success = False
             if self.node_if is not None:
+                #self.msg_if.pub_warn("Setting Param", data = [name,value], throttle_s = 5)
                 success = self.node_if.set_param(self.node_if_prefix +  name, value)
             return success
 
@@ -1385,6 +1386,7 @@ class NodeIF:
 
             ##########################
             # try and set param if set_param == True
+            #self.msg_if.pub_warn("Setting Param", data = [set_param,name,value], throttle_s = 5)
             if set_param == True:
                 self.set_param(name,value)
             return success
@@ -1682,6 +1684,13 @@ class NodeIF:
         else:
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
+
+    def get_navpose(self):
+        if self.navpose_if is not None:
+            navpose = self.navpose_if.get_navpose()
+        else:
+            navpose = copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
+        return navpose
 
     def get_blank_navpose_dict(self):
         """Return a deep copy of the blank nav pose dictionary template.

@@ -142,8 +142,10 @@ class NavPoseIF(NodeIF):
 
     navpose_msg = NavPose()
     navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
+    navpose = copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
     navpose_frame = 'None'
+    navpose_source_frame = 'Unknown'
 
     data_lock = threading.Lock()
     navpose_dict_lock = threading.Lock()
@@ -183,6 +185,7 @@ class NavPoseIF(NodeIF):
         ##############################
         self.IF_DICT = dict(self.IF_DICT)
         self.navpose_dict = copy.deepcopy(self.navpose_dict)
+        self.navpose = copy.deepcopy(self.navpose)
         self.navpose_settings_dict = copy.deepcopy(self.navpose_settings_dict)
         self.pub_msg_dict = dict(self.pub_msg_dict)
         self.time_list = copy.deepcopy(self.time_list)
@@ -482,7 +485,14 @@ class NavPoseIF(NodeIF):
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
 
+    def get_navpose(self):
+        """Return a deep copy of the most recently published nav pose dictionary.
 
+        Returns:
+            dict: The last nav pose data dictionary.
+        """
+        navpose = copy.deepcopy(self.navpose)
+        return navpose
 
     ###############################
     # Class Public Methods
@@ -555,6 +565,7 @@ class NavPoseIF(NodeIF):
         Returns:
             dict: The processed nav pose dictionary in NEPI standard frames.
         """
+        #self.msg_if.pub_warn("Got NavPose To Publish", data = navpose_dict , throttle_s = 10)
         np_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         if navpose_dict is None and self.status_msg is not None:
             return np_dict
@@ -563,9 +574,15 @@ class NavPoseIF(NodeIF):
             for key in np_dict.keys():
                 if key in navpose_dict.keys():
                     np_dict[key] = navpose_dict[key]
+                try:
+                    if int(float(np_dict[key])) == -999:
+                        np_dict[key] = 0
+                except:
+                    pass
 
 
-            #self.msg_if.pub_debug("Start Navpose data dict: " + str(np_dict) , throttle_s = 30)
+
+            #self.msg_if.pub_warn("Got Updated NavPose To Publish", data = navpose_dict , throttle_s = 10)
 
             if timestamp == None:
                 timestamp = nepi_utils.get_time()
@@ -614,22 +631,33 @@ class NavPoseIF(NodeIF):
 
             ###################################
             # Transform in Frame
-            tnp_dict = np_dict
+            #self.msg_if.pub_warn("Got NavPose To Tranform", data = navpose_dict , throttle_s = 10)
+            source_frame = np_dict.get('navpose_frame', 'Unknown')
+            np_dict['navpose_frame'] = self.node_name + '_frame'
+            np_dict['navpose_description'] = self.node_name + '_frame transformed from ' + source_frame
+            tnp_dict = copy.deepcopy(np_dict)
+            transform_dict = None
             if self.transform_if is not None:
+                self.transform_if.set_source_description(source_frame)
                 transform_dict = self.transform_if.get_transform_dict()
-                if transform_dict is not None:
-                    tnp_dict = nepi_nav.transform_navpose_dict(np_dict, transform_dict)
+            if transform_dict is None:
+                transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
+            if np_dict.get('has_pan_tilt', False) == False:
+                tnp_dict = nepi_nav.transform_navpose_dict(np_dict, transform_dict)
+            else:
+                tnp_dict = nepi_nav.transform_navpose_dict(np_dict, None, pt_transform_dict = transform_dict)
             if tnp_dict is None:
                 self.msg_if.pub_debug("Failed to tranform navpose dict" , throttle_s = 30)
             else:
-                np_dict = tnp_dict
-
+                np_dict = copy.deepcopy(tnp_dict)
+            #self.msg_if.pub_warn("Using Transformed NavPose", data = np_dict , throttle_s = 10)
 
 
             ###################################
             # Update Class Data and Status Msg     
             ###################################          
-            self.navpose_dict  = np_dict
+            self.navpose_dict  = copy.deepcopy(np_dict)
+            self.navpose = nepi_nav.get_navpose_from_dict(np_dict)
 
             self.status_msg.frame_nav = np_dict['frame_nav']
             self.status_msg.frame_altitude = np_dict['frame_altitude']
@@ -653,7 +681,7 @@ class NavPoseIF(NodeIF):
                 msg.timestamp = np_dict['time_location']
                 msg.latitude = np_dict['latitude']
                 msg.longitude = np_dict['longitude']
-                msg.location_m_per_sec = np_dict['location_m_per_sec']
+                msg.location_m_per_sec = round(np_dict['location_m_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_heading == True:
@@ -661,8 +689,9 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_heading']
-                msg.heading_deg = np_dict['heading_deg']
-                msg.heading_m_per_sec = np_dict['heading_m_per_sec']
+                msg.heading_deg = round(np_dict['heading_deg'],3)
+                msg.heading_deg_per_sec = round(np_dict['heading_deg_per_sec'],3)
+                msg.heading_m_per_sec = round(np_dict['heading_m_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_orientation == True:
@@ -670,12 +699,12 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_orientation']
-                msg.roll_deg = np_dict['roll_deg']
-                msg.pitch_deg = np_dict['pitch_deg']
-                msg.yaw_deg = np_dict['yaw_deg']
-                msg.roll_deg_per_sec = np_dict['roll_deg_per_sec']
-                msg.pitch_deg_per_sec = np_dict['pitch_deg_per_sec']
-                msg.yaw_deg_per_sec = np_dict['yaw_deg_per_sec']
+                msg.roll_deg = round(np_dict['roll_deg'],3)
+                msg.pitch_deg = round(np_dict['pitch_deg'],3)
+                msg.yaw_deg = round(np_dict['yaw_deg'],3)
+                msg.roll_deg_per_sec = round(np_dict['roll_deg_per_sec'],3)
+                msg.pitch_deg_per_sec = round(np_dict['pitch_deg_per_sec'],3)
+                msg.yaw_deg_per_sec = round(np_dict['yaw_deg_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_position == True:
@@ -683,14 +712,14 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_position']
-                msg.x_m = np_dict['x_m']
-                msg.y_m = np_dict['y_m']
-                msg.z_m = np_dict['z_m']
+                msg.x_m = round(np_dict['x_m'],3)
+                msg.y_m = round(np_dict['y_m'],3)
+                msg.z_m = round(np_dict['z_m'],3)
                 # The component msg has no velocity flag, so -999 is the flag:
                 # nepi_nav.update_navpose_dict_from_msg reads it back that way.
-                msg.x_m_per_sec = np_dict['x_m_per_sec'] if np_dict['has_velocity'] else -999
-                msg.y_m_per_sec = np_dict['y_m_per_sec'] if np_dict['has_velocity'] else -999
-                msg.z_m_per_sec = np_dict['z_m_per_sec'] if np_dict['has_velocity'] else -999
+                msg.x_m_per_sec = round(np_dict['x_m_per_sec'],3) if np_dict['has_velocity'] else -999
+                msg.y_m_per_sec = round(np_dict['y_m_per_sec'],3) if np_dict['has_velocity'] else -999
+                msg.z_m_per_sec = round(np_dict['z_m_per_sec'],3) if np_dict['has_velocity'] else -999
                 self.publish_msg(pub_name,msg)
 
             if self.pub_altitude == True:
@@ -698,8 +727,8 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_altitude']
-                msg.altitude_m = np_dict['altitude_m']
-                msg.altitude_m_per_sec = np_dict['altitude_m_per_sec']
+                msg.altitude_m = round(np_dict['altitude_m'],3)
+                msg.altitude_m_per_sec = round(np_dict['altitude_m_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_depth == True:
@@ -707,8 +736,8 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_depth']
-                msg.depth_m = np_dict['depth_m']
-                msg.depth_m_per_sec = np_dict['depth_m_per_sec']
+                msg.depth_m = round(np_dict['depth_m'],3)
+                msg.depth_m_per_sec = round(np_dict['depth_m_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             if self.pub_pan_tilt == True:
@@ -716,8 +745,10 @@ class NavPoseIF(NodeIF):
                 msg = self.pub_msg_dict[pub_name]()
                 # gps_fix pub
                 msg.timestamp = np_dict['time_pan_tilt']
-                msg.pan_deg = np_dict['pan_deg']
-                msg.tilt_deg = np_dict['tilt_deg']
+                msg.pan_deg = round(np_dict['pan_deg'],3)
+                msg.tilt_deg = round(np_dict['tilt_deg'],3)
+                msg.pan_deg_per_sec = round(np_dict['pan_deg_per_sec'],3)
+                msg.tilt_deg_per_sec = round(np_dict['tilt_deg_per_sec'],3)
                 self.publish_msg(pub_name,msg)
 
             ###################################
@@ -2737,6 +2768,8 @@ class TransformIF(NodeIF):
     ###############################
 
     def update_status_msg(self, status_msg):
+        status_msg.source_description = self.source
+        status_msg.source_ref_description = self.source
         return status_msg
 
     ###############################
@@ -2777,13 +2810,12 @@ class TransformIF(NodeIF):
                     allowed = allowed and self.has_offsets == True
                 if allowed == True:
                     try:
-                        self.transform_dict[name] = float(value)
+                        self.transform_dict[name] = round(float(value),3)
                     except:
                         pass
         if transform_dict != self.transform_dict:
             self.publish_transform()
             self.set_value('transform',self.transform_dict)
-
 
 
     def update_transforms_from_list(self,transform_list):
@@ -2869,13 +2901,8 @@ class TransformIF(NodeIF):
         Args:
             source (str): Human-readable description of the source reference frame.
         """
-        self.source = source
-        self.status_msg.source_ref_description = self.source
-        transform_dict = copy.deepcopy(self.transform_dict)
-        self.transform_dict['source_ref_description'] = self.source
-        if transform_dict != self.transform_dict:
-            self.publish_transform()
-            self.set_value('transform',self.transform_dict)
+        self.source = str(source)
+        
         
 
     def get_end_description(self):
@@ -2955,6 +2982,7 @@ class TransformIF(NodeIF):
     def _setFrame3dTransformCb(self, msg):
         self.msg_if.pub_debug("Received Frame Transform update message: " + str(msg) )
         transform_msg = msg
+        transform_dict = copy.deepcopy(self.transform_dict)
 
         x = transform_msg.x_m
         self.transform_dict['x_invert'] = transform_msg.x_invert
@@ -2972,10 +3000,10 @@ class TransformIF(NodeIF):
         self.transform_dict['heading_invert'] = transform_msg.heading_invert
         transform_list = [x, y, z, roll, pitch, yaw, heading]
 
-        transform_dict = copy.deepcopy(self.transform_dict)
-        self.transform_dict = nepi_nav.update_transform_dict_from_list(transform_dict, transform_list)
+        self.transform_dict = nepi_nav.update_transform_dict_from_list(self.transform_dict, transform_list)
         if transform_dict != self.transform_dict:
             self.publish_transform()
+            #self.msg_if.pub_warn("Updating Tranform Param", data = [self.transform_dict], throttle_s = 5)
             self.set_value('transform',self.transform_dict)
 
 

@@ -328,6 +328,8 @@ class DeviceIF(NodeIF):
 
         self.msg_if.pub_info("Starting New Transfrom IF Initialization" , color = 'RED')
         self.transform_if = TransformIF(namespace = self.node_namespace,
+                                source_ref_description = 'Unknown',
+                                end_ref_description = self.node_name + '_frame',                                
                                 info_dict = self.info_dict,
                                 msg_if = self.msg_if,
                                 node_if = self.node_if)
