@@ -145,6 +145,7 @@ class NavPoseIF(NodeIF):
     navpose = copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
     navpose_settings_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_INFO_DICT)
     navpose_frame = 'None'
+    navpose_source_frame = 'Unknown'
 
     data_lock = threading.Lock()
     navpose_dict_lock = threading.Lock()
@@ -631,8 +632,12 @@ class NavPoseIF(NodeIF):
             ###################################
             # Transform in Frame
             #self.msg_if.pub_warn("Got NavPose To Tranform", data = navpose_dict , throttle_s = 10)
+            source_frame = np_dict.get('navpose_frame', 'Unknown')
+            np_dict['navpose_frame'] = self.node_name + '_frame'
+            np_dict['navpose_description'] = self.node_name + '_frame transformed from ' + source_frame
             tnp_dict = copy.deepcopy(np_dict)
             if self.transform_if is not None:
+                self.transform_if.set_source_description(source_frame)
                 transform_dict = self.transform_if.get_transform_dict()
                 if transform_dict is not None:
                     if np_dict.get('has_pan_tilt', False) == False:
@@ -2761,6 +2766,8 @@ class TransformIF(NodeIF):
     ###############################
 
     def update_status_msg(self, status_msg):
+        status_msg.source_description = self.source
+        status_msg.source_ref_description = self.source
         return status_msg
 
     ###############################
@@ -2892,13 +2899,8 @@ class TransformIF(NodeIF):
         Args:
             source (str): Human-readable description of the source reference frame.
         """
-        self.source = source
-        self.status_msg.source_ref_description = self.source
-        transform_dict = copy.deepcopy(self.transform_dict)
-        self.transform_dict['source_ref_description'] = self.source
-        if transform_dict != self.transform_dict:
-            self.publish_transform()
-            self.set_value('transform',self.transform_dict)
+        self.source = str(source)
+        
         
 
     def get_end_description(self):

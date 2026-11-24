@@ -1546,15 +1546,18 @@ def convert_navpose_ned2enu(npdata_dict):
 
 
 
-def convert_navpose_dict2msg(npdata_dict, timestamp = None):
+def convert_navpose_dict2msg(npdata_dict, timestamp = None, name = None, description = None):
   if timestamp is None:
     timestamp = nepi_utils.get_time()
   npdata_msg = None
   if npdata_dict is None:
     logger.log_info("Got None navpose dict", throttle_s = 5.0)
-
   else:
-
+    if name is not None:
+      npdata_dict['navpose_frame'] = str(name)
+    if description is not None:
+      npdata_dict['navpose_description'] = str(description)
+ 
     blank_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
     for entry in blank_dict.keys():
       if entry not in npdata_dict.keys():

@@ -2470,10 +2470,11 @@ class NavPoseMgr(object):
 
                 #############################
                 ### Update Navposes Solutions
+                timestamp = nepi_utils.get_time()
                 self.navposes_solution_dict_lock.acquire()
                 self.navposes_solution_dict[frame_name] = navpose_solution
                 self.navposes_solution_dict_lock.release()
-                navpose_solution_msg = nepi_nav.convert_navpose_dict2msg(navpose_solution)
+                navpose_solution_msg = nepi_nav.convert_navpose_dict2msg(navpose_solution, timestamp, frame_name, frame_name)
                 # self.msg_if.pub_warn("Got Navpose msg", data = navpose_solution_msg, throttle_s = 5)
                 navposes_solution_msg.navpose_frames.append(frame_name)
                 navposes_solution_msg.navposes.append(navpose_solution_msg)
@@ -2498,11 +2499,11 @@ class NavPoseMgr(object):
                                 #self.msg_if.pub_warn("Publishing Navpose Solution Msg: " + str(navpose_solution_msg), throttle_s = 5)
                                 self.navpose_pubs_published = True
                             self.navposes_pubs_dict[frame_name].publish_pub('navpose',navpose_solution_msg)
-                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_fixed',nepi_nav.convert_navpose_dict2msg(navpose_fixed_dict))
-                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_init',nepi_nav.convert_navpose_dict2msg(navpose_init_dict))
-                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_update',nepi_nav.convert_navpose_dict2msg(navpose_update_dict))
-                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_offset',nepi_nav.convert_navpose_dict2msg(navpose_offset_dict))
-                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_reset',nepi_nav.convert_navpose_dict2msg(navpose_reset_dict))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_fixed',nepi_nav.convert_navpose_dict2msg(navpose_fixed_dict, timestamp,  frame_name, frame_name))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_init',nepi_nav.convert_navpose_dict2msg(navpose_init_dict, timestamp,  frame_name, frame_name))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_update',nepi_nav.convert_navpose_dict2msg(navpose_update_dict, timestamp,  frame_name, frame_name))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_offset',nepi_nav.convert_navpose_dict2msg(navpose_offset_dict, timestamp,  frame_name, frame_name))
+                            self.navposes_pubs_dict[frame_name].publish_pub('navpose_reset',nepi_nav.convert_navpose_dict2msg(navpose_reset_dict, timestamp,  frame_name, frame_name))
 
                                 
 
