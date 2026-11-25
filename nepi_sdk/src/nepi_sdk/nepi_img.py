@@ -1502,6 +1502,17 @@ def getTargetRoi(cv2_img, target_box, max_dim = 128):
     return roi
 
 
+def getMaskContours(roi_mask, min_area):
+    contours = []
+    # [-2] is the contours list under both the OpenCV 3 and OpenCV 4 return signatures
+    found_contours = cv2.findContours(roi_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
+    for contour in found_contours:
+        area = cv2.contourArea(contour)
+        if area > 0 and area >= min_area:
+            contours.append(contour)
+    return contours
+
+
 def getRoiContours(roi, min_area_ratio = 0.02):
     contours = []
     if roi is not None:
@@ -1511,13 +1522,29 @@ def getRoiContours(roi, min_area_ratio = 0.02):
             roi_gray = roi
         roi_blur = cv2.GaussianBlur(roi_gray, (3, 3), 0)
         ret, roi_thresh = cv2.threshold(roi_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        # [-2] is the contours list under both the OpenCV 3 and OpenCV 4 return signatures
-        found_contours = cv2.findContours(roi_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
         min_area = min_area_ratio * roi_gray.shape[0] * roi_gray.shape[1]
-        for contour in found_contours:
-            area = cv2.contourArea(contour)
-            if area > 0 and area >= min_area:
-                contours.append(contour)
+        # Otsu makes the lighter side foreground, so a dark object on a light background leaves
+        # only the box edge as an outer contour. A mostly foreground box border means the
+        # background is the lighter side, and the inverted mask holds the object.
+        border = np.concatenate((roi_thresh[0,:], roi_thresh[-1,:], roi_thresh[:,0], roi_thresh[:,-1]))
+        roi_thresh_inv = None
+        if np.count_nonzero(border) * 2 > border.size:
+            # Inverted before findContours, which modifies its input before OpenCV 3.2
+            roi_thresh_inv = cv2.bitwise_not(roi_thresh)
+        contours = getMaskContours(roi_thresh, min_area)
+        if roi_thresh_inv is not None:
+            inv_contours = getMaskContours(roi_thresh_inv, min_area)
+            # A light object filling its own box also has a mostly foreground border, but its
+            # inverted mask holds no contour, so the original result stands
+            if len(inv_contours) > 0:
+                roi_area = roi_gray.shape[0] * roi_gray.shape[1]
+                largest_area = max([cv2.contourArea(contour) for contour in contours] + [0])
+                inv_largest_area = max([cv2.contourArea(contour) for contour in inv_contours])
+                # An original outline enclosing nearly the whole box is the box edge. Otherwise the
+                # larger region is the object, so a light concave object (an L, a cross) that covers
+                # most of its border is not read from its background pockets
+                if largest_area >= 0.9 * roi_area or inv_largest_area > largest_area:
+                    contours = inv_contours
     return contours
 
 
@@ -1661,7 +1688,10 @@ def get_shape_distribution(cv2_img, target_box, max_dim = 128, min_area_ratio = 
     """ Get the shape distribution of a target box, in percent of classified contour area
 
     The box crop is converted to grayscale, lightly blurred and Otsu thresholded, and its
-    external contours are found. Contours smaller than min_area_ratio of the crop are ignored.
+    external contours are found. When most of the crop border thresholds as foreground (an
+    object darker than its background), the contours of the inverted mask are used instead,
+    unless the original outline is a real region larger than any region in the inverted mask.
+    Contours smaller than min_area_ratio of the crop are ignored.
     Each remaining contour is approximated with cv2.approxPolyDP at epsilon_ratio of its
     perimeter: 3 vertices is a triangle; 4 is a rectangle if every interior angle is within
     angle_tol_deg of 90, otherwise a quadrilateral; 5 is a pentagon; 6 is a hexagon; more than
@@ -1743,9 +1773,12 @@ def get_target_match_score(signature_a, signature_b, color_weight = 0.5, shape_w
 
     Compares per-target signatures only; it does no tracking. Components:
     color = 1 - (sum of abs bin differences) / 200, shape the same over the six shape bins,
-    moments = 1 / (1 + d) with d the mean abs difference of the 7 contour_moments / 1000.
-    A component is dropped if either side is unset (any -999 in its group, or contour_moments
-    empty or not 7 long), and the weights are renormalized over the components left.
+    moments = 1 / (1 + d) with d the mean abs difference of the first 4 contour_moments / 1000.
+    Hu moments 1-4 are never negative. Moments 5-7 sit near zero for near-symmetric shapes and
+    can change sign between frames, a jump of many decades in the encoding, so they are left
+    out of the score. A component is dropped if either side is unset (any -999 in its group,
+    or contour_moments empty or not 7 long), and the weights are renormalized over the
+    components left.
 
     Args:
         signature_a (dict): get_target_signature dict, or a Target msg converted with
@@ -1779,7 +1812,7 @@ def get_target_match_score(signature_a, signature_b, color_weight = 0.5, shape_w
     moments_a = signature_a.get('contour_moments', None)
     moments_b = signature_b.get('contour_moments', None)
     if moments_a is not None and moments_b is not None and len(moments_a) == 7 and len(moments_b) == 7 and moments_weight > 0:
-        moments_diff = sum(abs(float(a) - float(b)) for a, b in zip(moments_a, moments_b)) / 1000.0 / 7
+        moments_diff = sum(abs(float(a) - float(b)) for a, b in zip(moments_a[:4], moments_b[:4])) / 1000.0 / 4
         weighted_score += moments_weight * (1.0 / (1.0 + moments_diff))
         total_weight += moments_weight
 

@@ -60,6 +60,14 @@ IMAGE_PUB_TOPIC = 'track_image'
 
 BEST_FILTER_OPTIONS = ['SMALLEST','LARGEST']
 
+# Target lock cue weights, see get_lock_match_score
+LOCK_SIGNATURE_WEIGHT = 0.5
+LOCK_POSITION_WEIGHT = 0.3
+LOCK_SIZE_WEIGHT = 0.2
+LOCK_RANGE_WEIGHT = 0.2
+# A target may move one box diagonal in this time and still keep some position score
+LOCK_MOVE_TIME_S = 0.5
+
 BASE_RESULTS_DICT = nepi_sdk.convert_msg2dict(Track())
 
 def get_blank_results_dict():
@@ -211,6 +219,146 @@ def find_best(targets_dict_list, best_filter = 'LARGEST'):
     #logger.log_info("Got filtered_dict " + str(filtered_track))
     return best_target
 
+
+def getBoxCenter(target_dict):
+    center_x = (target_dict['xmin_pixel'] + target_dict['xmax_pixel']) / 2.0
+    center_y = (target_dict['ymin_pixel'] + target_dict['ymax_pixel']) / 2.0
+    return [center_x, center_y]
+
+def getBoxSize(target_dict):
+    width = max(target_dict['xmax_pixel'] - target_dict['xmin_pixel'], 0)
+    height = max(target_dict['ymax_pixel'] - target_dict['ymin_pixel'], 0)
+    return [width, height]
+
+def getTargetTime(target_dict, default_time):
+    # Unset timestamps are -999
+    timestamp = target_dict.get('timestamp', -999)
+    if timestamp is None or timestamp <= 0:
+        timestamp = default_time
+    return timestamp
+
+def getLockVelocity(lock_dict, track_dict, lock_vel_pixels):
+    lock_time = getTargetTime(lock_dict, 0)
+    track_time = getTargetTime(track_dict, 0)
+    if lock_time > 0 and track_time > lock_time:
+        delta_time = track_time - lock_time
+        [lock_x, lock_y] = getBoxCenter(lock_dict)
+        [track_x, track_y] = getBoxCenter(track_dict)
+        # Averaged with the last estimate because box edges jitter a few pixels every frame
+        lock_vel_pixels = [0.5 * (lock_vel_pixels[0] + (track_x - lock_x) / delta_time),
+                           0.5 * (lock_vel_pixels[1] + (track_y - lock_y) / delta_time)]
+    return lock_vel_pixels
+
+
+def get_lock_match_score(lock_dict, target_dict, lock_vel_pixels = (0.0, 0.0),
+                         signature_weight = LOCK_SIGNATURE_WEIGHT, position_weight = LOCK_POSITION_WEIGHT,
+                         size_weight = LOCK_SIZE_WEIGHT, range_weight = LOCK_RANGE_WEIGHT):
+    """ Score how likely a target is the locked target seen again
+
+    A weighted average of up to four cues, each 0.0 to 1.0, over the cues set on
+    both sides:
+    signature = nepi_img.get_target_match_score (color, shape, contour moments),
+    position = 1 - (distance from the lock's predicted box center) / (allowed move),
+    floored at 0. The prediction moves the lock center by lock_vel_pixels over the
+    time between the two timestamps. The allowed move is the lock box diagonal,
+    stretched in proportion to that time once it passes LOCK_MOVE_TIME_S.
+    size = smaller box area / larger box area,
+    range = smaller range_m / larger range_m, only when both are set.
+
+    Args:
+        lock_dict (dict): The locked target, a Target msg as converted with
+            nepi_sdk.convert_msg2dict
+        target_dict (dict): A candidate target in the same form
+        lock_vel_pixels (list): Lock box center velocity [x, y] in pixels per second
+        signature_weight (float): Weight of the signature cue
+        position_weight (float): Weight of the position cue
+        size_weight (float): Weight of the size cue
+        range_weight (float): Weight of the range cue
+
+    Returns:
+        match_score (float): 0.0 (not the lock) to 1.0 (same place, size and look),
+            or -999 if no cue is set on both sides
+    """
+    weighted_score = 0.0
+    total_weight = 0.0
+
+    if signature_weight > 0:
+        signature_score = nepi_img.get_target_match_score(lock_dict, target_dict)
+        if signature_score != -999:
+            weighted_score += signature_weight * signature_score
+            total_weight += signature_weight
+
+    [lock_width, lock_height] = getBoxSize(lock_dict)
+    [target_width, target_height] = getBoxSize(target_dict)
+
+    if position_weight > 0:
+        lock_time = getTargetTime(lock_dict, 0)
+        target_time = getTargetTime(target_dict, 0)
+        delta_time = 0.0
+        if lock_time > 0 and target_time > lock_time:
+            delta_time = target_time - lock_time
+        [lock_x, lock_y] = getBoxCenter(lock_dict)
+        [target_x, target_y] = getBoxCenter(target_dict)
+        distance = math.hypot(target_x - (lock_x + lock_vel_pixels[0] * delta_time),
+                              target_y - (lock_y + lock_vel_pixels[1] * delta_time))
+        allowed_move = max(math.hypot(lock_width, lock_height), 1.0) * max(1.0, delta_time / LOCK_MOVE_TIME_S)
+        weighted_score += position_weight * max(0.0, 1.0 - distance / allowed_move)
+        total_weight += position_weight
+
+    if size_weight > 0:
+        lock_area = lock_width * lock_height
+        target_area = target_width * target_height
+        if lock_area > 0 and target_area > 0:
+            weighted_score += size_weight * min(lock_area, target_area) / float(max(lock_area, target_area))
+            total_weight += size_weight
+
+    if range_weight > 0:
+        lock_range = lock_dict.get('range_m', -999)
+        target_range = target_dict.get('range_m', -999)
+        if lock_range > 0 and target_range > 0:
+            weighted_score += range_weight * min(lock_range, target_range) / float(max(lock_range, target_range))
+            total_weight += range_weight
+
+    if total_weight > 0:
+        return float(weighted_score / total_weight)
+    return float(-999)
+
+
+def find_lock_match(targets_dict_list, lock_dict, min_score = 0.7, lock_vel_pixels = (0.0, 0.0),
+                    signature_weight = LOCK_SIGNATURE_WEIGHT, position_weight = LOCK_POSITION_WEIGHT,
+                    size_weight = LOCK_SIZE_WEIGHT, range_weight = LOCK_RANGE_WEIGHT):
+    """ Find the target that best matches the locked target
+
+    Scores every target with get_lock_match_score and keeps the highest one that
+    reaches min_score.
+
+    Args:
+        targets_dict_list (list): Candidate target dicts
+        lock_dict (dict): The locked target
+        min_score (float): Lowest score accepted as the locked target
+        lock_vel_pixels (list): Lock box center velocity [x, y] in pixels per second
+        signature_weight (float): Weight of the signature cue
+        position_weight (float): Weight of the position cue
+        size_weight (float): Weight of the size cue
+        range_weight (float): Weight of the range cue
+
+    Returns:
+        [match_dict, match_score]: The best target and its score, or [None, -999]
+            if no target reaches min_score
+    """
+    match_dict = None
+    match_score = -999
+    if lock_dict is not None and targets_dict_list is not None:
+        for target_dict in targets_dict_list:
+            score = get_lock_match_score(lock_dict, target_dict, lock_vel_pixels = lock_vel_pixels,
+                                         signature_weight = signature_weight, position_weight = position_weight,
+                                         size_weight = size_weight, range_weight = range_weight)
+            if score != -999 and score >= min_score and score > match_score:
+                match_dict = target_dict
+                match_score = score
+    return [match_dict, match_score]
+
+
 def update_results(results_dict, navpose_dict = None):
     if results_dict is not None:
         azimuth_deg = results_dict.get('azimuth_deg',-999) 
@@ -276,10 +424,15 @@ functions_dict = dict()
 
    
 BASE_DATA_DICT = dict(
-        targets_dict_list = [], 
+        targets_dict_list = [],
         navpose_dict = nepi_sdk.convert_msg2dict(NavPose()),
         last_track_time = 0,
-        last_track_dict = None
+        last_track_dict = None,
+        lock_dict = None,
+        lock_time = 0,
+        lock_vel_pixels = [0.0, 0.0],
+        lock_count = 0,
+        last_lock_dict = None
     )
 
 
@@ -307,7 +460,17 @@ BASE_CONTROLS_DICT = dict(
 
         best_filter = {"type":"Selection", "value":['LARGEST'], "options":BEST_FILTER_OPTIONS, 
                    # OPTIONAL
-                   'display_name':'Best Filter', 'description':'Set Best Filte', 'display_hidden':False}, 
+                   'display_name':'Best Filter', 'description':'Set Best Filte', 'display_hidden':False},
+
+        hold_lock = {
+            'type': 'Toggle', 'value': True,
+            'display_name': 'Hold Lock',
+            'description': 'Keep tracking the same target while others are in view. Off then on releases the lock.', 'display_hidden': False},
+
+        lock_min_score = {
+            'type': 'FloatSlider', 'value': 0.7, 'bounds': [0.0, 1.0], 'round_value': 2,
+            'display_name': 'Lock Min Score',
+            'description': 'Lowest match score a target needs to be taken as the locked target.', 'display_hidden': False},
 
         timeout = {
             'type': 'Float', 'value': 2, 'bounds': [0.0, 10], 'round_value': 1,
@@ -326,6 +489,14 @@ BASE_RESULTS_DISPLAY_DICT = dict(
         age_sec = {"type":"Float", "value":-999, 'round_value': 3,
                     # OPTIONAL
                     'display_name':'Age (Sec)', 'description':'Age in seconds', 'display_hidden':False, 'round_display': 3,},
+
+        uid = {"type":"String", "value":'',
+                    # OPTIONAL
+                    'display_name':'Lock ID', 'description':'Number of the lock this track belongs to, blank while Hold Lock is off', 'display_hidden':False},
+
+        lock_score = {"type":"Float", "value":-999, 'round_value': 2,
+                    # OPTIONAL
+                    'display_name':'Lock Score', 'description':'How well the tracked target matched the lock, -999 on a new lock', 'display_hidden':False, 'round_display': 2,},
 
         range_m = {"type":"Float", "value":-999, 'round_value': 2,
                     # OPTIONAL
@@ -406,11 +577,57 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict, if_dict
     threshold_filter = controls_values_dict['threshold_filter']
     filtered_targets = filter_by_threshold(filtered_targets, threshold_filter)
 
-    
+    best_filter = controls_values_dict['best_filter']
+    timeout = controls_values_dict['timeout']
+    hold_lock = controls_values_dict.get('hold_lock', True)
+    lock_min_score = controls_values_dict.get('lock_min_score', 0.7)
+    current_time = nepi_utils.get_time()
+
+    lock_dict = data_dict.get('lock_dict', None)
+    if hold_lock == False:
+        # Off releases the lock, so turning Hold Lock back on starts a new one
+        data_dict['lock_dict'] = None
+        data_dict['last_lock_dict'] = None
+        lock_dict = None
+    elif lock_dict is not None and current_time - data_dict.get('lock_time', current_time) > timeout:
+        # Kept so the same target can be taken back when it is seen again
+        data_dict['last_lock_dict'] = lock_dict
+        data_dict['lock_dict'] = None
+        lock_dict = None
+
+    lock_score = -999
     if len(filtered_targets) > 0:
-        best_filter = controls_values_dict['best_filter']
-        track_dict = find_best(filtered_targets, best_filter = best_filter)
-        data_dict['last_track_time'] = nepi_utils.get_time()
+        if hold_lock == False:
+            track_dict = find_best(filtered_targets, best_filter = best_filter)
+        elif lock_dict is not None:
+            lock_vel_pixels = data_dict.get('lock_vel_pixels', [0.0, 0.0])
+            [track_dict, lock_score] = find_lock_match(filtered_targets, lock_dict, min_score = lock_min_score,
+                                                       lock_vel_pixels = lock_vel_pixels)
+            # With no match track_dict stays None and the last track holds until timeout
+            if track_dict is not None:
+                track_dict['uid'] = lock_dict.get('uid', '')
+                data_dict['lock_vel_pixels'] = getLockVelocity(lock_dict, track_dict, lock_vel_pixels)
+        else:
+            last_lock_dict = data_dict.get('last_lock_dict', None)
+            if last_lock_dict is not None:
+                # Where it was and how big it looked are stale by now, so match on its look alone
+                [track_dict, lock_score] = find_lock_match(filtered_targets, last_lock_dict, min_score = lock_min_score,
+                                                           position_weight = 0, size_weight = 0, range_weight = 0)
+            if track_dict is not None:
+                track_dict['uid'] = last_lock_dict.get('uid', '')
+            else:
+                track_dict = find_best(filtered_targets, best_filter = best_filter)
+                data_dict['lock_count'] = data_dict.get('lock_count', 0) + 1
+                track_dict['uid'] = str(data_dict['lock_count'])
+            data_dict['last_lock_dict'] = None
+            data_dict['lock_vel_pixels'] = [0.0, 0.0]
+
+    if track_dict is not None:
+        track_dict['lock_score'] = lock_score
+        if hold_lock == True:
+            data_dict['lock_dict'] = copy.deepcopy(track_dict)
+            data_dict['lock_time'] = getTargetTime(track_dict, current_time)
+        data_dict['last_track_time'] = current_time
         data_dict['last_track_dict'] = track_dict
     #logger.log_warn("Process filtered_targets: " + str([filtered_targets, track_dict]), throttle_s = 5)
 
@@ -419,7 +636,6 @@ def track_1_process(data_dict, controls_dict, states_dict, results_dict, if_dict
         results_dict = track_dict
         results_dict = update_results(results_dict, navpose_dict)
     elif results_dict is not None:
-        timeout = controls_values_dict['timeout']
         timestamp = results_dict.get('timestamp',-999)
         if timestamp != -999:
             last_track =  nepi_utils.get_time() - timestamp

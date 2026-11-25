@@ -990,6 +990,14 @@ def get_values_dict(controls_dict):
     for control_name in controls_dict.keys():
       if control_name in CONTROLS_META_KEYS:
         continue
+      control_entry = controls_dict[control_name]
+      if isinstance(control_entry, dict) == False:
+        # Already a plain value. ProcessIF.process_results converts a process's
+        # controls before calling its process function, and every process
+        # function converts what it is given again.
+        if control_entry is not None:
+          controls_values_dict[control_name] = control_entry
+        continue
       control_value = get_value(controls_dict, control_name)
       if control_value is not None:
         controls_values_dict[control_name] = control_value
