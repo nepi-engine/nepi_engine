@@ -1171,18 +1171,20 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
   # logger.log_warn("Transforming NavPose Dict", data = [npdata_dict,transform_dict], throttle_s = 5.0)
   #logger.log_warn("passing transform_dict: " + str(npdata_dict), throttle_s = 5.0)
 
-
   success = True
-  navpose_dict = copy.deepcopy(npdata_dict)
-  if navpose_dict is None:
-    success = False
-    logger.log_info("Got None navpose dict", throttle_s = 5.0)
+  navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
+  if npdata_dict is None:
+    npdata_dict = dict()
+
   for key in navpose_dict.keys():
-    try:
-      if int(float(navpose_dict[key])) == -999:
-        navpose_dict[key] = 0
-    except:
-      pass
+    if key in npdata_dict.keys():
+      try:
+        if int(float(npdata_dict[key])) == -999:
+          npdata_dict[key] = 0
+      except:
+        pass
+      navpose_dict[key] = npdata_dict[key]
+
   #logger.log_warn("Transforming NavPose", data = navpose_dict , throttle_s = 10)
   if transform_dict is not None:
       [x,y,z] = [transform_dict['x_m'] + transform_dict.get('x_m_offset',0),
@@ -1561,113 +1563,117 @@ def convert_navpose_ned2enu(npdata_dict):
 
 
 def convert_navpose_dict2msg(npdata_dict, timestamp = None, name = None, description = None):
+
+  navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
+  if npdata_dict is None:
+    npdata_dict = dict()
+
+  for key in navpose_dict.keys():
+    if key in npdata_dict.keys():
+      try:
+        if int(float(npdata_dict[key])) == -999:
+          npdata_dict[key] = 0
+      except:
+        pass
+      navpose_dict[key] = npdata_dict[key]
+
+
   if timestamp is None:
     timestamp = nepi_utils.get_time()
   npdata_msg = None
-  if npdata_dict is None:
-    logger.log_info("Got None navpose dict", throttle_s = 5.0)
-  else:
-    if name is not None:
-      npdata_dict['navpose_frame'] = str(name)
-    if description is not None:
-      npdata_dict['navpose_description'] = str(description)
+
+  if name is not None:
+    navpose_dict['navpose_frame'] = str(name)
+  if description is not None:
+    navpose_dict['navpose_description'] = str(description)
  
-    blank_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
-    for entry in blank_dict.keys():
-      if entry not in npdata_dict.keys():
-        npdata_dict[entry] = blank_dict[entry]
-      try:
-        if int(float(npdata_dict[entry])) == -999:
-          npdata_dict[entry] = 0
-      except:
-        pass
 
   np_msg = NavPose()
   np_msg.timestamp = timestamp
-  np_msg.navpose_frame = npdata_dict['navpose_frame']
-  np_msg.navpose_description = npdata_dict['navpose_description']
-  np_msg.frame_nav = npdata_dict['frame_nav']
-  np_msg.frame_altitude = npdata_dict['frame_altitude']
-  np_msg.frame_depth = npdata_dict['frame_depth']
+  np_msg.navpose_frame = navpose_dict['navpose_frame']
+  np_msg.navpose_description = navpose_dict['navpose_description']
+  np_msg.frame_nav = navpose_dict['frame_nav']
+  np_msg.frame_altitude = navpose_dict['frame_altitude']
+  np_msg.frame_depth = navpose_dict['frame_depth']
 
-  np_msg.geoid_height_meters = npdata_dict['geoid_height_meters']
+  np_msg.geoid_height_meters = navpose_dict['geoid_height_meters']
 
-  np_msg.has_heading = npdata_dict['has_heading']
-  np_msg.time_heading = npdata_dict['time_heading'] if np_msg.has_heading else 0.0
-  np_msg.heading_deg = round(npdata_dict['heading_deg'],3) if np_msg.has_heading else -999
-  np_msg.heading_deg_per_sec = round(npdata_dict['heading_deg_per_sec'],3) if np_msg.has_heading else -999
-  np_msg.heading_m_per_sec = round(npdata_dict['heading_m_per_sec'],3) if np_msg.has_heading else -999
+  np_msg.has_heading = navpose_dict['has_heading']
+  np_msg.time_heading = navpose_dict['time_heading'] if np_msg.has_heading else 0.0
+  np_msg.heading_deg = round(navpose_dict['heading_deg'],3) if np_msg.has_heading else -999
+  np_msg.heading_deg_per_sec = round(navpose_dict['heading_deg_per_sec'],3) if np_msg.has_heading else -999
+  np_msg.heading_m_per_sec = round(navpose_dict['heading_m_per_sec'],3) if np_msg.has_heading else -999
 
-  np_msg.has_orientation = npdata_dict['has_orientation']
-  np_msg.time_orientation = npdata_dict['time_orientation'] if np_msg.has_orientation else 0.0
-  np_msg.roll_deg = round(npdata_dict['roll_deg'],3) if np_msg.has_orientation else -999
-  np_msg.pitch_deg = round(npdata_dict['pitch_deg'],3) if np_msg.has_orientation else -999
-  np_msg.yaw_deg = round(npdata_dict['yaw_deg'],3) if np_msg.has_orientation else -999
-  np_msg.roll_deg_per_sec = round(npdata_dict['roll_deg_per_sec'],3) if np_msg.has_orientation else -999
-  np_msg.pitch_deg_per_sec = round(npdata_dict['pitch_deg_per_sec'],3) if np_msg.has_orientation else -999
-  np_msg.yaw_deg_per_sec = round(npdata_dict['yaw_deg_per_sec'],3) if np_msg.has_orientation else -999
+  np_msg.has_orientation = navpose_dict['has_orientation']
+  np_msg.time_orientation = navpose_dict['time_orientation'] if np_msg.has_orientation else 0.0
+  np_msg.roll_deg = round(navpose_dict['roll_deg'],3) if np_msg.has_orientation else -999
+  np_msg.pitch_deg = round(navpose_dict['pitch_deg'],3) if np_msg.has_orientation else -999
+  np_msg.yaw_deg = round(navpose_dict['yaw_deg'],3) if np_msg.has_orientation else -999
+  np_msg.roll_deg_per_sec = round(navpose_dict['roll_deg_per_sec'],3) if np_msg.has_orientation else -999
+  np_msg.pitch_deg_per_sec = round(navpose_dict['pitch_deg_per_sec'],3) if np_msg.has_orientation else -999
+  np_msg.yaw_deg_per_sec = round(navpose_dict['yaw_deg_per_sec'],3) if np_msg.has_orientation else -999
 
-  np_msg.has_position = npdata_dict['has_position']
-  np_msg.time_position = npdata_dict['time_position'] if np_msg.has_position else 0.0
-  np_msg.x_m = round(npdata_dict['x_m'],3) if np_msg.has_position else -999
-  np_msg.y_m = round(npdata_dict['y_m'],3) if np_msg.has_position else -999
-  np_msg.z_m = round(npdata_dict['z_m'],3) if np_msg.has_position else -999
-  np_msg.has_velocity = (npdata_dict['has_velocity'] == True)
-  np_msg.time_velocity = npdata_dict['time_velocity'] if np_msg.has_velocity else 0.0
-  np_msg.x_m_per_sec = round(npdata_dict['x_m_per_sec'],3) if np_msg.has_velocity else -999
-  np_msg.y_m_per_sec = round(npdata_dict['y_m_per_sec'],3) if np_msg.has_velocity else -999
-  np_msg.z_m_per_sec = round(npdata_dict['z_m_per_sec'],3) if np_msg.has_velocity else -999
+  np_msg.has_position = navpose_dict['has_position']
+  np_msg.time_position = navpose_dict['time_position'] if np_msg.has_position else 0.0
+  np_msg.x_m = round(navpose_dict['x_m'],3) if np_msg.has_position else -999
+  np_msg.y_m = round(navpose_dict['y_m'],3) if np_msg.has_position else -999
+  np_msg.z_m = round(navpose_dict['z_m'],3) if np_msg.has_position else -999
+  np_msg.has_velocity = (navpose_dict['has_velocity'] == True)
+  np_msg.time_velocity = navpose_dict['time_velocity'] if np_msg.has_velocity else 0.0
+  np_msg.x_m_per_sec = round(navpose_dict['x_m_per_sec'],3) if np_msg.has_velocity else -999
+  np_msg.y_m_per_sec = round(navpose_dict['y_m_per_sec'],3) if np_msg.has_velocity else -999
+  np_msg.z_m_per_sec = round(navpose_dict['z_m_per_sec'],3) if np_msg.has_velocity else -999
 
-  np_msg.has_location = npdata_dict['has_location']
-  np_msg.time_location = npdata_dict['time_location'] if np_msg.has_location else 0.0
-  np_msg.latitude = npdata_dict['latitude'] if np_msg.has_location else -999
-  np_msg.longitude = npdata_dict['longitude'] if np_msg.has_location else -999
-  np_msg.location_m_per_sec = npdata_dict['location_m_per_sec'] if np_msg.has_location else -999
+  np_msg.has_location = navpose_dict['has_location']
+  np_msg.time_location = navpose_dict['time_location'] if np_msg.has_location else 0.0
+  np_msg.latitude = navpose_dict['latitude'] if np_msg.has_location else -999
+  np_msg.longitude = navpose_dict['longitude'] if np_msg.has_location else -999
+  np_msg.location_m_per_sec = navpose_dict['location_m_per_sec'] if np_msg.has_location else -999
 
-  np_msg.has_altitude = npdata_dict['has_altitude']
-  np_msg.time_altitude = npdata_dict['time_altitude'] if np_msg.has_altitude else 0.0
-  np_msg.altitude_m = round(npdata_dict['altitude_m'],3) if np_msg.has_altitude else -999
-  np_msg.altitude_m_per_sec = round(npdata_dict['altitude_m_per_sec'],3) if np_msg.has_altitude else -999
+  np_msg.has_altitude = navpose_dict['has_altitude']
+  np_msg.time_altitude = navpose_dict['time_altitude'] if np_msg.has_altitude else 0.0
+  np_msg.altitude_m = round(navpose_dict['altitude_m'],3) if np_msg.has_altitude else -999
+  np_msg.altitude_m_per_sec = round(navpose_dict['altitude_m_per_sec'],3) if np_msg.has_altitude else -999
 
-  np_msg.has_depth = npdata_dict['has_depth']
-  np_msg.time_depth = npdata_dict['time_depth'] if np_msg.has_depth else 0.0
-  np_msg.depth_m = round(npdata_dict['depth_m'],3) if np_msg.has_depth else -999
-  np_msg.depth_m_per_sec = round(npdata_dict['depth_m_per_sec'],3) if np_msg.has_depth else -999
+  np_msg.has_depth = navpose_dict['has_depth']
+  np_msg.time_depth = navpose_dict['time_depth'] if np_msg.has_depth else 0.0
+  np_msg.depth_m = round(navpose_dict['depth_m'],3) if np_msg.has_depth else -999
+  np_msg.depth_m_per_sec = round(navpose_dict['depth_m_per_sec'],3) if np_msg.has_depth else -999
 
-  np_msg.has_pan_tilt = npdata_dict['has_pan_tilt']
-  np_msg.time_pan_tilt = npdata_dict['time_pan_tilt'] if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_deg = round(npdata_dict['pan_deg'],3) if np_msg.has_pan_tilt else -999
-  np_msg.tilt_deg = round(npdata_dict['tilt_deg'],3) if np_msg.has_pan_tilt else -999
-  np_msg.pan_deg_per_sec = round(npdata_dict['pan_deg_per_sec'],3) if np_msg.has_pan_tilt else -999
-  np_msg.tilt_deg_per_sec = round(npdata_dict['tilt_deg_per_sec'],3) if np_msg.has_pan_tilt else -999
+  np_msg.has_pan_tilt = navpose_dict['has_pan_tilt']
+  np_msg.time_pan_tilt = navpose_dict['time_pan_tilt'] if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_deg = round(navpose_dict['pan_deg'],3) if np_msg.has_pan_tilt else -999
+  np_msg.tilt_deg = round(navpose_dict['tilt_deg'],3) if np_msg.has_pan_tilt else -999
+  np_msg.pan_deg_per_sec = round(navpose_dict['pan_deg_per_sec'],3) if np_msg.has_pan_tilt else -999
+  np_msg.tilt_deg_per_sec = round(navpose_dict['tilt_deg_per_sec'],3) if np_msg.has_pan_tilt else -999
 
-  np_msg.pan_tilt_latitude = round(npdata_dict['pan_tilt_latitude'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_longitude = round(npdata_dict['pan_tilt_longitude'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_location_m_per_sec = round(npdata_dict['pan_tilt_location_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_latitude = round(navpose_dict['pan_tilt_latitude'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_longitude = round(navpose_dict['pan_tilt_longitude'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_location_m_per_sec = round(navpose_dict['pan_tilt_location_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
 
-  np_msg.pan_tilt_heading_deg = round(npdata_dict['pan_tilt_heading_deg'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_heading_deg_per_sec = round(npdata_dict['pan_tilt_heading_deg_per_sec'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_heading_m_per_sec = round(npdata_dict['pan_tilt_heading_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_heading_deg = round(navpose_dict['pan_tilt_heading_deg'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_heading_deg_per_sec = round(navpose_dict['pan_tilt_heading_deg_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_heading_m_per_sec = round(navpose_dict['pan_tilt_heading_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
 
-  np_msg.pan_tilt_x_m = round(npdata_dict['pan_tilt_x_m'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_y_m = round(npdata_dict['pan_tilt_y_m'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_z_m = round(npdata_dict['pan_tilt_z_m'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_x_m_per_sec = round(npdata_dict['pan_tilt_x_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_y_m_per_sec = round(npdata_dict['pan_tilt_y_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_z_m_per_sec = round(npdata_dict['pan_tilt_z_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_x_m = round(navpose_dict['pan_tilt_x_m'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_y_m = round(navpose_dict['pan_tilt_y_m'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_z_m = round(navpose_dict['pan_tilt_z_m'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_x_m_per_sec = round(navpose_dict['pan_tilt_x_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_y_m_per_sec = round(navpose_dict['pan_tilt_y_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_z_m_per_sec = round(navpose_dict['pan_tilt_z_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
 
-  np_msg.pan_tilt_roll_deg = round(npdata_dict['pan_tilt_roll_deg'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_pitch_deg = round(npdata_dict['pan_tilt_pitch_deg'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_yaw_deg = round(npdata_dict['pan_tilt_yaw_deg'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_roll_deg_per_sec = round(npdata_dict['pan_tilt_roll_deg_per_sec'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_pitch_deg_per_sec = round(npdata_dict['pan_tilt_pitch_deg_per_sec'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_yaw_deg_per_sec = round(npdata_dict['pan_tilt_yaw_deg_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_roll_deg = round(navpose_dict['pan_tilt_roll_deg'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_pitch_deg = round(navpose_dict['pan_tilt_pitch_deg'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_yaw_deg = round(navpose_dict['pan_tilt_yaw_deg'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_roll_deg_per_sec = round(navpose_dict['pan_tilt_roll_deg_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_pitch_deg_per_sec = round(navpose_dict['pan_tilt_pitch_deg_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_yaw_deg_per_sec = round(navpose_dict['pan_tilt_yaw_deg_per_sec'],3) if np_msg.has_pan_tilt else 0.0
 
-  np_msg.pan_tilt_altitude_m = round(npdata_dict['pan_tilt_altitude_m'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_altitude_m_per_sec = round(npdata_dict['pan_tilt_altitude_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_altitude_m = round(navpose_dict['pan_tilt_altitude_m'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_altitude_m_per_sec = round(navpose_dict['pan_tilt_altitude_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
 
-  np_msg.pan_tilt_depth_m = round(npdata_dict['pan_tilt_depth_m'],3) if np_msg.has_pan_tilt else 0.0
-  np_msg.pan_tilt_depth_m_per_sec = round(npdata_dict['pan_tilt_depth_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_depth_m = round(navpose_dict['pan_tilt_depth_m'],3) if np_msg.has_pan_tilt else 0.0
+  np_msg.pan_tilt_depth_m_per_sec = round(navpose_dict['pan_tilt_depth_m_per_sec'],3) if np_msg.has_pan_tilt else 0.0
 
 
   #logger.log_warn("Created NavPose msg", data = np_msg, throttle_s = 5.0)
@@ -1785,67 +1791,74 @@ def convert_navposes_msg2dict(npsdata_msg):
   return npsdata_dict
 
 
-def get_navpose_from_dict(navpose_dict):
+def get_navpose_from_dict(npdata_dict, transform_dict = None):
+
   navpose = copy.deepcopy(BLANK_NAVPOSE)
-  if navpose_dict is None:
+  navpose_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
+  if npdata_dict is None:
     return navpose
+  
   for key in navpose_dict.keys():
-    try:
-      if int(flost(navpose_dict[key])) == -999:
-        navpose_dict[key] = 0
-    except:
-      pass
+    if key in npdata_dict.keys():
+      try:
+        if int(float(npdata_dict[key])) == -999:
+          npdata_dict[key] = 0
+      except:
+        pass
   try:
-    navpose['timestamp'] = navpose_dict.get('timestamp',nepi_utils.get_time())
-    navpose['navpose_frame'] = navpose_dict['navpose_frame']
-    navpose['navpose_description'] = navpose_dict['navpose_description']
-    navpose['frame_nav'] = navpose_dict['frame_nav']
-    navpose['frame_altitude'] = navpose_dict['frame_altitude']
-    navpose['frame_depth'] = navpose_dict['frame_depth']
-    navpose['geoid_height_meters'] = navpose_dict['geoid_height_meters']
+    navpose_dict['timestamp'] = npdata_dict.get('timestamp',nepi_utils.get_time())
+    navpose_dict['navpose_frame'] = npdata_dict['navpose_frame']
+    navpose_dict['navpose_description'] = npdata_dict['navpose_description']
+    navpose_dict['frame_nav'] = npdata_dict['frame_nav']
+    navpose_dict['frame_altitude'] = npdata_dict['frame_altitude']
+    navpose_dict['frame_depth'] = npdata_dict['frame_depth']
+    navpose_dict['geoid_height_meters'] = npdata_dict['geoid_height_meters']
 
 
-    navpose['pan_deg'] = navpose_dict['pan_deg']
-    navpose['tilt_deg'] = navpose_dict['tilt_deg']
-    navpose['pan_deg_per_sec'] = navpose_dict['pan_deg_per_sec']
-    navpose['tilt_deg_per_sec'] = navpose_dict['tilt_deg_per_sec']
+    navpose_dict['pan_deg'] = npdata_dict['pan_deg']
+    navpose_dict['tilt_deg'] = npdata_dict['tilt_deg']
+    navpose_dict['pan_deg_per_sec'] = npdata_dict['pan_deg_per_sec']
+    navpose_dict['tilt_deg_per_sec'] = npdata_dict['tilt_deg_per_sec']
 
     prefix = ''
-    if navpose_dict.get('has_pan_tilt',False) == True:
+    if npdata_dict.get('has_pan_tilt',False) == True:
       prefix = 'pan_tilt_'
-    navpose['latitude'] = navpose_dict[prefix + 'latitude']
-    navpose['longitude'] = navpose_dict[prefix + 'longitude']
-    navpose['location_m_per_sec'] = navpose_dict[prefix + 'location_m_per_sec']
+    navpose_dict['latitude'] = npdata_dict[prefix + 'latitude']
+    navpose_dict['longitude'] = npdata_dict[prefix + 'longitude']
+    navpose_dict['location_m_per_sec'] = npdata_dict[prefix + 'location_m_per_sec']
   
-    navpose['heading_deg'] = navpose_dict[prefix + 'heading_deg']
-    navpose['heading_deg_per_sec'] = navpose_dict[prefix + 'heading_deg_per_sec']
-    navpose['heading_m_per_sec'] = navpose_dict[prefix + 'heading_m_per_sec']
+    navpose_dict['heading_deg'] = npdata_dict[prefix + 'heading_deg']
+    navpose_dict['heading_deg_per_sec'] = npdata_dict[prefix + 'heading_deg_per_sec']
+    navpose_dict['heading_m_per_sec'] = npdata_dict[prefix + 'heading_m_per_sec']
   
-    navpose['roll_deg'] = navpose_dict[prefix + 'roll_deg']
-    navpose['pitch_deg'] = navpose_dict[prefix + 'pitch_deg']
-    navpose['yaw_deg'] = navpose_dict[prefix + 'yaw_deg']
-    navpose['roll_deg_per_sec'] = navpose_dict[prefix + 'roll_deg_per_sec']
-    navpose['pitch_deg_per_sec'] = navpose_dict[prefix + 'pitch_deg_per_sec']
-    navpose['yaw_deg_per_sec'] = navpose_dict[prefix + 'yaw_deg_per_sec']
+    navpose_dict['roll_deg'] = npdata_dict[prefix + 'roll_deg']
+    navpose_dict['pitch_deg'] = npdata_dict[prefix + 'pitch_deg']
+    navpose_dict['yaw_deg'] = npdata_dict[prefix + 'yaw_deg']
+    navpose_dict['roll_deg_per_sec'] = npdata_dict[prefix + 'roll_deg_per_sec']
+    navpose_dict['pitch_deg_per_sec'] = npdata_dict[prefix + 'pitch_deg_per_sec']
+    navpose_dict['yaw_deg_per_sec'] = npdata_dict[prefix + 'yaw_deg_per_sec']
   
-    navpose['x_m'] = navpose_dict[prefix + 'x_m']
-    navpose['y_m'] = navpose_dict[prefix + 'y_m']
-    navpose['z_m'] = navpose_dict[prefix + 'z_m']
-    navpose['x_m_per_sec'] = navpose_dict[prefix + 'x_m_per_sec']
-    navpose['y_m_per_sec'] = navpose_dict[prefix + 'y_m_per_sec']
-    navpose['z_m_per_sec'] = navpose_dict[prefix + 'z_m_per_sec']
+    navpose_dict['x_m'] = npdata_dict[prefix + 'x_m']
+    navpose_dict['y_m'] = npdata_dict[prefix + 'y_m']
+    navpose_dict['z_m'] = npdata_dict[prefix + 'z_m']
+    navpose_dict['x_m_per_sec'] = npdata_dict[prefix + 'x_m_per_sec']
+    navpose_dict['y_m_per_sec'] = npdata_dict[prefix + 'y_m_per_sec']
+    navpose_dict['z_m_per_sec'] = npdata_dict[prefix + 'z_m_per_sec']
     
-    navpose['altitude_m'] = navpose_dict[prefix + 'altitude_m']
-    navpose['altitude_m_per_sec'] = navpose_dict[prefix + 'altitude_m_per_sec']
+    navpose_dict['altitude_m'] = npdata_dict[prefix + 'altitude_m']
+    navpose_dict['altitude_m_per_sec'] = npdata_dict[prefix + 'altitude_m_per_sec']
     
-    navpose['depth_m'] = navpose_dict[prefix + 'depth_m']
-    navpose['depth_m_per_sec'] = navpose_dict[prefix + 'depth_m_per_sec']
+    navpose_dict['depth_m'] = npdata_dict[prefix + 'depth_m']
+    navpose_dict['depth_m_per_sec'] = npdata_dict[prefix + 'depth_m_per_sec']
     
+    npt_dict = transform_navpose_dict(navpose_dict,transform_dict)
 
+    for key in navpose.keys():
+      navpose[key] = npt_dict[key]
    
   except Exception as e:
     logger.log_warn("Failed to Get NavPose From Dict: " + str(e), throttle_s = 5.0)
-    return None
+    return navpose
 
   
   return navpose

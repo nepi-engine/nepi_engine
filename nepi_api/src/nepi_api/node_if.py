@@ -1685,12 +1685,6 @@ class NodeIF:
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
 
-    def get_navpose(self):
-        if self.navpose_if is not None:
-            navpose = self.navpose_if.get_navpose()
-        else:
-            navpose = copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
-        return navpose
 
     def get_blank_navpose_dict(self):
         """Return a deep copy of the blank nav pose dictionary template.
@@ -1700,6 +1694,24 @@ class NodeIF:
         """
         blank_navpose_dict =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return blank_navpose_dict
+
+
+
+    def get_navpose(self, transform_dict = None):
+        if self.navpose_if is not None:
+            navpose = self.navpose_if.get_navpose(transform_dict)
+        else:
+            navpose = copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
+        return navpose
+
+    def get_blank_navpose(self):
+        """Return a deep copy of the blank navpose template.
+
+        Returns:
+            dict: A blank navpose with all fields at default values.
+        """
+        blank_navpose =  copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
+        return blank_navpose
     ##############################
     # States IF Support
 
