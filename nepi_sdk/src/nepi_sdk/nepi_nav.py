@@ -1344,7 +1344,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         success = False
         logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
 
-  logger.log_warn("Transforming PT NavPose", data = [navpose_dict,pt_transform_dict] , throttle_s = 10)
+  #logger.log_warn("Transforming PT NavPose", data = [navpose_dict,pt_transform_dict] , throttle_s = 10)
   if navpose_dict['has_pan_tilt'] == True and pt_transform_dict is not None:
       if pt_transform_dict is None:
         pt_transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
