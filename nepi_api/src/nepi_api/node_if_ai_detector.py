@@ -42,6 +42,7 @@ from nepi_sdk import nepi_sdk
 from nepi_sdk import nepi_utils
 from nepi_sdk import nepi_system
 from nepi_sdk import nepi_img
+from nepi_sdk import nepi_nav
 
 from nepi_api.messages_if import MsgIF
 from nepi_api.node_if import NodePublishersIF, NodeSubscribersIF, NodeClassIF
@@ -2106,6 +2107,18 @@ class AiDetectorIF:
             ###############################
             # Calculate Localization Data
 
+
+            # self.msg_if.pub_warn("Got img dict", data = img_dict, throttle_s = 10)
+            try:
+                navpose_msg = self.imgs_info_dict[source_topic]['navpose_msg'] 
+            except:
+                navpose_msg = None
+            if navpose_msg is None:
+                navpose_msg = NavPose()
+            navpose_dict = nepi_nav.convert_navpose_msg2dict(navpose_msg)
+            navpose = nepi_nav.get_navpose_from_dict(navpose_dict)
+            # self.msg_if.pub_warn("Got navpose dict", data = navpose_dict, throttle_s = 10)
+
             targets_msg_list = []
             for detect_dict in detect_dict_list:
 
@@ -2141,6 +2154,10 @@ class AiDetectorIF:
                         target_signature_dict = nepi_img.get_target_signature(cv2_img, detect_dict)
                     except Exception as e:
                         self.msg_if.pub_debug("Failed to get target signature from cv2_img: " + str(e), throttle_s = 5)
+
+
+                ##########################
+
 
 
                 ########################
@@ -2214,6 +2231,76 @@ class AiDetectorIF:
                     # Contour Data
                     target_msg.contour_moments = target_signature_dict['contour_moments']
 
+                    ##################
+                    # Target NavPose
+
+                    target_navpose = copy.deepcopy(nepi_nav.BLANK_NAVPOSE)
+                    target_navpose['navpose_frame'] = navpose['navpose_frame']
+                    target_navpose['navpose_description'] = navpose['navpose_description']
+                    target_navpose['frame_nav'] = navpose['frame_nav']
+                    target_navpose['frame_altitude'] = navpose['frame_altitude']
+                    target_navpose['frame_depth'] = navpose['frame_depth']
+                    target_navpose['geoid_height_meters'] = navpose['geoid_height_meters']
+
+
+                    target_navpose['pitch_deg'] = navpose['pitch_deg'] + vert_angle_deg
+                    target_navpose['yaw_deg'] = navpose['yaw_deg'] + horz_angle_deg
+                    target_navpose['heading_deg'] = navpose['heading_deg'] + horz_angle_deg
+
+                    if target_range_m != -999:
+                        [x,y,z] = nepi_nav.get_xyz_from_rangebearings(target_range_m,horz_angle_deg,vert_angle_deg)
+                        
+                        if navpose['latitude'] != 0 and navpose['latitude'] != 0:
+                            gp = nepi_nav.get_geopoint_at_enu_point(navpose,[x,y,z])
+                            target_navpose['latitude'] = gp.latitude
+                            target_navpose['longitude'] = gp.longitude
+
+                        target_navpose['x_m'] = navpose['x_m'] + x
+                        target_navpose['y_m'] = navpose['y_m'] + y
+                        target_navpose['z_m'] = navpose['z_m'] + z
+                        target_navpose['altitude_m'] = navpose['altitude_m'] + z
+                        target_navpose['depth_m'] = navpose['depth_m'] - z 
+
+                    
+                    #############
+                    target_msg.navpose_frame = target_navpose['navpose_frame']
+                    target_msg.navpose_description = target_navpose['navpose_description']
+                    target_msg.frame_nav = target_navpose['frame_nav']
+                    target_msg.frame_altitude = target_navpose['frame_altitude']
+                    target_msg.frame_depth = target_navpose['frame_depth']
+
+                    target_msg.geoid_height_meters = target_navpose['geoid_height_meters']
+
+                    target_msg.latitude = target_navpose['latitude']
+                    target_msg.longitude = target_navpose['longitude']
+                    target_msg.location_m_per_sec = target_navpose['location_m_per_sec']
+
+                    target_msg.heading_deg = target_navpose['heading_deg']
+                    target_msg.heading_deg_per_sec = target_navpose['heading_deg_per_sec']
+                    target_msg.heading_m_per_sec = target_navpose['heading_m_per_sec']
+
+                    target_msg.roll_deg = target_navpose['roll_deg']
+                    target_msg.pitch_deg = target_navpose['pitch_deg']
+                    target_msg.yaw_deg = target_navpose['yaw_deg']
+
+                    target_msg.roll_deg_per_sec = target_navpose['roll_deg_per_sec']
+                    target_msg.pitch_deg_per_sec = target_navpose['pitch_deg_per_sec']
+                    target_msg.yaw_deg_per_sec = target_navpose['yaw_deg_per_sec']
+
+                    target_msg.x_m = target_navpose['x_m']
+                    target_msg.y_m = target_navpose['y_m']
+                    target_msg.z_m = target_navpose['z_m']
+
+                    target_msg.x_m_per_sec = target_navpose['x_m_per_sec']
+                    target_msg.y_m_per_sec = target_navpose['y_m_per_sec']
+                    target_msg.z_m_per_sec = target_navpose['z_m_per_sec']
+
+                    target_msg.altitude_m = target_navpose['altitude_m']
+                    target_msg.altitude_m_per_sec = target_navpose['altitude_m_per_sec']
+
+                    target_msg.depth_m = target_navpose['depth_m']
+                    target_msg.depth_m_per_sec = target_navpose['depth_m_per_sec']
+                        
                     targets_msg_list.append(target_msg)
                 except Exception as e:
                     self.msg_if.pub_debug("Failed to get all data from detect dict: " + str(e)) 
@@ -2233,17 +2320,13 @@ class AiDetectorIF:
             targets_msg.data_header.source_timestamp = float(img_dict['timestamp'])
 
             targets_msg.timestamp = float(img_dict['timestamp'])
-            try:
-                navpose_msg = img_dict['navpose_msg'] 
-            except:
-                navpose_msg = NavPose()
-            if navpose_msg is not None:
-                targets_msg.navpose_msg = navpose_msg
+
+            targets_msg.navpose_msg = navpose_msg
 
 
             targets_msg.targets = targets_msg_list
 
-            #self.msg_if.pub_debug("Publisher targets msg " + str(targets_msg))
+            # self.msg_if.pub_warn("Publisher targets msg " + str(targets_msg))
             # targets data product (publish + rate-gated save) is owned by
             # TargetsIF; the collective 'all' fan-out stays inline.
             self.targets_if.publish_data(targets_msg, timestamp = timestamp)

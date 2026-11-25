@@ -1074,6 +1074,10 @@ def transform_point (x, y, degrees=0, x_shift=0, y_shift=0):
     new_y = (x * math.sin(angle)) + (y * math.cos(angle)) + y_shift
 
     return new_x, new_y
+
+
+
+
 ##################
 ## Misc Check Functions
 

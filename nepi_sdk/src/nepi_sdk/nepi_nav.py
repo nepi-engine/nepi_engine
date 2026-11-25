@@ -1183,7 +1183,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           npdata_dict[key] = 0
       except:
         pass
-      navpose_dict[key] = npdata_dict[key]
+    else: 
+      npdata_dict[key] = navpose_dict[key]
+    navpose_dict[key] = npdata_dict[key]
 
   #logger.log_warn("Transforming NavPose", data = navpose_dict , throttle_s = 10)
   if transform_dict is not None:
@@ -1377,6 +1379,13 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
         #logger.log_warn("Transformed PT NavPose", data = navpose_dict , throttle_s = 10)
         ## Transpose Source Frame Nav to Pan Tilt Frame
+        tx = pt_transform_dict['x_m'] + pt_transform_dict.get('x_m_offset',0)
+        ty = pt_transform_dict['y_m'] + pt_transform_dict.get('y_m_offset',0)
+        tz = pt_transform_dict['z_m'] + pt_transform_dict.get('z_m_offset',0)
+        tr = pt_transform_dict['roll_deg'] + pt_transform_dict.get('roll_deg_offset',0)
+        tp = pt_transform_dict['pitch_deg'] + pt_transform_dict.get('pitch_deg_offset',0)
+        tyw = pt_transform_dict['yaw_deg'] + pt_transform_dict.get('yaw_deg_offset',0)
+
 
         ##################
         x_m = navpose_dict['x_m']
@@ -1388,9 +1397,8 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         z_m = navpose_dict['z_m']
         if z_m == -999:
           z_m = 0
-        tx = pt_transform_dict['x_m'] + pt_transform_dict.get('x_m_offset',0)
-        ty = pt_transform_dict['y_m'] + pt_transform_dict.get('y_m_offset',0)
-        tz = pt_transform_dict['z_m'] + pt_transform_dict.get('z_m_offset',0)
+
+
         [ax,ay,az]  = rotate_enu_point([tx,ty,tz],tilt_deg,'y')
         [ax,ay,az]  = rotate_enu_point([ax,ay,az],pan_deg,'z')
         navpose_dict['pan_tilt_x_m'] = x_m + ax
@@ -1423,16 +1431,14 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         yaw_deg = navpose_dict['yaw_deg']
         if yaw_deg == -999:
           yaw_deg = 0
-        tr = pt_transform_dict['roll_deg'] + pt_transform_dict.get('roll_deg_offset',0)
-        tp = pt_transform_dict['pitch_deg'] + pt_transform_dict.get('pitch_deg_offset',0)
-        ty = pt_transform_dict['yaw_deg'] + pt_transform_dict.get('yaw_deg_offset',0)
+
         [ar,ap,ay] = [roll_deg, -1 * pitch_deg, yaw_deg ]
         # [ar,ap,ay] = rotate_enu_angles([ar,ap,ay],tilt_deg,'y')
-        [ar,ap,ay]  = rotate_enu_angles([ar,ap,ay],pan_deg,'z')
+        [ar,ap,ay]  = rotate_enu_angles([ar,ap,ay],pan_deg + tyw,'z')
         #logger.log_warn("PT RPI Adj", data = [ar,ap,ay], throttle_s = 5.0)
         navpose_dict['pan_tilt_roll_deg'] = clean_angle(ar + tr)
         navpose_dict['pan_tilt_pitch_deg'] = clean_angle(tilt_deg + -1 * ap + tp)
-        navpose_dict['pan_tilt_yaw_deg'] = clean_angle(pan_deg + ay + ty)
+        navpose_dict['pan_tilt_yaw_deg'] = clean_angle(pan_deg + tyw)
 
 
         ################################
@@ -1440,29 +1446,9 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         if heading_deg == -999:
           heading_deg = 0
         th = pt_transform_dict['heading_deg'] + pt_transform_dict.get('heading_deg_offset',0)
-        navpose_dict['pan_tilt_heading_deg'] = clean_angle(heading_deg + pan_deg + ty + th)
+        navpose_dict['pan_tilt_heading_deg'] = clean_angle(heading_deg + pan_deg + tyw + th)
 
 
-
-        ##################################
-        # NEEDS TO BE CALCULATED
-        # x_m = navpose_dict['x_m_per_sec']
-        # if x_m == -999:
-        #   x_m = 0
-        # y_m = navpose_dict['y_m_per_sec']
-        # if y_m == -999:
-        #   y_m = 0
-        # z_m = navpose_dict['z_m_per_sec']
-        # if z_m == -999:
-        #   z_m = 0
-        # tx = pt_transform_dict['x_m'] + pt_transform_dict.get('x_m_offset',0)
-        # ty = pt_transform_dict['y_m'] + pt_transform_dict.get('y_m_offset',0)
-        # tz = pt_transform_dict['z_m'] + pt_transform_dict.get('z_m_offset',0)
-        # [ax,ay,az]  = rotate_enu_point([tx,ty,tz],tilt_deg,'y')
-        # [ax,ay,az]  = rotate_enu_point([ax,ay,az],pan_deg,'z')
-        # navpose_dict['pan_tilt_x_m_per_sec'] += ax
-        # navpose_dict['pan_tilt_y_m_per_sec'] += ay
-        # navpose_dict['pan_tilt_z_m_per_sec'] += az
 
 
         navpose_dict['pan_tilt_heading_deg_per_sec'] = navpose_dict['heading_deg_per_sec']
@@ -2009,6 +1995,31 @@ def get_navpose_geoid_height_at_geopoint(geopoint):
   geoid_height =  geoid_height
   return geoid_height
   
+
+def get_xyz_from_rangebearings(range_m, azimuth_deg, elevation_deg):
+    """
+    Convert Range, Azimuth, and Elevation to East, North, Up (ENU) coordinates.
+
+    Parameters:
+    rng (float or array): Slant range (distance) to target.
+    azimuth_deg (float or array): Azimuth angle (clockwise from North).
+    elevation_deg (float or array): Elevation angle (upward from horizontal plane).
+    deg (bool): If True, angles are in degrees. If False, in radians.
+
+    Returns:
+    tuple: (east, north, up) coordinates in the same units as rng.
+    """
+    azimuth_rad = np.radians(azimuth_deg)
+    elevation_rad = np.radians(elevation_deg)
+
+    # Project slant range onto the horizontal (East-North) plane
+    ground_range = range_m * np.cos(elevation_rad)
+
+    x_m = ground_range * np.sin(azimuth_rad)
+    y_m = ground_range * np.cos(azimuth_rad)
+    z_m = range_m * np.sin(elevation_rad)
+
+    return x_m, y_m, z_m
 
 ### The geoid height N (pygeodesy GeoidKarney) is the geoid's height above the
 ### WGS84 ellipsoid, so ellipsoid height h = AMSL + N and AMSL = h - N.
