@@ -2275,13 +2275,13 @@ class AiDetectorIF:
                     target_msg.longitude = target_navpose['longitude']
                     target_msg.location_m_per_sec = target_navpose['location_m_per_sec']
 
-                    target_msg.heading_deg = target_navpose['heading_deg']
+                    target_msg.heading_deg = nepi_nav.clean_angle(target_navpose['heading_deg'])
                     target_msg.heading_deg_per_sec = target_navpose['heading_deg_per_sec']
                     target_msg.heading_m_per_sec = target_navpose['heading_m_per_sec']
 
-                    target_msg.roll_deg = target_navpose['roll_deg']
-                    target_msg.pitch_deg = target_navpose['pitch_deg']
-                    target_msg.yaw_deg = target_navpose['yaw_deg']
+                    target_msg.roll_deg = nepi_nav.clean_angle(target_navpose['roll_deg'])
+                    target_msg.pitch_deg = nepi_nav.clean_angle(target_navpose['pitch_deg'])
+                    target_msg.yaw_deg = nepi_nav.clean_angle(target_navpose['yaw_deg'])
 
                     target_msg.roll_deg_per_sec = target_navpose['roll_deg_per_sec']
                     target_msg.pitch_deg_per_sec = target_navpose['pitch_deg_per_sec']

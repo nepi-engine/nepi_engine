@@ -1215,7 +1215,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['has_heading'] = True
           navpose_dict['time_heading'] = npdata_dict['time_heading']
           invert = -1 if transform_dict['heading_invert'] else 1
-          navpose_dict['heading_deg'] = npdata_dict['heading_deg'] * invert  + transform_dict['heading_deg']
+          navpose_dict['heading_deg'] = clean_angle(npdata_dict['heading_deg'] * invert  + transform_dict['heading_deg'])
           navpose_dict['heading_deg_per_sec'] = npdata_dict['heading_deg_per_sec'] * invert
           navpose_dict['heading_m_per_sec'] = npdata_dict['heading_m_per_sec']
 
@@ -1223,7 +1223,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['has_heading'] = True
           navpose_dict['time_heading'] = npdata_dict['time_heading']
           invert = -1 if transform_dict['yaw_invert'] else 1
-          navpose_dict['heading_deg'] = npdata_dict['heading_deg'] * invert  + transform_dict['yaw_deg']
+          navpose_dict['heading_deg'] = clean_angle(npdata_dict['heading_deg'] * invert  + transform_dict['yaw_deg'])
           navpose_dict['heading_deg_per_sec'] = npdata_dict['heading_deg_per_sec'] * invert
           navpose_dict['heading_m_per_sec'] = npdata_dict['heading_m_per_sec']
 
@@ -1244,7 +1244,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           npp += ap
           #[npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ar,'x')
           npr += ar
-          [ navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg'] ]=  [npr,npp,npy]
+          [ navpose_dict['roll_deg'], navpose_dict['pitch_deg'], navpose_dict['yaw_deg'] ]=  [clean_angle(npr),clean_angle(npp),clean_angle(npy)]
 
           invert = -1 if transform_dict['roll_invert'] else 1
           npr = npdata_dict['roll_deg_per_sec'] * invert
