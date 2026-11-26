@@ -105,6 +105,37 @@ Python functions and methods in `nepi_api` follow the NEPI convention:
 - **Private:** `camelCase` — `initCb`, `resetCb`, `publishStatusCb`, `getPanAdj`. No docstrings. Some also carry a leading underscore (`_camelCase`) for emphasis, but camelCase alone marks a method private.
 - **`Cb` suffix** — indicates a ROS callback (subscriber, publisher, or timer). Carries rename risk; audit external call sites before renaming.
 
+## Logging and Debug Output
+
+All NEPI logging goes through the `logger` class in `nepi_sdk/src/nepi_sdk/nepi_ros.py`. Inside a node or IF class, call `self.msg_if.pub_debug` / `pub_info` / `pub_warn` (`MsgIF` subclasses `logger`). In an SDK module function, call `logger.log_debug` / `log_info` / `log_warn` on the module's `logger = nepi_sdk.sdk_logger`. Every level takes the same keywords: `data=` (a value, dict or list, printed one entry per line under the message), `throttle_s=`, and `debug_data=`.
+
+**Pick the level by who should see it.** `warn` prints on every running system, on the console and in the RUI messages panel, so keep it for things an operator should act on. A diagnostic, such as a dict dump or a per-call "doing X" line, belongs at `debug`. A diagnostic left at `warn` floods every node that calls the function. On 2026-11-25, `transform_navpose_dict` printed "Transforming PT NavPose" plus the whole NavPose dict from every camera every 10 s, until it was moved to `log_debug`.
+
+**Turning debug on.** It's on the System Admin page (`Nepi_IF_AdminModes.js` → `Nepi_IF_AdminDebug.js`), and every control there is a system_mgr topic:
+- **Debug Mode** toggle: `set_debug_enable`.
+- **LOW / MED / HIGH / ALL**: `set_debug_level`.
+- The list under "DEBUG DISPLAY MESSAGES": the extra lines **STACK / CLASSES / THROTTLE / TIME** (`add_debug_option` / `remove_debug_option`). Only STACK is on by default.
+- The list under "DEBUG PROCESS OPTIONS": the target, which is **ALL**, **NONE**, or one node's namespace (`set_debug_namespace`).
+
+The two RUI headings are swapped relative to their contents. The Dashboard messages selector sets the enable flag and the namespace (from the selected messages topic) too. system_mgr publishes all four values as `sys_debug_*` in its status message, and every logger instance subscribes to that message and decides for itself.
+
+**What each level does:**
+- A `debug` message prints only when Debug Mode is on, the level is MED, HIGH or ALL, and the target namespace is ALL or the logger's own.
+- **LOW** still drops debug messages. All it does is add a `---CALLER:` line under warn, error and fatal.
+- **MED** adds the STACK line (when that option is on) to debug, warn, error and fatal.
+- **HIGH** also adds CLASSES, THROTTLE and TIME when they are selected.
+- **ALL** also decorates info messages, which stay plain at every lower level.
+
+`debug_data=` entries print, at any level, only while debug is enabled for that logger. When the target is one node rather than ALL, that node's messages switch to the darker `MSG_DEBUG_COLORS` palette so they stand out. NONE silences debug everywhere without turning Debug Mode off. If the targeted node's `<node>/messages` topic disappears, system_mgr resets the target to ALL and turns Debug Mode off (`system_mgr.py:1484`).
+
+**Where debug output lands.** Debug messages are emitted through `rospy.loginfo`, so on the console and in rosout they carry an `[INFO]` tag in orange text, not `[DEBUG]`. They are also published as `Message` with `level: debug` on `<node>/messages` and `<base>/messages`, which is what the RUI messages panel shows.
+
+**Cost when off.** `log()` returns at the debug gate before any formatting, stack walk or throttle bookkeeping. A disabled debug call therefore costs only the evaluation of its arguments at the call site, which makes one safe in a per-frame path. Pass large structures with `data=`, which only passes a reference, rather than `"..." + str(big_dict)`, which converts on every call even when nothing prints.
+
+**Namespace matching.** A logger's namespace is its node's name (`rospy.get_name()`). `MsgIF` sets it at construction. `sdk_logger` is created at import, before `init_node`, and picks the name up on its 5 s publisher retry loop. An SDK function's debug output is therefore targeted by the node that calls it: selecting `zed2_01` shows the `nepi_nav` messages raised inside `zed2_01`. For up to about 5 s after a node starts, `sdk_logger` has no namespace yet, and only ALL enables it.
+
+**Known defect (found by reading the code, not seen on a device).** `log_msg()` checks the module-global `DEBUG_ENABLED` a second time, after `log()` has already passed the logger's own gate. Every logger instance's `statusCb` overwrites that global with its own namespace verdict. drivers_mgr hosts the discovery-class loggers, which are created with `nepi_sdk.logger(namespace=self.log_name)`, i.e. `<base>/<pkg>_discovery`. In that process, debug messages targeted at one node can be dropped, depending on which `statusCb` ran last. Targeting ALL avoids it. In ordinary driver and app nodes every logger shares the node namespace, so the defect does not apply there.
+
 ## Known Constraints and Fragile Areas
 
 **Initialization ordering is strict.** `system_mgr` must be running and publishing its status before any other manager can initialize. `config_mgr` waits for `system_mgr`. Drivers, apps, and other managers wait for config_mgr. If `system_mgr` hangs or fails, the entire platform fails to come up. Watch for this during debugging.
