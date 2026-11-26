@@ -871,9 +871,9 @@ class AiDetectorImgPub:
                     rb_text = ''
                     if target_dict['range_m'] != -999 and target_dict['range_m'] != '':
                         rb_text = rb_text + str(round(target_dict['range_m'],1)) + 'm :'
-                    if target_dict['azimuth_deg'] != -999 and target_dict['elevation_deg'] != -999:
-                        rb_text = rb_text + str(round(target_dict['azimuth_deg'],1)) + 'deg '
-                        rb_text = rb_text + str(round(target_dict['elevation_deg'],1)) + 'deg '
+
+                    rb_text = rb_text + str(round(target_dict['heading_deg'],1)) + 'deg '
+                    rb_text = rb_text + str(round(target_dict['pitch_deg'],1)) + 'deg '
                     if len(rb_text) > 0:
                         overlay_text = overlay_text + rb_text
 

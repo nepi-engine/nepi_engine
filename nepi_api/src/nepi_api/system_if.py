@@ -185,7 +185,6 @@ class NavPoseIF(NodeIF):
         ##############################
         self.IF_DICT = dict(self.IF_DICT)
         self.navpose_dict = copy.deepcopy(self.navpose_dict)
-        self.navpose = copy.deepcopy(self.navpose)
         self.navpose_settings_dict = copy.deepcopy(self.navpose_settings_dict)
         self.pub_msg_dict = dict(self.pub_msg_dict)
         self.time_list = copy.deepcopy(self.time_list)
@@ -485,13 +484,17 @@ class NavPoseIF(NodeIF):
             navpose_dict = copy.deepcopy(nepi_nav.BLANK_NAVPOSE_DICT)
         return navpose_dict
 
-    def get_navpose(self):
+    def get_navpose(self, transform_dict = None):
         """Return a deep copy of the most recently published nav pose dictionary.
 
         Returns:
             dict: The last nav pose data dictionary.
         """
-        navpose = copy.deepcopy(self.navpose)
+        self.data_lock.acquire()
+        navpose_dict = copy.deepcopy(self.data_dict)
+        self.data_lock.release()
+
+        navpose = nepi_nav.get_navpose_from_dict(navpose_dict, transform_dict)
         return navpose
 
     ###############################
@@ -657,7 +660,6 @@ class NavPoseIF(NodeIF):
             # Update Class Data and Status Msg     
             ###################################          
             self.navpose_dict  = copy.deepcopy(np_dict)
-            self.navpose = nepi_nav.get_navpose_from_dict(np_dict)
 
             self.status_msg.frame_nav = np_dict['frame_nav']
             self.status_msg.frame_altitude = np_dict['frame_altitude']
@@ -2980,7 +2982,7 @@ class TransformIF(NodeIF):
 
 
     def _setFrame3dTransformCb(self, msg):
-        self.msg_if.pub_debug("Received Frame Transform update message: " + str(msg) )
+        self.msg_if.pub_warn("Received Frame Transform update message: " + str(msg) )
         transform_msg = msg
         transform_dict = copy.deepcopy(self.transform_dict)
 
