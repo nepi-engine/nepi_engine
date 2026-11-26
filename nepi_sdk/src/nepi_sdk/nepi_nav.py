@@ -1394,6 +1394,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, do_checks = True):
         success = False
         logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
 
+<<<<<<< HEAD
 
       # if navpose_dict['heading_deg'] != 0 and navpose_dict['yaw_deg'] != 0:
       #   navpose_dict['yaw_deg'] = clean_angle(navpose_dict['yaw_deg'] - navpose_dict['heading_deg'])
@@ -1412,6 +1413,12 @@ def transform_pt_navpose_dict(navpose_dict, transform_dict, pt_transoform_dict =
   if navpose_dict['has_pan_tilt'] == True and transform_dict is not None:
       if transform_dict is None:
         transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
+=======
+  logger.log_debug("Transforming PT NavPose", data = [navpose_dict,pt_transform_dict] , throttle_s = 10)
+  if navpose_dict['has_pan_tilt'] == True and pt_transform_dict is not None:
+      if pt_transform_dict is None:
+        pt_transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
+>>>>>>> ae77c7f572cd195747bacb7baf5949573f25b6eb
       try:
         #logger.log_warn("Transforming PT NavPose", data = [navpose_dict, transform_dict], throttle_s = 10)
         invert = -1 if transform_dict['yaw_invert'] else 1
