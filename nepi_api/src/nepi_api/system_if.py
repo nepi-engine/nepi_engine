@@ -648,7 +648,7 @@ class NavPoseIF(NodeIF):
             if np_dict.get('has_pan_tilt', False) == False:
                 tnp_dict = nepi_nav.transform_navpose_dict(np_dict, transform_dict)
             else:
-                tnp_dict = nepi_nav.transform_navpose_dict(np_dict, None, pt_transform_dict = transform_dict)
+                tnp_dict = nepi_nav.transform_pt_navpose_dict(np_dict, transform_dict)
             if tnp_dict is None:
                 self.msg_if.pub_debug("Failed to tranform navpose dict" , throttle_s = 30)
             else:

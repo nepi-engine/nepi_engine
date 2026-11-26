@@ -104,7 +104,11 @@ NAVPOSE_MSG_DICT = {
             'geographic_msgs/GeoPoint': GeoPoint
         },
         'heading': {
-            'nepi_interfaces/NavPoseHeading': NavPoseHeading
+            'nepi_interfaces/NavPoseHeading': NavPoseHeading,
+            'nepi_interfaces/NavPoseOrientation': NavPoseOrientation,
+            'nav_msgs/Odometry': Odometry,
+            'geometry_msgs/Pose': Pose,
+            'geometry_msgs/Quaternion': Quaternion
         },
         'orientation': {
             'nepi_interfaces/NavPoseOrientation': NavPoseOrientation,
@@ -214,6 +218,43 @@ BLANK_PAN_TILT_DATA_DICT = {
 
 
 
+BLANK_TRANSFORM_DICT = {
+    'source_ref_description': '',
+    'end_ref_description': '',
+
+    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
+    'x_m': 0.0,
+    'y_m': 0.0,
+    'z_m': 0.0,
+
+    'x_invert': False,
+    'y_invert': False,
+    'z_invert': False,
+  
+    # Orientation should be provided in Degrees in specified 3d frame
+    'roll_deg': 0.0,
+    'pitch_deg': 0.0,
+    'yaw_deg': 0.0,
+
+    'roll_invert': False,
+    'pitch_invert': False,
+    'yaw_invert': False,
+
+    'heading_deg': 0.0,
+    'heading_invert': False,
+
+
+    'x_m_offset': 0.0,
+    'y_m_offset': 0.0,
+    'z_m_offset': 0.0,
+    'roll_deg_offset': 0.0,
+    'pitch_deg_offset': 0.0,
+    'yaw_deg_offset': 0.0,
+    'heading_deg_offset': 0.0,
+
+}
+
+
 BLANK_NAVPOSE_DICT = {
     'timestamp': 0,
     'navpose_frame': 'None',
@@ -287,6 +328,7 @@ BLANK_NAVPOSE_DICT = {
     ###########################
     'has_pan_tilt': False,
     'time_pan_tilt': 0.0,
+    'pt_transform': copy.deepcopy(BLANK_TRANSFORM_DICT),
     # Pan Tilt should be provided in positive degs
     'pan_deg': 0.0,
     'tilt_deg': 0.0,
@@ -396,41 +438,6 @@ BLANK_NAVPOSE_TRACK_DICT = {
 }
 
 
-BLANK_TRANSFORM_DICT = {
-    'source_ref_description': '',
-    'end_ref_description': '',
-
-    # Position should be provided in Meters in specified 3d frame (x,y,z) with x forward, y right/left, and z up/down
-    'x_m': 0.0,
-    'y_m': 0.0,
-    'z_m': 0.0,
-
-    'x_invert': False,
-    'y_invert': False,
-    'z_invert': False,
-  
-    # Orientation should be provided in Degrees in specified 3d frame
-    'roll_deg': 0.0,
-    'pitch_deg': 0.0,
-    'yaw_deg': 0.0,
-
-    'roll_invert': False,
-    'pitch_invert': False,
-    'yaw_invert': False,
-
-    'heading_deg': 0.0,
-    'heading_invert': False,
-
-
-    'x_m_offset': 0.0,
-    'y_m_offset': 0.0,
-    'z_m_offset': 0.0,
-    'roll_deg_offset': 0.0,
-    'pitch_deg_offset': 0.0,
-    'yaw_deg_offset': 0.0,
-    'heading_deg_offset': 0.0,
-
-}
 
 
 BLANK_TRANSFORM_LIST = [0,0,0,0,0,0,0]
@@ -751,7 +758,7 @@ def update_navpose_dict_from_offsets(npdata_dict_org, np_offsets_dict):
     return npdata_dict_org
 
 
-def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None, pt_transform_dict = None):
+def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None):
     msg_type = msg._type
     update_dict = copy.deepcopy(BLANK_NAVPOSE_DICT)
     if name == 'location':
@@ -789,6 +796,44 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None,
           update_dict['heading_deg'] = msg.heading_deg
           update_dict['heading_deg_per_sec'] = msg.heading_deg_per_sec
           update_dict['heading_m_per_sec'] = msg.heading_m_per_sec
+        except:
+          pass
+      if msg_type == 'nepi_interfaces/NavPoseOrientation':
+        try:
+          update_dict['has_heading'] = True
+          update_dict['time_heading'] = msg.timestamp if msg.timestamp != 0.0 else nepi_utils.get_time()
+          update_dict['heading_deg'] = msg.yaw_deg
+          update_dict['heading_deg_per_sec'] = msg.yaw_deg_per_sec
+        except:
+          pass
+      elif msg_type == 'nav_msgs/Odometry':
+        try:
+          data = msg.pose.pose.orientation
+          quat = [data.x,data.y,data.z,data.w]
+          [roll,pitch,yaw] = convert_quat2rpy(quat)
+          update_dict['has_heading'] = True
+          update_dict['time_heading'] = nepi_sdk.sec_from_msg_stamp(msg.header.stamp)
+          update_dict['heading_deg'] = yaw
+        except:
+          pass
+      elif msg_type == 'geometry_msgs/Pose':
+        try:
+          data = msg.orientation
+          quat = [data.x,data.y,data.z,data.w]
+          [roll,pitch,yaw] = convert_quat2rpy(quat)
+          update_dict['has_heading'] = True
+          update_dict['time_heading'] = nepi_utils.get_time()
+          update_dict['heading_deg'] = yaw
+        except:
+          pass
+      elif msg_type == 'geometry_msgs/Quaternion':
+        try:
+          data = msg
+          quat = [data.x,data.y,data.z,data.w]
+          [roll,pitch,yaw] = convert_quat2rpy(quat)
+          update_dict['has_orientation'] = True
+          update_dict['time_orientation'] = nepi_utils.get_time()
+          update_dict['heading_deg'] = yaw
         except:
           pass
      
@@ -973,10 +1018,10 @@ def update_navpose_dict_from_msg(name, navpose_dict, msg, transform_dict = None,
           pass
 
 
-    #logger.log_warn("Transforming NavPose Dict", data = [name,update_dict,transform_dict,pt_transform_dict], throttle_s = 5.0)
-    update_dict = transform_navpose_dict(update_dict,transform_dict,pt_transform_dict)
+    #logger.log_warn("Transforming NavPose Dict", data = [name,update_dict,transform_dict], throttle_s = 5.0)
+    update_dict = transform_navpose_dict(update_dict,transform_dict)
 
-    #logger.log_warn("Updating NavPose Dict", data = [name,update_dict,transform_dict,pt_transform_dict], throttle_s = 5.0)
+    #logger.log_warn("Updating NavPose Dict", data = [name,update_dict,transform_dict], throttle_s = 5.0)
     navpose_dict = update_navpose_dict_from_dict(navpose_dict,update_dict)
 
       
@@ -1167,7 +1212,7 @@ def transform_object_pose(current_pose, rpy_rotation, units='deg'):
 
 
 
-def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None):
+def transform_navpose_dict(npdata_dict, transform_dict, do_checks = True):
   # logger.log_warn("Transforming NavPose Dict", data = [npdata_dict,transform_dict], throttle_s = 5.0)
   #logger.log_warn("passing transform_dict: " + str(npdata_dict), throttle_s = 5.0)
 
@@ -1198,6 +1243,8 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
                     transform_dict['yaw_deg'] + transform_dict.get('yaw_deg_offset',0)
                     ]
 
+      h = transform_dict['heading_deg'] + transform_dict.get('heading_deg_offset',0)
+
       try:
 
         if npdata_dict['has_location'] == True:
@@ -1211,23 +1258,24 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['longitude'] = tr_geo.longitude
           navpose_dict['location_m_per_sec'] = npdata_dict['location_m_per_sec']
 
-        if npdata_dict['has_heading'] == True or transform_dict['heading_deg'] != 0:
+
+        if npdata_dict['has_heading'] == True or do_checks == False: #or transform_dict['yaw_deg'] != 0:
+          npdata_dict['has_heading'] = True
+          invert = -1 if transform_dict['yaw_invert'] else 1
+          npdata_dict['heading_deg'] = clean_angle(npdata_dict['heading_deg'] * invert  + ay)
+          npdata_dict['heading_deg_per_sec'] = npdata_dict['heading_deg_per_sec'] * invert
+
+        if npdata_dict['has_heading'] == True or do_checks == False: #or transform_dict['heading_deg'] != 0:
           navpose_dict['has_heading'] = True
           navpose_dict['time_heading'] = npdata_dict['time_heading']
           invert = -1 if transform_dict['heading_invert'] else 1
-          navpose_dict['heading_deg'] = clean_angle(npdata_dict['heading_deg'] * invert  + transform_dict['heading_deg'])
+          navpose_dict['heading_deg'] = clean_angle(npdata_dict['heading_deg'] * invert  + h)
           navpose_dict['heading_deg_per_sec'] = npdata_dict['heading_deg_per_sec'] * invert
           navpose_dict['heading_m_per_sec'] = npdata_dict['heading_m_per_sec']
 
-        # if npdata_dict['has_heading'] == True or transform_dict['yaw_deg'] != 0:
-        #   navpose_dict['has_heading'] = True
-        #   navpose_dict['time_heading'] = npdata_dict['time_heading']
-        #   invert = -1 if transform_dict['yaw_invert'] else 1
-        #   navpose_dict['heading_deg'] = clean_angle(npdata_dict['heading_deg'] * invert  + transform_dict['yaw_deg'])
-        #   navpose_dict['heading_deg_per_sec'] = npdata_dict['heading_deg_per_sec'] * invert
-        #   navpose_dict['heading_m_per_sec'] = npdata_dict['heading_m_per_sec']
 
-        if npdata_dict['has_orientation'] == True or transform_dict['roll_deg'] != 0 or transform_dict['pitch_deg'] != 0 or transform_dict['yaw_deg'] != 0:
+
+        if npdata_dict['has_orientation'] == True  or do_checks == False: #or transform_dict['roll_deg'] != 0 or transform_dict['pitch_deg'] != 0 or transform_dict['yaw_deg'] != 0:
           navpose_dict['has_orientation'] = True
           navpose_dict['time_orientation'] = npdata_dict['time_orientation']
 
@@ -1259,13 +1307,13 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           npp += ap
           #[npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ar,'x')
           npr += ar
-          [ navpose_dict['roll_deg_per_sec'], navpose_dict['pitch_deg_per_sec'], navpose_dict['yaw_deg_per_sec'] ]=  [npr,npp,npy]
+          [ navpose_dict['roll_deg_per_sec'], navpose_dict['pitch_deg_per_sec'], navpose_dict['yaw_deg_per_sec'] ]=  [npr - ar,npp - ap,npy - ay]
 
           # # Angular rate transform not yet implemented; zero out until derived
           # [ navpose_dict['roll_deg_per_sec'], navpose_dict['pitch_deg_per_sec'], navpose_dict['yaw_deg_per_sec'] ]=  [0,0,0]
 
 
-        if npdata_dict['has_position'] == True or transform_dict['x_m'] != 0 or transform_dict['y_m'] != 0 or transform_dict['z_m'] != 0:
+        if npdata_dict['has_position'] == True  or do_checks == False: #or transform_dict['x_m'] != 0 or transform_dict['y_m'] != 0 or transform_dict['z_m'] != 0:
           navpose_dict['has_position'] = True
           navpose_dict['time_position'] = npdata_dict['time_position']
 
@@ -1281,11 +1329,11 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           [ navpose_dict['x_m'], navpose_dict['y_m'], navpose_dict['z_m'] ]=  [npx,npy,npz]
 
           invert = -1 if transform_dict['x_invert'] else 1
-          npx = npdata_dict['x_m_per_sec'] * invert + x
+          npx = npdata_dict['x_m_per_sec'] * invert 
           invert = -1 if transform_dict['y_invert'] else 1
-          npy = npdata_dict['y_m_per_sec'] * invert + y
+          npy = npdata_dict['y_m_per_sec'] * invert 
           invert = -1 if transform_dict['z_invert'] else 1
-          npz = npdata_dict['z_m_per_sec'] * invert + z
+          npz = npdata_dict['z_m_per_sec'] * invert 
           # [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ar,'x')
           # [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ap,'y')
           # [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ay,'z')
@@ -1293,7 +1341,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
 
 
-        if npdata_dict['has_altitude'] == True:
+        if npdata_dict['has_altitude'] == True or do_checks == False:
           navpose_dict['has_altitude'] = True
           navpose_dict['time_altitude'] = npdata_dict['time_altitude']
 
@@ -1311,7 +1359,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
           npx = 0
           invert = -1 if transform_dict['y_invert'] else 1
-          npy = npdata_dict['altitude_m_per_sec'] * invert + y
+          npy = npdata_dict['altitude_m_per_sec'] * invert
           npz = 0
           [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ar,'x')
           [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ap,'y')
@@ -1319,7 +1367,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['altitude_m_per_sec'] = npy
 
 
-        if npdata_dict['has_depth'] == True:
+        if npdata_dict['has_depth'] == True or do_checks == False:
           navpose_dict['has_depth'] = True
           navpose_dict['time_depth'] = npdata_dict['time_depth']
 
@@ -1334,7 +1382,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
           npx = 0
           invert = -1 if transform_dict['y_invert'] else 1
-          npy = npdata_dict['depth_m_per_sec'] * invert + y
+          npy = npdata_dict['depth_m_per_sec'] * invert
           npz = 0
           [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ar,'x')
           [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ap,'y')
@@ -1346,20 +1394,34 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         success = False
         logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
 
-  #logger.log_warn("Transforming PT NavPose", data = [navpose_dict,pt_transform_dict] , throttle_s = 10)
-  if navpose_dict['has_pan_tilt'] == True and pt_transform_dict is not None:
-      if pt_transform_dict is None:
-        pt_transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
-      try:
-        #logger.log_warn("Transforming PT NavPose", data = [navpose_dict, pt_transform_dict], throttle_s = 10)
-        invert = -1 if pt_transform_dict['yaw_invert'] else 1
-        navpose_dict['pan_deg'] = navpose_dict['pan_deg'] * invert  #+ pt_transform_dict['yaw_deg']
-        invert = -1 if pt_transform_dict['pitch_invert'] else 1
-        navpose_dict['tilt_deg'] = navpose_dict['tilt_deg'] * invert  #+ pt_transform_dict['pitch_deg']
 
-        invert = -1 if pt_transform_dict['yaw_invert'] else 1
+      # if navpose_dict['heading_deg'] != 0 and navpose_dict['yaw_deg'] != 0:
+      #   navpose_dict['yaw_deg'] = clean_angle(navpose_dict['yaw_deg'] - navpose_dict['heading_deg'])
+
+      if navpose_dict['has_pan_tilt'] == True and transform_dict is not None:
+        navpose_dict['pt_transform'] = transform_dict
+
+
+  #logger.log_warn("Transformed NavPose", data = navpose_dict , throttle_s = 10)
+  return navpose_dict
+
+
+
+def transform_pt_navpose_dict(navpose_dict, transform_dict, pt_transoform_dict = None):
+  #logger.log_warn("Transforming PT NavPose", data = [navpose_dict,transform_dict] , throttle_s = 10)
+  if navpose_dict['has_pan_tilt'] == True and transform_dict is not None:
+      if transform_dict is None:
+        transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
+      try:
+        #logger.log_warn("Transforming PT NavPose", data = [navpose_dict, transform_dict], throttle_s = 10)
+        invert = -1 if transform_dict['yaw_invert'] else 1
+        navpose_dict['pan_deg'] = navpose_dict['pan_deg'] * invert  #+ transform_dict['yaw_deg']
+        invert = -1 if transform_dict['pitch_invert'] else 1
+        navpose_dict['tilt_deg'] = navpose_dict['tilt_deg'] * invert  #+ transform_dict['pitch_deg']
+
+        invert = -1 if transform_dict['yaw_invert'] else 1
         navpose_dict['pan_deg_per_sec'] = navpose_dict['pan_deg_per_sec'] * invert
-        invert = -1 if pt_transform_dict['pitch_invert'] else 1
+        invert = -1 if transform_dict['pitch_invert'] else 1
         navpose_dict['tilt_deg_per_sec'] = navpose_dict['tilt_deg_per_sec'] * invert
 
         pan_deg = navpose_dict['pan_deg']
@@ -1379,15 +1441,13 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
         #logger.log_warn("Transformed PT NavPose", data = navpose_dict , throttle_s = 10)
         ## Transpose Source Frame Nav to Pan Tilt Frame
-        tx = pt_transform_dict['x_m'] + pt_transform_dict.get('x_m_offset',0)
-        ty = pt_transform_dict['y_m'] + pt_transform_dict.get('y_m_offset',0)
-        tz = pt_transform_dict['z_m'] + pt_transform_dict.get('z_m_offset',0)
-        tr = pt_transform_dict['roll_deg'] + pt_transform_dict.get('roll_deg_offset',0)
-        tp = pt_transform_dict['pitch_deg'] + pt_transform_dict.get('pitch_deg_offset',0)
-        tyw = pt_transform_dict['yaw_deg'] + pt_transform_dict.get('yaw_deg_offset',0)
-
-
-
+        tx = transform_dict['x_m'] + transform_dict.get('x_m_offset',0)
+        ty = transform_dict['y_m'] + transform_dict.get('y_m_offset',0)
+        tz = transform_dict['z_m'] + transform_dict.get('z_m_offset',0)
+        tr = transform_dict['roll_deg'] + transform_dict.get('roll_deg_offset',0)
+        tp = transform_dict['pitch_deg'] + transform_dict.get('pitch_deg_offset',0)
+        tyw = transform_dict['yaw_deg'] + transform_dict.get('yaw_deg_offset',0)
+        th = transform_dict['heading_deg'] + transform_dict.get('heading_deg_offset',0)
 
         ##########################
         roll_deg = navpose_dict['roll_deg']
@@ -1404,17 +1464,18 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         #[ar,ap,ay] = rotate_enu_angles([ar,ap,ay],tilt_deg + tp,'y')
         [ar,ap,ay]  = rotate_enu_angles([ar,ap,ay],pan_deg + tyw,'z')
         #logger.log_warn("PT RPI Adj", data = [ar,ap,ay], throttle_s = 5.0)
-        navpose_dict['pan_tilt_yaw_deg'] = clean_angle(pan_deg + tyw)
-
-
-
+        
         [ptr,ptp,pty] = [0, tilt_deg, 0 ]
         [ptr,ptp,pty] = rotate_enu_angles([ptr,ptp,pty],pan_deg - tyw,'z')
         navpose_dict['pan_tilt_roll_deg'] = clean_angle(ptr + ar + tr)
         navpose_dict['pan_tilt_pitch_deg'] = clean_angle(ptp + -1 * ap + tp)
+        navpose_dict['pan_tilt_yaw_deg'] = clean_angle(pty + ay + tyw)
 
-
-
+        heading_deg = navpose_dict['heading_deg']
+        if heading_deg == -999:
+          heading_deg = 0
+        heading_adj = clean_angle(heading_deg  + th + pan_deg + tyw)
+        navpose_dict['pan_tilt_heading_deg'] = heading_adj
 
         ##########################
         x_m = navpose_dict['x_m']
@@ -1428,7 +1489,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           z_m = 0
 
         [ax,ay,az] = [tx,ty,tz]
-        #[ax,ay,az]  = rotate_enu_point([ax,ay,az],ptp,'y')
+        [ax,ay,az]  = rotate_enu_point([ax,ay,az],ptp,'y')
         [ax,ay,az]  = rotate_enu_point([ax,ay,az],pan_deg,'z')
         navpose_dict['pan_tilt_x_m'] = x_m + ax
         navpose_dict['pan_tilt_y_m'] = y_m + ay
@@ -1436,12 +1497,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
 
 
         ##########################
-        heading_deg = navpose_dict['heading_deg']
-        if heading_deg == -999:
-          heading_deg = 0
-        th = pt_transform_dict['heading_deg'] + pt_transform_dict.get('heading_deg_offset',0)
-        heading_adj = clean_angle(heading_deg + pan_deg + tyw + th)
-        navpose_dict['pan_tilt_heading_deg'] = heading_adj
+
 
         ##########################
         if navpose_dict['has_location'] == True:
@@ -1453,10 +1509,10 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['pan_tilt_longitude'] = tr_geo.longitude
 
         if navpose_dict['has_altitude'] == True:
-          navpose_dict['pan_tilt_altitude_m'] = npdata_dict['altitude_m'] + navpose_dict['pan_tilt_z_m']
+          navpose_dict['pan_tilt_altitude_m'] = navpose_dict['altitude_m'] + navpose_dict['pan_tilt_z_m']
 
         if navpose_dict['has_depth'] == True:
-          navpose_dict['pan_tilt_depth_m'] = npdata_dict['depth_m'] - navpose_dict['pan_tilt_z_m']
+          navpose_dict['pan_tilt_depth_m'] = navpose_dict['depth_m'] - navpose_dict['pan_tilt_z_m']
 
         #logger.log_warn("Got PT Angle Adj", data = [ptr,navpose_dict['pan_tilt_roll_deg'],ptp,  navpose_dict['pan_tilt_pitch_deg']], throttle_s = 5.0)
 
@@ -1467,15 +1523,17 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['pan_tilt_location_m_per_sec'] = navpose_dict['location_m_per_sec']
 
         if navpose_dict['has_altitude'] == True:
-          navpose_dict['pan_tilt_altitude_m_per_sec'] = npdata_dict['altitude_m_per_sec'] #+ navpose_dict['pan_tilt_z_m_per_sec']
+          navpose_dict['pan_tilt_altitude_m_per_sec'] = navpose_dict['altitude_m_per_sec'] #+ navpose_dict['pan_tilt_z_m_per_sec']
 
         if navpose_dict['has_depth'] == True:
-          navpose_dict['pan_tilt_depth_m_per_sec'] = npdata_dict['depth_m_per_sec'] #- navpose_dict['pan_tilt_z_m_per_sec']
+          navpose_dict['pan_tilt_depth_m_per_sec'] = navpose_dict['depth_m_per_sec'] #- navpose_dict['pan_tilt_z_m_per_sec']
 
            
       except Exception as e:
         success = False
         logger.log_warn("Failed to transfrom PT NavPose dict: " + str(e), throttle_s = 5.0)
+
+  
   #logger.log_warn("Transformed NavPose", data = navpose_dict , throttle_s = 10)
   return navpose_dict
 
@@ -1637,6 +1695,7 @@ def convert_navpose_dict2msg(npdata_dict, timestamp = None, name = None, descrip
 
   np_msg.has_pan_tilt = navpose_dict['has_pan_tilt']
   np_msg.time_pan_tilt = navpose_dict['time_pan_tilt'] if np_msg.has_pan_tilt else 0.0
+  np_msg.pt_transform = convert_transform_dict2msg(navpose_dict['pt_transform'])
   np_msg.pan_deg = round(navpose_dict['pan_deg'],3) if np_msg.has_pan_tilt else -999
   np_msg.tilt_deg = round(navpose_dict['tilt_deg'],3) if np_msg.has_pan_tilt else -999
   np_msg.pan_deg_per_sec = round(navpose_dict['pan_deg_per_sec'],3) if np_msg.has_pan_tilt else -999
