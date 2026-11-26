@@ -2982,7 +2982,7 @@ class TransformIF(NodeIF):
 
 
     def _setFrame3dTransformCb(self, msg):
-        self.msg_if.pub_debug("Received Frame Transform update message: " + str(msg) )
+        self.msg_if.pub_warn("Received Frame Transform update message: " + str(msg) )
         transform_msg = msg
         transform_dict = copy.deepcopy(self.transform_dict)
 

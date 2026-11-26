@@ -1219,13 +1219,13 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           navpose_dict['heading_deg_per_sec'] = npdata_dict['heading_deg_per_sec'] * invert
           navpose_dict['heading_m_per_sec'] = npdata_dict['heading_m_per_sec']
 
-        if npdata_dict['has_heading'] == True or transform_dict['yaw_deg'] != 0:
-          navpose_dict['has_heading'] = True
-          navpose_dict['time_heading'] = npdata_dict['time_heading']
-          invert = -1 if transform_dict['yaw_invert'] else 1
-          navpose_dict['heading_deg'] = clean_angle(npdata_dict['heading_deg'] * invert  + transform_dict['yaw_deg'])
-          navpose_dict['heading_deg_per_sec'] = npdata_dict['heading_deg_per_sec'] * invert
-          navpose_dict['heading_m_per_sec'] = npdata_dict['heading_m_per_sec']
+        # if npdata_dict['has_heading'] == True or transform_dict['yaw_deg'] != 0:
+        #   navpose_dict['has_heading'] = True
+        #   navpose_dict['time_heading'] = npdata_dict['time_heading']
+        #   invert = -1 if transform_dict['yaw_invert'] else 1
+        #   navpose_dict['heading_deg'] = clean_angle(npdata_dict['heading_deg'] * invert  + transform_dict['yaw_deg'])
+        #   navpose_dict['heading_deg_per_sec'] = npdata_dict['heading_deg_per_sec'] * invert
+        #   navpose_dict['heading_m_per_sec'] = npdata_dict['heading_m_per_sec']
 
         if npdata_dict['has_orientation'] == True or transform_dict['roll_deg'] != 0 or transform_dict['pitch_deg'] != 0 or transform_dict['yaw_deg'] != 0:
           navpose_dict['has_orientation'] = True
@@ -1387,38 +1387,6 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
         tyw = pt_transform_dict['yaw_deg'] + pt_transform_dict.get('yaw_deg_offset',0)
 
 
-        ##################
-        x_m = navpose_dict['x_m']
-        if x_m == -999:
-          x_m = 0
-        y_m = navpose_dict['y_m']
-        if y_m == -999:
-          y_m = 0
-        z_m = navpose_dict['z_m']
-        if z_m == -999:
-          z_m = 0
-
-
-        [ax,ay,az]  = rotate_enu_point([tx,ty,tz],tilt_deg,'y')
-        [ax,ay,az]  = rotate_enu_point([ax,ay,az],pan_deg,'z')
-        navpose_dict['pan_tilt_x_m'] = x_m + ax
-        navpose_dict['pan_tilt_y_m'] = y_m + ay
-        navpose_dict['pan_tilt_z_m'] = z_m + az
-
-
-        if navpose_dict['has_location'] == True:
-          cur_geo = GeoPoint()
-          cur_geo.latitude = navpose_dict['latitude']
-          cur_geo.longitude = navpose_dict['longitude']
-          tr_geo = get_geopoint_at_enu_point(cur_geo,[navpose_dict['pan_tilt_x_m'],navpose_dict['pan_tilt_y_m'],navpose_dict['pan_tilt_z_m']])
-          navpose_dict['pan_tilt_latitude'] = tr_geo.latitude
-          navpose_dict['pan_tilt_longitude'] = tr_geo.longitude
-
-        if navpose_dict['has_altitude'] == True:
-          navpose_dict['pan_tilt_altitude_m'] = npdata_dict['altitude_m'] + navpose_dict['pan_tilt_z_m']
-
-        if navpose_dict['has_depth'] == True:
-          navpose_dict['pan_tilt_depth_m'] = npdata_dict['depth_m'] - navpose_dict['pan_tilt_z_m']
 
 
         ##########################
@@ -1433,23 +1401,64 @@ def transform_navpose_dict(npdata_dict, transform_dict, pt_transform_dict = None
           yaw_deg = 0
 
         [ar,ap,ay] = [roll_deg, -1 * pitch_deg, yaw_deg ]
-        # [ar,ap,ay] = rotate_enu_angles([ar,ap,ay],tilt_deg,'y')
+        #[ar,ap,ay] = rotate_enu_angles([ar,ap,ay],tilt_deg + tp,'y')
         [ar,ap,ay]  = rotate_enu_angles([ar,ap,ay],pan_deg + tyw,'z')
         #logger.log_warn("PT RPI Adj", data = [ar,ap,ay], throttle_s = 5.0)
-        navpose_dict['pan_tilt_roll_deg'] = clean_angle(ar + tr)
-        navpose_dict['pan_tilt_pitch_deg'] = clean_angle(tilt_deg + -1 * ap + tp)
         navpose_dict['pan_tilt_yaw_deg'] = clean_angle(pan_deg + tyw)
 
 
-        ################################
+
+        [ptr,ptp,pty] = [0, tilt_deg, 0 ]
+        [ptr,ptp,pty] = rotate_enu_angles([ptr,ptp,pty],pan_deg - tyw,'z')
+        navpose_dict['pan_tilt_roll_deg'] = clean_angle(ptr + ar + tr)
+        navpose_dict['pan_tilt_pitch_deg'] = clean_angle(ptp + -1 * ap + tp)
+
+
+
+
+        ##########################
+        x_m = navpose_dict['x_m']
+        if x_m == -999:
+          x_m = 0
+        y_m = navpose_dict['y_m']
+        if y_m == -999:
+          y_m = 0
+        z_m = navpose_dict['z_m']
+        if z_m == -999:
+          z_m = 0
+
+        [ax,ay,az] = [tx,ty,tz]
+        #[ax,ay,az]  = rotate_enu_point([ax,ay,az],ptp,'y')
+        [ax,ay,az]  = rotate_enu_point([ax,ay,az],pan_deg,'z')
+        navpose_dict['pan_tilt_x_m'] = x_m + ax
+        navpose_dict['pan_tilt_y_m'] = y_m + ay
+        navpose_dict['pan_tilt_z_m'] = z_m + az
+
+
+        ##########################
         heading_deg = navpose_dict['heading_deg']
         if heading_deg == -999:
           heading_deg = 0
         th = pt_transform_dict['heading_deg'] + pt_transform_dict.get('heading_deg_offset',0)
-        navpose_dict['pan_tilt_heading_deg'] = clean_angle(heading_deg + pan_deg + tyw + th)
+        heading_adj = clean_angle(heading_deg + pan_deg + tyw + th)
+        navpose_dict['pan_tilt_heading_deg'] = heading_adj
 
+        ##########################
+        if navpose_dict['has_location'] == True:
+          cur_geo = GeoPoint()
+          cur_geo.latitude = navpose_dict['latitude']
+          cur_geo.longitude = navpose_dict['longitude']
+          tr_geo = get_geopoint_at_enu_point(cur_geo,[navpose_dict['pan_tilt_x_m'],navpose_dict['pan_tilt_y_m'],navpose_dict['pan_tilt_z_m']])
+          navpose_dict['pan_tilt_latitude'] = tr_geo.latitude
+          navpose_dict['pan_tilt_longitude'] = tr_geo.longitude
 
+        if navpose_dict['has_altitude'] == True:
+          navpose_dict['pan_tilt_altitude_m'] = npdata_dict['altitude_m'] + navpose_dict['pan_tilt_z_m']
 
+        if navpose_dict['has_depth'] == True:
+          navpose_dict['pan_tilt_depth_m'] = npdata_dict['depth_m'] - navpose_dict['pan_tilt_z_m']
+
+        #logger.log_warn("Got PT Angle Adj", data = [ptr,navpose_dict['pan_tilt_roll_deg'],ptp,  navpose_dict['pan_tilt_pitch_deg']], throttle_s = 5.0)
 
         navpose_dict['pan_tilt_heading_deg_per_sec'] = navpose_dict['heading_deg_per_sec']
         navpose_dict['pan_tilt_heading_m_per_sec'] = navpose_dict['heading_m_per_sec']
