@@ -2456,13 +2456,13 @@ class NavPoseMgr(object):
                         pt_connect = navpose_settings_dict['connect_dict'].get('pan_tilt', dict())
                         type_name = 'update' if navpose_update_dict.get('has_pan_tilt', False) == True else 'init'
                         transform_dict = pt_connect.get(type_name + '_transform', transform_dict)
-                        transform_dict['x_m'] = -1 * transform_dict['x_m'] 
-                        transform_dict['y_m'] = -1 * transform_dict['y_m']
-                        transform_dict['z_m'] = -1 * transform_dict['z_m']
-                        # transform_dict['roll_deg'] = -1 * transform_dict['roll_deg'] 
-                        # transform_dict['pitch_deg'] = -1 * transform_dict['pitch_deg']
-                        # transform_dict['yaw_deg'] = -1 * transform_dict['yaw_deg']
-                        # transform_dict['heading_deg'] = -1 * transform_dict['heading_deg']
+                        # transform_dict['x_m'] = -1 * transform_dict['x_m'] 
+                        # transform_dict['y_m'] = -1 * transform_dict['y_m']
+                        # transform_dict['z_m'] = -1 * transform_dict['z_m']
+                        transform_dict['roll_deg'] = -1 * transform_dict['roll_deg'] 
+                        transform_dict['pitch_deg'] = -1 * transform_dict['pitch_deg']
+                        transform_dict['yaw_deg'] = -1 * transform_dict['yaw_deg']
+                        transform_dict['heading_deg'] = -1 * transform_dict['heading_deg']
                     navpose_solution = nepi_nav.transform_navpose_dict(navpose_solution, transform_dict, False)
                     transform_dict = copy.deepcopy(nepi_nav.BLANK_TRANSFORM_DICT)
                     navpose_solution = nepi_nav.transform_pt_navpose_dict(navpose_solution, transform_dict, False)

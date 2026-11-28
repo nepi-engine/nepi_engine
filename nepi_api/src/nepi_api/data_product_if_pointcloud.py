@@ -195,6 +195,9 @@ class PointcloudIF(DataProductIF):
 
     voxel = [0,0,0]
 
+    width_deg = 100
+    height_deg = 70
+
 
     def __init__(self, 
                 name = 'pointcloud',
@@ -298,7 +301,14 @@ class PointcloudIF(DataProductIF):
        
         # Params Config Dict ####################
         update_params_dict = {
-
+            'width_deg': {
+                'namespace': self.namespace,
+                'factory_val': self.width_deg
+            },
+            'height_deg': {
+                'namespace': self.namespace,
+                'factory_val': self.height_deg
+            },
             'render_enable': {
                 'name': 'render_enable',
                 'namespace': self.namespace,
@@ -637,6 +647,35 @@ class PointcloudIF(DataProductIF):
         return status_msg
 
 
+    def init(self, do_updates = False):
+        """Initialize or re-initialize depth map interface state and publish status.
+
+        Args:
+            do_updates (bool, optional): Reserved for future use. Defaults to False.
+        """
+        if self.node_if is not None:
+            self.width_deg  = self.node_if.get_param(self.node_if_prefix +  'width_deg',100)
+            self.height_deg  = self.node_if.get_param(self.node_if_prefix +  'height_deg',70)
+        if do_updates == True:
+            pass
+        self.publish_status()
+
+    def reset(self):
+        """Reset the depth map interface to its initialized state."""
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_debug("Reseting params" )
+            self.node_if.reset_params()
+            nepi_sdk.sleep(1)     
+        self.init(do_updates = True)
+
+
+    def factory_reset(self):
+        """Reset the depth map interface to factory defaults."""
+        if self.node_if is not None and self.node_if_shared == False:
+            self.msg_if.pub_debug("Factory resetting params" )
+            self.node_if.factory_reset_params()
+            nepi_sdk.sleep(1) 
+        self.init(do_updates = True)
     
     ###############################
     # Class Setup Methods
@@ -735,6 +774,67 @@ class PointcloudIF(DataProductIF):
     # Class Public Methods
     ###############################
 
+    def setWidthDegCb(self, msg):
+        #self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
+        width_deg = int(float(msg.data + 0.1))
+        self.set_width_deg(width_deg)
+
+    def set_width_deg(self,width_deg):
+        if width_deg > 10:
+            width_deg = round(width_deg, 2)
+            if width_deg != self.width_deg:
+                self.width_deg = width_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'width_deg', width_deg)
+        return self.width_deg
+
+    def set_width_deg_current(self,width_deg):
+        if width_deg > 10:
+            width_deg = round(width_deg, 2)
+            if width_deg != self.width_deg:
+                self.width_deg = width_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'width_deg', width_deg)
+        return self.width_deg
+
+    def get_width_deg(self):
+        return int(float(self.width_deg))
+
+    def get_width_deg_current(self):
+        return int(float(self.width_deg)) 
+
+    def setHeightDegCb(self, msg):
+        #self.msg_if.pub_info("Recived Height Deg update message: " + str(msg))
+        height_deg = int(float(msg.data + 0.1))
+        self.set_height_deg(height_deg)
+
+    def set_height_deg(self,height_deg):
+        if height_deg > 10:
+            height_deg = round(height_deg, 2)
+            if height_deg != self.height_deg:
+                self.height_deg = height_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'height_deg', height_deg)
+        return self.height_deg
+
+    def set_height_deg_current(self,height_deg):
+        if height_deg > 10:
+            height_deg = round(height_deg, 2)
+            if height_deg != self.height_deg:
+                self.height_deg = height_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'height_deg', height_deg)
+        return self.height_deg
+
+    def get_height_deg(self):
+        return int(float(self.height_deg))
+
+    def get_height_deg_current(self):
+        return int(float(self.height_deg)) 
 
     def _setVoxelCb(self,msg):
         self.msg_if.pub_debug("Received set voxel message: " + str(msg) )
@@ -744,8 +844,8 @@ class PointcloudIF(DataProductIF):
 
     def publish_o3d_pc(self,o3d_pc,
                         timestamp = None,
-                        width_deg = 100,
-                        height_deg = 70,
+                        width_deg = None,
+                        height_deg = None,
                         min_range_m = None,
                         max_range_m = None,
                         process_data = True,
@@ -803,8 +903,12 @@ class PointcloudIF(DataProductIF):
             self.status_msg.has_intensity = False # Need to add
             #self.status_msg.point_count = o3d_pc.point["colors"].shape[0]
 
-            self.status_msg.width_deg = width_deg
-            self.status_msg.height_deg = height_deg
+
+            if width_deg is not None and height_deg is not None:
+                self.set_width_deg(width_deg)
+                self.set_height_deg(height_deg)
+            self.status_msg.width_deg = self.width_deg
+            self.status_msg.height_deg = self.height_deg
 
             if (min_range_m is not None and max_range_m is not None):
                 self._updateRangesM(min_range_m,max_range_m)
@@ -1377,8 +1481,8 @@ class PointcloudImageIF(BaseImageIF):
     ###############################
 
     def publish_pointcloud_img(self,o3d_pc,
-                            width_deg = 100,
-                            height_deg = 70,
+                            width_deg = None,
+                            height_deg = None,
                             render_dict = None,
                             min_range_m = None,
                             max_range_m = None,

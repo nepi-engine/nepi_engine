@@ -2940,6 +2940,7 @@ class TransformIF(NodeIF):
         transform_dict = copy.deepcopy(self.transform_dict)
         transform_msg = nepi_nav.convert_transform_dict2msg(transform_dict)
         if self.node_if is not None:
+            #self.msg_if.pub_warn("Publishing Transform Msg", data = [transform_msg], throttle_s = 5.0)
             self.publish_msg( 'transform_pub',transform_msg)
 
 
@@ -2982,7 +2983,7 @@ class TransformIF(NodeIF):
 
 
     def _setFrame3dTransformCb(self, msg):
-        self.msg_if.pub_warn("Received Frame Transform update message: " + str(msg) )
+        #self.msg_if.pub_warn("Received Frame Transform update message: " + str(msg) )
         transform_msg = msg
         transform_dict = copy.deepcopy(self.transform_dict)
 

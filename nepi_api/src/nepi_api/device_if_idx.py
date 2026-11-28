@@ -23,6 +23,7 @@ import copy
 import threading
 import subprocess
 import numpy as np
+import math
 
 import copy
 
@@ -37,6 +38,7 @@ from nepi_sdk import nepi_nav
 from std_msgs.msg import Empty, Int8, UInt8, UInt32, Int32, Bool, String, Float32, Float64, Header
 from sensor_msgs.msg import Image, PointCloud2
 
+from nepi_interfaces.msg import UpdateInt
 from nepi_interfaces.msg import DeviceIDXStatus, RangeWindow
 
 
@@ -85,7 +87,6 @@ class IDXDeviceIF(DeviceIF):
     brightness_ratio = 0.5,
     contrast_ratio =  0.5,
     threshold_ratio =  0.0,
-    resolution_ratio = 1.0, 
     max_framerate = 10, 
     start_range_ratio = 0.0,
     stop_range_ratio = 1.0,
@@ -191,7 +192,7 @@ class IDXDeviceIF(DeviceIF):
     brightness_ratio = 0.5
     contrast_ratio = 0.5
     threshold_ratio = 0.0
-    resolution_ratio = 1.0  
+
     max_framerate = 10
     start_range_ratio = 0.0
     stop_range_ratio = 1.0
@@ -218,7 +219,21 @@ class IDXDeviceIF(DeviceIF):
 
     width_deg = DEFUALT_IMG_WIDTH_DEG
     height_deg = DEFUALT_IMG_HEIGHT_DEG
-    aspect_ratio_deg = -999
+    
+    color_image_width_px = 1
+    color_image_height_px = 1
+    color_image_width_deg = DEFUALT_IMG_WIDTH_DEG
+    color_image_height_deg = DEFUALT_IMG_HEIGHT_DEG
+   
+    depth_map_width_px = 1
+    depth_map_height_px = 1
+    depth_map_width_deg = DEFUALT_IMG_WIDTH_DEG
+    depth_map_height_deg = DEFUALT_IMG_HEIGHT_DEG
+
+    pointcloud_width_px = 1
+    pointcloud_height_px = 1
+    pointcloud_width_deg = DEFUALT_IMG_WIDTH_DEG
+    pointcloud_height_deg = DEFUALT_IMG_HEIGHT_DEG
 
     
     fps_queue = dict()
@@ -371,7 +386,6 @@ class IDXDeviceIF(DeviceIF):
         self.brightness_ratio = self.factory_controls_dict['brightness_ratio']
         self.contrast_ratio = self.factory_controls_dict['contrast_ratio']
         self.threshold_ratio = self.factory_controls_dict['threshold_ratio']
-        self.resolution_ratio = self.factory_controls_dict['resolution_ratio']
         self.max_framerate = self.factory_controls_dict['max_framerate']
 
 
@@ -417,10 +431,6 @@ class IDXDeviceIF(DeviceIF):
                 'namespace': self.namespace,
                 'factory_val': self.height_deg
             },
-            'aspect_ratio_deg': {
-                'namespace': self.namespace,
-                'factory_val': self.aspect_ratio_deg
-            },
             'auto_adjust_ebabled': {
                 'namespace': self.namespace,
                 'factory_val': self.auto_adjust_ebabled
@@ -436,10 +446,6 @@ class IDXDeviceIF(DeviceIF):
             'threshold_ratio': {
                 'namespace': self.namespace,
                 'factory_val': self.threshold_ratio
-            },
-            'resolution_ratio': {
-                'namespace': self.namespace,
-                'factory_val': self.resolution_ratio
             },
             'max_framerate': {
                 'namespace': self.namespace,
@@ -505,6 +511,22 @@ class IDXDeviceIF(DeviceIF):
                 'callback': self.setHeightDegCb, 
                 'callback_args': ()
             },
+            'set_data_product_width_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_data_product_width_deg',
+                'msg': UpdateInt,
+                'qsize': 1,
+                'callback': self.setDataProductWidthDegCb, 
+                'callback_args': ()
+            },
+            'set_data_product_height_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_data_product_height_deg',
+                'msg': UpdateInt,
+                'qsize': 1,
+                'callback': self.setDataProductHeightDegCb, 
+                'callback_args': ()
+            },
             'set_auto_adjust': {
                 'namespace': self.namespace,
                 'topic': 'set_auto_adjust_enable',
@@ -535,14 +557,6 @@ class IDXDeviceIF(DeviceIF):
                 'msg': Float32,
                 'qsize': 1,
                 'callback': self.setThresholdingRatioCb, 
-                'callback_args': ()
-            },
-            'set_resolution_ratio': {
-                'namespace': self.namespace,
-                'topic': 'set_resolution_ratio',
-                'msg': Float32,
-                'qsize': 1,
-                'callback': self.setResolutionRatioCb, 
                 'callback_args': ()
             },
             'set_max_framerate': {
@@ -724,26 +738,26 @@ class IDXDeviceIF(DeviceIF):
         #############################################
 
 
-        # aspect_ratio_deg = self.width_px / self.height_px
-        # if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
-        #     self.aspect_ratio_deg  = round(self.width_px / self.height_px, 2)
-        
-        cur_aspect_ratio = self.width_px / self.height_px
-        if cur_aspect_ratio < 0.5 or cur_aspect_ratio > 2.5:
-            cur_aspect_ratio = 1        
+        status_msg.width_deg = int(math.ceil(self.width_deg))
+        status_msg.height_deg = int(math.ceil(self.height_deg))
 
-        width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
-        height_deg = self.height_deg
+        status_msg.color_image_width_deg = int(float(self.color_image_width_deg))
+        status_msg.color_image_height_deg = int(float(self.color_image_height_deg))
+        res_str = str(self.color_image_width_px) + ":" + str(self.color_image_height_px)
+        status_msg.color_image_resolution_current = res_str
 
-        status_msg.width_deg = int(width_deg)
-        status_msg.height_deg = int(height_deg)
-        status_msg.aspect_ratio_deg = round(cur_aspect_ratio,2)
+        status_msg.depth_map_width_deg = int(float(self.depth_map_width_deg))
+        status_msg.depth_map_height_deg = int(float(self.depth_map_height_deg))
+        res_str = str(self.depth_map_width_px) + ":" + str(self.depth_map_height_px)
+        status_msg.depth_map_resolution_current = res_str
 
+        status_msg.pointcloud_width_deg = int(float(self.pointcloud_width_deg))
+        status_msg.pointcloud_height_deg = int(float(self.pointcloud_height_deg))
+        res_str = str(self.pointcloud_width_px) + ":" + str(self.pointcloud_height_px)
+        status_msg.pointcloud_resolution_current = res_str
         status_msg.perspective = self.perspective
         
-        status_msg.resolution_ratio = self.resolution_ratio
-        res_str = str(self.width_px) + ":" + str(self.height_px)
-        status_msg.resolution_current = res_str
+
 
 
 
@@ -823,12 +837,7 @@ class IDXDeviceIF(DeviceIF):
       if self.node_if is not None:
             self.width_deg = self.node_if.get_param(self.node_if_prefix + 'width_deg')
             self.height_deg = self.node_if.get_param(self.node_if_prefix + 'height_deg')  
-            aspect_ratio_deg = self.node_if.get_param(self.node_if_prefix + 'aspect_ratio_deg')
-            if aspect_ratio_deg is not None:
-                self.aspect_ratio_deg = round(aspect_ratio_deg,2)
-            self.msg_if.pub_debug("Init degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
 
-            self.resolution_ratio = self.node_if.get_param(self.node_if_prefix + 'resolution_ratio')
             max_framerate = self.node_if.get_param(self.node_if_prefix + 'max_framerate') 
             if max_framerate is not None:
                 self.max_framerate = max_framerate
@@ -862,17 +871,14 @@ class IDXDeviceIF(DeviceIF):
       self.msg_if.pub_debug("Resetting Configs")
       if self.node_if is not None:
         self.node_if.reset_params()
-        if self.getFOV is not None:
-            try:
-                [self.width_deg,self.height_deg] = self.getFOV()
-                self.aspect_ratio_deg = -999
-                self.msg_if.pub_debug("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
-                if self.node_if is not None:
-                    self.node_if.set_param(self.node_if_prefix + 'width_deg',self.width_deg)
-                    self.node_if.set_param(self.node_if_prefix + 'height_deg',self.height_deg) 
-                    self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',-999)
-            except:
-                pass
+
+        try:
+            [self.width_deg,self.height_deg] = self.getFOV()
+        except:
+            [self.width_deg,self.height_deg] = [self.DEFUALT_IMG_WIDTH_DEG,self.DEFUALT_IMG_HEIGHT_DEG]
+        if self.node_if is not None:
+            self.node_if.set_param(self.node_if_prefix + 'width_deg',self.width_deg)
+            self.node_if.set_param(self.node_if_prefix + 'height_deg',self.height_deg) 
       if do_updates == True:
         pass
       self.initCb(do_updates = True)
@@ -880,18 +886,13 @@ class IDXDeviceIF(DeviceIF):
     def factoryResetCb(self,do_updates = True):
       if self.node_if is not None:
         self.node_if.factory_reset_params()
-        if self.getFOV is not None:
-            try:
-                [self.width_deg,self.height_deg] = self.getFOV()
-                self.aspect_ratio_deg = -999
-                self.msg_if.pub_debug("Updated degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
-                if self.node_if is not None:
-                    self.node_if.set_param(self.node_if_prefix + 'width_deg',self.width_deg)
-                    self.node_if.set_param(self.node_if_prefix + 'height_deg',self.height_deg) 
-                    self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',-999)
-                    
-            except:
-                pass
+        try:
+            [self.width_deg,self.height_deg] = self.getFOV()
+        except:
+            [self.width_deg,self.height_deg] = [self.DEFUALT_IMG_WIDTH_DEG,self.DEFUALT_IMG_HEIGHT_DEG]
+        if self.node_if is not None:
+            self.node_if.set_param(self.node_if_prefix + 'width_deg',self.width_deg)
+            self.node_if.set_param(self.node_if_prefix + 'height_deg',self.height_deg) 
 
       if do_updates == True:
         pass
@@ -971,29 +972,55 @@ class IDXDeviceIF(DeviceIF):
 
     def setWidthDegCb(self, msg):
         #self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
-        width_deg = msg.data
+        width_deg = msg.data + 0.1
+        self.set_width_deg(width_deg)
+
+    def set_width_deg(self,width_deg):
         if width_deg > 10:
-            self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
-            self.width_deg = width_deg     
-            self.msg_if.pub_debug("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg]))
-            self.publish_status() # Updated inline here   
+            self.width_deg = int(float(width_deg))     
+            self.publish_status() # Updated inline here
             if self.node_if is not None:
                 self.node_if.set_param(self.node_if_prefix + 'width_deg', width_deg)
-                self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',self.aspect_ratio_deg)                
 
-
- 
     def setHeightDegCb(self, msg):
         #self.msg_if.pub_info("Recived Height Deg update message: " + str(msg))
-        height_deg = msg.data
+        height_deg = msg.data + 0.1
+        self.set_height_deg(height_deg)
+
+    def set_height_deg(self,height_deg):
         if height_deg > 10:
-            self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
-            self.height_deg = height_deg   
-            self.msg_if.pub_debug("Setting degs w,h,ar:: " + str([self.width_deg,self.height_deg,self.aspect_ratio_deg, ]))
-            self.publish_status() # Updated inline here   
+            self.height_deg = int(float(height_deg))
+            self.publish_status() # Updated inline here
             if self.node_if is not None:
                 self.node_if.set_param(self.node_if_prefix + 'height_deg', height_deg)
-                self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',self.aspect_ratio_deg)
+
+    def setDataProductWidthDegCb(self, msg):
+        #self.msg_if.pub_info("Recived Data Product Width Deg update message: " + str(msg))
+        data_product = msg.name
+        width_deg = msg.value + 0.1
+        if width_deg > 10:
+            if data_product == 'color_image' and self.color_image_if is not None:
+                width_deg = self.color_image_if.set_width_deg(width_deg)
+            elif data_product == 'depth_map' and self.depth_map_if is not None:
+                width_deg = self.depth_map_if.set_width_deg(width_deg)
+            elif data_product == 'pointcloud' and self.pointcloud_if is not None:
+                width_deg = self.pointcloud_if.set_width_deg(width_deg)
+            self.set_width_deg(width_deg)
+ 
+    def setDataProductHeightDegCb(self, msg):
+        #self.msg_if.pub_info("Recived Data Product Height Deg update message: " + str(msg))
+        data_product = msg.name
+        height_deg = msg.value + 0.1
+        if height_deg > 10:
+            if data_product == 'color_image' and self.color_image_if is not None:
+                width_deg = self.color_image_if.set_height_deg(height_deg)
+            elif data_product == 'depth_map' and self.depth_map_if is not None:
+                height_deg = self.depth_map_if.set_height_deg(height_deg)
+            elif data_product == 'pointcloud' and self.pointcloud_if is not None:
+                height_deg = self.pointcloud_if.set_height_deg(height_deg)
+            self.set_height_deg(height_deg)
+
+
             
     def setAutoAdjustEnableCb(self, msg):
         #self.msg_if.pub_info("Recived Auto Adjust update message: " + str(msg))
@@ -1071,26 +1098,7 @@ class IDXDeviceIF(DeviceIF):
             status, err_str = self.setThresholdingRatio(ratio)
         if self.node_if is not None:
             self.node_if.set_param(self.node_if_prefix + 'threshold_ratio', ratio)
-        
-
-    def setResolutionRatioCb(self, msg):
-        #self.msg_if.pub_info("Recived Resolution update message: " + str(msg))
-        ratio = msg.data
- 
-        if ratio < 0.1:
-            ratio = 0.1
-        if ratio > 1.0:
-            ratio = 1.0
-
-        self.resolution_ratio = ratio
-        self.publish_status() # Updated inline here
-        # Call the parent's method and update ROS param as necessary
-        # We will only have subscribed if the parent provided a callback at instantiation, so we know it exists here
-        if self.setResolutionRatio is not None:
-            status, err_str = self.setResolutionRatio(ratio)
-        if self.node_if is not None:
-            self.node_if.set_param(self.node_if_prefix + 'resolution_ratio', ratio)
-        
+               
 
 
         
@@ -1152,8 +1160,7 @@ class IDXDeviceIF(DeviceIF):
         self.node_if.reset_param(self.node_if_prefix + 'auto_adjust_ebabled')       
         self.node_if.reset_param(self.node_if_prefix + 'brightness_ratio')
         self.node_if.reset_param(self.node_if_prefix + 'contrast_ratio')        
-        self.node_if.reset_param(self.node_if_prefix + 'threshold_ratio')
-        self.node_if.reset_param(self.node_if_prefix + 'resolution_ratio')   
+        self.node_if.reset_param(self.node_if_prefix + 'threshold_ratio')   
         self.node_if.reset_param(self.node_if_prefix + 'max_framerate')
         self.node_if.reset_param(self.node_if_prefix + 'start_range_ratio')
         self.node_if.reset_param(self.node_if_prefix + 'stop_range_ratio')
@@ -1262,40 +1269,34 @@ class IDXDeviceIF(DeviceIF):
                         #self.msg_if.pub_debug("No Data Recieved: " + data_product, throttle_s = 5.0)
                         pass
                     else:
-                        #self.msg_if.pub_debug("Got Data: " + data_product, throttle_s = 5.0)
+                        #self.msg_if.pub_warn("Got Data: " + data_product, throttle_s = 5.0)
                         
-                        # Get Image Info and Pub Status if Changed
-                        cur_width = self.width_px
-                        cur_height = self.height_px
-                        cv2_shape = cv2_img.shape
-                        self.width_px = cv2_shape[1] 
-                        self.height_px = cv2_shape[0]             
+                        # Get Image Info and Pub Status if Changed        
 
-                        if self.aspect_ratio_deg is None:
-                            self.aspect_ratio_deg = -999
-                        if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
-                            self.aspect_ratio_deg = round(self.width_px / self.height_px, 2)
-                            if self.node_if is not None:
-                                self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',self.aspect_ratio_deg)
-
-                        cur_aspect_ratio = round(self.width_px / self.height_px, 2)
-                        
-                        width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
-                        height_deg = self.height_deg
-                        #self.msg_if.pub_debug("Image Pub degs w,cw,ch,h,ar,cr:: " + str([self.width_deg,width_deg,self.height_deg,height_deg,self.aspect_ratio_deg,cur_aspect_ratio]), throttle_s = 5)
                         # Now process and publish image
+
+
+
                         cv2_img = self.color_image_if.publish_cv2_img(cv2_img, encoding = encoding,
                                                         timestamp = timestamp,
-                                                        width_deg = width_deg,
-                                                        height_deg = height_deg
+                                                        width_deg = self.width_deg,
+                                                        height_deg = self.height_deg
                                                         )
-
-
+                        
+                        self.color_image_width_deg = self.color_image_if.get_width_deg_current()
+                        self.color_image_height_deg = self.color_image_if.get_height_deg_current()
+                        #self.msg_if.pub_warn("Got image degs", data = [self.color_image_width_deg, self.color_image_height_deg], throttle_s = 5.0)
                         self.update_fps(data_product)
+                        if cv2_img is not None:
+                            cur_width = copy.deepcopy(self.color_image_width_px)
+                            cur_height = copy.deepcopy(self.color_image_height_px)
+                            cv2_shape = cv2_img.shape
+                            self.color_image_width_px = cv2_shape[1] 
+                            self.color_image_height_px = cv2_shape[0] 
+                            if cur_width != self.color_image_width_px or cur_height != self.color_image_height_px:
+                                self.publish_status()
 
-                        #self.msg_if.pub_debug("Got cv2_img size: " + str(self.width_px) + ":" + str(self.height_px) , throttle_s = 5.0)
-                        if cur_width != self.width_px or cur_height != self.height_px:
-                            self.publish_status()
+
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
@@ -1383,21 +1384,7 @@ class IDXDeviceIF(DeviceIF):
                         pass
                     else:                       
                         # Get Image Info and Pub Status if Changed
-                        cur_width = self.width_px
-                        cur_height = self.height_px
-                        cv2_shape = np_depth_map.shape
-                        self.width_px = cv2_shape[1] 
-                        self.height_px = cv2_shape[0] 
 
-                        # if self.aspect_ratio_deg == -999 or self.aspect_ratio_deg < 0.5 or self.aspect_ratio_deg > 2.5:
-                        #     self.aspect_ratio_deg  = round(self.width_px / self.height_px, 2)
-                        #     if self.node_if is not None:
-                        #         self.node_if.set_param(self.node_if_prefix + 'aspect_ratio_deg',self.aspect_ratio_deg)
-                        cur_aspect_ratio = self.width_px / self.height_px
-                        if self.aspect_ratio_deg is not None:
-                            self.aspect_ratio_deg = cur_aspect_ratio
-                        width_deg = self.width_deg / self.aspect_ratio_deg * cur_aspect_ratio
-                        height_deg = self.height_deg
 
                         #Publish Ros Image
                         #self.msg_if.pub_debug("Got Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
@@ -1407,16 +1394,26 @@ class IDXDeviceIF(DeviceIF):
                         #self.msg_if.pub_debug("Using Min Max Ranges: " + str([self.min_range_m,self.max_range_m]))
                         np_depth_map = self.depthmap_if.publish_np_depth_map(np_depth_map,
                                                 encoding = encoding,
-                                                width_deg = width_deg,
-                                                height_deg = height_deg,
+                                                width_deg = self.width_deg,
+                                                height_deg = self.height_deg,
                                                 min_range_m = min_range_m,
                                                 max_range_m = max_range_m,
                                                 timestamp = timestamp
                                                 )
 
+                        self.depth_map_width_deg = self.depthmap_if.get_width_deg_current()
+                        self.depth_map_height_deg = self.depthmap_if.get_height_deg_current()
                         self.update_fps(data_product)
-                        if cur_width != self.width_px or cur_height != self.height_px:
-                            self.publish_status()
+
+                        if np_depth_map is not None:
+                            cur_width = copy.deepcopy(self.depth_map_width_px)
+                            cur_height = copy.deepcopy(self.depth_map_height_px)
+                            cv2_shape = np_depth_map.shape
+                            self.depth_map_width_px = cv2_shape[1] 
+                            self.depth_map_height_px = cv2_shape[0] 
+                            if cur_width != self.depth_map_width_px or cur_height != self.depth_map_height_px:
+                                self.publish_status()
+
 
                 elif acquiring is True:
                     if dp_stop_data is not None:
@@ -1511,7 +1508,8 @@ class IDXDeviceIF(DeviceIF):
                                                 max_range_m = max_range_m,
                                                 timestamp = timestamp
                                                 )
-
+                        self.pointcloud_width_deg = self.pointcloud_if.get_width_deg_current()
+                        self.pointcloud_height_deg = self.pointcloud_if.get_height_deg_current()
                         self.update_fps(data_product)
 
                 elif acquiring is True:

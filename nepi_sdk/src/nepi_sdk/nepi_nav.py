@@ -265,6 +265,8 @@ BLANK_NAVPOSE_DICT = {
 
     'geoid_height_meters': 0.0,
 
+    'transform': copy.deepcopy(BLANK_TRANSFORM_DICT),
+
     'has_location': False,
     'time_location': 0.0,
     # Location Lat,Long
@@ -1125,6 +1127,7 @@ def convert_transform_dict2msg(transform_dict):
   transform_dict = check_transform_dict(transform_dict)
   transform_msg = Transform()
   if transform_dict is not None:
+    #logger.log_warn("Creating Transform Msg from Dict", data = [transform_dict], throttle_s = 5.0)
     try:
 
       transform_msg.x_m = transform_dict['x_m'] 
@@ -1286,7 +1289,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, do_checks = True):
           invert = -1 if transform_dict['yaw_invert'] else 1
           npy = npdata_dict['yaw_deg'] * invert
 
-          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],-ay,'z')
+          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ay,'z')
           npy += ay
           #[npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ap,'y')
           npp += ap
@@ -1301,7 +1304,7 @@ def transform_navpose_dict(npdata_dict, transform_dict, do_checks = True):
           invert = -1 if transform_dict['yaw_invert'] else 1
           npy = npdata_dict['yaw_deg_per_sec'] * invert
 
-          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],-ay,'z')
+          [npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ay,'z')
           npy += ay
           #[npr,npp,npy]  = rotate_enu_angles([npr,npp,npy],ap,'y')
           npp += ap
@@ -1389,19 +1392,10 @@ def transform_navpose_dict(npdata_dict, transform_dict, do_checks = True):
           [npx,npy,npz]  = rotate_enu_point([npx,npy,npz],ay,'z')
           navpose_dict['depth_m_per_sec'] = npy
 
-           
+          navpose_dict['transform'] = transform_dict           
       except Exception as e:
         success = False
         logger.log_warn("Failed to transfrom NavPose dict: " + str(e), throttle_s = 5.0)
-
-<<<<<<< HEAD
-
-      # if navpose_dict['heading_deg'] != 0 and navpose_dict['yaw_deg'] != 0:
-      #   navpose_dict['yaw_deg'] = clean_angle(navpose_dict['yaw_deg'] - navpose_dict['heading_deg'])
-
-      if navpose_dict['has_pan_tilt'] == True and transform_dict is not None:
-        navpose_dict['pt_transform'] = transform_dict
-
 
   #logger.log_warn("Transformed NavPose", data = navpose_dict , throttle_s = 10)
   return navpose_dict
@@ -1409,16 +1403,12 @@ def transform_navpose_dict(npdata_dict, transform_dict, do_checks = True):
 
 
 def transform_pt_navpose_dict(navpose_dict, transform_dict, pt_transoform_dict = None):
-  #logger.log_warn("Transforming PT NavPose", data = [navpose_dict,transform_dict] , throttle_s = 10)
+  #logger.log_warn("Transforming PT NavPose", data = [navpose_dict] , throttle_s = 10)
   if navpose_dict['has_pan_tilt'] == True and transform_dict is not None:
       if transform_dict is None:
         transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
-=======
-  logger.log_debug("Transforming PT NavPose", data = [navpose_dict,pt_transform_dict] , throttle_s = 10)
-  if navpose_dict['has_pan_tilt'] == True and pt_transform_dict is not None:
-      if pt_transform_dict is None:
-        pt_transform_dict = copy.deepcopy(BLANK_TRANSFORM_DICT)
->>>>>>> ae77c7f572cd195747bacb7baf5949573f25b6eb
+      source_transform = navpose_dict.get('transform',copy.deepcopy(BLANK_TRANSFORM_DICT))
+      
       try:
         #logger.log_warn("Transforming PT NavPose", data = [navpose_dict, transform_dict], throttle_s = 10)
         invert = -1 if transform_dict['yaw_invert'] else 1
@@ -1468,7 +1458,6 @@ def transform_pt_navpose_dict(navpose_dict, transform_dict, pt_transoform_dict =
           yaw_deg = 0
 
         [ar,ap,ay] = [roll_deg, -1 * pitch_deg, yaw_deg ]
-        #[ar,ap,ay] = rotate_enu_angles([ar,ap,ay],tilt_deg + tp,'y')
         [ar,ap,ay]  = rotate_enu_angles([ar,ap,ay],pan_deg + tyw,'z')
         #logger.log_warn("PT RPI Adj", data = [ar,ap,ay], throttle_s = 5.0)
         
@@ -1495,9 +1484,15 @@ def transform_pt_navpose_dict(navpose_dict, transform_dict, pt_transoform_dict =
         if z_m == -999:
           z_m = 0
 
+
+
+        
+
         [ax,ay,az] = [tx,ty,tz]
-        [ax,ay,az]  = rotate_enu_point([ax,ay,az],ptp,'y')
+        [ax,ay,az]  = rotate_enu_point([ax,ay,az],ptp ,'y')
         [ax,ay,az]  = rotate_enu_point([ax,ay,az],pan_deg,'z')
+
+        [ax,ay,az] = rotate_enu_point([ax,ay,az],-1 * source_transform['yaw_deg'],'z')
         navpose_dict['pan_tilt_x_m'] = x_m + ax
         navpose_dict['pan_tilt_y_m'] = y_m + ay
         navpose_dict['pan_tilt_z_m'] = z_m + az
@@ -1535,7 +1530,7 @@ def transform_pt_navpose_dict(navpose_dict, transform_dict, pt_transoform_dict =
         if navpose_dict['has_depth'] == True:
           navpose_dict['pan_tilt_depth_m_per_sec'] = navpose_dict['depth_m_per_sec'] #- navpose_dict['pan_tilt_z_m_per_sec']
 
-           
+        navpose_dict['pt_transform'] = transform_dict           
       except Exception as e:
         success = False
         logger.log_warn("Failed to transfrom PT NavPose dict: " + str(e), throttle_s = 5.0)
@@ -1657,6 +1652,7 @@ def convert_navpose_dict2msg(npdata_dict, timestamp = None, name = None, descrip
   np_msg.frame_depth = navpose_dict['frame_depth']
 
   np_msg.geoid_height_meters = navpose_dict['geoid_height_meters']
+  np_msg.transform = convert_transform_dict2msg(navpose_dict['transform'])
 
   np_msg.has_heading = navpose_dict['has_heading']
   np_msg.time_heading = navpose_dict['time_heading'] if np_msg.has_heading else 0.0
@@ -1753,6 +1749,7 @@ def convert_navpose_msg2dict(np_msg):
     npdata_dict['frame_altitude'] = np_msg.frame_altitude
     npdata_dict['frame_depth'] = np_msg.frame_depth
     npdata_dict['geoid_height_meters'] = np_msg.geoid_height_meters
+    npdata_dict['transform'] = nepi_sdk.convert_msg2dict(np_msg.transform)
 
     npdata_dict['has_location'] = np_msg.has_location
     npdata_dict['time_location'] = np_msg.time_location
@@ -1798,6 +1795,7 @@ def convert_navpose_msg2dict(np_msg):
     npdata_dict['depth_m_per_sec'] = np_msg.depth_m_per_sec
 
     npdata_dict['has_pan_tilt'] = np_msg.has_pan_tilt
+    npdata_dict['pt_transform'] = nepi_sdk.convert_msg2dict(np_msg.pt_transform)
     npdata_dict['pan_deg'] = np_msg.pan_deg
     npdata_dict['tilt_deg'] = np_msg.tilt_deg
     npdata_dict['pan_deg_per_sec'] = np_msg.pan_deg

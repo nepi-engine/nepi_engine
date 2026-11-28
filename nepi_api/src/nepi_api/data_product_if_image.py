@@ -376,11 +376,11 @@ class BaseImageIF(DataProductIF):
     x_scaler = 1
     y_scaler = 1
 
-    height_org = 0
-    width_org = 0
+    height_org = 1
+    width_org = 1
 
-    height_proc = 0
-    width_proc = 0
+    height_proc = 1
+    width_proc = 1
 
     width_start_deg = 0
     width_stop_deg = DEFAULT_WIDTH_DEG
@@ -417,6 +417,7 @@ class BaseImageIF(DataProductIF):
         live_adjust_y_deg = 0,
     )
     has_stabilize = False
+    stabilize_disabled = False
     stabilize_enabled = False
     stabilize_rotate_deg = 0
 
@@ -604,7 +605,14 @@ class BaseImageIF(DataProductIF):
         #######################
        
         update_params_dict = {
-
+            'width_deg': {
+                'namespace': self.namespace,
+                'factory_val': self.width_deg
+            },
+            'height_deg': {
+                'namespace': self.namespace,
+                'factory_val': self.height_deg
+            },
             'resolution_ratio': {
                 'name': 'resolution_ratio',
                 'namespace': self.namespace,
@@ -788,6 +796,22 @@ class BaseImageIF(DataProductIF):
         #######################
         # Subs Config Dict ####################
         update_subs_dict = {
+            'set_width_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_width_deg',
+                'msg': Int32,
+                'qsize': 1,
+                'callback': self.setWidthDegCb, 
+                'callback_args': ()
+            },
+            'set_height_deg': {
+                'namespace': self.namespace,
+                'topic': 'set_height_deg',
+                'msg': Int32,
+                'qsize': 1,
+                'callback': self.setHeightDegCb, 
+                'callback_args': ()
+            },
             'reset_all': {
                 'namespace': self.namespace,
                 'topic': 'reset',
@@ -2114,8 +2138,8 @@ class BaseImageIF(DataProductIF):
         self.status_msg.width_stop_deg = 0
         self.status_msg.height_start_deg = 0
         self.status_msg.height_stop_deg = 0
-        self.status_msg.width_deg = 0
-        self.status_msg.height_deg = 0
+        self.status_msg.width_deg = self.width_deg
+        self.status_msg.height_deg = self.height_deg
 
 
         self.status_msg.perspective = self.perspective
@@ -2174,7 +2198,7 @@ class BaseImageIF(DataProductIF):
     ###############################
 
     def update_status_msg(self, status_msg):
-
+        #self.msg_if.pub_warn("Got status image degs", data = [status_msg.width_deg,status_msg.height_deg], throttle_s = 5.0)
 
         source_status_dict = self.source_status_dict
         if self.callback_dict['get_source_status_callback'] is not None and  source_status_dict is None:
@@ -2214,6 +2238,32 @@ class BaseImageIF(DataProductIF):
 
         if self.source_navpose_topic is not None:
             status_msg.navpose_topic = self.source_navpose_topic
+
+
+        start_range_ratio = self.controls_dict['start_range_ratio']
+        stop_range_ratio = self.controls_dict['stop_range_ratio']
+
+        delta_range = self.max_range_m - self.min_range_m
+
+        status_msg.min_range_m = self.min_range_m
+        status_msg.max_range_m = self.max_range_m
+
+        status_msg.min_range_m_adj = self.min_range_m + delta_range * start_range_ratio
+        status_msg.max_range_m_adj = self.min_range_m + delta_range * stop_range_ratio
+
+        status_msg.stabilize_disabled = self.stabilize_disabled
+        status_msg.stabilize_enabled = self.stabilize_enabled
+        status_msg.stabilize_rotate_deg =  self.stabilize_rotate_deg
+    
+
+        status_msg.width_px = self.width_proc
+        status_msg.height_px = self.height_proc
+        res_str = str(self.width_proc) + ":" + str(self.height_proc)
+        status_msg.resolution_current = res_str
+
+        status_msg.width_deg = self.get_width_deg_current()
+        status_msg.height_deg = self.get_height_deg_current()
+
 
 
         status_msg.auto_adjust_enabled = self.controls_dict['auto_adjust_enabled']
@@ -2513,6 +2563,10 @@ class BaseImageIF(DataProductIF):
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
         if self.node_if is not None:
+
+            self.width_deg  = self.node_if.get_param(self.node_if_prefix +  'width_deg',100)
+            self.height_deg  = self.node_if.get_param(self.node_if_prefix +  'height_deg',70)
+
             self.controls_dict['resolution_ratio'] = self.node_if.get_param(self.node_if_prefix +  'resolution_ratio',1)
             self.controls_dict['auto_adjust_enabled'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_enabled',False)
             self.controls_dict['auto_adjust_ratio'] = self.node_if.get_param(self.node_if_prefix +  'auto_adjust_ratio',0.5)
@@ -2780,6 +2834,68 @@ class BaseImageIF(DataProductIF):
                 self.options_controls_if.set_control_value(name,value)
 
 
+
+    def setWidthDegCb(self, msg):
+        #self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
+        width_deg = int(float(msg.data + 0.1))
+        self.set_width_deg(width_deg)
+
+    def set_width_deg(self,width_deg):
+        width_deg = round(width_deg, 2)
+        if width_deg > 10 and self.width_deg != width_deg:
+            self.msg_if.pub_debug("Setting width deg: " + str(width_deg) , throttle_s = 5)
+            self.width_deg = width_deg
+            self.publish_status() # Updated inline here   
+            if self.node_if is not None:
+                self.node_if.set_param(self.node_if_prefix + 'width_deg', width_deg)
+        return self.width_deg
+
+    def set_width_deg_current(self,width_deg):
+        if width_deg > 10:
+            width_deg = round(width_deg * self.width_org / self.width_proc , 2)
+            if self.width_deg != width_deg:
+                self.width_deg = width_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'width_deg', width_deg)
+        return self.width_deg
+              
+    def get_width_deg(self):
+        return int(float(self.width_deg))
+
+    def get_width_deg_current(self):
+        return int(float(self.width_deg * self.width_proc / self.width_org)) 
+
+    def setHeightDegCb(self, msg):
+        #self.msg_if.pub_info("Recived Height Deg update message: " + str(msg))
+        height_deg = int(float(msg.data + 0.1))
+        self.set_height_deg(height_deg)
+
+    def set_height_deg(self,height_deg):
+        height_deg = round(height_deg, 2)
+        if height_deg > 10 and self.height_deg != height_deg:
+            self.height_deg = height_deg
+            self.publish_status() # Updated inline here   
+            if self.node_if is not None:
+                self.node_if.set_param(self.node_if_prefix + 'height_deg', height_deg)
+        return self.height_deg
+
+    def set_height_deg_current(self,height_deg):
+        if height_deg > 10:
+            height_deg = round(height_deg * self.height_org / self.height_proc , 2)
+            if self.height_deg != height_deg:
+                self.height_deg = height_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'height_deg', height_deg)
+        return self.height_deg
+
+    def get_height_deg(self):
+        return int(float(self.height_deg))
+
+    def get_height_deg_current(self):
+        return int(float(self.height_deg * self.height_proc / self.height_org)) 
+
     def process_cv2_img(self, cv2_img):
         """Apply any image processing pipeline to a org OpenCV image.
 
@@ -2797,8 +2913,8 @@ class BaseImageIF(DataProductIF):
     def publish_cv2_img(self, cv2_img_org,
                         encoding = "bgr8",
                         timestamp = None,
-                        width_deg = 100,
-                        height_deg = 70,
+                        width_deg = None,
+                        height_deg = None,
                         min_range_m = 0,
                         max_range_m = 0,
                         add_overlay_text_list = [],
@@ -2844,21 +2960,33 @@ class BaseImageIF(DataProductIF):
             numpy.ndarray: The processed image, or the original image if processing
             was skipped or an error occurred.
         """
+
+
+        if cv2_img_org is None:
+            return None
         
         cv2_img = copy.deepcopy(cv2_img_org)
 
+        [height,width] = cv2_img.shape[0:2]
+        [self.height_org,self.width_org] = [height,width]
+        #self.msg_if.pub_warn("Got Image size: " + str([height,width]) , throttle_s = 5)
 
-        self.source_status_dict = source_status_dict
+        
         if self.callback_dict['get_source_status_callback'] is not None and  source_status_dict is None:
                 try:
                     source_status_dict = self.callback_dict['get_source_status_callback']()
-
                 except Exception as e:
                     self.msg_if.pub_debug("Failed to get_source_status_callback: " + str(e) , throttle_s = 5)
         if source_status_dict is None:
             source_status_dict = dict()
+        self.source_status_dict = source_status_dict
+        width_deg = source_status_dict.get('width_deg', width_deg)
+        height_deg = source_status_dict.get('height_deg', height_deg)
+        if width_deg is not None and height_deg is not None:
+            self.set_width_deg(width_deg)
+            self.set_height_deg(height_deg)
+        #self.msg_if.pub_warn("Got Updated width deg", data = [self.width_org,self.width_proc,self.width_deg], throttle_s = 5.0)
         self.source_navpose_topic = source_status_dict.get('navpose_topic', None)
-
         if source_navpose_dict is None:
             source_navpose_dict = source_status_dict.get('navpose_msg', None)
             
@@ -2874,8 +3002,6 @@ class BaseImageIF(DataProductIF):
             navpose_dict = source_navpose_dict
         else:
             navpose_dict = self.get_navpose_dict()
-
-
 
 
         if self.publishing == False:
@@ -2914,29 +3040,12 @@ class BaseImageIF(DataProductIF):
                 start_time = nepi_utils.get_time()   
 
 
-                self.width_deg = source_status_dict.get('width_deg', width_deg)
-                self.height_deg = source_status_dict.get('height_deg', height_deg)
-                self.status_msg.width_deg = width_deg * (1 - self.zoom_ratio)
-                self.status_msg.height_deg = height_deg * (1 - self.zoom_ratio)
 
                 if (min_range_m is not None and max_range_m is not None):
                     self._updateRangesM(min_range_m,max_range_m)
-                    self.status_msg.min_range_m = self.min_range_m
-                    self.status_msg.max_range_m = self.max_range_m
                 else:
-                    self.status_msg.min_range_m = 0
-                    self.status_msg.max_range_m = 1
+                    self._updateRangesM(0,1)
 
-                start_range_ratio = self.controls_dict['start_range_ratio']
-                stop_range_ratio = self.controls_dict['stop_range_ratio']
-
-                delta_range = self.max_range_m - self.min_range_m
-                self.status_msg.min_range_m_adj = self.min_range_m + delta_range * start_range_ratio
-                self.status_msg.max_range_m_adj = self.min_range_m + delta_range * stop_range_ratio
-
-                [height,width] = cv2_img.shape[0:2]
-                [self.height_org,self.width_org] = [height,width]
-                #self.msg_if.pub_debug("Got Image size: " + str([height,width]) , throttle_s = 5)
 
 
                 ########
@@ -2961,14 +3070,17 @@ class BaseImageIF(DataProductIF):
                 if cv2_img is not None:
                     is_stabilized = source_status_dict.get('stabilize_enabled', False)
                     if is_stabilized == True:
-                        self.status_msg.stabilize_disabled = True
-                        self.status_msg.stabilize_enabled = True
+                        self.stabilize_disabled = True
+                        self.stabilize_enabled = True
                         self.stabilize_rotate_deg = source_status_dict.get('stabilize_rotate_deg', 0)
                     else:
                         cv2_img = self._stabilizeAdjust(cv2_img, navpose_dict)          
-                        self.status_msg.stabilize_disabled = False
-                        self.status_msg.stabilize_enabled = self.stabilize_enabled and self.caps_dict['has_stabilize']
-                    self.status_msg.stabilize_rotate_deg = self.stabilize_rotate_deg                               
+                        self.stabilize_disabled = False
+                        self.stabilize_enabled = self.stabilize_enabled and self.caps_dict['has_stabilize']
+                
+
+                    
+
 
                 ###########
                 if self.callback_dict.get('post_process_callback', None) is not None and  post_process_callback is None:
@@ -2982,16 +3094,7 @@ class BaseImageIF(DataProductIF):
                 ########################################
                 if cv2_img is not None:
                     [height,width] = cv2_img.shape[0:2]
-                    [self.height_proc,self.width_proc] = [height,width]
-                    #self.msg_if.pub_debug("Got Processed Image size: " + str([height,width]) , throttle_s = 5)
-
-                    last_width = self.status_msg.width_px
-                    last_height = self.status_msg.height_px
-                    self.status_msg.width_px = width
-                    self.status_msg.height_px = height
-                    res_str = str(width) + ":" + str(height)
-                    self.status_msg.resolution_current = res_str
-
+                    
                     if height > 5 and width > 5:
 
                         ######################             
@@ -3013,26 +3116,26 @@ class BaseImageIF(DataProductIF):
                                 x_deg_offset = round(crosshair_dict['x_deg_offset'] + 0.02, 1)
                                 x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
                                 x_offset_ratio = (x_ratio - 0.5)
-                                x_scale = (self.width_proc/self.width_org)
+                                x_scale = (width/self.width_org)
                                 x_offset_pixel = int((x_offset_ratio * self.width_org))
-                                x_pixel = int((self.width_proc/2) + x_offset_pixel)
+                                x_pixel = int((width/2) + x_offset_pixel)
                                 if x_pixel < 0:
                                     x_pixel = 0
-                                if x_pixel > self.width_proc:
-                                    x_pixel = self.width_proc
+                                if x_pixel > width:
+                                    x_pixel = width
                                 #self.msg_if.pub_debug("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel])  , throttle_s = 5)
 
 
                                 y_deg_offset = round(crosshair_dict['y_deg_offset'] + 0.02, 1)
                                 y_ratio = ((self.height_deg/2) + y_deg_offset)/self.height_deg
                                 y_offset_ratio = -1 * (0.5 - y_ratio)
-                                y_scale = (self.height_proc/self.height_org)
+                                y_scale = (height/self.height_org)
                                 y_offset_pixel = int((y_offset_ratio * self.height_org))
-                                y_pixel = int((self.height_proc/2) + y_offset_pixel)
+                                y_pixel = int((height/2) + y_offset_pixel)
                                 if y_pixel < 0:
                                     y_pixel = 0
-                                if y_pixel > self.height_proc:
-                                    y_pixel = self.height_proc
+                                if y_pixel > height:
+                                    y_pixel = height
                                
                                 pixel = [x_pixel,y_pixel]
                                 pixel_adj = copy.deepcopy(pixel)
@@ -3114,18 +3217,18 @@ class BaseImageIF(DataProductIF):
                                 x_deg_offset = round(target_dict['x_deg_offset'] + 0.02, 1) 
                                 x_ratio = ((self.width_deg/2) - x_deg_offset)/self.width_deg
                                 x_offset_ratio = (x_ratio - 0.5)
-                                x_scale = (self.width_proc/self.width_org)
+                                x_scale = (width/self.width_org)
                                 x_offset_pixel = int((x_offset_ratio * self.width_org))
-                                x_pixel = int((self.width_proc/2) + x_offset_pixel)
+                                x_pixel = int((width/2) + x_offset_pixel)
                                 #self.msg_if.pub_debug("Rendering target x: " + str([x_deg_offset,x_ratio,x_offset_ratio,x_scale,x_offset_pixel,x_pixel])  , throttle_s = 5)
 
 
                                 y_deg_offset = round(target_dict['y_deg_offset'] + 0.02, 1)
                                 y_ratio = ((self.height_deg/2) + y_deg_offset)/self.height_deg
                                 y_offset_ratio = -1 * (0.5 - y_ratio)
-                                y_scale = (self.height_proc/self.height_org)
+                                y_scale = (height/self.height_org)
                                 y_offset_pixel = int((y_offset_ratio * self.height_org))
-                                y_pixel = int((self.height_proc/2) + y_offset_pixel)
+                                y_pixel = int((height/2) + y_offset_pixel)
 
 
                                 pixel = [x_pixel,y_pixel]
@@ -3252,6 +3355,12 @@ class BaseImageIF(DataProductIF):
 
 
 
+                        ###  CLEAN UP & PUBLISH
+                        [height,width] = cv2_img.shape[0:2]
+                        [self.height_proc,self.width_proc] = [height,width]
+                        #self.msg_if.pub_debug("Got Processed Image size: " + str([height,width]) , throttle_s = 5)
+
+                     
                         if self.node_if is not None and self.needs_data == True and cv2_img is not None:
                             #self.msg_if.pub_debug("Publishing once")
                             #Convert to ros Image message
@@ -3304,9 +3413,6 @@ class BaseImageIF(DataProductIF):
                             self.time_list.pop(0)
                             self.time_list.append(pub_time_sec)
 
-                        # Update blank image if needed
-                        if last_width != self.status_msg.width_px or last_height != self.status_msg.height_px:
-                            self.blank_img = nepi_img.create_cv2_blank_img(width, height, color_rgb = (0, 0, 0) )
 
 
    
@@ -4954,8 +5060,8 @@ class BaseImageIF(DataProductIF):
         pixel = pixel_adj        
 
         
-        image_fov_horz = self.status_msg.width_deg
-        image_fov_vert = self.status_msg.height_deg
+        image_fov_horz = self.width_deg
+        image_fov_vert = self.height_deg
         pixel_vert_angle_deg = 0
         pixel_horz_angle_deg = 0
         object_loc_x_ratio_from_center = 0
@@ -5651,6 +5757,9 @@ class BaseImageIF(DataProductIF):
     def _setLiveAdjustTranYDegCb(self,msg):
         deg = msg.data
         self.set_live_adjust_y_deg(deg)
+
+
+
 
     def _resetControlsCb(self,msg):
         self.reset_filters()

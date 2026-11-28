@@ -178,6 +178,9 @@ class DepthMapIF(DataProductIF):
     live_adjustments_disabled = False
     aspect_adjustment_disabled = False
 
+    width_deg = 100
+    height_deg =  70
+
     def __init__(self, 
                 name = 'depth_map',
                 namespace = None,
@@ -281,7 +284,16 @@ class DepthMapIF(DataProductIF):
         # Add Services
         #######################
        
-        params_dict = {}
+        params_dict = {
+            'width_deg': {
+                'namespace': self.namespace,
+                'factory_val': self.width_deg
+            },
+            'height_deg': {
+                'namespace': self.namespace,
+                'factory_val': self.height_deg
+            },
+        }
         self.add_params(params_dict)
 
         #######################
@@ -573,10 +585,97 @@ class DepthMapIF(DataProductIF):
         """
         self.status_msg.img_pub_enabled = enabled
 
+
+
+    def setWidthDegCb(self, msg):
+        #self.msg_if.pub_info("Recived Width Deg update message: " + str(msg))
+        width_deg = int(float(msg.data + 0.1))
+        self.set_width_deg(width_deg)
+
+    def set_width_deg(self,width_deg):
+        if width_deg > 10:
+            width_deg = self.image_if.set_width_deg(width_deg)
+            if self.image_if is not None:
+                width_deg = width_deg
+            else:
+                width_deg = round( width_deg, 2)
+            if width_deg != self.width_deg:
+                self.width_deg = width_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'width_deg', width_deg)    
+        return self.width_deg 
+
+    def set_width_deg(self,width_deg):
+        if width_deg > 10:
+            
+            if self.image_if is not None:
+                width_deg = self.image_if.set_width_deg_current(width_deg)
+            else:
+                width_deg = round( width_deg * self.width_org / self.width_proc, 2)
+            if width_deg != self.width_deg:
+                self.width_deg = width_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'width_deg', width_deg)    
+        return self.width_deg 
+
+    def get_width_deg(self):
+        width_deg = self.width_deg
+        if self.image_if is not None:
+            width_deg = self.image_if.get_width_deg()
+        return int(float(width_deg))
+
+    def get_width_deg_current(self):
+        width_deg = self.width_deg
+        if self.image_if is not None:
+            width_deg = self.image_if.get_width_deg_current()
+        return int(float(width_deg)) 
+
+    def set_height_deg(self,height_deg):
+        if height_deg > 10:
+            height_deg = self.image_if.set_height_deg(height_deg)
+            if self.image_if is not None:
+                height_deg = height_deg
+            else:
+                height_deg = round( height_deg, 2)
+            if height_deg != self.height_deg:
+                self.height_deg = height_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'height_deg', height_deg)    
+        return self.width_deg 
+
+    def set_height_deg(self,height_deg):
+        if height_deg > 10:
+            
+            if self.image_if is not None:
+                height_deg = self.image_if.set_height_deg_current(height_deg)
+            else:
+                height_deg = round( height_deg * self.height_org / self.height_proc, 2)
+            if height_deg != self.height_deg:
+                self.height_deg = height_deg
+                self.publish_status() # Updated inline here   
+                if self.node_if is not None:
+                    self.node_if.set_param(self.node_if_prefix + 'height_deg', height_deg)    
+        return self.width_deg 
+    
+    def get_height_deg(self):
+        height_deg = self.height_deg
+        if self.image_if is not None:
+            height_deg = self.image_if.get_height_deg()
+        return int(float(height_deg))
+
+    def get_height_deg_current(self):
+        height_deg = self.height_deg
+        if self.image_if is not None:
+            height_deg = self.image_if.get_height_deg_current()
+        return int(float(height_deg)) 
+
     def publish_np_depth_map(self, np_depth_map,
                             encoding = '32FC1',
-                            width_deg = 100,
-                            height_deg = 70,
+                            width_deg = None,
+                            height_deg = None,
                              min_range_m = 0,
                              max_range_m = 100,
                              timestamp = None,
@@ -645,8 +744,13 @@ class DepthMapIF(DataProductIF):
             self.status_msg.width_px = width
             self.status_msg.height_px = height
 
-            self.status_msg.width_deg = width_deg
-            self.status_msg.height_deg = height_deg
+
+            if width_deg is not None and height_deg is not None:
+                self.set_width_deg(width_deg)
+                self.set_height_deg(height_deg)
+
+            self.status_msg.width_deg = self.width_deg
+            self.status_msg.height_deg = self.height_deg
             #self.msg_if.pub_debug('Pub Depth Got Min Max Depths: ' + str([min_range_m, max_range_m]) )
             if (min_range_m is not None and max_range_m is not None):
                 self._updateRangesM(min_range_m,max_range_m)
@@ -682,8 +786,8 @@ class DepthMapIF(DataProductIF):
                     self.image_if.publish_depth_map_img(np_depth_map,
                                         min_range_m = self.min_range_m, 
                                         max_range_m = self.max_range_m,
-                                        width_deg = width_deg,
-                                        height_deg = height_deg,
+                                        width_deg = self.width_deg,
+                                        height_deg = self.height_deg,
                                         timestamp = timestamp,
                                         pub_twice = pub_twice
                                     )
@@ -756,7 +860,8 @@ class DepthMapIF(DataProductIF):
             do_updates (bool, optional): Reserved for future use. Defaults to False.
         """
         if self.node_if is not None:
-            pass
+            self.width_deg  = self.node_if.get_param(self.node_if_prefix +  'width_deg',100)
+            self.height_deg  = self.node_if.get_param(self.node_if_prefix +  'height_deg',70)
         if do_updates == True:
             pass
         self.publish_status()
